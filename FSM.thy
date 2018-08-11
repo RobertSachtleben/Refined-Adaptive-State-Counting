@@ -148,6 +148,18 @@ lemma observable_sequence1d : "
   apply (cases a2)
   by (auto simp: well_formed_def observable_def)
 
+lemma observable_sequence1d2 : "
+  well_formed M 
+  \<Longrightarrow> observable M 
+  \<Longrightarrow> is_enabled_sequence M s (a1#S1)
+  \<Longrightarrow> is_enabled_sequence M s (a2#S2)  
+  \<Longrightarrow> get_io (a1#S1) = get_io (a2#S2)  
+  \<Longrightarrow> a1 = a2"
+  apply (cases a1)
+  apply (cases a2)
+  by (auto simp: well_formed_def observable_def)
+  
+
 lemma observable_sequence1e : "
   well_formed M 
   \<Longrightarrow> observable M 
@@ -160,6 +172,64 @@ lemma observable_sequence1e : "
   by (auto simp: well_formed_def observable_def)
 
 
+
+
+lemma observable_sequence : "
+  well_formed M 
+  \<Longrightarrow> observable M 
+  \<Longrightarrow> is_enabled_sequence M s seq1 
+  \<Longrightarrow> is_enabled_sequence M s seq2  
+  \<Longrightarrow> get_io seq1 = get_io seq2 
+  \<Longrightarrow> seq1 = seq2"
+proof -
+  let ?zipList = "zip seq1 seq2"
+  have "length seq1 = length seq2" using wf by (metis get_io.simps length_map)
+  moreover have "seq1 = map fst ?zipList" by (simp add: calculation)
+  moreover have "seq2 = map snd ?zipList" by (simp add: calculation)
+  ultimately have ?thesis 
+  proof (induction ?zipList)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons  a x)
+    obtain 
+    then show ?case sorry
+  qed
+qed
+
+
+theorem test:
+  assumes wf:"well_formed M" 
+  assumes ob:"observable M"  
+  assumes e1:"is_enabled_sequence M s seq" 
+  assumes e2:"is_enabled_sequence M s seq2 "
+  assumes io:"get_io seq = get_io seq2 "
+  shows
+    "seq = seq2"
+proof -
+  have "length seq = length seq2" using wf by (metis get_io.simps length_map)
+  then obtain n where n_def : "n = length seq \<and> n = length seq2" by simp
+  
+  then show ?thesis using assms
+  proof (induction n)
+    case 0
+    then show ?case by auto
+  next
+    case (Suc n)
+    obtain a1 S1 where seq1_head : "seq = (a1#S1)" by (meson Suc.prems(1) Suc_length_conv)
+    obtain a2 S2 where seq2_head : "seq2 = (a2#S2)" by (meson Suc.prems(1) Suc_length_conv)
+    have "n = length S1" using Suc.prems(1) seq1_head by auto 
+    moreover have "n = length S2" using Suc.prems(1) seq2_head by auto
+    
+print_theorems
+
+    ultimately have "S1 = S2" using Suc.IH by sledgehammer
+    then show ?case
+  qed
+qed
+  
+
+
 lemma observable_sequence : "
   well_formed M 
   \<Longrightarrow> observable M 
@@ -168,6 +238,29 @@ lemma observable_sequence : "
   \<Longrightarrow> get_io seq = get_io seq2 
   \<Longrightarrow> seq = seq2"
 proof (induction seq)
+  case Nil
+  then show ?case sorry
+next
+  case (Cons a seq)
+  then show ?case sorry
+qed
+  have "length seq = length seq2" by (meson get_io_length)
+  then obtain n where n_def : "n = length seq \<and> n = length seq2" by (meson get_io_length)
+qed
+
+
+
+
+
+  let ?n = "length seq"
+  then show ?thesis 
+  proof (induction ?n)
+    case 0
+    then show ?case sledgehammer
+  next
+    case (Suc x)
+    then show ?case sorry
+  qed
   case Nil
   then show ?case by auto
 next
