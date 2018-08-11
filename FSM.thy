@@ -172,7 +172,58 @@ lemma observable_sequence1e : "
   by (auto simp: well_formed_def observable_def)
 
 
+lemma first_list_diff :
+  fixes zipSeq :: "('a * 'a) list"
+  assumes ineq : "map fst zipSeq \<noteq> map snd zipSeq"
+  shows "\<exists> mdi . 
+            mdi < length zipSeq 
+            \<and> fst (zipSeq ! mdi) \<noteq> snd (zipSeq ! mdi)
+            \<and> (\<forall> i . (i < mdi) \<longrightarrow> fst (zipSeq ! i) = snd (zipSeq ! i))"
+proof
+  let twi = "length (takeWhile (
 
+lemma first_list_diff : "
+  seq1 \<noteq> seq2 
+  \<Longrightarrow> length seq1 = length seq2
+  \<Longrightarrow> \<exists> mdi . mdi \<le> length seq1 \<and> seq1 ! mdi \<noteq> seq2 ! mdi \<and> (\<forall> i . i < mdi \<longrightarrow> seq1 ! i = seq2 ! i)"
+proof (induction seq1)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a seq1)
+  then show ?case sorry
+qed
+
+(*
+\<Longrightarrow> (\<exists> i . take i seq1 = take i seq2 \<and> take (Suc i) seq1 \<noteq> take (Suc i) seq2)"
+\<Longrightarrow> length (takeWhile (\<lambda> (a1,a2) . a1 = a2) (zip seq1 seq2)) < length seq1"
+*)
+  
+
+theorem test:
+  assumes wf:"well_formed M" 
+  assumes ob:"observable M"  
+  assumes e1:"is_enabled_sequence M s seq1" 
+  assumes e2:"is_enabled_sequence M s seq2 "
+  assumes io:"get_io seq1 = get_io seq2 "
+  shows
+    "seq1 = seq2"
+proof (rule ccontr)
+  assume ineq: "seq1 \<noteq> seq2"
+  let ?diffs = "{i . i \<le> length seq1 \<and>  seq1 ! i \<noteq> seq2 ! i}"
+  have "length seq1 = length seq2" by (metis get_io.simps length_map)
+  moreover have "\<exists> i . i \<le> length seq1 \<and>  seq1 ! i \<noteq> seq2 ! i" by (meson ineq less_irrefl less_le_trans linear nth_equalityI)
+  moreover obtain mdi where mdi_def : "mdi \<in> ?diffs \<and> (\<forall> i \<in> ?diffs . mdi \<le> i)" by auto
+  ultimately have "take mdi seq1 = take mdi seq2" by sledgehammer
+  
+  
+  ultimately obtain minDiffIndex where mdi_def :
+      "minDiffIndex \<le> length seq1 
+        \<and> seq1 ! minDiffIndex \<noteq> seq2 ! minDiffIndex
+        \<and> (\<forall> (i::nat) . (i < minDiffIndex) \<longrightarrow> (seq1 ! i = seq2 ! i))" by sledgehammer
+  
+  then have "?diffs \<noteq> {}" by auto
+  then have "\<forall> (i::nat) . (i < minDiffIndex) \<longrightarrow> take i seq1 = take i seq2" by sledgehamme
 
 lemma observable_sequence : "
   well_formed M 
