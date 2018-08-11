@@ -212,26 +212,12 @@ proof -
             \<and> (\<forall> i . (i < twi) \<longrightarrow> fst (?zipSeq ! i) = snd (?zipSeq ! i))" using  first_list_diff_zip by blast
   then show ?thesis by auto
 qed
-    
 
-
-lemma first_list_diff : "
-  seq1 \<noteq> seq2 
-  \<Longrightarrow> length seq1 = length seq2
-  \<Longrightarrow> \<exists> mdi . mdi \<le> length seq1 \<and> seq1 ! mdi \<noteq> seq2 ! mdi \<and> (\<forall> i . i < mdi \<longrightarrow> seq1 ! i = seq2 ! i)"
-proof (induction seq1)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons a seq1)
-  then show ?case sorry
-qed
-
-(*
-\<Longrightarrow> (\<exists> i . take i seq1 = take i seq2 \<and> take (Suc i) seq1 \<noteq> take (Suc i) seq2)"
-\<Longrightarrow> length (takeWhile (\<lambda> (a1,a2) . a1 = a2) (zip seq1 seq2)) < length seq1"
-*)
-  
+lemma sequence_state_last_first :
+  assumes en : "is_enabled_sequence M s seq"
+  assumes idx: "(Suc j) < length seq"
+  shows "snd (snd (snd (seq ! j))) = fst (seq ! (Suc n))"
+  apply sledgehammer
 
 theorem test:
   assumes wf:"well_formed M" 
@@ -243,11 +229,39 @@ theorem test:
     "seq1 = seq2"
 proof (rule ccontr)
   assume ineq: "seq1 \<noteq> seq2"
-  let ?diffs = "{i . i \<le> length seq1 \<and>  seq1 ! i \<noteq> seq2 ! i}"
-  have "length seq1 = length seq2" by (metis get_io.simps length_map)
-  moreover have "\<exists> i . i \<le> length seq1 \<and>  seq1 ! i \<noteq> seq2 ! i" by (meson ineq less_irrefl less_le_trans linear nth_equalityI)
-  moreover obtain mdi where mdi_def : "mdi \<in> ?diffs \<and> (\<forall> i \<in> ?diffs . mdi \<le> i)" by auto
-  ultimately have "take mdi seq1 = take mdi seq2" by sledgehammer
+  have sameLength : "length seq1 = length seq2" by (meson e1 e2 get_io_length io local.wf)
+  then obtain mdi where mdi_def : (* minimal difference index *)
+        "mdi < length seq1 
+          \<and> seq1 ! mdi \<noteq> seq2 ! mdi 
+          \<and> (\<forall> i . i < mdi \<longrightarrow> seq1 ! i = seq2 ! i)" using first_list_diff ineq by blast
+  then have "take mdi seq1 = take mdi seq2" by (simp add: nth_take_lemma sameLength)
+  let ?equalInit = "take mdi seq1"
+  let ?diff1 = "seq1 ! mdi"
+  let ?diff2 = "seq2 ! mdi"
+  have io_eq_index : "\<forall> i . (fst (snd (seq1 ! i)) = fst (snd (seq1 ! i))) \<and> (fst (snd (snd (seq1 ! i))) = fst (snd (snd (seq1 ! i))))" by simp
+  have "False"
+  proof (cases mdi)
+    case 0
+    obtain s1 xa ya s2 where diff1_def : "seq1 ! mdi = (s1,xa,ya,s2)" using prod_cases4 by blast
+    obtain t1 xb yb t2 where diff2_def : "seq2 ! mdi = (t1,xb,yb,t2)" using prod_cases4 by blast
+    have "s1 = t1" by (metis "0" diff1_def diff2_def e1 e2 hd_conv_nth is_enabled_sequence.simps(2) length_0_conv list.exhaust_sel mdi_def sameLength)
+    moreover have "xa = xb" using assms by (smt "0" Suc_length_conv gr0_conv_Suc mdi_def nth_Cons_0 observable_sequence1d2 sameLength)
+    moreover have "ya = yb" using assms by (smt "0" Suc_length_conv gr0_conv_Suc mdi_def nth_Cons_0 observable_sequence1d2 sameLength)
+    moreover have "s2 = t2" using assms by (smt "0" Suc_length_conv gr0_conv_Suc mdi_def nth_Cons_0 observable_sequence1d2 sameLength)
+    ultimately have "seq1 ! mdi = seq2 ! mdi" by (simp add: diff1_def diff2_def)
+    moreover have "seq1 ! mdi \<noteq> seq2 ! mdi" using mdi_def by auto
+    ultimately show ?thesis by auto
+  next
+    case (Suc lastSame)
+    
+    obtain s1 xa ya s2 where diff1_def : "seq1 ! mdi = (s1,xa,ya,s2)" using prod_cases4 by blast
+    obtain t1 xb yb t2 where diff2_def : "seq2 ! mdi = (t1,xb,yb,t2)" using prod_cases4 by blast
+    obtain s0 xp yp s1p where same_def : "seq1 ! lastSame = (s0,xp,yp,s1p)" using prod_cases4 by blast
+    have same_last : "seq1 ! lastSame = seq2 ! lastSame" using mdi_def by (simp add: Suc)
+    have "s1 = s1p" using e1 by sledgehammer
+
+    then show ?thesis sorry
+  qed
   
   
   ultimately obtain minDiffIndex where mdi_def :
