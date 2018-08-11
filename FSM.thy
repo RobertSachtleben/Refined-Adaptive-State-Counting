@@ -172,7 +172,7 @@ lemma observable_sequence1e : "
   by (auto simp: well_formed_def observable_def)
 
 
-lemma first_list_diff :
+lemma first_list_diff_zip :
   fixes zipSeq :: "('a * 'a) list"
   assumes ineq : "map fst zipSeq \<noteq> map snd zipSeq"
   shows "\<exists> mdi . 
@@ -180,7 +180,40 @@ lemma first_list_diff :
             \<and> fst (zipSeq ! mdi) \<noteq> snd (zipSeq ! mdi)
             \<and> (\<forall> i . (i < mdi) \<longrightarrow> fst (zipSeq ! i) = snd (zipSeq ! i))"
 proof
-  let twi = "length (takeWhile (
+  let ?twi = "length (takeWhile (\<lambda> (a1,a2) . a1 = a2) zipSeq)"
+  have "?twi < length zipSeq" 
+  proof (rule ccontr)
+    assume "\<not> (?twi < length zipSeq)"
+    then have "?twi = length zipSeq" by (simp add: length_takeWhile_le nat_less_le)
+    then have "map fst zipSeq = map snd zipSeq" by (metis length_map list_eq_iff_zip_eq nth_equalityI set_takeWhileD takeWhile_nth zip_map_fst_snd)
+    then show "False" using ineq by auto
+  qed
+  moreover have "fst (zipSeq ! ?twi) \<noteq> snd (zipSeq ! ?twi)" using calculation nth_length_takeWhile by fastforce
+  moreover have "\<forall> i . (i < ?twi) \<longrightarrow> fst (zipSeq ! i) = snd (zipSeq ! i)" by (metis (full_types) case_prod_beta' nth_mem set_takeWhileD takeWhile_nth)
+  ultimately show "?twi < length zipSeq
+            \<and> fst (zipSeq ! ?twi) \<noteq> snd (zipSeq ! ?twi)
+            \<and> (\<forall> i . (i < ?twi) \<longrightarrow> fst (zipSeq ! i) = snd (zipSeq ! i))" by auto
+qed
+  
+
+lemma first_list_diff : 
+  assumes ineq: "seq1 \<noteq> seq2"
+  assumes sameLength: "length seq1 = length seq2"
+  shows "\<exists> mdi . 
+          mdi < length seq1 
+          \<and> seq1 ! mdi \<noteq> seq2 ! mdi 
+          \<and> (\<forall> i . i < mdi \<longrightarrow> seq1 ! i = seq2 ! i)"
+proof -
+  let ?zipSeq = "zip seq1 seq2"
+  have "map fst ?zipSeq \<noteq> map snd ?zipSeq" by (simp add: ineq sameLength)
+  then have "\<exists> twi .
+            twi < length ?zipSeq 
+            \<and> fst (?zipSeq ! twi) \<noteq> snd (?zipSeq ! twi)
+            \<and> (\<forall> i . (i < twi) \<longrightarrow> fst (?zipSeq ! i) = snd (?zipSeq ! i))" using  first_list_diff_zip by blast
+  then show ?thesis by auto
+qed
+    
+
 
 lemma first_list_diff : "
   seq1 \<noteq> seq2 
