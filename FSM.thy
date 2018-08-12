@@ -10,23 +10,6 @@ record ('in, 'out, 'state) FSM =
   transitions :: "('state * 'in * 'out * 'state) set"
 
 
-
-(*
-inductive enabled_transition_seq :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> (('in * 'out) * 'state) list => bool" where
-ets_nil  : "enabled_transition_seq M s Nil" |
-ets_one  : "(s1,x,y,s2) \<in> transitions M \<Longrightarrow> enabled_transition_seq M s1 (((x,y),s2)#Nil)" |
-ets_long : "(s1,x,y,s2) \<in> transitions M \<Longrightarrow> enabled_transition_seq M s2 seq \<Longrightarrow> enabled_transition_seq M s1 (((x,y),s2)#seq)"
-
-inductive reachable :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> bool" where
-reachable_init : "reachable M (initial M)" |
-reachable_immediately : "((initial M),x,y,s2) \<in> transitions M \<Longrightarrow> reachable M s2" |
-reachable_distant : "(s2,x,y,s3) \<in> transitions M \<Longrightarrow> reachable M s2 \<Longrightarrow> reachable M s3"
-
-inductive reaches :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> 'state \<Rightarrow> bool" where
-reaches_nil : "reaches M Nil (initial M)" |
-reaches_transition : "reaches M seq s1 \<Longrightarrow> (s1,x,y,s2) \<in> transitions M \<Longrightarrow> reaches M (seq@((x,y)#Nil)) s2"
-*)
-
 fun t_source :: "('state * 'in * 'out * 'state) \<Rightarrow> 'state" where
 "t_source (s1,x,y,s2) = s1"
 
@@ -85,10 +68,7 @@ qed
 
 fun is_enabled_sequence :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list => bool" where
 "is_enabled_sequence M s Nil = True" |
-(*"is_enabled_sequence M s ((s1,x,y,s2)#seq) = (s = s1 \<and> (s1,x,y,s2) \<in> transitions M \<and> is_enabled_sequence M s2 seq)"*)
 "is_enabled_sequence M s (a#seq) = ((fst a = s) \<and> is_sequence M (a#seq))"
-
-print_theorems
 
 fun enabled_sequences :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list set" where
 "enabled_sequences M s = {seq . is_enabled_sequence M s seq}"
@@ -96,8 +76,6 @@ fun enabled_sequences :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightar
 fun get_io :: "('state * 'in * 'out * 'state) list \<Rightarrow> ('in * 'out) list" where
 "get_io Nil = Nil" |
 "get_io ((s1,x,y,s2)#seq) = (x,y) # get_io seq"
-(*"get_io seq = zip (map t_input seq) (map t_output seq)"*)
-(*"get_io seq = map (\<lambda> (s1,x,y,s2) . (x,y)) seq"*)
 
 definition is_enabled_io_sequence :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in * 'out) list => bool" where
 "is_enabled_io_sequence M s io \<equiv> \<exists> seq . is_enabled_sequence M s seq \<and> io = get_io seq"
@@ -132,10 +110,7 @@ definition well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
 "
 
 lemma transition_finite : "well_formed M \<Longrightarrow> finite (transitions M)"
-  apply (simp add: well_formed_def)
-  apply auto
-  apply (simp add: finite_subset)
-  done
+  by (auto simp: well_formed_def finite_subset)
 
 
 
@@ -233,12 +208,10 @@ qed
 
 lemma get_io_input_index : "\<forall> j . ((j < length seq) \<and> (length seq > 0)) \<longrightarrow> t_input (seq ! j) = fst ((get_io seq) ! j)"
   apply (induction seq)
-  apply auto
   using less_Suc_eq_0_disj by auto
 
 lemma get_io_output_index : "\<forall> j . ((j < length seq) \<and> (length seq > 0)) \<longrightarrow> t_output (seq ! j) = snd ((get_io seq) ! j)"
   apply (induction seq)
-  apply auto
   using less_Suc_eq_0_disj by auto
 
 lemma get_io_index_eq :
@@ -308,18 +281,20 @@ proof (rule ccontr)
   qed
 qed
 
+
 corollary observable_unique_io_set:
   assumes ob:"observable M"  
   assumes en:"is_enabled_sequence M s seq1" 
-  shows "{ seq2 . is_enabled_sequence M s seq2 \<and> get_io seq1 = get_io seq2 } = { seq1 }"
+  assumes io:"io_seq = get_io seq1"
+  shows "{ seq2 . is_enabled_sequence M s seq2 \<and> get_io seq2 = io_seq} = { seq1 }"
 proof (rule ccontr)
-  let ?io_set = "{ seq2 . is_enabled_sequence M s seq2 \<and> get_io seq1 = get_io seq2 }" 
+  let ?io_set = "{ seq2 . is_enabled_sequence M s seq2 \<and> get_io seq2 = io_seq}" 
   assume ineq: "?io_set \<noteq> { seq1 }"
   have "seq1 \<in> ?io_set" using assms by simp
   then obtain seq2 where seq2_def : "seq2 \<in> ?io_set \<and> seq2 \<noteq> seq1" using ineq by blast
-  then have "get_io seq1 = get_io seq2" using seq2_def by simp
+  then have "get_io seq2 = io_seq" using seq2_def io by simp
   moreover have "is_enabled_sequence M s seq2" using seq2_def by simp
-  ultimately have "seq1 = seq2" using observable_unique_io en ob by fastforce
+  ultimately have "seq1 = seq2" using en io ob observable_unique_io by fastforce
   then show "False" using seq2_def by auto
 qed
 
