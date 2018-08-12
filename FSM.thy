@@ -258,7 +258,6 @@ proof -
 qed
 
 theorem observable_unique_io:
-  assumes wf:"well_formed M" 
   assumes ob:"observable M"  
   assumes e1:"is_enabled_sequence M s seq1" 
   assumes e2:"is_enabled_sequence M s seq2 "
@@ -308,7 +307,21 @@ proof (rule ccontr)
     ultimately show ?thesis by auto
   qed
 qed
-  
+
+corollary observable_unique_io_set:
+  assumes ob:"observable M"  
+  assumes en:"is_enabled_sequence M s seq1" 
+  shows "{ seq2 . is_enabled_sequence M s seq2 \<and> get_io seq1 = get_io seq2 } = { seq1 }"
+proof (rule ccontr)
+  let ?io_set = "{ seq2 . is_enabled_sequence M s seq2 \<and> get_io seq1 = get_io seq2 }" 
+  assume ineq: "?io_set \<noteq> { seq1 }"
+  have "seq1 \<in> ?io_set" using assms by simp
+  then obtain seq2 where seq2_def : "seq2 \<in> ?io_set \<and> seq2 \<noteq> seq1" using ineq by blast
+  then have "get_io seq1 = get_io seq2" using seq2_def by simp
+  moreover have "is_enabled_sequence M s seq2" using seq2_def by simp
+  ultimately have "seq1 = seq2" using observable_unique_io en ob by fastforce
+  then show "False" using seq2_def by auto
+qed
 
 
 end
