@@ -70,8 +70,7 @@ fun is_enabled_sequence :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Right
 "is_enabled_sequence M s Nil = True" |
 "is_enabled_sequence M s (a#seq) = ((fst a = s) \<and> is_sequence M (a#seq))"
 
-fun enabled_sequences :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list set" where
-"enabled_sequences M s = {seq . is_enabled_sequence M s seq}"
+
 
 fun get_io :: "('state * 'in * 'out * 'state) list \<Rightarrow> ('in * 'out) list" where
 "get_io Nil = Nil" |
@@ -87,10 +86,12 @@ fun is_target :: "('state * 'in * 'out * 'state) list => 'state \<Rightarrow> bo
 definition visits :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
 "visits M s seq q \<equiv> is_enabled_sequence M s seq \<and> is_target seq q"
 
-definition reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
-"reaches M s seq q \<equiv> is_enabled_sequence M s seq \<and> (case seq of
+fun reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
+"reaches M s Nil q = (s = q)" |
+"reaches M s seq q = (q = t_target (last seq))"
+(*"reaches M s seq q \<equiv> is_enabled_sequence M s seq \<and> (case seq of
   Nil \<Rightarrow> q = s |
-  _   \<Rightarrow> case (last seq) of (s1,x,y,s2) \<Rightarrow> q = s2)"
+  _   \<Rightarrow> q = t_target (last seq))"*)
 
 
 
@@ -111,8 +112,6 @@ definition well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
 
 lemma transition_finite : "well_formed M \<Longrightarrow> finite (transitions M)"
   by (auto simp: well_formed_def finite_subset)
-
-
 
 fun h :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in \<Rightarrow> ('out * 'state) set" where
 "h M s1 x = { (y,s2) | y s2 . (s1,x,y,s2) \<in> transitions M }"
@@ -299,4 +298,125 @@ proof (rule ccontr)
 qed
 
 
+
+
+definition enabled_sequences_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list set" where
+"enabled_sequences_state M s \<equiv> { seq . is_enabled_sequence M s seq }"
+
+definition language_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in * 'out) list set" where
+"language_state M s \<equiv> { get_io seq | seq . is_enabled_sequence M s seq}"
+
+definition enabled_sequences :: "('in, 'out, 'state) FSM \<Rightarrow> ('state * 'in * 'out * 'state) list set" where
+"enabled_sequences M \<equiv> enabled_sequences_state M (initial M)"
+
+abbreviation LS :: "('in, 'out, 'state) FSM \<Rightarrow> ('state * 'in * 'out * 'state) list set" where
+"LS M \<equiv> enabled_sequences M"
+
+lemma language_state_sequence_ex : 
+  assumes "io \<in> language_state M s"
+  shows "\<exists> seq . is_enabled_sequence M s seq \<and> get_io seq = io"
+  using assms language_state_def by force
+
+definition language :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set" where
+"language M \<equiv> language_state M (initial M)"
+
+abbreviation L :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set" where
+"L M \<equiv> language M"
+
+definition io_equivalent :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<sim>" 200)
+where "M1 \<sim> M2 \<equiv> L M1 = L M2"
+
+definition io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200)
+where "M1 \<preceq> M2 \<equiv> L M1 \<subseteq> L M2"
+
+lemma eq_impl_red :
+  assumes "M1 \<sim> M2"
+  shows   "M2 \<preceq> M1"
+  using assms io_equivalent_def io_reduction_def by fastforce
+
+lemma language_state_dist :
+  assumes "language_state M s1 \<noteq> language_state M s2"
+  shows "s1 \<noteq> s2"
+  using assms by auto
+
+
+
+
+
+
+
+
+fun h_y_seq :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in * 'out) list \<Rightarrow> 'state set" where
+"h_y_seq M s1 io = { s2 . \<exists> seq . is_enabled_sequence M s1 seq \<and> reaches M s1 seq s2 \<and> get_io seq = io }"
+
+lemma reach_ex :
+  shows "\<exists> s2 . reaches M s1 seq s2"
+  by (metis neq_Nil_conv reaches.simps(1) reaches.simps(2))
+
+lemma transition_contents :
+  assumes wf: "well_formed M"
+  assumes tr: "a \<in> transitions M"
+  shows "t_source a \<in> states M
+       \<and> t_input a \<in> inputs M
+       \<and> t_output a \<in> outputs M
+       \<and> t_target a \<in> states M"
+  using local.wf tr well_formed_def by fastforce
+
+lemma reach_enabled_ex :
+  assumes wf: "well_formed M"
+  assumes el: "s1 \<in> states M"
+  assumes en: "is_enabled_sequence M s1 seq"
+  assumes re: "reaches M s1 seq s2"
+  shows "s2 \<in> states M"
+proof (cases seq)
+  case Nil
+  then show ?thesis using assms by simp
+next
+  case (Cons a list)
+  have "last seq \<in> transitions M" using assms last_conv_nth local.Cons sequence_transition by fastforce
+  then have "t_target (last seq) \<in> (states M)" using assms by (simp add: transition_contents)
+  moreover have "s2 = t_target (last seq)" using assms by (simp add: local.Cons)
+  ultimately show ?thesis by simp
+qed
+
+lemma h_y_seq_observable :
+  assumes wf: "well_formed M"
+  assumes ob: "observable M"
+  assumes el: "s1 \<in> states M"
+  assumes ln: "io \<in> language_state M s1"
+  shows "\<exists> s2 \<in> states M . h_y_seq M s1 io = {s2}"
+proof -   
+  obtain seq_io where seq_io_def : "is_enabled_sequence M s1 seq_io \<and> get_io seq_io = io" using assms by (metis language_state_sequence_ex)
+  then obtain s_io where s_io_def : "reaches M s1 seq_io s_io" using assms by (meson reach_ex)
+  then have "s_io \<in> states M" using assms by (meson reach_enabled_ex s_io_def seq_io_def)
+  moreover have "s_io \<in> h_y_seq M s1 io" using s_io_def seq_io_def by auto
+  (*ultimately have s_io_el : "s_io \<in> states M \<and> s_io \<in> h_y_seq M s1 io" using assms by simp*)
+  moreover have "h_y_seq M s1 io \<subseteq> {s_io}"
+  proof (rule ccontr)
+    assume "\<not> (h_y_seq M s1 io \<subseteq> {s_io})"
+    then obtain s_io2 where s_io2_def : "s_io2 \<in> h_y_seq M s1 io \<and> s_io2 \<noteq> s_io" by blast
+    then obtain seq_io2 where seq_io2_def : "is_enabled_sequence M s1 seq_io2 \<and> get_io seq_io2 = io \<and> reaches M s1 seq_io2 s_io2" using assms observable_unique_io seq_io_def by fastforce
+    then have "seq_io = seq_io2" using assms observable_unique_io seq_io_def by fastforce
+    then have "s_io = s_io2" using assms by (metis reaches.elims(2) reaches.simps(1) s_io_def seq_io2_def)
+    then show "False" using s_io2_def by simp
+  qed
+  ultimately show ?thesis by blast    
+qed  
+
+definition d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out ) list \<Rightarrow> 'state \<Rightarrow> bool" 
+  where "d_reaches M io s \<equiv> \<forall> seq \<in> LS M . ((get_io seq = io) \<longrightarrow> reaches M (initial M) seq s)"
+
+definition d_reachable :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> bool"
+  where "d_reachable M s \<equiv> \<exists> io \<in> L M . d_reaches M io s"  
+
+
+definition is_state_cover :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set \<Rightarrow> bool" where
+"is_state_cover M V \<equiv> 
+  (* d-reaches every d-reachable state of M *) 
+  (\<forall> s \<in> states M . (d_reachable M s \<longrightarrow> (\<exists> seq \<in> V . d_reaches M seq s)))
+  (* is minimal *)
+  \<and> (\<forall> V2 . (V2 \<subset> V \<longrightarrow> (\<exists> s \<in> states M . d_reachable M s \<and> \<not> (\<exists> seq \<in> V . d_reaches M seq s))))
+  (* contains Nil to reach (initial M) *)
+  \<and> Nil \<in> V"
+  
 end
