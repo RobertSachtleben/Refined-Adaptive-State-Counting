@@ -48,8 +48,8 @@ definition atc_rdist :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC \
 
 
 lemma atc_rdist_dist :
-  assumes wf1 : "well_defined M1"
-  assumes wf2 : "well_defined M2"
+  assumes wf1 : "well_formed M1"
+  assumes wf2 : "well_formed M2"
   assumes ob1 : "observable M1"
   assumes ob2 : "observable M2"
   assumes el_s1 : "s1 \<in> states M1"
