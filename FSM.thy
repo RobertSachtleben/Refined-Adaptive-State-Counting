@@ -323,6 +323,10 @@ definition language :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list 
 abbreviation L :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set" where
 "L M \<equiv> language M"
 
+
+definition io_reduction_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> bool" 
+where "io_reduction_state M1 s1 M2 s2 \<equiv> language_state M1 s1 \<subseteq> language_state M2 s2"
+
 definition io_equivalent :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<sim>" 200)
 where "M1 \<sim> M2 \<equiv> L M1 = L M2"
 
