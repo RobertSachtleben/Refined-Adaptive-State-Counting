@@ -60,6 +60,135 @@ qed
 
 
 
+lemma upper_bound : 
+  fixes n1 :: nat
+  and S :: "'a set"
+  and P :: "'a \<Rightarrow> nat \<Rightarrow> bool"
+  assumes el: "\<forall> a \<in> S . \<exists> n1 . P a (n1 a)"
+  and fn: "finite S"
+  shows 
+  "\<exists> n2 . \<forall> a \<in> S . \<exists> n1 . P a (n1 a) \<and> n2 > (n1 a)"
+proof -
+  have sized_subset_f : "\<forall> n . \<forall> S1. ((S1 \<subseteq> S \<and> card S1 = n) \<longrightarrow> (\<exists> nf . \<forall> a \<in> S1 . P a (nf a)))" 
+  proof
+    fix n
+    show "\<forall> S1. ((S1 \<subseteq> S \<and> card S1 = n) \<longrightarrow> (\<exists> nf . \<forall> a \<in> S1 . P a (nf a)))" 
+    proof (induction "n")
+      case 0
+      then show ?case
+      proof
+        fix S1
+        show "S1 \<subseteq> S \<and> card S1 = 0 \<longrightarrow> (\<exists> nf . \<forall>a\<in>S1. P a (nf a))"
+        proof 
+          assume S1_assm : "S1 \<subseteq> S \<and> card S1 = 0" 
+          have "finite S1" using S1_assm fn finite_subset by blast
+          then have "S1 = {}" using fn S1_assm card_0_eq by blast
+          then show "\<exists>nf. \<forall>a\<in>S1. P a (nf a)" by simp
+        qed
+      qed
+    next
+      case (Suc k)
+      show ?case
+      proof 
+        fix S1
+        show "S1 \<subseteq> S \<and> card S1 = Suc k \<longrightarrow> (\<exists> nf . \<forall>a\<in>S1. P a (nf a))"
+        proof 
+          assume S1_assm : "S1 \<subseteq> S \<and> card S1 = Suc k"
+          have "finite S1" using S1_assm fn finite_subset by blast
+          then obtain x S2 where x_def : "S1 = {x} \<union> S2 \<and> x \<notin> S2" using fn S1_assm by (metis card_le_Suc_iff dual_order.refl insert_is_Un)
+          then have "card S2 = k" using S1_assm \<open>finite S1\<close> by auto
+          moreover have "S2 \<subseteq> S1" using x_def by auto
+          then obtain nf2 where nf2_def : "\<forall>a\<in>S2. P a (nf2 a)" using Suc.IH S1_assm calculation by fastforce
+          have "x \<in> S" using x_def S1_assm by auto
+          then obtain nfx where nfx_def : "P x (nfx x)" using el by auto
+          show "\<exists> nf . \<forall> a \<in> S1 . P a (nf a)"
+          proof 
+            let ?nf = "nf2(x := nfx x)"
+            show "\<forall> a \<in> S1 . P a (?nf a)"
+            proof
+              fix a
+              show "a \<in> S1 \<Longrightarrow> P a (?nf a)"
+              proof (cases "a = x")
+              case True
+                then show ?thesis using nfx_def by auto
+              next
+                case False
+                assume "a \<in> S1"
+                then have "a \<in> S2" using x_def False by blast
+                then show ?thesis using nf2_def False by auto 
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed   
+
+  
+  
+  
+  have "S \<subseteq> S" by auto
+  moreover have "card S = card S" by simp
+  print_theorems
+  then obtain nfS where nfS_def : "\<forall> a \<in> S . P a (nfS a)" using sized_subset_f by auto
+  let ?nf_set = "image nfS S"
+  have "finite ?nf_set" using fn by simp
+  let ?ub = "Max ?nf_set"
+  have n2_gt : "\<forall> a \<in> ?nf_set . a < Suc ?ub" using finite_nat_set_iff_bounded by (meson Max_ge \<open>finite (nfS ` S)\<close> le_imp_less_Suc)
+  let ?n2 = "Suc ?ub"
+
+  have n2_ub : "\<forall>a\<in>S. \<exists> n1 . P a (n1 a) \<and> n1 a < ?n2"
+  proof 
+    fix a
+    show "a \<in> S \<Longrightarrow>\<exists> n1 . P a (n1 a) \<and> n1 a < ?n2"
+    proof
+      show "a \<in> S \<Longrightarrow> P a (nfS a) \<and> nfS a < ?n2"
+      proof
+        show "a \<in> S \<Longrightarrow> P a (nfS a)" using nfS_def by blast
+        show "a \<in> S \<Longrightarrow> nfS a < ?n2" using n2_gt by blast
+      qed
+    qed
+  qed
+
+  show ?thesis 
+  proof -
+    obtain ubF where ubF_def : "\<forall>a\<in>S. \<exists> n1 . P a (n1 a) \<and> n1 a < ubF" using n2_ub by auto
+    then show ?thesis by auto
+  qed
+qed
+
+
+lemma upper_bound_f : 
+  fixes S :: "'a set"
+  and   P :: "'a \<Rightarrow> nat \<Rightarrow> bool"
+  and   f :: "'a \<Rightarrow> nat"
+  assumes el: "\<forall> a \<in> S . P a (f a)"
+  and     fn: "finite S"
+  shows 
+  "\<exists> n2 . \<forall> a \<in> S . n2 > (f a)"
+proof -
+  let ?f_set = "image f S"
+  have "finite ?f_set" using fn by simp
+  let ?ub = "Max ?f_set"
+  have gtv : "\<forall> a \<in> ?f_set . a < Suc ?ub" using finite_nat_set_iff_bounded by (meson Max_ge \<open>finite (f ` S)\<close> le_imp_less_Suc)
+  
+  then obtain hv where hv_def : "\<forall> a \<in> S . hv > f a" by simp
+  then show ?thesis by auto
+qed
+
+lemma upper_bound_height :
+  fixes S :: "('in, 'out) ATC set"
+  and   f :: "('in, 'out) ATC \<Rightarrow> nat"
+  assumes el: "\<forall> a \<in> S . has_height_gte a (f a)"
+  and     fn: "finite S"
+  shows 
+  "\<exists> ub . \<forall> a \<in> S . ub > (f a)"
+  using upper_bound_f assms by blast
+
+lemma h_map_ex :
+  assumes "\<forall> x \<in> X . \<exists> y . P x y"
+  shows "\<exists> f . \<forall> x \<in> X . P x (f x)"
+  using assms by (rule Hilbert_Choice.bchoice)
 
 lemma height_ex : "\<exists> n . has_height_gte t n"
 proof (induction t)
@@ -67,8 +196,12 @@ proof (induction t)
   then show ?case by auto
 next
   case (Node x f)
-  have "\<forall> t1 \<in> ran f . \<exists> n1 . has_height_gte t1 n1" 
+  have height_ex : "\<forall> t1 \<in> ran f . \<exists> n1 . has_height_gte t1 n1" 
     by (smt Node.IH UNIV_I image_eqI mem_Collect_eq option.set_intros ran_def)
+  then obtain hf where hc_def : "\<forall> t1 \<in> ran f . has_height_gte t1 (hf t1)" using Hilbert_Choice.bchoice by blast
+  
+
+  then obtain hc where hc_def : "\<forall> t1 \<in> ran f . \<exists> n1 . has_height_gte t1 n1 \<and> n1 < hc" by sledgehamme
   then obtain hc where hc_def : "\<forall> t1 \<in> ran f . \<exists> n1 . has_height_gte t1 n1 \<and> n1 < hc" by sledgehamme
   then obtain hs where hs_def : "\<forall> t1 \<in> ran f . has_height_gte t1 (hs t1)" by sledgehamme
   then have "\<exists> n1 . \<forall> t1 \<in> ran f . has_height_gte t1 n1" using height_inc by sledgehamm
