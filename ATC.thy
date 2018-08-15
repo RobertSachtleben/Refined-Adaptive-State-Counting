@@ -25,11 +25,11 @@ fun has_height_gte :: "('in, 'out) ATC \<Rightarrow> nat \<Rightarrow> bool" whe
 definition has_height :: "('in, 'out) ATC \<Rightarrow> nat \<Rightarrow> bool" where
 "has_height T n \<equiv> has_height_gte T n \<and> (\<forall> i < n . \<not> has_height_gte T i)"
 
-definition height :: "('in, 'out) ATC \<Rightarrow> nat" where
-"height T = (THE n . has_height T n)"
+definition height_the :: "('in, 'out) ATC \<Rightarrow> nat" where
+"height_the T = (THE n . has_height T n)"
 
-fun atc_height :: "('in, 'out) ATC \<Rightarrow> nat" where
-"atc_height T = (LEAST n . has_height_gte T n)"
+definition height_least :: "('in, 'out) ATC \<Rightarrow> nat" where
+"height_least T = (LEAST n . has_height_gte T n)"
 
 lemma height_inc : "has_height_gte t n1 \<Longrightarrow> n2 > n1 \<Longrightarrow> has_height_gte t n2"
 proof (induction t  arbitrary: n1 n2)
@@ -222,6 +222,166 @@ next
   then show ?case by blast
 qed
 
+(*
+lemma test : 
+  fixes f :: "nat \<Rightarrow> bool"
+  assumes ex: "\<exists> k . f k"
+  shows "\<exists> n . f n \<and> (\<forall> m . (f m \<longrightarrow> n \<le> m))"
+proof (rule ccontr)
+  assume "\<not> ?thesis"
+  then have "\<forall> n . f n \<longrightarrow> (\<exists> m . f m \<and> m < n)" using not_less by blast
+  
+  obtain n where n_def : "f n" using ex by auto
+  then have "(\<exists> m . f m \<and> m < n) \<Longrightarrow> False"
+  proof (induction n)
+    case 0
+    then show ?case by auto
+  next
+    case (Suc k)
+    then obtain mf where mf_def : "f mf \<and> mf < Suc k" using Suc.prems(1) by auto
+    then show "False"
+    proof (cases "mf < k")
+      case True
+      then have "\<exists>m. f m \<and> m < (Suc k)" using mf_def by blast
+      then show "False" using mf_def Suc.IH  by sledgehammer
+    next
+      case False
+      then show ?thesis sorry
+    qed
+    then show ?case by sledgehamme
+  qed
+
+
+  then have "\<forall> n . f n \<longrightarrow> (\<exists> m . m < n)" by blast
+  obtain sh where sh_def : "has_height_gte t sh" using height_ex by blast
+*)
+
+lemma max_elem :
+  fixes S :: "nat set"
+  assumes fn: "finite S"
+  assumes ne: "S \<noteq> {}"
+  shows "\<exists> y1 \<in> S . \<forall> y2 \<in> S . y2 \<le> y1"
+  using assms Max_ge Max_in by blast
+
+lemma max_elem_f :
+  fixes S :: "'a set"
+    and f :: "'a \<Rightarrow> nat"
+  assumes fn: "finite S"
+  assumes ne: "S \<noteq> {}"
+  shows "\<exists> x1 \<in> S . \<forall> x2 \<in> S . f x2 \<le> f x1"
+proof -
+  obtain maxV where maxV_def : "maxV \<in> (image f S) \<and> (\<forall> y \<in> (image f S) . y \<le> maxV)" 
+    using max_elem assms by (metis empty_is_image finite_imageI)
+  then obtain maxE where maxE_def : "maxE \<in> S \<and> f maxE = maxV" by blast
+  then have "maxE \<in> S \<and> (\<forall> x \<in> S . f x \<le> f maxE)" using maxV_def by blast
+  then show ?thesis by blast
+qed
+
+lemma height_min_ex : "\<exists> n . has_height_gte t n \<and> (\<forall> m . (has_height_gte t m) \<longrightarrow> (n \<le> m))"
+proof (induction t)
+  case Leaf
+  then show ?case by auto
+next
+  case (Node x f)
+
+  then show ?case
+  proof (cases "fmran' f = {}")
+    case True
+    then show ?thesis by (metis empty_iff has_height_gte.simps(2) has_height_gte.simps(3) le_0_eq not_less_eq_eq)
+  next
+    case False
+    
+  (* collect child min heights *)
+
+    let ?ch_set = "{ (t1,ch) | t1 ch . t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall> m . (has_height_gte t1 m) \<longrightarrow> (ch \<le> m)) }"
+    have "\<forall> t1 \<in> fmran' f . \<exists> ch . (t1,ch) \<in> ?ch_set" using Node.IH by blast
+    moreover have "\<forall> t1 ch1 ch2 . ((t1,ch1) \<in> ?ch_set \<and> (t1,ch2) \<in> ?ch_set) \<longrightarrow> ch1 = ch2" by (simp add: le_antisym)
+    moreover have "Domain ?ch_set \<subseteq> fmran' f" by blast
+    moreover have "fmran' f \<subseteq> Domain ?ch_set" using calculation by (simp add: subsetI)
+    moreover have "Domain ?ch_set = fmran' f" using calculation by blast
+    moreover have "\<forall> t1 \<in> fmran' f . (?ch_set `` {t1}) = {ch . has_height_gte t1 ch \<and> (\<forall> m . (has_height_gte t1 m) \<longrightarrow> (ch \<le> m))}" using calculation by blast
+    moreover have "\<forall> t1 \<in> fmran' f . \<exists> ch . (?ch_set `` {t1} = {ch})"
+      proof (rule ccontr)
+        assume "\<not>(\<forall> t1 \<in> fmran' f . \<exists> ch . (?ch_set `` {t1} = {ch}))"
+        then obtain tm where tm_def : "tm \<in> fmran' f \<and> \<not>(\<exists> ch . (?ch_set `` {tm} = {ch}))" by blast
+        then have "\<exists> ch . (tm,ch) \<in> ?ch_set" using Node.IH by simp
+        then obtain chm where chm_def : "chm \<in> (?ch_set `` {tm})" by blast 
+        have "\<forall> ch1 ch2 . ((tm,ch1) \<in> ?ch_set \<and> (tm,ch2) \<in> ?ch_set) \<longrightarrow> ch1 = ch2" using calculation by blast
+        then have "\<forall> ch1 ch2 . (ch1 \<in> (?ch_set `` {tm}) \<and> ch2 \<in> (?ch_set `` {tm})) \<longrightarrow> ch1 = ch2" by blast
+        moreover have "?ch_set `` {tm} \<noteq> {}" using chm_def by blast
+        ultimately have "(?ch_set `` {tm}) = {chm}" using chm_def by auto
+        then show "False" using tm_def by blast
+      qed
+    moreover have "\<forall> t1 \<in> Domain ?ch_set . finite (?ch_set `` {t1})" using calculation by auto
+    moreover have "finite (Domain ?ch_set)" using calculation fmran'_finite by simp
+    moreover have "finite (Range ?ch_set)" using calculation by simp
+    moreover have "finite (Domain ?ch_set \<times> Range ?ch_set)" using calculation by simp
+    moreover have "?ch_set \<subseteq> (Domain ?ch_set \<times> Range ?ch_set)" using calculation by blast
+    moreover have "finite ?ch_set" using calculation by (meson infinite_super)
+    moreover have "?ch_set \<noteq> {}" using calculation by (metis False all_not_in_conv)
+    ultimately obtain max_t max_ch where max_el_def : "(max_t,max_ch) \<in> ?ch_set \<and> (\<forall> (t2,ch2) \<in> ?ch_set . snd (t2,ch2) \<le> snd (max_t,max_ch))"
+      using max_elem_f[of "?ch_set" "snd"] by (smt SigmaE case_prodI2 subsetCE)
+
+    then have "\<forall> k . (k < max_ch \<longrightarrow> \<not> (has_height max_t k))"
+      by (metis (no_types, lifting) Domain.DomainI Image_singleton_iff \<open>Domain {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)} = fmran' f\<close> \<open>\<forall>t1\<in>fmran' f. {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)} `` {t1} = {ch. has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)}\<close> has_height_def linorder_not_less mem_Collect_eq)
+    then have "\<forall> k . (k \<le> max_ch \<longrightarrow> \<not> (has_height (Node x f) k))" by sledgehamme
+
+    then show ?thesis sorry
+  qed
+qed
+
+
+proof (rule ccontr)
+  assume "\<not> ?thesis"
+  then have ex_lower : "\<forall> n . ((has_height_gte t n) \<longrightarrow> (\<exists> m . has_height_gte t m \<and> m < n))" using not_less by blast
+  then show "False"
+  proof (induction t)
+    case Leaf
+    have "has_height_gte Leaf 0" by simp
+    then show ?case using Leaf.prems by auto
+  next
+    case (Node x f)
+    obtain k where k_def : "has_height_gte (Node x f) k" using height_ex by blast
+
+    print_theorems
+
+    then show "False" 
+    proof (induction k)
+      case 0
+      then show ?case by simp
+    next
+      case (Suc n)
+      (*
+      has smaller , then error by IH
+      has no smaller, then error by ass
+      *)
+      print_theorems
+      obtain me where me_def : "has_height_gte (Node x f) me \<and> me < (Suc n)" using ex_lower Suc(2) Node.prems by blast
+      
+      then show ?case using Suc.IH
+    qed
+    
+    then show ?case sorry
+  qed
+  
+  
+  then have "\<forall> n . ((has_height_gte t n) \<longrightarrow> (\<exists> m . m < n))" by blast
+  obtain sh where sh_def : "has_height_gte t sh" using height_ex by blast
+  
+  then show "False" by sledgehamme
+qed
+
+(*
+  let ?h_set = "{ k . has_height_gte t k \<and> \<not>(\<exists> m . )}"
+  have "?h_set \<noteq> {}" using height_ex by simp
+  then obtain mh where mh_def : "mh \<in> ?h_set \<and> (\<forall> m \<in> ?h_set . mh \<le> m)" by sledgehamme
+  then have "has_height_gte t mh" sledgehamme
+    moreover have " (\<forall> m . (has_height_gte t m) \<longrightarrow> (mh \<le> m))"
+lemma height_unique_the : 
+  assumes hh: "has_height T m"
+  shows "height_the T = m"
+  
+
 lemma has_height_subtest :
   assumes st: "t \<in> ran f"
   assumes h1: "has_height t h1" 
@@ -330,4 +490,4 @@ TODO:
 - input list \<rightarrow> ATC (for alphabet Y)
 *)
 
-end
+endhas_height_gte t n \<and> (\<forall> m . (has_height_gte t m) \<longrightarrow> (n \<le> m))
