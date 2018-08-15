@@ -3,20 +3,20 @@ theory ATC
 begin
 
 
-datatype ('in, 'out) ATC = Leaf | Node 'in "('out , (('in, 'out) ATC)) map"
+datatype ('in, 'out) ATC = Leaf | Node 'in "('out , (('in, 'out) ATC)) fmap"
 
 fun is_atc_reaction :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in * 'out) list \<Rightarrow> bool" where
 "is_atc_reaction M s1 Leaf [] = True" |
 "is_atc_reaction M s1 Leaf io = False" |
 "is_atc_reaction M s1 (Node x f) [] = (\<not>(\<exists> y s2 . (s1,x,y,s2) \<in> transitions M))" | (*only relevant if M not completely specified *)
-"is_atc_reaction M s1 (Node x f) ((xi,yi)#io) = (case (f yi) of
+"is_atc_reaction M s1 (Node x f) ((xi,yi)#io) = (case (fmlookup f yi) of
   Some t \<Rightarrow> (x = xi \<and> (\<exists> s2 . (s1,xi,yi,s2) \<in> transitions M \<and> is_atc_reaction M s2 t io)) |
   None \<Rightarrow> (io = [] \<and> x = xi \<and> (\<exists> s2 . (s1,xi,yi,s2) \<in> transitions M)))"
 
 fun has_height_gte :: "('in, 'out) ATC \<Rightarrow> nat \<Rightarrow> bool" where
 "has_height_gte Leaf n = True" |
 "has_height_gte (Node x f) 0 = False" |
-"has_height_gte (Node x f) (Suc n) = (\<forall> t \<in> ran f .  has_height_gte t n)"
+"has_height_gte (Node x f) (Suc n) = (\<forall> t \<in> fmran' f .  has_height_gte t n)"
 (*"has_height_gte (Node x f) (Suc n) = Ball (ran f) (\<lambda> t . has_height_gte t n)"*)
 
 
@@ -43,14 +43,12 @@ next
     then have "t = Leaf" using has_height_gte.elims(2) using Node.prems by blast
     then show "False" using Node \<open>\<not> 0 < n1\<close> by auto
   qed
-  have "\<forall> t1 \<in> ran f . has_height_gte t1 (n2-1)"
+  have "\<forall> t1 \<in> fmran' f . has_height_gte t1 (n2-1)"
   proof 
     fix t1 
-    show "t1 \<in> ran f \<Longrightarrow> has_height_gte t1 (n2-1)"
-    proof (rule Node.IH [of "Some t1" "t1" "n1-1" "n2-1"])
-      assume el: "t1 \<in> ran f"
-      show "Some t1 \<in> range f" using el by (smt mem_Collect_eq ran_def rangeI)
-      show "t1 \<in> set_option (Some t1)" by auto
+    show "t1 \<in> fmran' f \<Longrightarrow> has_height_gte t1 (n2-1)"
+    proof (rule Node.IH[of "t1" "n1-1" "n2-1"])
+      assume el: "t1 \<in> fmran' f"
       show "has_height_gte t1 (n1-1)" using Node.prems(1) gtz el gr0_conv_Suc by auto
       show "(n2-1) > (n1-1)" using Node.prems(2) gtz by linarith
     qed
@@ -190,28 +188,39 @@ lemma h_map_ex :
   shows "\<exists> f . \<forall> x \<in> X . P x (f x)"
   using assms by (rule Hilbert_Choice.bchoice)
 
+lemma range_domain_finite : 
+  fixes f :: "'a \<Rightarrow> 'b option"
+  assumes fd : "finite (dom m)"
+  shows "finite (ran m)"
+  using assms by (rule Map.finite_ran)
+
+
+lemma fmran'_finite :
+  fixes m :: "('a, 'b) fmap"
+  shows "finite (fmran' m)"
+proof -
+  have "finite (fset (fmran m))" by simp
+  show ?thesis by (simp add: fmran'_alt_def)
+qed    
+
 lemma height_ex : "\<exists> n . has_height_gte t n"
 proof (induction t)
   case Leaf
   then show ?case by auto
 next
   case (Node x f)
-  have height_ex : "\<forall> t1 \<in> ran f . \<exists> n1 . has_height_gte t1 n1" 
-    by (smt Node.IH UNIV_I image_eqI mem_Collect_eq option.set_intros ran_def)
-  then obtain hf where hc_def : "\<forall> t1 \<in> ran f . has_height_gte t1 (hf t1)" using Hilbert_Choice.bchoice by blast
   
-
-  then obtain hc where hc_def : "\<forall> t1 \<in> ran f . \<exists> n1 . has_height_gte t1 n1 \<and> n1 < hc" by sledgehamme
-  then obtain hc where hc_def : "\<forall> t1 \<in> ran f . \<exists> n1 . has_height_gte t1 n1 \<and> n1 < hc" by sledgehamme
-  then obtain hs where hs_def : "\<forall> t1 \<in> ran f . has_height_gte t1 (hs t1)" by sledgehamme
-  then have "\<exists> n1 . \<forall> t1 \<in> ran f . has_height_gte t1 n1" using height_inc by sledgehamm
-  then show ?case by sledgehamme
+  have height_ex : "\<forall> t1 \<in> fmran' f . \<exists> n1 . has_height_gte t1 n1" 
+    by (smt Node.IH UNIV_I image_eqI mem_Collect_eq option.set_intros ran_def)
+  then obtain hf where hc_def : "\<forall> t1 \<in> fmran' f . has_height_gte t1 (hf t1)" using Hilbert_Choice.bchoice by blast
+  moreover have "finite (fmran' f)" using fmran'_finite by auto
+  ultimately obtain ub where ub_def : "\<forall> t1 \<in> fmran' f . ub > hf t1" 
+    using upper_bound_height[of "fmran' f" "hf"] by blast
+  then have ub_valid : "\<forall> t1 \<in> fmran' f . has_height_gte t1 ub"
+    using height_inc[of _ _ "ub"] hc_def by blast
+  have "has_height_gte (Node x f) (Suc ub)" using ub_valid by auto
+  then show ?case by blast
 qed
-
-lemma test :
-  assumes a : "h1 = atc_height T"
-  shows "\<forall> i < h1 . \<not> has_height_gte T i"
-  using assms by sledgehamme
 
 lemma has_height_subtest :
   assumes st: "t \<in> ran f"
