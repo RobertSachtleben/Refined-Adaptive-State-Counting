@@ -412,6 +412,48 @@ lemma test : "finite xs \<Longrightarrow> \<exists> fxs . xs = fset fxs"
 lemma test2 : "\<exists> fxs . xs = fset fxs \<Longrightarrow> finite xs"
   using finite_fset by blast
 
+(*
+fun apply_io_atc :: "('in,'out) ATC \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in,'out) ATC option" where
+"apply_io_atc Leaf [] = Some Leaf" |
+"apply_io_atc Leaf io = None" |
+"apply_io_atc (Node x f) [] = None" |
+"apply_io_atc (Node x f) ((x1,y1)#io) = (if (x = x1)
+  then (case (fmlookup f y1) of 
+    Some a \<Rightarrow> apply_io_atc a io |
+    None   \<Rightarrow> apply_io_atc Leaf io) 
+  else None)"
+
+lemma reached_atc :
+  assumes io: "io \<in> atc_io M s t"
+  shows "apply_io_atc t io = Some t2 \<and> t2 
+*)
+
+lemma to_atc_nil : "atc_io M s Leaf = {Nil}"
+proof -
+  have "\<forall> seq . is_atc_reaction M s Leaf seq \<longrightarrow> length seq = 0" by (metis is_atc_reaction.simps(2) list.size(3) neq_Nil_conv)
+  then have "\<forall> seq \<in> atc_io M s Leaf . length seq = 0" by (simp add: atc_io_def)
+  moreover have "{Nil} \<subseteq> atc_io M s Leaf" by (simp add: atc_io_def)
+  ultimately show ?thesis by blast
+qed
+
+
+lemma language_seq_atc :
+  assumes io: "io \<in> atc_io M s (to_atc iseq fouts)"
+  and     fo: "fset fouts = outputs M"
+shows "io \<in> language_state_i M s iseq"
+using assms proof (induction iseq arbitrary: io s)
+  case Nil
+  then have "to_atc Nil fouts = Leaf" by simp
+  then have nil_atc : "{Nil} = atc_io M s (to_atc Nil fouts)" by (simp add: to_atc_nil)
+  moreover have "{Nil} \<subseteq> language_state_i M s []" by (simp add: language_state_i_nil)
+  ultimately show ?case using Nil.prems(1) by auto 
+next
+  case (Cons a iseq)
+  then show ?case sorry
+qed
+
+
+
 lemma language_seq_atc :
   assumes ln: "io \<in> language_state_i M s iseq"
   and     fo: "fset fouts = outputs M"
