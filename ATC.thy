@@ -365,6 +365,84 @@ definition atc_rdist :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC \
 "atc_rdist M T s1 s2 \<equiv> atc_io M s1 T \<inter> atc_io M s2 T = {}"
 
 
+
+
+
+
+
+fun restrict_fset :: "('a \<Rightarrow> 'b option) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
+"restrict_fset m xs = restrict_map m (fset xs)"
+
+fun map_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
+"map_of_fset f xs = restrict_fset (\<lambda> x . Some (f x)) xs"
+
+lemma finite_restrict_fset : "finite (dom (restrict_fset m xs))"
+proof -
+  have "finite (fset xs)" by simp
+  then show ?thesis by simp
+qed
+
+lemma finite_map_of_fset : "finite (dom (map_of_fset f xs))"
+  using finite_restrict_fset by simp
+
+fun fmap_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a, 'b) fmap"  where
+"fmap_of_fset f xs = Abs_fmap (map_of_fset f xs)"
+
+fun to_atc :: "'in list \<Rightarrow> 'out fset \<Rightarrow> ('in, 'out) ATC" where
+"to_atc [] _ = Leaf" |
+"to_atc (x#xs) os = (Node x (fmap_of_fset (\<lambda> _ . to_atc xs os) os))"
+
+(*
+fun map_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
+"map_of_fset f xs = (\<lambda> x . (if (x \<in> fset xs)
+                      then Some (f x)
+                      else None))"
+
+fun fmap_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a, 'b) fmap"  where
+"fmap_of_fset f xs = Abs_fmap (map_of_fset f xs)"
+
+fun to_atc :: "'in list \<Rightarrow> 'out fset \<Rightarrow> ('in, 'out) ATC" where
+"to_atc [] _ = Leaf" |
+"to_atc (x#xs) os = Node x (Abs_fmap (map_of (image (\<lambda> y . (y,to_atc xs os)) (fset os))))"
+*)
+
+lemma test : "finite xs \<Longrightarrow> \<exists> fxs . xs = fset fxs"
+  using fset_to_fset by auto
+
+lemma test2 : "\<exists> fxs . xs = fset fxs \<Longrightarrow> finite xs"
+  using finite_fset by blast
+
+lemma language_seq_atc :
+  assumes ln: "io \<in> language_state_i M s iseq"
+  and     fo: "fset fouts = outputs M"
+  and     tc: "t = to_atc iseq fouts"
+  shows "io \<in> atc_io M s t"
+using assms proof (induction iseq)
+  case Nil
+  then have "to_atc Nil fouts = Leaf" by simp
+  then have "t = Leaf" by (simp add: Nil.prems(3))
+  then have nil_atc : "Nil \<in> atc_io M s t" by (simp add: atc_io_def)
+  have "{Nil} \<subseteq> language_state_i M s []" by (simp add: language_state_i_nil)
+  then have "io = Nil" using Nil.prems(1) language_state_i_nil by fastforce
+  then show ?case using nil_atc by simp
+next
+  case (Cons a iseq)
+  then show ?case sorry
+qed
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
 lemma atc_rdist_dist :
   assumes wf1 : "well_formed M1"
   assumes wf2 : "well_formed M2"
