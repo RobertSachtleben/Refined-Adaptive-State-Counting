@@ -28,8 +28,6 @@ definition has_height :: "('in, 'out) ATC \<Rightarrow> nat \<Rightarrow> bool" 
 definition height_the :: "('in, 'out) ATC \<Rightarrow> nat" where
 "height_the T = (THE n . has_height T n)"
 
-definition height_least :: "('in, 'out) ATC \<Rightarrow> nat" where
-"height_least T = (LEAST n . has_height_gte T n)"
 
 lemma height_inc : "has_height_gte t n1 \<Longrightarrow> n2 > n1 \<Longrightarrow> has_height_gte t n2"
 proof (induction t  arbitrary: n1 n2)
@@ -222,40 +220,6 @@ next
   then show ?case by blast
 qed
 
-(*
-lemma test : 
-  fixes f :: "nat \<Rightarrow> bool"
-  assumes ex: "\<exists> k . f k"
-  shows "\<exists> n . f n \<and> (\<forall> m . (f m \<longrightarrow> n \<le> m))"
-proof (rule ccontr)
-  assume "\<not> ?thesis"
-  then have "\<forall> n . f n \<longrightarrow> (\<exists> m . f m \<and> m < n)" using not_less by blast
-  
-  obtain n where n_def : "f n" using ex by auto
-  then have "(\<exists> m . f m \<and> m < n) \<Longrightarrow> False"
-  proof (induction n)
-    case 0
-    then show ?case by auto
-  next
-    case (Suc k)
-    then obtain mf where mf_def : "f mf \<and> mf < Suc k" using Suc.prems(1) by auto
-    then show "False"
-    proof (cases "mf < k")
-      case True
-      then have "\<exists>m. f m \<and> m < (Suc k)" using mf_def by blast
-      then show "False" using mf_def Suc.IH  by sledgehammer
-    next
-      case False
-      then show ?thesis sorry
-    qed
-    then show ?case by sledgehamme
-  qed
-
-
-  then have "\<forall> n . f n \<longrightarrow> (\<exists> m . m < n)" by blast
-  obtain sh where sh_def : "has_height_gte t sh" using height_ex by blast
-*)
-
 lemma max_elem :
   fixes S :: "nat set"
   assumes fn: "finite S"
@@ -291,7 +255,7 @@ next
   next
     case False
     
-  (* collect child min heights *)
+    (* collect childrens minimal heights and show that this node has minimal height: 1 + largest mininmal height *)
 
     let ?ch_set = "{ (t1,ch) | t1 ch . t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall> m . (has_height_gte t1 m) \<longrightarrow> (ch \<le> m)) }"
     have "\<forall> t1 \<in> fmran' f . \<exists> ch . (t1,ch) \<in> ?ch_set" using Node.IH by blast
@@ -322,130 +286,67 @@ next
     ultimately obtain max_t max_ch where max_el_def : "(max_t,max_ch) \<in> ?ch_set \<and> (\<forall> (t2,ch2) \<in> ?ch_set . snd (t2,ch2) \<le> snd (max_t,max_ch))"
       using max_elem_f[of "?ch_set" "snd"] by (smt SigmaE case_prodI2 subsetCE)
 
-    then have "\<forall> k . (k < max_ch \<longrightarrow> \<not> (has_height max_t k))"
-      by (metis (no_types, lifting) Domain.DomainI Image_singleton_iff \<open>Domain {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)} = fmran' f\<close> \<open>\<forall>t1\<in>fmran' f. {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)} `` {t1} = {ch. has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)}\<close> has_height_def linorder_not_less mem_Collect_eq)
-    then have "\<forall> k . (k \<le> max_ch \<longrightarrow> \<not> (has_height (Node x f) k))" by sledgehamme
-
-    then show ?thesis sorry
-  qed
-qed
-
-
-proof (rule ccontr)
-  assume "\<not> ?thesis"
-  then have ex_lower : "\<forall> n . ((has_height_gte t n) \<longrightarrow> (\<exists> m . has_height_gte t m \<and> m < n))" using not_less by blast
-  then show "False"
-  proof (induction t)
-    case Leaf
-    have "has_height_gte Leaf 0" by simp
-    then show ?case using Leaf.prems by auto
-  next
-    case (Node x f)
-    obtain k where k_def : "has_height_gte (Node x f) k" using height_ex by blast
-
-    print_theorems
-
-    then show "False" 
-    proof (induction k)
-      case 0
-      then show ?case by simp
-    next
-      case (Suc n)
-      (*
-      has smaller , then error by IH
-      has no smaller, then error by ass
-      *)
-      print_theorems
-      obtain me where me_def : "has_height_gte (Node x f) me \<and> me < (Suc n)" using ex_lower Suc(2) Node.prems by blast
-      
-      then show ?case using Suc.IH
-    qed
     
-    then show ?case sorry
+
+    have no_smaller :"\<forall> k . (k < (Suc max_ch) \<longrightarrow> \<not> (has_height_gte (Node x f) k))" 
+    proof (rule ccontr)
+      assume "\<not>(\<forall> k . (k < (Suc max_ch) \<longrightarrow> \<not> (has_height_gte (Node x f) k)))"
+
+      then obtain lk where lk_def : "(lk < (Suc max_ch) \<and> has_height_gte (Node x f) lk)" by blast
+      then have "\<forall> t1 \<in> fmran' f . has_height_gte t1 lk" by (meson has_height_gte.simps(3) height_inc lessI)
+      then have "has_height_gte max_t lk" using max_el_def by blast
+      moreover have "\<forall> k . (k < max_ch \<longrightarrow> \<not> (has_height_gte max_t k))" using max_el_def
+        by (metis (no_types, lifting) Domain.DomainI Image_singleton_iff \<open>Domain {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)} = fmran' f\<close> \<open>\<forall>t1\<in>fmran' f. {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)} `` {t1} = {ch. has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)}\<close> has_height_def linorder_not_less mem_Collect_eq)
+      ultimately show "False" using lk_def
+        by (metis (no_types, lifting) ATC.distinct(1) Domain.DomainI \<open>Domain {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)} = fmran' f\<close> has_height_gte.elims(2) has_height_gte.simps(3) less_Suc_eq_0_disj less_antisym max_el_def)
+    qed
+
+    then have "\<forall> t1 \<in> fmran' f . has_height_gte t1 max_ch" using max_el_def height_inc 
+      by (smt \<open>\<forall>t1\<in>fmran' f. \<exists>ch. (t1, ch) \<in> {(t1, ch) |t1 ch. t1 \<in> fmran' f \<and> has_height_gte t1 ch \<and> (\<forall>m. has_height_gte t1 m \<longrightarrow> ch \<le> m)}\<close> fst_conv le_eq_less_or_eq mem_Collect_eq old.prod.case snd_conv)
+
+    then have "has_height_gte (Node x f) (Suc max_ch)" by simp
+
+    then show ?thesis using no_smaller using leI by blast
   qed
-  
-  
-  then have "\<forall> n . ((has_height_gte t n) \<longrightarrow> (\<exists> m . m < n))" by blast
-  obtain sh where sh_def : "has_height_gte t sh" using height_ex by blast
-  
-  then show "False" by sledgehamme
 qed
 
-(*
-  let ?h_set = "{ k . has_height_gte t k \<and> \<not>(\<exists> m . )}"
-  have "?h_set \<noteq> {}" using height_ex by simp
-  then obtain mh where mh_def : "mh \<in> ?h_set \<and> (\<forall> m \<in> ?h_set . mh \<le> m)" by sledgehamme
-  then have "has_height_gte t mh" sledgehamme
-    moreover have " (\<forall> m . (has_height_gte t m) \<longrightarrow> (mh \<le> m))"
+
+
+
+
 lemma height_unique_the : 
   assumes hh: "has_height T m"
   shows "height_the T = m"
-  
+  using height_min_ex by (metis (no_types, hide_lams) has_height_def height_the_def hh le_eq_less_or_eq theI_unique)
 
 lemma has_height_subtest :
-  assumes st: "t \<in> ran f"
+  assumes st: "t \<in> fmran' f"
   assumes h1: "has_height t h1" 
-  assumes h2: "has_height (Node x f) t2"
+  assumes h2: "has_height (Node x f) h2"
   shows "h2 > h1"
-  using assms by sledgehamme
+  using assms height_min_ex by (smt One_nat_def add.right_neutral add_Suc_right ex_least_nat_less has_height_def has_height_gte.simps(2) has_height_gte.simps(3) less_trans linorder_neqE_nat)
 
-lemma has_height_subtest :
-  assumes st: "t \<in> ran f"
-  assumes h1: "h1 = atc_height t" 
-  assumes h2: "h2 = atc_height (Node x f)"
-  shows "h2 > h1"
-proof (rule ccontr)
-  assume "h2 \<le> h1"
-  then have "\<forall> i < h1 . \<not>(has_height_gte t i)" using assms by sledgehamme
+lemma has_height_the_subtest :
+  assumes st: "t \<in> fmran' f"
+  shows "height_the (Node x f) > height_the t"
+  using has_height_subtest height_unique_the by (metis has_height_def height_min_ex not_less st)
 
-  then have "\<exists> t2 \<in> ran f . has_height_gte t2 n1" using assms by blast
-  then have "n2 > n1" using assms by sledgehamme
-  
 
-lemma subtest_height :
-  assumes st: "t \<in> ran f"
-  shows "atc_height t < atc_height (Node x f)"
-proof (rule ccontr)
-  assume "atc_height t \<ge> atc_height (Node x f)"
-  then obtain n where n_def : "n = atc_height (Node x f)" by auto
-  
-
-inductive subtest :: "('in, 'out) ATC \<Rightarrow> ('in, 'out) ATC \<Rightarrow> bool" where
-"t \<in> ran f \<Longrightarrow> subtest t (Node x f)"
-
-lemma accp_subtest : "Wellfounded.accp subtest t"
-proof (induction t)
-  case Leaf
-  then show ?case by (metis ATC.distinct(2) not_accp_down subtest.cases)
-next
-  case (Node x1 x2)
-  then show ?case by sledgehamme
-qed
 
 function size :: "('in, 'out) ATC \<Rightarrow> nat" where
 "size Leaf = 0" |
-"size (Node x f) = Max ( image size (ran f) )"
+"size (Node x f) = Max ( image size (fmran' f) )"
   by pat_completeness auto
 termination 
-  apply (relation "measure atc_height")
-   apply auto[]
-  apply sledgehamme
-(*
-datatype ('in, 'out) ATC = Leaf | Node 'in "'out \<Rightarrow> nat" "('in, 'out) ATC list"
+proof (relation "measure height_the")
+  show "wf (measure height_the)" by simp
+  show "\<And>x f xa.
+       xa \<in> fmran' f \<Longrightarrow>
+       (xa, Node x f)
+       \<in> measure height_the " by (simp add: has_height_the_subtest)
+qed
 
-fun atc_height :: "('in, 'out) ATC \<Rightarrow> nat" where
-"atc_height Leaf = 0" |
-"atc_height (Node x idx []) = 1" |
-"atc_height (Node x idx ts) = 1 + Max ( set (map atc_height ts)) "
 
-fun is_atc_reaction :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in * 'out) list \<Rightarrow> bool" where
-"is_atc_reaction M s1 Leaf [] = True" |
-"is_atc_reaction M s1 Leaf io = False" |
-"is_atc_reaction M s1 (Node x idx ts) [] = False" |
-"is_atc_reaction M s1 (Node x idx ts) ((xi,yi)#io) = (if (idx yi < length ts)
-  then (x = xi \<and> (\<exists> s2 . (s1,xi,yi,s2) \<in> transitions M \<and> is_atc_reaction M s2 (ts ! (idx yi)) io))
-  else (io = [] \<and> x = xi \<and> (\<exists> s2 . (s1,xi,yi,s2) \<in> transitions M)))" 
-*)
 
 
 definition atc_io :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in * 'out) list set"
@@ -490,4 +391,4 @@ TODO:
 - input list \<rightarrow> ATC (for alphabet Y)
 *)
 
-endhas_height_gte t n \<and> (\<forall> m . (has_height_gte t m) \<longrightarrow> (n \<le> m))
+end
