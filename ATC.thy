@@ -352,7 +352,7 @@ qed
 
 
 definition atc_io :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in * 'out) list set"
-  where "atc_io M s T = { io . is_atc_reaction M s T io }"
+  where "atc_io M s t = { io . is_atc_reaction M s t io }"
 
 definition atc_io_set :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
 "atc_io_set M s T = \<Union> { atc_io M s t | t . t \<in> T }"
@@ -380,10 +380,6 @@ definition atc_dist_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) AT
 definition atc_rdist_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
 "atc_rdist_set M T s1 s2 \<equiv> (\<exists> t \<in> T . atc_rdist M t s1 s2)"
 
-definition characterizing_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-"characterizing_set M T \<equiv> (\<forall> s1 \<in> (states M) . \<forall> s2 \<in> (states M) . 
-    (\<exists> td . atc_rdist M td s1 s2) \<longrightarrow> (\<exists> tt \<in> T . atc_rdist M tt s1 s2))"
-
 
 
 definition atc_reduction_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
@@ -395,17 +391,83 @@ definition atc_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, '
 
 
 
-(*
-TODO for atc_rdist_dist:
-- function to get used inputs in an ATC
-- proof that non-nil reaction must exist for any non-Leaf ATC and compl. spec M if input of test is in inputs M
-- finish proof of atc_rdist_dist
-*)
+
+
+function atc_inputs :: "('in,'out) ATC \<Rightarrow> 'in set" where
+"atc_inputs Leaf = {}" |
+"atc_inputs (Node x f) = insert x (\<Union>  (image atc_inputs (fmran' f)))"
+  by pat_completeness auto
+termination
+proof (relation "measure height_the")
+  show "wf (measure height_the)" by simp
+  show "\<And>x f xa.
+       xa \<in> fmran' f \<Longrightarrow>
+       (xa, Node x f)
+       \<in> measure height_the " by (simp add: fmran'_alt_def has_height_the_subtest)
+qed
+
+
+definition atc_applicable :: "('in,'out,'state) FSM \<Rightarrow> ('in,'out) ATC \<Rightarrow> bool" where
+"atc_applicable M t \<equiv> atc_inputs t \<subseteq> inputs M"
+
+definition atc_applicable_set :: "('in,'out,'state) FSM \<Rightarrow> ('in,'out) ATC set \<Rightarrow> bool" where
+"atc_applicable_set M T \<equiv> \<forall> t \<in> T . atc_applicable M t"
+
+lemma subtest_inputs :
+  assumes el: "t2 \<in> fmran' f"
+  shows "atc_inputs t2 \<subseteq> atc_inputs (Node x f)"
+proof 
+  fix i
+  assume "i \<in> atc_inputs t2"
+  then obtain i_s where i_s_def : "i_s \<in>  image atc_inputs {t2} \<and> i \<in> i_s" by blast
+  then have "i_s \<in> image atc_inputs (fmran' f)" using el by blast
+  then have "i \<in> \<Union>  (image atc_inputs (fmran' f))" using i_s_def by blast
+  then show "i \<in> atc_inputs (Node x f)" by simp
+qed
+
+lemma applicable_subtest :
+  assumes el: "t2 \<in> fmran' f"
+  and     ap: "atc_applicable M (Node x f)"
+  shows "atc_applicable M t2"
+  by (metis (mono_tags, lifting) subtest_inputs ap atc_applicable_def dual_order.trans el)
 
 lemma atc_reaction_exists :
-  assumes cf : "completely_specified M"
-  and     
+  assumes cs : "completely_specified M"
+  and     wf : "well_formed M"
+  and     ap : "atc_applicable M t"
+  and     el : "s \<in> states M"
+  shows "\<exists> io . io \<in> atc_io M s t"
+using assms proof (induction t arbitrary: s)
+  case Leaf
+  then show ?case by (metis atc_io_def is_atc_reaction.simps(1) mem_Collect_eq)
+next
+  case (Node x f)
+  
+  print_theorems
+  have "x \<in> atc_inputs (Node x f)" using atc_inputs.simps(2) by simp
+  then have "x \<in> inputs M" using Node.prems(3) by (simp add: atc_applicable_def)
+  then obtain y s2 where trans_def : "(s,x,y,s2) \<in> transitions M" by (meson Node.prems completely_specified_def el)
+  
+  
+  show "\<exists> io . io \<in> atc_io M s (Node x f)" 
+  proof (cases "fmlookup f y")
+    case None
+    then have "is_atc_reaction M s (Node x f) [(x,y)]" using trans_def is_atc_reaction.simps(4)[of "M" "s" "x" "f" "x" "y" "[]"] None by auto
+    then show ?thesis by (metis atc_io_def mem_Collect_eq)
+  next
+    case (Some t2)
+    then have ap2: "atc_applicable M t2" using applicable_subtest Node.prems(3) fmran'I by fastforce
+    have "s2 \<in> states M" using wf trans_def transition_contents by fastforce
+    then obtain io2 where r2_def : "is_atc_reaction M s2 t2 io2" using Node.IH[of "t2" "s2"] Some ap2 atc_io_def cs fmran'I local.wf by fastforce
+    then have "is_atc_reaction M s (Node x f) ((x,y)#io2)"
+      using is_atc_reaction.simps(4)[of "M" "s" "x" "f" "x" "y" "io2" ] Some local.trans_def by auto
+    then have "((x,y)#io2) \<in> atc_io M s (Node x f)" by (simp add: atc_io_def)
+    then show ?thesis by blast
+  qed
+qed
 
+ 
+  
 lemma atc_rdist_dist :
   assumes wf1   : "well_formed M1"
   and     wf2   : "well_formed M2"
@@ -413,6 +475,8 @@ lemma atc_rdist_dist :
   and     cs2   : "completely_specified M2"
   and     ob1   : "observable M1"
   and     ob2   : "observable M2"
+  and     ap1   : "atc_applicable_set M1 T"
+  and     ap2   : "atc_applicable_set M2 T"
   and     el_s1 : "s1 \<in> states M1"
   and     el_s2 : "s2 \<in> states M1"
   and     el_t1 : "t1 \<in> states M2"
@@ -429,9 +493,19 @@ proof -
   ultimately have no_inter : "atc_io M2 t1 td \<inter> atc_io M2 t2 td = {}" by blast
   
   have "td \<noteq> Leaf" using td_def by (metis Int_iff atc_rdist_def atc_io_def equals0D is_atc_reaction.simps(1) mem_Collect_eq)
-  then have "atc_io M2 t1 td \<noteq> {}" by sledgehamme
+  then have "atc_io M2 t1 td \<noteq> {}" using atc_reaction_exists ap2 atc_applicable_set_def cs2 el_t1 td_def wf2 by fastforce
 
-  then have "atc_dist M2 td t1 t2" using atc_dist_def by sledgehamme
+  then have "atc_dist M2 td t1 t2" using atc_dist_def no_inter by fastforce
+  then show ?thesis by (meson td_def atc_dist_set_def)
+qed
+
+
+definition characterizing_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"characterizing_set M T \<equiv> (\<forall> t \<in> T . atc_applicable M t) \<and> (\<forall> s1 \<in> (states M) . \<forall> s2 \<in> (states M) . 
+    (\<exists> td . atc_rdist M td s1 s2) \<longrightarrow> (\<exists> tt \<in> T . atc_rdist M tt s1 s2))"
+
+
+
 
 (* ************************* Input Seq to ATC ******************************
 
