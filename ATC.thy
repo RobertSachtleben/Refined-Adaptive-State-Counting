@@ -335,7 +335,9 @@ lemma has_height_the_subtest :
 
 function size :: "('in, 'out) ATC \<Rightarrow> nat" where
 "size Leaf = 0" |
-"size (Node x f) = Max ( image size (fmran' f) )"
+"size (Node x f) = (if (fmdom f = fempty) 
+  then 1
+  else 1 + Max ( image size (fmran' f) ))"
   by pat_completeness auto
 termination 
 proof (relation "measure height_the")
@@ -350,25 +352,88 @@ qed
 
 
 definition atc_io :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in * 'out) list set"
-where "atc_io M s T = { io . is_atc_reaction M s T io }"
+  where "atc_io M s T = { io . is_atc_reaction M s T io }"
+
+definition atc_io_set :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
+"atc_io_set M s T = \<Union> { atc_io M s t | t . t \<in> T }"
   
 
 lemma io_dist :
-  assumes io_diff : "act_io M s1 \<noteq> act_io M s2"
+  assumes io_diff : "act_io M s1 t \<noteq> act_io M s2 t"
   shows "s1 \<noteq> s2"
   using io_diff by auto
 
+lemma io_dist_set :
+  assumes io_diff_set : "act_io_set M s1 T \<noteq> act_io_set M s2 T"
+  shows "s1 \<noteq> s2"
+  using io_diff_set by auto
+
 definition atc_dist :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
-"atc_dist M T s1 s2 \<equiv> atc_io M s1 T \<noteq> atc_io M s2 T"
+"atc_dist M t s1 s2 \<equiv> atc_io M s1 t \<noteq> atc_io M s2 t"
 
 definition atc_rdist :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
-"atc_rdist M T s1 s2 \<equiv> atc_io M s1 T \<inter> atc_io M s2 T = {}"
+"atc_rdist M t s1 s2 \<equiv> atc_io M s1 t \<inter> atc_io M s2 t = {}"
+
+definition atc_dist_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
+"atc_dist_set M T s1 s2 \<equiv> (\<exists> t \<in> T . atc_dist M t s1 s2)"
+
+definition atc_rdist_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
+"atc_rdist_set M T s1 s2 \<equiv> (\<exists> t \<in> T . atc_rdist M t s1 s2)"
+
+definition characterizing_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"characterizing_set M T \<equiv> (\<forall> s1 \<in> (states M) . \<forall> s2 \<in> (states M) . 
+    (\<exists> td . atc_rdist M td s1 s2) \<longrightarrow> (\<exists> tt \<in> T . atc_rdist M tt s1 s2))"
 
 
 
+definition atc_reduction_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"atc_reduction_state M2 s2 M1 s1 T \<equiv> (\<forall> t \<in> T . atc_io M2 s2 t \<subseteq> atc_io M1 s1 t)"
+(*"atc_reduction_state M2 s2 M1 s1 T \<equiv> atc_io_set M2 s2 T \<subseteq> atc_io_set M1 s1 T" *)
+
+definition atc_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"atc_reduction M2 M1 T \<equiv> atc_reduction_state M2 (initial M2) M1 (initial M1) T" 
 
 
 
+(*
+TODO for atc_rdist_dist:
+- function to get used inputs in an ATC
+- proof that non-nil reaction must exist for any non-Leaf ATC and compl. spec M if input of test is in inputs M
+- finish proof of atc_rdist_dist
+*)
+
+lemma atc_reaction_exists :
+  assumes cf : "completely_specified M"
+  and     
+
+lemma atc_rdist_dist :
+  assumes wf1   : "well_formed M1"
+  and     wf2   : "well_formed M2"
+  and     cs1   : "completely_specified M1"
+  and     cs2   : "completely_specified M2"
+  and     ob1   : "observable M1"
+  and     ob2   : "observable M2"
+  and     el_s1 : "s1 \<in> states M1"
+  and     el_s2 : "s2 \<in> states M1"
+  and     el_t1 : "t1 \<in> states M2"
+  and     el_t2 : "t2 \<in> states M2"
+  and     red1  : "atc_reduction_state M2 t1 M1 s1 T"
+  and     red2  : "atc_reduction_state M2 t2 M1 s2 T"
+  and     rdist : "atc_rdist_set M1 T s1 s2"
+  shows "atc_dist_set M2 T t1 t2"
+proof -
+  obtain td where td_def : "td \<in> T \<and> atc_rdist M1 td s1 s2" by (meson rdist atc_rdist_set_def)
+  then have "atc_io M1 s1 td \<inter> atc_io M1 s2 td = {}" using td_def by (simp add: atc_rdist_def)
+  moreover have "atc_io M2 t1 td \<subseteq> atc_io M1 s1 td" by (meson atc_reduction_state_def red1 td_def)
+  moreover have "atc_io M2 t2 td \<subseteq> atc_io M1 s2 td" by (meson atc_reduction_state_def red2 td_def)
+  ultimately have no_inter : "atc_io M2 t1 td \<inter> atc_io M2 t2 td = {}" by blast
+  
+  have "td \<noteq> Leaf" using td_def by (metis Int_iff atc_rdist_def atc_io_def equals0D is_atc_reaction.simps(1) mem_Collect_eq)
+  then have "atc_io M2 t1 td \<noteq> {}" by sledgehamme
+
+  then have "atc_dist M2 td t1 t2" using atc_dist_def by sledgehamme
+
+(* ************************* Input Seq to ATC ******************************
 
 fun restrict_fset :: "('a \<Rightarrow> 'b option) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
 "restrict_fset m xs = restrict_map m (fset xs)"
@@ -392,7 +457,7 @@ fun to_atc :: "'in list \<Rightarrow> 'out fset \<Rightarrow> ('in, 'out) ATC" w
 "to_atc [] _ = Leaf" |
 "to_atc (x#xs) os = (Node x (fmap_of_fset (\<lambda> _ . to_atc xs os) os))"
 
-(*
+
 fun map_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
 "map_of_fset f xs = (\<lambda> x . (if (x \<in> fset xs)
                       then Some (f x)
@@ -404,7 +469,8 @@ fun fmap_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> (
 fun to_atc :: "'in list \<Rightarrow> 'out fset \<Rightarrow> ('in, 'out) ATC" where
 "to_atc [] _ = Leaf" |
 "to_atc (x#xs) os = Node x (Abs_fmap (map_of (image (\<lambda> y . (y,to_atc xs os)) (fset os))))"
-*)
+
+
 
 lemma test : "finite xs \<Longrightarrow> \<exists> fxs . xs = fset fxs"
   using fset_to_fset by auto
@@ -412,7 +478,7 @@ lemma test : "finite xs \<Longrightarrow> \<exists> fxs . xs = fset fxs"
 lemma test2 : "\<exists> fxs . xs = fset fxs \<Longrightarrow> finite xs"
   using finite_fset by blast
 
-(*
+
 fun apply_io_atc :: "('in,'out) ATC \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in,'out) ATC option" where
 "apply_io_atc Leaf [] = Some Leaf" |
 "apply_io_atc Leaf io = None" |
@@ -426,7 +492,7 @@ fun apply_io_atc :: "('in,'out) ATC \<Rightarrow> ('in * 'out) list \<Rightarrow
 lemma reached_atc :
   assumes io: "io \<in> atc_io M s t"
   shows "apply_io_atc t io = Some t2 \<and> t2 
-*)
+
 
 lemma to_atc_nil : "atc_io M s Leaf = {Nil}"
 proof -
@@ -473,6 +539,7 @@ next
 qed
   
 
+*)
 
 
 
@@ -485,20 +552,6 @@ qed
 
 
 
-lemma atc_rdist_dist :
-  assumes wf1 : "well_formed M1"
-  assumes wf2 : "well_formed M2"
-  assumes ob1 : "observable M1"
-  assumes ob2 : "observable M2"
-  assumes el_s1 : "s1 \<in> states M1"
-  assumes el_s2 : "s2 \<in> states M1"
-  assumes el_t1 : "t1 \<in> states M2"
-  assumes el_t2 : "t2 \<in> states M2"
-  assumes red1 : "io_reduction_state M2 t1 M1 s1"
-  assumes red2 : "io_reduction_state M2 t2 M1 s2"
-  assumes rdist: "atc_rdist M1 T s1 s2"
-  shows "atc_dist M2 T t1 t2"
-  oops
 
 
 
