@@ -469,18 +469,10 @@ qed
  
   
 lemma atc_rdist_dist :
-  assumes wf1   : "well_formed M1"
-  and     wf2   : "well_formed M2"
-  and     cs1   : "completely_specified M1"
+  assumes wf2   : "well_formed M2"
   and     cs2   : "completely_specified M2"
-  and     ob1   : "observable M1"
-  and     ob2   : "observable M2"
-  and     ap1   : "atc_applicable_set M1 T"
   and     ap2   : "atc_applicable_set M2 T"
-  and     el_s1 : "s1 \<in> states M1"
-  and     el_s2 : "s2 \<in> states M1"
   and     el_t1 : "t1 \<in> states M2"
-  and     el_t2 : "t2 \<in> states M2"
   and     red1  : "atc_reduction_state M2 t1 M1 s1 T"
   and     red2  : "atc_reduction_state M2 t2 M1 s2 T"
   and     rdist : "atc_rdist_set M1 T s1 s2"
