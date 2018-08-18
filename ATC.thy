@@ -534,6 +534,52 @@ next
   then show ?case using assms by (simp add: Suc.IH finite_image_set2)
 qed
 
+lemma set_of_lists_finite_lte:
+  assumes f1 : "finite S1"
+  assumes ne : "S1 \<noteq> {}" 
+  shows "finite { xs . (\<forall> x \<in> set xs . x \<in> S1) \<and> length xs \<le> k }"
+proof (induction k)
+  case 0
+  have "{ xs . (\<forall> x \<in> set xs . x \<in> S1) \<and> length xs = 0 } = {Nil}" using assms by fastforce
+  then show ?case by simp
+next
+  case (Suc k)
+  let ?orig = "{xs.(\<forall>x\<in>set xs. x \<in> S1) \<and> length xs \<le> Suc k}"
+  let ?splt = "{[]} \<union> { (a#xs) | a xs . a \<in> S1 \<and> (\<forall> x \<in> set xs . x \<in> S1) \<and> length xs \<le> k }"
+  have "?orig = ?splt" 
+  proof 
+    show "?orig \<subseteq> ?splt"
+    proof   
+      fix xs
+      assume xs_assm : "xs \<in> ?orig"
+      then show "xs \<in> ?splt"
+      proof (cases xs)
+        case Nil
+        then show ?thesis by simp
+      next
+        case (Cons a list)
+        then have "a \<in> S1 \<and> (\<forall> x \<in> set list . x \<in> S1) \<and> length list \<le> k" using xs_assm by auto
+        then show ?thesis using Cons xs_assm by auto 
+      qed
+    qed
+    show "?splt \<subseteq> ?orig"
+    proof   
+      fix xs
+      assume xs_assm : "xs \<in> ?splt"
+      then show "xs \<in> ?orig"
+      proof (cases xs)
+        case Nil
+        then show ?thesis by simp
+      next
+        case (Cons a list)
+        then have "(\<forall> x \<in> set (Cons a list) . x \<in> S1) \<and> length (Cons a list) \<le> (Suc k)" using xs_assm by auto
+        then show ?thesis using Cons xs_assm by auto 
+      qed
+    qed
+  qed
+  then show ?case using assms by (simp add: Suc.IH finite_image_set2)
+qed
+
 lemma sequence_elem :
   assumes sq: "is_sequence M seq"
   and     wf: "well_formed M"
@@ -730,23 +776,23 @@ lemma atc_io_finite :
   shows "finite (atc_io M s t)"
 proof -
   obtain k where k_def : "has_height t k" by (meson has_height_def height_min_ex not_less)
-  then have "\<forall> io . is_atc_reaction M s t io \<longrightarrow> length io \<le> k" using atc_reaction_length by auto
-  then show ?thesis by sledgehamme
-
-
-
-
-
-proof (induction t arbitrary: s)
-  case Leaf
-  have "\<forall> io . is_atc_reaction M s Leaf io \<longrightarrow> io = []" by (metis is_atc_reaction.simps(2) neq_Nil_conv)
-  then have "atc_io M s Leaf = {[]}" using atc_io_def is_atc_reaction.simps(1) by fastforce
-  then show ?case using atc_io_def by simp
-next
-  case (Node x f)
-  then show ?case sorry
+  then have io_k : "\<forall> io . is_atc_reaction M s t io \<longrightarrow> length io \<le> k" using atc_reaction_length by auto
+  moreover have io_el : "\<forall> io . is_atc_reaction M s t io \<longrightarrow> (\<forall> xy \<in> set io . xy \<in> (inputs M \<times> outputs M))" 
+    by (simp add: wf atc_reaction_alphabets)
+  ultimately have sup : "atc_io M s t \<subseteq> { io . (\<forall> xy \<in> set io . xy \<in> (inputs M \<times> outputs M)) \<and> length io \<le> k }"
+    using atc_io_def by fastforce
+  moreover have "finite (inputs M \<times> outputs M)" using wf by (simp add: ios_finite)
+  moreover have "(inputs M \<times> outputs M) \<noteq> {}" using wf ios_finite by auto
+  ultimately have "finite { io . (\<forall> xy \<in> set io . xy \<in> (inputs M \<times> outputs M)) \<and> length io \<le> k }" 
+    using set_of_lists_finite_lte[of "inputs M \<times> outputs M" "k"] by blast
+  then show ?thesis using io_el infinite_super sup by blast
 qed
 
+lemma union_of_finite_sets : 
+  assumes fn: "finite S"
+  and     fe: "\<forall> s \<in> S . finite s"
+shows "finite (\<Union> S)"
+  using assms by simp
 
 lemma B_finite : 
   assumes wf: "well_formed M"
@@ -756,8 +802,17 @@ lemma B_finite :
   shows "finite (B M io T)" 
 proof -
   obtain q where q_def : "h_y_seq M (initial M) io = {q}" using language_def h_y_seq_observable assms well_formed_def by metis
-  then have "B M io T = atc_io_set M q T" by (simp add: B_def)
+  then have Beq: "B M io T = atc_io_set M q T" by (simp add: B_def)
   
+  have fs: "\<forall> t \<in> T . finite (atc_io M q t)" using wf by (simp add: atc_io_finite)
+  then have "finite { atc_io M q t | t . t \<in> T }" 
+    using ft union_of_finite_sets by simp
+  then have "finite (\<Union> { atc_io M q t | t . t \<in> T })"
+    using fs by blast
+  moreover have "atc_io_set M q T = \<Union>{ atc_io M q t | t . t \<in> T }" 
+    by (simp add: atc_io_set_def)
+  ultimately show ?thesis using B_def Beq by simp
+qed
 
 lemma D_finite : 
   assumes wf: "well_formed M"
