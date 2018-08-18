@@ -788,12 +788,6 @@ proof -
   then show ?thesis using io_el infinite_super sup by blast
 qed
 
-lemma union_of_finite_sets : 
-  assumes fn: "finite S"
-  and     fe: "\<forall> s \<in> S . finite s"
-shows "finite (\<Union> S)"
-  using assms by simp
-
 lemma B_finite : 
   assumes wf: "well_formed M"
   and     ob: "observable M"
@@ -806,7 +800,7 @@ proof -
   
   have fs: "\<forall> t \<in> T . finite (atc_io M q t)" using wf by (simp add: atc_io_finite)
   then have "finite { atc_io M q t | t . t \<in> T }" 
-    using ft union_of_finite_sets by simp
+    using ft by simp
   then have "finite (\<Union> { atc_io M q t | t . t \<in> T })"
     using fs by blast
   moreover have "atc_io_set M q T = \<Union>{ atc_io M q t | t . t \<in> T }" 
