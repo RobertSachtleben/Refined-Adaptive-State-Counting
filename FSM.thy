@@ -323,24 +323,24 @@ definition language :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list 
 abbreviation L :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set" where
 "L M \<equiv> language M"
 
-definition language_state_i :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in * 'out) list set" where
-"language_state_i M s in_seq = { io . io \<in> language_state M s \<and> in_seq = map fst io }"
+definition language_state_in :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in * 'out) list set" where
+"language_state_in M s in_seq = { io . io \<in> language_state M s \<and> in_seq = map fst io }"
 
 lemma language_state_i_length :
-  assumes io: "io \<in> language_state_i M s iseq"
+  assumes io: "io \<in> language_state_in M s iseq"
   shows "length io = length iseq"
 proof -
-  have "iseq = map fst io" using io by (simp add: language_state_i_def)
+  have "iseq = map fst io" using io by (simp add: language_state_in_def)
   then show ?thesis by simp
 qed
 
-lemma language_state_i_nil : "language_state_i M s [] = {Nil}"
+lemma language_state_in_nil : "language_state_in M s [] = {Nil}"
 proof -
   have "is_enabled_sequence M s []" by simp
   then have nil_el : "Nil \<in> language_state M s" using get_io.simps(1) language_state_def by (metis (mono_tags, lifting) mem_Collect_eq)
-  have "\<forall> io \<in> language_state_i M s [] . length io = 0" by (simp add: language_state_i_def)
-  then have "language_state_i M s [] \<subseteq> {Nil}" by auto
-  then show ?thesis using nil_el using language_state_i_def by fastforce
+  have "\<forall> io \<in> language_state_in M s [] . length io = 0" by (simp add: language_state_in_def)
+  then have "language_state_in M s [] \<subseteq> {Nil}" by auto
+  then show ?thesis using nil_el using language_state_in_def by fastforce
 qed
 
 definition io_reduction_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> bool" 

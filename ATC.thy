@@ -358,13 +358,13 @@ definition atc_io_set :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightar
 "atc_io_set M s T = \<Union> { atc_io M s t | t . t \<in> T }"
   
 
-lemma io_dist :
-  assumes io_diff : "act_io M s1 t \<noteq> act_io M s2 t"
+lemma io_dist_ineq :
+  assumes io_diff : "atc_io M s1 t \<noteq> atc_io M s2 t"
   shows "s1 \<noteq> s2"
   using io_diff by auto
 
-lemma io_dist_set :
-  assumes io_diff_set : "act_io_set M s1 T \<noteq> act_io_set M s2 T"
+lemma io_dist_set_ineq :
+  assumes io_diff_set : "atc_io_set M s1 T \<noteq> atc_io_set M s2 T"
   shows "s1 \<noteq> s2"
   using io_diff_set by auto
 
@@ -442,13 +442,9 @@ using assms proof (induction t arbitrary: s)
   then show ?case by (metis atc_io_def is_atc_reaction.simps(1) mem_Collect_eq)
 next
   case (Node x f)
-  
-  print_theorems
   have "x \<in> atc_inputs (Node x f)" using atc_inputs.simps(2) by simp
   then have "x \<in> inputs M" using Node.prems(3) by (simp add: atc_applicable_def)
   then obtain y s2 where trans_def : "(s,x,y,s2) \<in> transitions M" by (meson Node.prems completely_specified_def el)
-  
-  
   show "\<exists> io . io \<in> atc_io M s (Node x f)" 
   proof (cases "fmlookup f y")
     case None
@@ -467,7 +463,7 @@ next
 qed
 
  
-  
+(* Lemma 5.3.7 *)  
 lemma atc_rdist_dist :
   assumes wf2   : "well_formed M2"
   and     cs2   : "completely_specified M2"
@@ -491,13 +487,69 @@ proof -
   then show ?thesis by (meson td_def atc_dist_set_def)
 qed
 
-
+(* explicitly requires the ATC set to be applicable to the FSN *)
 definition characterizing_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-"characterizing_set M T \<equiv> (\<forall> t \<in> T . atc_applicable M t) \<and> (\<forall> s1 \<in> (states M) . \<forall> s2 \<in> (states M) . 
+"characterizing_set M T \<equiv> atc_applicable_set M T \<and> (\<forall> s1 \<in> (states M) . \<forall> s2 \<in> (states M) . 
     (\<exists> td . atc_rdist M td s1 s2) \<longrightarrow> (\<exists> tt \<in> T . atc_rdist M tt s1 s2))"
 
 
+definition B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
+"B M io T = \<Union> (image (\<lambda> s . atc_io_set M s T) (h_y_seq M (initial M) io))"
 
+(* Proposition 5.4.2 *)
+lemma B_dist :
+  assumes wf: "well_formed M"
+  and     ob: "observable M"
+  and     ln1: "io1 \<in> language M"
+  and     ln2: "io2 \<in> language M"
+  and     df: "B M io1 T \<noteq> B M io2 T"
+  shows   "(h_y_seq M (initial M) io1) \<noteq> (h_y_seq M (initial M) io2)"
+proof -
+  obtain q1 where q1_def : "h_y_seq M (initial M) io1 = {q1}" by (metis h_y_seq_observable language_def ln1 local.wf ob well_formed_def)
+  then have B1 : "B M io1 T = atc_io_set M q1 T" by (simp add: B_def)
+  obtain q2 where q2_def : "h_y_seq M (initial M) io2 = {q2}" by (metis h_y_seq_observable language_def ln2 local.wf ob well_formed_def)
+  then have B2 : "B M io2 T = atc_io_set M q2 T" by (simp add: B_def)
+  have "q1 \<noteq> q2" using B1 B2 df by blast
+  then show ?thesis using q1_def q2_def by blast
+qed
+
+
+
+definition D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in * 'out) list set set" where
+"D M T ISeqs \<equiv> { B M io T | io . \<exists> iseq \<in> ISeqs . io \<in> language_state_in M (initial M) iseq }"
+
+
+lemma language_state_in_finite :
+  assumes wf: "well_formed M"
+  and     ob: "observable M"
+  and     el: "s \<in> states M"
+shows "finite (language_state_in M s iseq)"
+proof -
+  let ?inl = "length iseq"
+  let ?outS = "{ io . set io \<subseteq> outputs M \<and> length io = length iseq }"
+  have "finite ?outS" using assms by (simp add: finite_lists_length_eq well_formed_def)
+
+  let ?ioS = "{ io . set (map fst io) \<subseteq> inputs M \<and> set (map snd io) \<subseteq> outputs M \<and> length io = length iseq }"
+  have "finite ?ioS" using assms finite_lists_length_eq well_formed_def by sledgehamme
+  moreover have "language_state_in M s iseq \<subseteq> ?ioS"
+
+lemma D_finite : 
+  assumes wf: "well_formed M"
+  and     ob: "observable M"
+  and     ft: "finite T"
+  and     fi: "finite ISeqs"
+  shows "finite (D M T ISeqs)" 
+proof -
+  
+  
+
+lemma D_bound :
+  assumes wf: "well_formed M"
+  and     ob: "observable M"
+  and     ft: "finite T"
+  and     fi: "finite ISeqs"
+  shows "card (D M T ISeqs) \<le> card (states M)" 
+proof -  
 
 (* ************************* Input Seq to ATC ******************************
 
