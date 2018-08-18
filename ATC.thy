@@ -634,6 +634,131 @@ proof -
 qed
       
 
+(*
+"B M io T = \<Union> (image (\<lambda> s . atc_io_set M s T) (h_y_seq M (initial M) io))"
+
+lemma atc_io_alt_def : "atc_io M s (Node x f) = 
+  { ((x,y)#io) | y io . \<exists> t2 . (fmlookup f y = Some t2) \<and> (\<exists> s2 \<in> states M . (s,x,y,s2) \<in> transitions M \<and> io \<in> atc_io M s2 t2)}
+  \<union> { [(x,y)] | y . (fmlookup f y = None) \<and> (\<exists> s2 \<in> states M . (s,x,y,s2) \<in> transitions M) }"
+*)
+
+lemma atc_reaction_length :
+  assumes ir: "is_atc_reaction M s t io"
+  and     ht: "has_height t k"
+  shows "length io \<le> k"
+using assms proof (induction t arbitrary: s io k)
+  case Leaf
+  have "\<forall> io . is_atc_reaction M s Leaf io \<longrightarrow> io = []" by (metis is_atc_reaction.simps(2) neq_Nil_conv)
+  then have "io = []" using Leaf.prems by blast
+  moreover have "k = 0" using Leaf.prems has_height_def has_height_gte.simps(1) by blast
+  ultimately show ?case by simp
+next
+  case (Node x f)
+  then show ?case 
+  proof (cases io)
+    case Nil
+    then show ?thesis by simp
+  next
+    case (Cons a io2)
+    then obtain ax ay where a_def : "a = (ax,ay)" by (meson surj_pair)
+    show ?thesis 
+    proof (cases "(fmlookup f ay)")
+      case None
+      then have "io2 = []" using Node.prems(1) a_def local.Cons by auto
+      moreover have "k \<noteq> 0" using has_height_gte.simps(2) Node by (metis has_height_def)
+      ultimately show ?thesis using local.Cons by auto
+    next
+      case (Some t2)
+      have "is_atc_reaction M s (Node x f) ((ax,ay)#io2)" using Node Cons a_def by blast
+      then have t2_r : "(x = ax \<and> (\<exists> s2 . (s,ax,ay,s2) \<in> transitions M \<and> is_atc_reaction M s2 t2 io2))"
+        using Some is_atc_reaction.simps(4)[of "M" "s" "x" "f" "ax" "ay" "io2"]
+        by simp
+      
+      obtain k2 where k2_def : "has_height t2 k2" by (meson has_height_def height_min_ex not_less)
+      then have "length io2 \<le> k2" using Node.IH Some t2_r k2_def by (meson fmran'I)
+      moreover have "k2 < k" using Node.prems(2) Some has_height_def k2_def by (meson fmran'I has_height_subtest)
+      ultimately show ?thesis using Cons by simp
+    qed
+  qed
+qed
+
+
+lemma atc_reaction_alphabets :
+  assumes wf: "well_formed M"
+  and     ir: "is_atc_reaction M s t io"
+  shows "\<forall> xy \<in> set io . xy \<in> (inputs M \<times> outputs M)"
+using assms proof (induction t arbitrary: s io)
+  case Leaf
+  have "\<forall> io . is_atc_reaction M s Leaf io \<longrightarrow> io = []" by (metis is_atc_reaction.simps(2) neq_Nil_conv)
+  then have "io = []" using Leaf.prems by blast
+  then show ?case by simp
+next
+  case (Node x f)
+  then show ?case 
+  proof (cases io)
+    case Nil
+    then show ?thesis by simp
+  next
+    case (Cons a io2)
+    then obtain ax ay where a_def : "a = (ax,ay)" by (meson surj_pair)
+    have "is_atc_reaction M s (Node x f) ((ax,ay)#io2)" using Node Cons a_def by blast
+    then have "\<exists> s2 . (s,ax,ay,s2) \<in> transitions M"
+      using is_atc_reaction.simps(4)[of "M" "s" "x" "f" "ax" "ay" "io2"]
+            disjE_realizer2 not_less 
+      by fastforce
+    then have a_el : "a \<in> (inputs M \<times> outputs M)" using wf a_def transition_contents by fastforce
+    show ?thesis 
+    proof (cases "(fmlookup f ay)")
+      case None
+      then have "io2 = []" using a_def Cons Node.prems(2) by auto
+      then show ?thesis using a_def a_el Cons by auto
+    next
+      case (Some t2)
+      have "is_atc_reaction M s (Node x f) ((ax,ay)#io2)" using Node Cons a_def by blast
+      then have t2_r : "(x = ax \<and> (\<exists> s2 . (s,ax,ay,s2) \<in> transitions M \<and> is_atc_reaction M s2 t2 io2))"
+        using Some is_atc_reaction.simps(4)[of "M" "s" "x" "f" "ax" "ay" "io2"]
+        by simp
+      then have "\<forall> xy \<in> set io2 . xy \<in> (inputs M \<times> outputs M)" using Node.IH Some wf by (meson fmran'I)
+      then show ?thesis using a_def a_el Cons by auto
+    qed
+  qed
+qed
+
+
+lemma atc_io_finite :
+  assumes wf: "well_formed M"
+  shows "finite (atc_io M s t)"
+proof -
+  obtain k where k_def : "has_height t k" by (meson has_height_def height_min_ex not_less)
+  then have "\<forall> io . is_atc_reaction M s t io \<longrightarrow> length io \<le> k" using atc_reaction_length by auto
+  then show ?thesis by sledgehamme
+
+
+
+
+
+proof (induction t arbitrary: s)
+  case Leaf
+  have "\<forall> io . is_atc_reaction M s Leaf io \<longrightarrow> io = []" by (metis is_atc_reaction.simps(2) neq_Nil_conv)
+  then have "atc_io M s Leaf = {[]}" using atc_io_def is_atc_reaction.simps(1) by fastforce
+  then show ?case using atc_io_def by simp
+next
+  case (Node x f)
+  then show ?case sorry
+qed
+
+
+lemma B_finite : 
+  assumes wf: "well_formed M"
+  and     ob: "observable M"
+  and     ft: "finite T"
+  and     io: "io \<in> language M"
+  shows "finite (B M io T)" 
+proof -
+  obtain q where q_def : "h_y_seq M (initial M) io = {q}" using language_def h_y_seq_observable assms well_formed_def by metis
+  then have "B M io T = atc_io_set M q T" by (simp add: B_def)
+  
+
 lemma D_finite : 
   assumes wf: "well_formed M"
   and     ob: "observable M"
