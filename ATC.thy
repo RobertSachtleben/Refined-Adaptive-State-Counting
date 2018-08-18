@@ -534,7 +534,7 @@ next
   then show ?case using assms by (simp add: Suc.IH finite_image_set2)
 qed
 
-lemma language_state_in_alphabets :
+lemma sequence_elem :
   assumes sq: "is_sequence M seq"
   and     wf: "well_formed M"
   shows "\<forall> x \<in> set seq . x \<in> (states M \<times> inputs M \<times> outputs M \<times> states M)"
@@ -547,6 +547,67 @@ next
 next
   case (3 M a b seq)
   then show ?case using contra_subsetD well_formed_def by fastforce
+qed
+
+lemma transitions_finite : 
+  assumes wf : "well_formed M"
+  shows "finite (states M \<times> inputs M \<times> outputs M \<times> states M) \<and> (states M \<times> inputs M \<times> outputs M \<times> states M) \<noteq> {}"
+  using well_formed_def wf by (simp add: well_formed_def)
+
+lemma ios_finite : 
+  assumes wf : "well_formed M"
+  shows "finite (inputs M \<times> outputs M) \<and> (inputs M \<times> outputs M) \<noteq> {}"
+  using well_formed_def wf by (simp add: well_formed_def)
+
+lemma sequences_length_finite :
+  assumes wf: "well_formed M"
+shows "finite {seq . is_sequence M seq \<and> length seq = k}"
+proof -
+  let ?seqSet = "{seq . is_sequence M seq \<and> length seq = k}"
+  let ?transSet = "{seq . (\<forall> x \<in> set seq . x \<in> (states M \<times> inputs M \<times> outputs M \<times> states M)) \<and> length seq = k}"
+  have "?seqSet \<subseteq> ?transSet" using assms sequence_elem by blast
+  moreover have "finite ?transSet"
+    using 
+      assms
+      transitions_finite
+      set_of_lists_finite
+    by blast
+  ultimately show "finite ?seqSet" using finite_subset by auto
+qed
+
+lemma io_in_seq_alphabets :
+  assumes sq: "\<forall> x \<in> set seq . x \<in> (states M \<times> inputs M \<times> outputs M \<times> states M)"
+  and     io: "io = get_io seq"
+  shows "\<forall> x \<in> set io . x \<in> (inputs M \<times> outputs M)"
+using assms proof (induction seq arbitrary: io)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a seq2)
+  obtain xy io2 where io_split : "io = xy # io2" using get_io_length by (metis Cons.prems(2) length_Suc_conv)
+  then have "io2 = get_io seq2" using Cons.prems(2) get_io.elims by auto
+  then have el2 : "\<forall> x \<in> set io2 . x \<in> (inputs M \<times> outputs M)" using Cons.IH by (simp add: Cons.prems(1))
+
+  
+  obtain s1 x y s2 where a_def : "a = (s1,x,y,s2)" using local.Cons(2) by auto
+  then have "xy = (x,y)" using io_split Cons a_def by simp
+  moreover have "(s1,x,y,s2) \<in> (states M \<times> inputs M \<times> outputs M \<times> states M)" using Cons sq a_def by simp
+  ultimately have el_xy : "xy \<in> (inputs M \<times> outputs M)" by blast
+
+  have "set io = insert xy (set io2)" using io_split by simp
+  
+  then show ?case using el2 el_xy by simp
+qed
+
+lemma language_state_in_alphabets :
+  assumes wf : "well_formed M"
+  and     ln : "io \<in> language_state M s"
+shows "(\<forall> x \<in> set io . x \<in> (inputs M \<times> outputs M))"
+proof -
+  obtain seq where seq_def : "is_enabled_sequence M s seq \<and> io = get_io seq" by (metis language_state_sequence_ex ln)
+  have "is_sequence M seq" by (metis is_enabled_sequence.elims(2) is_sequence.simps(1) seq_def)
+  then have "\<forall> x \<in> set seq . x \<in> (states M \<times> inputs M \<times> outputs M \<times> states M)" using assms sequence_elem by blast
+  then show "\<forall> x \<in> set io . x \<in> (inputs M \<times> outputs M)" using seq_def io_in_seq_alphabets by blast
 qed
 
 
@@ -562,10 +623,15 @@ proof -
   then have "finite ?ioS" using set_of_lists_finite[of "inputs M \<times> outputs M"] by simp
   moreover have "language_state_in M s iseq \<subseteq> ?ioS" 
   proof 
-    fix x
-    assume "x \<in> language_state_in M s iseq"
-    then show "x \<in> ?ioS" 
-    proof
+    fix io
+    assume io_assm : "io \<in> language_state_in M s iseq"
+    then have "io \<in> language_state M s" using language_state_in_def by fastforce
+    then have io_el : "(\<forall> x \<in> set io . x \<in> (inputs M \<times> outputs M))" using language_state_in_alphabets wf by fastforce
+    have "length io = length iseq" using io_assm language_state_in_def language_state_i_length by fastforce
+    then show "io \<in> ?ioS" using io_el by blast
+  qed
+  ultimately show ?thesis using finite_subset by auto
+qed
       
 
 lemma D_finite : 
