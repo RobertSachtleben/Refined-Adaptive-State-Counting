@@ -519,19 +519,54 @@ definition D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rig
 "D M T ISeqs \<equiv> { B M io T | io . \<exists> iseq \<in> ISeqs . io \<in> language_state_in M (initial M) iseq }"
 
 
+lemma set_of_lists_finite:
+  assumes f1 : "finite S1"
+  assumes ne : "S1 \<noteq> {}" 
+  shows "finite { xs . (\<forall> x \<in> set xs . x \<in> S1) \<and> length xs = k }"
+proof (induction k)
+  case 0
+  have "{ xs . (\<forall> x \<in> set xs . x \<in> S1) \<and> length xs = 0 } = {Nil}" using assms by fastforce
+  then show ?case by simp
+next
+  case (Suc k)
+  then have "{xs.(\<forall>x\<in>set xs. x \<in> S1) \<and> length xs = Suc k} = { (a#xs) | a xs . a \<in> S1 \<and> (\<forall> x \<in> set xs . x \<in> S1) \<and> length xs = k }" 
+    by (smt Collect_cong insert_iff length_Suc_conv list.simps(15))
+  then show ?case using assms by (simp add: Suc.IH finite_image_set2)
+qed
+
+lemma language_state_in_alphabets :
+  assumes sq: "is_sequence M seq"
+  and     wf: "well_formed M"
+  shows "\<forall> x \<in> set seq . x \<in> (states M \<times> inputs M \<times> outputs M \<times> states M)"
+using assms proof (induction seq rule: is_sequence.induct)
+  case (1 M)
+  then show ?case by simp
+next
+  case (2 M a)
+  then show ?case using contra_subsetD well_formed_def by fastforce
+next
+  case (3 M a b seq)
+  then show ?case using contra_subsetD well_formed_def by fastforce
+qed
+
+
+
 lemma language_state_in_finite :
   assumes wf: "well_formed M"
   and     ob: "observable M"
   and     el: "s \<in> states M"
 shows "finite (language_state_in M s iseq)"
 proof -
-  let ?inl = "length iseq"
-  let ?outS = "{ io . set io \<subseteq> outputs M \<and> length io = length iseq }"
-  have "finite ?outS" using assms by (simp add: finite_lists_length_eq well_formed_def)
-
-  let ?ioS = "{ io . set (map fst io) \<subseteq> inputs M \<and> set (map snd io) \<subseteq> outputs M \<and> length io = length iseq }"
-  have "finite ?ioS" using assms finite_lists_length_eq well_formed_def by sledgehamme
-  moreover have "language_state_in M s iseq \<subseteq> ?ioS"
+  let ?ioS = "{ io . (\<forall> x \<in> set io . x \<in> (inputs M \<times> outputs M)) \<and> length io = length iseq }"
+  have "finite (inputs M \<times> outputs M) \<and> (inputs M \<times> outputs M) \<noteq> {}" using wf by (simp add: well_formed_def)
+  then have "finite ?ioS" using set_of_lists_finite[of "inputs M \<times> outputs M"] by simp
+  moreover have "language_state_in M s iseq \<subseteq> ?ioS" 
+  proof 
+    fix x
+    assume "x \<in> language_state_in M s iseq"
+    then show "x \<in> ?ioS" 
+    proof
+      
 
 lemma D_finite : 
   assumes wf: "well_formed M"

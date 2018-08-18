@@ -100,10 +100,10 @@ fun reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('sta
 
 definition well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
 "well_formed M \<equiv> 
-    finite (states M)
+    finite (states M) \<and> states M \<noteq> {}
   \<and> initial M \<in> states M
-  \<and> finite (inputs M)
-  \<and> finite (outputs M)
+  \<and> finite (inputs M) \<and> inputs M \<noteq> {}
+  \<and> finite (outputs M) \<and> outputs M \<noteq> {}
   (*\<and> (\<forall> (s1,x,y,s2) \<in> transitions M . 
       s1 \<in> states M \<and> s2 \<in> states M \<and> x \<in> inputs M \<and> y \<in> outputs M)*)
   \<and> transitions M \<subseteq> (states M) \<times> (inputs M) \<times> (outputs M) \<times> (states M)
