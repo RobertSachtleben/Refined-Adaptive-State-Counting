@@ -808,6 +808,16 @@ proof -
   ultimately show ?thesis using B_def Beq by simp
 qed
 
+lemma D_alt_def :
+  "D M T ISeqs = image (\<lambda> io . B M io T) (\<Union> (image (language_state_in M (initial M)) ISeqs))"
+proof -
+  let ?orig = "{ io . \<exists> iseq \<in> ISeqs . io \<in> language_state_in M (initial M) iseq }"
+  let ?alt = "\<Union> (image (language_state_in M (initial M)) ISeqs)"
+  have alt_def : "?orig = ?alt" by (simp add: UNION_eq)
+  have "D M T ISeqs = image (\<lambda> io . B M io T) ?orig" by (simp add: D_def setcompr_eq_image)
+  then show "D M T ISeqs = image (\<lambda> io . B M io T) ?alt" using alt_def by auto
+qed
+
 lemma D_finite : 
   assumes wf: "well_formed M"
   and     ob: "observable M"
@@ -830,6 +840,11 @@ proof -
   ultimately show ?thesis by simp
 qed
 
+lemma singleton_image_card :
+  assumes "S = {s}"
+  shows "card (image f S) = 1"
+  using assms by simp
+
 lemma D_bound :
   assumes wf: "well_formed M"
   and     ob: "observable M"
@@ -837,12 +852,60 @@ lemma D_bound :
   and     fi: "finite ISeqs"
   shows "card (D M T ISeqs) \<le> card (states M)" 
 proof -
-(*
-idea: 
-- proof that only states in M are reached by ISeqs
-- only for those can reactions be observed
-- any further would imply a reached state not in M
-*)
+  (* 
+  Idea: 
+    D produces only responses of states in M to T, 
+    thus it is sufficient to show that D produces
+    a subset of the set of reactions of all states 
+    in M to T
+  *)
+  let ?dom = "{ io . \<exists> iseq \<in> ISeqs . io \<in> language_state_in M (initial M) iseq }" 
+  let ?dom2 = "{ io . \<exists> iseq . io \<in> language_state_in M (initial M) iseq }"
+  let ?dm_sub = "image (\<lambda> io . B M io T) (language_state M (initial M))"
+  have "?dom \<subseteq> ?dom2" by blast
+  moreover have "?dom2 \<subseteq> language_state M (initial M)" by (simp add: language_state_in_def)
+  ultimately have "?dom \<subseteq> language_state M (initial M)" by blast
+  then have dm_sub : "D M T ISeqs \<subseteq> ?dm_sub" 
+    by (smt D_def Setcompr_eq_image mem_Collect_eq subset_iff)
+
+  have io_s :"\<forall> io \<in> language_state M (initial M) . \<exists> s \<in> states M .  h_y_seq M (initial M) io = {s}"
+  proof 
+    fix io
+    assume io_assm : "io \<in> language_state M (initial M)"
+    then show "\<exists> s \<in> states M .  h_y_seq M (initial M) io = {s}" 
+      by (meson wf ob well_formed_def h_y_seq_observable)
+  qed
+
+  let ?dm_sub2 = "image (\<lambda> s . atc_io_set M s T) (states M)"
+  have "?dm_sub \<subseteq> ?dm_sub2"
+  proof
+    fix resp
+    assume resp_assm : "resp \<in> (\<lambda>io. B M io T) ` language_state M (initial M)"
+    show "resp \<in> image (\<lambda> s . atc_io_set M s T) (states M)"
+    proof -
+      obtain io where io_def : "io \<in> language_state M (initial M) \<and> B M io T = resp" using resp_assm by auto
+      then obtain q where q_def : "q \<in> states M \<and>  h_y_seq M (initial M) io = {q}" using io_s resp_assm by auto
+      then have "resp = \<Union> (image (\<lambda> s . atc_io_set M s T) {q})" by (metis B_def io_def)
+      then have "resp = atc_io_set M q T" by blast
+      then show "resp \<in> image (\<lambda> s . atc_io_set M s T) (states M)" using q_def by auto
+    qed
+  qed
+  then have "D M T ISeqs \<subseteq> ?dm_sub2" using dm_sub by blast
+  moreover have "card ?dm_sub2 \<le> card (states M)" using card_image_le  wf well_formed_def by blast
+  ultimately show "card (D M T ISeqs) \<le> card (states M)" by (meson card_mono dual_order.trans finite_imageI local.wf well_formed_def)
+qed
+
+lemma D_bound_subset :
+  assumes wf: "well_formed M"
+  and     ob: "observable M"
+  and     ft: "finite T"
+  and     fi: "finite ISeqs"
+  and     sb: "S \<subseteq> D M T ISeqs"
+shows "card S \<le> card (states M)" 
+  by (metis (no_types, lifting) assms D_bound D_finite card_mono dual_order.trans)
+
+
+
 
 (* ************************* Input Seq to ATC ******************************
 
