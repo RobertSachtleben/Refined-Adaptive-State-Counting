@@ -815,8 +815,20 @@ lemma D_finite :
   and     fi: "finite ISeqs"
   shows "finite (D M T ISeqs)" 
 proof -
+  let ?orig = "{ io . \<exists> iseq \<in> ISeqs . io \<in> language_state_in M (initial M) iseq }"
+  let ?alt = "\<Union> (image (language_state_in M (initial M)) ISeqs)"
   
-  
+  have "\<forall> iseq \<in> ISeqs . finite (language_state_in M (initial M) iseq)" 
+    using language_state_in_finite[of "M" "initial M"] wf ob by (simp add: well_formed_def) 
+  then have fa: "finite ?alt" using fi by blast
+   
+  have alt_def : "?orig = ?alt" by (simp add: UNION_eq)
+
+  have "D M T ISeqs = image (\<lambda> io . B M io T) ?orig" by (simp add: D_def setcompr_eq_image)
+  then have "D M T ISeqs = image (\<lambda> io . B M io T) ?alt" using alt_def by auto
+  moreover have "finite (image (\<lambda> io . B M io T) ?alt)" using fa by blast
+  ultimately show ?thesis by simp
+qed
 
 lemma D_bound :
   assumes wf: "well_formed M"
@@ -824,7 +836,13 @@ lemma D_bound :
   and     ft: "finite T"
   and     fi: "finite ISeqs"
   shows "card (D M T ISeqs) \<le> card (states M)" 
-proof -  
+proof -
+(*
+idea: 
+- proof that only states in M are reached by ISeqs
+- only for those can reactions be observed
+- any further would imply a reached state not in M
+*)
 
 (* ************************* Input Seq to ATC ******************************
 

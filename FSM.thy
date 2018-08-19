@@ -28,7 +28,16 @@ fun is_sequence :: "('in, 'out, 'state) FSM \<Rightarrow> ('state * 'in * 'out *
 "is_sequence M (a#Nil) = (a \<in> transitions M)" |
 "is_sequence M (a#b#seq) = (a \<in> transitions M \<and> t_target a = t_source b \<and> is_sequence M (b#seq))" 
 
-
+lemma sequence_transitions : 
+  assumes "is_sequence M seq"
+  shows "\<forall> a \<in> set seq . a \<in> transitions M"
+using assms proof (induction seq)
+  case Nil
+  then show ?case by simp
+next
+  case (Cons a seq)
+  then show ?case using is_sequence.simps assms  by (metis neq_Nil_conv set_ConsD)
+qed
 
 lemma sequence_drop :
   assumes "is_sequence M seq"
@@ -83,12 +92,14 @@ fun is_target :: "('state * 'in * 'out * 'state) list => 'state \<Rightarrow> bo
 "is_target Nil q = False" |
 "is_target ((s1,x,y,s2)#seq) q = (q = s2 \<or> is_target seq q)"
 
+
 definition visits :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
 "visits M s seq q \<equiv> is_enabled_sequence M s seq \<and> is_target seq q"
 
+
 fun reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
 "reaches M s Nil q = (s = q)" |
-"reaches M s seq q = (q = t_target (last seq))"
+"reaches M s seq q = (is_enabled_sequence M s seq \<and> q = t_target (last seq))"
 (*"reaches M s seq q \<equiv> is_enabled_sequence M s seq \<and> (case seq of
   Nil \<Rightarrow> q = s |
   _   \<Rightarrow> q = t_target (last seq))"*)
@@ -372,9 +383,7 @@ lemma language_state_dist :
 fun h_y_seq :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in * 'out) list \<Rightarrow> 'state set" where
 "h_y_seq M s1 io = { s2 . \<exists> seq . is_enabled_sequence M s1 seq \<and> reaches M s1 seq s2 \<and> get_io seq = io }"
 
-lemma reach_ex :
-  shows "\<exists> s2 . reaches M s1 seq s2"
-  by (metis neq_Nil_conv reaches.simps(1) reaches.simps(2))
+
 
 lemma transition_contents :
   assumes wf: "well_formed M"
@@ -384,6 +393,29 @@ lemma transition_contents :
        \<and> t_output a \<in> outputs M
        \<and> t_target a \<in> states M"
   using local.wf tr well_formed_def by fastforce
+
+
+lemma reach_ex :
+  assumes en: "is_enabled_sequence M s1 seq"
+  and     el: "s1 \<in> (states M)"
+  and     wf: "well_formed M"
+  shows "\<exists> s2 \<in> (states M) . reaches M s1 seq s2"
+using assms proof (cases seq)
+  case Nil
+  then show ?thesis using assms by simp
+next
+  case (Cons a list)
+  then obtain s2 where s2_def : "reaches M s1 seq s2" using assms by simp
+  then have s2_p : "is_enabled_sequence M s1 (Cons a list) \<and> s2 = t_target (last (Cons a list))" 
+    using reaches.simps(2) Cons by simp
+  then have "is_sequence M (Cons a list)" using is_enabled_sequence.simps(2) by auto
+  then have "last (Cons a list) \<in> transitions M" using sequence_transitions last_in_set by blast
+  then have "t_target (last (Cons a list)) \<in> states M" using wf well_formed_def  by (simp add: transition_contents)
+  then have "s2 \<in> states M" using s2_p by simp
+  then show ?thesis using s2_def by auto
+qed  
+
+
 
 lemma reach_enabled_ex :
   assumes wf: "well_formed M"
