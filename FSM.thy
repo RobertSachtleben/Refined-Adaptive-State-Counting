@@ -420,7 +420,6 @@ qed
 lemma reach_enabled_ex :
   assumes wf: "well_formed M"
   assumes el: "s1 \<in> states M"
-  assumes en: "is_enabled_sequence M s1 seq"
   assumes re: "reaches M s1 seq s2"
   shows "s2 \<in> states M"
 proof (cases seq)
@@ -458,22 +457,186 @@ proof -
   ultimately show ?thesis by blast    
 qed  
 
-definition d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out ) list \<Rightarrow> 'state \<Rightarrow> bool" 
-  where "d_reaches M io s \<equiv> \<forall> seq \<in> LS M . ((get_io seq = io) \<longrightarrow> reaches M (initial M) seq s)"
+(* all transitions seqs with input iseq reach only s1 *)
+definition d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'in list \<Rightarrow> 'state \<Rightarrow> bool" 
+  where "d_reaches M iseq s1 \<equiv> { s . \<exists> seq \<in> LS M . map t_input seq = iseq \<and> reaches M (initial M) seq s } = {s1}"
+  (*where "d_reaches M io s \<equiv> \<forall> seq \<in> LS M . ((get_io seq = io) \<longrightarrow> reaches M (initial M) seq s)"*)
 
 definition d_reachable :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> bool"
-  where "d_reachable M s \<equiv> \<exists> io \<in> L M . d_reaches M io s"  
+  where "d_reachable M s \<equiv> \<exists> iseq . d_reaches M iseq s"  
+
+definition d_reachable_states :: "('in, 'out, 'state) FSM \<Rightarrow> 'state set" where
+"d_reachable_states M \<equiv> { s . d_reachable M s }"
+
+lemma d_reaches_el :
+  assumes dr: "d_reaches M iseq s"
+  and     wf: "well_formed M"
+shows "s \<in> states M"
+proof -
+  obtain seq where seq_def : "seq \<in> LS M \<and> map t_input seq = iseq \<and> reaches M (initial M) seq s" using dr d_reaches_def 
+  proof - (* auto-gen *)
+    assume a1: "\<And>seq. seq \<in> LS M \<and> map t_input seq = iseq \<and> reaches M (initial M) seq s \<Longrightarrow> thesis"
+    have "\<forall>f as c. d_reaches (f::('a, 'b, 'c) FSM) as c = ({c. \<exists>ps. ps \<in> LS f \<and> map t_input ps = as \<and> reaches f (initial f) ps c} = {c})"
+      by (simp add: Bex_def_raw d_reaches_def)
+    then have "\<exists>ps. ps \<in> LS M \<and> map t_input ps = iseq \<and> reaches M (initial M) ps s"
+      using dr by blast
+    then show ?thesis
+      using a1 by auto
+  qed
+  then show ?thesis by (metis reach_enabled_ex wf well_formed_def)
+qed
+
+lemma d_reachable_el : 
+  assumes dr: "d_reachable M s"
+  and     wf: "well_formed M"
+shows "s \<in> states M"
+  by (metis assms d_reachable_def d_reaches_el)
+
+lemma d_reachable_states_el : 
+  assumes wf: "well_formed M"
+shows "d_reachable_states M \<subseteq> states M"
+  using assms d_reachable_el d_reachable_states_def by fastforce
 
 
-definition is_state_cover :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set \<Rightarrow> bool" where
+definition is_state_cover :: "('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> bool" where
 "is_state_cover M V \<equiv> 
   (* d-reaches every d-reachable state of M *) 
-  (\<forall> s \<in> states M . (d_reachable M s \<longrightarrow> (\<exists> seq \<in> V . d_reaches M seq s)))
-  (* is minimal *)
-  \<and> (\<forall> V2 . (V2 \<subset> V \<longrightarrow> (\<exists> s \<in> states M . d_reachable M s \<and> \<not> (\<exists> seq \<in> V . d_reaches M seq s))))
+  (\<forall> s \<in> d_reachable_states M . \<exists> seq \<in> V . d_reaches M seq s)
+  (* is minimal (1): if a state is d-reached by two seqs in V, then these seqs are the same *)
+  \<and> (\<forall> s \<in> states M . \<forall> seq1 \<in> V . \<forall> seq2 \<in> V  . ((d_reaches M seq1 s \<and> d_reaches M seq2 s) \<longrightarrow> seq1 = seq2))
+  (* is minimal (1)-alt: every proper subset does not d-reach some d-reachable state in M *)
+  (* \<and> (\<forall> V2 . (V2 \<subset> V \<longrightarrow> (\<exists> s \<in> states M . d_reachable M s \<and> \<not> (\<exists> seq \<in> V . d_reaches M seq s)))) *)
+  (* is minimal (2): every sequence in V d-reaches some state in M *)
+  \<and> (\<forall> seq \<in> V . \<exists> s \<in> states M . d_reaches M seq s)
   (* contains Nil to reach (initial M) *)
   \<and> Nil \<in> V"
 
+lemma d_reach_dist :
+  assumes dr: "d_reaches M seq s1"
+  and     ne: "s1 \<noteq> s2"
+shows "\<not>(d_reaches M seq s2)"
+  using assms by (simp add: d_reaches_def)
 
+(*
+lemma scov_finite :
+  assumes sc: "is_state_cover M V"
+  and     wf: "well_formed M"
+  shows "finite V"
+proof -
+  have *)
+(*
+lemma scov_no_subset :
+  assumes sc: "is_state_cover M V1"
+  and     ss: "V2 \<subset> V2"
+shows "\<not>(is_state_cover M V2)"
+*)
+
+lemma scov_size :
+  assumes sc: "is_state_cover M V"
+  and     wf: "well_formed M"
+  shows "card V = card (d_reachable_states M)"
+proof -
+  let ?drs = "{ s . \<exists> iseq \<in> V . d_reaches M iseq s }"
+  have drs_eq : "?drs = d_reachable_states M" 
+    unfolding d_reachable_states_def
+    by (metis (no_types, lifting) is_state_cover_def  d_reachable_def d_reachable_states_def mem_Collect_eq sc)
+
+  let ?drs2 = "\<Union> {{s . d_reaches M iseq s} | iseq . iseq \<in> V}"
+  have "?drs2 = ?drs"
+  proof
+    show "?drs2 \<subseteq> ?drs"
+    proof
+      fix x 
+      assume x_assm : "x \<in> ?drs2"
+      then obtain iseq where iseq_def : "iseq \<in> V \<and> x \<in> {s . d_reaches M iseq s}"
+        by blast
+      then have "iseq \<in> V \<and> d_reaches M iseq x"
+        by blast
+      then show "x \<in> ?drs" by blast
+    qed
+    show "?drs \<subseteq> ?drs2"
+    proof
+      fix x 
+      assume x_assm : "x \<in> ?drs"
+      then obtain iseq where iseq_def : "iseq \<in> V \<and> d_reaches M iseq x"
+        by blast
+      then have "iseq \<in> V \<and> x \<in> {s . d_reaches M iseq s}"
+        by blast
+      then show "x \<in> ?drs2" by blast
+    qed
+  qed
+  then have drs2_eq : "?drs2 = d_reachable_states M" using drs_eq by simp
+  then have drs2_card : "card ?drs2 = card (d_reachable_states M)" by auto
+
+  have tgt : "\<forall> iseq \<in> V . \<exists> q . { s . d_reaches M iseq s } = {q}"
+  proof 
+    fix iseq
+    assume iseq_assm : "iseq \<in> V"
+    show "\<exists> q . { s . d_reaches M iseq s } = {q}"
+    proof -
+      obtain q where q_def : "d_reaches M iseq q" 
+        by (meson iseq_assm sc is_state_cover_def)
+      then have "{ s . d_reaches M iseq s } = {q}"
+        using d_reach_dist by fastforce
+      then show ?thesis using q_def by blast
+    qed
+  qed
+
+  have tgt_1 : "\<forall> iseq \<in> V . card { s . d_reaches M iseq s } = 1"
+    using tgt by auto
+
+  
+  let ?ds = "\<lambda> iseq . {s . d_reaches M iseq s}"
+  have "\<forall> iseq1 \<in> V . \<forall> iseq2 \<in> V . \<exists> q1 q2 . (?ds iseq1 = {q1} \<and>  ?ds iseq2 = {q2})"
+    using tgt
+    by auto
+  then have "\<forall> iseq1 \<in> V . \<forall> iseq2 \<in> V . (?ds iseq1 = ?ds iseq2 \<longrightarrow> (\<exists> q . ?ds iseq1 = {q}))"
+    by auto
+  then have "\<forall> iseq1 \<in> V . \<forall> iseq2 \<in> V . (\<exists> q . ?ds iseq1 = {q})"
+  then have "\<forall> iseq1 \<in> V . \<forall> iseq2 \<in> V . (?ds iseq1 = ?ds iseq2 \<longrightarrow> iseq1 = iseq2)"
+    using sc is_state_cover_def
+    by sledgehamme
+  have "\<forall> iseq1 \<in> V . \<forall> iseq2 \<in> V . (iseq1 \<noteq> iseq2 \<longrightarrow> ?ds iseq1 \<inter> ?ds iseq2 = {})"  
+    using sc is_state_cover_def tgt 
+    by sledgehamme
+  have "image ?ds V = {{s . d_reaches M iseq s} | iseq . iseq \<in> V}"
+    by auto
+  then have "\<Union> (image ?ds V) = ?drs2"
+    by auto    
+  then have "\<Union> (image ?ds V) = d_reachable_states M"
+    using drs2_eq by auto
+  
+
+  then have "card V \<ge> card ?drs2"
+    by sledgehamme
+  
+qed
+(*
+  have "card V \<ge> card ?drs" using tgt by sledgehamme
+  
+  
+  let ?dmap = "{ (iseq,s) | iseq s . iseq \<in> V \<and> d_reaches M iseq s }"
+  have "Range ?dmap = d_reachable_states M" 
+    unfolding d_reachable_states_def d_reachable_def
+    using is_state_cover_def sc by sledgehamme
+
+
+  have "card V \<ge> card (d_reachable_states M)"
+  proof (rule ccontr)
+    assume "card V < card (d_reachable_states M)"
+    
+
+  
+
+   
+
+  have "\<not>(card V > card { s . s \<in> states M \<and> d_reachable M s})"
+  proof (rule ccontr)
+    assume "card V > card { s . s \<in> states M \<and> d_reachable M s}"
+    
+
+  have "\<not>(card V < card { s . s \<in> states M \<and> d_reachable M s})"
+  proof (rule ccontr)
+  
 
 end
