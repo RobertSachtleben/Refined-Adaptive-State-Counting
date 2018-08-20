@@ -821,7 +821,6 @@ qed
 lemma D_finite : 
   assumes wf: "well_formed M"
   and     ob: "observable M"
-  and     ft: "finite T"
   and     fi: "finite ISeqs"
   shows "finite (D M T ISeqs)" 
 proof -
@@ -848,7 +847,6 @@ lemma singleton_image_card :
 lemma D_bound :
   assumes wf: "well_formed M"
   and     ob: "observable M"
-  and     ft: "finite T"
   and     fi: "finite ISeqs"
   shows "card (D M T ISeqs) \<le> card (states M)" 
 proof -
@@ -898,7 +896,6 @@ qed
 lemma D_bound_subset :
   assumes wf: "well_formed M"
   and     ob: "observable M"
-  and     ft: "finite T"
   and     fi: "finite ISeqs"
   and     sb: "S \<subseteq> D M T ISeqs"
 shows "card S \<le> card (states M)" 
