@@ -904,135 +904,132 @@ shows "card S \<le> card (states M)"
 
 
 
-(* ************************* Input Seq to ATC ******************************
 
-fun restrict_fset :: "('a \<Rightarrow> 'b option) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
-"restrict_fset m xs = restrict_map m (fset xs)"
-
-fun map_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
-"map_of_fset f xs = restrict_fset (\<lambda> x . Some (f x)) xs"
-
-lemma finite_restrict_fset : "finite (dom (restrict_fset m xs))"
-proof -
-  have "finite (fset xs)" by simp
-  then show ?thesis by simp
-qed
-
-lemma finite_map_of_fset : "finite (dom (map_of_fset f xs))"
-  using finite_restrict_fset by simp
-
-fun fmap_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a, 'b) fmap"  where
-"fmap_of_fset f xs = Abs_fmap (map_of_fset f xs)"
-
-fun to_atc :: "'in list \<Rightarrow> 'out fset \<Rightarrow> ('in, 'out) ATC" where
-"to_atc [] _ = Leaf" |
-"to_atc (x#xs) os = (Node x (fmap_of_fset (\<lambda> _ . to_atc xs os) os))"
-
-
-fun map_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a \<Rightarrow> 'b option)"  where
-"map_of_fset f xs = (\<lambda> x . (if (x \<in> fset xs)
-                      then Some (f x)
-                      else None))"
-
-fun fmap_of_fset :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a fset \<Rightarrow> ('a, 'b) fmap"  where
-"fmap_of_fset f xs = Abs_fmap (map_of_fset f xs)"
-
-fun to_atc :: "'in list \<Rightarrow> 'out fset \<Rightarrow> ('in, 'out) ATC" where
-"to_atc [] _ = Leaf" |
-"to_atc (x#xs) os = Node x (Abs_fmap (map_of (image (\<lambda> y . (y,to_atc xs os)) (fset os))))"
-
-
-
-lemma test : "finite xs \<Longrightarrow> \<exists> fxs . xs = fset fxs"
-  using fset_to_fset by auto
-
-lemma test2 : "\<exists> fxs . xs = fset fxs \<Longrightarrow> finite xs"
-  using finite_fset by blast
-
-
-fun apply_io_atc :: "('in,'out) ATC \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in,'out) ATC option" where
-"apply_io_atc Leaf [] = Some Leaf" |
-"apply_io_atc Leaf io = None" |
-"apply_io_atc (Node x f) [] = None" |
-"apply_io_atc (Node x f) ((x1,y1)#io) = (if (x = x1)
-  then (case (fmlookup f y1) of 
-    Some a \<Rightarrow> apply_io_atc a io |
-    None   \<Rightarrow> apply_io_atc Leaf io) 
-  else None)"
-
-lemma reached_atc :
-  assumes io: "io \<in> atc_io M s t"
-  shows "apply_io_atc t io = Some t2 \<and> t2 
-
-
-lemma to_atc_nil : "atc_io M s Leaf = {Nil}"
-proof -
-  have "\<forall> seq . is_atc_reaction M s Leaf seq \<longrightarrow> length seq = 0" by (metis is_atc_reaction.simps(2) list.size(3) neq_Nil_conv)
-  then have "\<forall> seq \<in> atc_io M s Leaf . length seq = 0" by (simp add: atc_io_def)
-  moreover have "{Nil} \<subseteq> atc_io M s Leaf" by (simp add: atc_io_def)
-  ultimately show ?thesis by blast
-qed
-
-
-lemma language_seq_atc :
-  assumes io: "io \<in> atc_io M s (to_atc iseq fouts)"
-  and     fo: "fset fouts = outputs M"
-shows "io \<in> language_state_i M s iseq"
-using assms proof (induction iseq arbitrary: io s)
-  case Nil
-  then have "to_atc Nil fouts = Leaf" by simp
-  then have nil_atc : "{Nil} = atc_io M s (to_atc Nil fouts)" by (simp add: to_atc_nil)
-  moreover have "{Nil} \<subseteq> language_state_i M s []" by (simp add: language_state_i_nil)
-  ultimately show ?case using Nil.prems(1) by auto 
-next
-  case (Cons a iseq)
-  then show ?case sorry
-qed
-
-
-
-lemma language_seq_atc :
-  assumes ln: "io \<in> language_state_i M s iseq"
-  and     fo: "fset fouts = outputs M"
-  and     tc: "t = to_atc iseq fouts"
-  shows "io \<in> atc_io M s t"
-using assms proof (induction iseq)
-  case Nil
-  then have "to_atc Nil fouts = Leaf" by simp
-  then have "t = Leaf" by (simp add: Nil.prems(3))
-  then have nil_atc : "Nil \<in> atc_io M s t" by (simp add: atc_io_def)
-  have "{Nil} \<subseteq> language_state_i M s []" by (simp add: language_state_i_nil)
-  then have "io = Nil" using Nil.prems(1) language_state_i_nil by fastforce
-  then show ?case using nil_atc by simp
-next
-  case (Cons a iseq)
-  then show ?case sorry
-qed
   
+abbreviation append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
+"append_io_B M io \<Omega> \<equiv> { io@res | res . res \<in> B M io \<Omega> }"
 
-*)
+definition is_reduction_on :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"is_reduction_on M1 M2 iseq \<Omega> \<equiv> 
+  language_in M1 iseq \<subseteq> language_in M2 iseq 
+  \<and> (\<forall> io \<in> language_in M1 iseq . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
 
-
-
-
-
-
-
-
-
-
+definition is_reduction_on_sets :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"is_reduction_on_sets M1 M2 TS \<Omega> \<equiv> \<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>"
 
 
+lemma atc_reaction_el :
+  assumes "is_atc_reaction M q t io"
+  shows "io \<in> language_state M q"
+using assms proof (induction t arbitrary: q io)
+  case Leaf
+  then have "io = []" using is_atc_reaction.simps(2) by (metis list.exhaust)
+  then show ?case using language_state_def is_enabled_sequence.simps(1) Leaf 
+      by (metis (mono_tags, lifting) get_io.simps(1) mem_Collect_eq)  
+next
+  case (Node x f)
+  
+  then show ?case
+  proof (cases io)
+    case Nil
+    then show ?thesis using language_state_def is_enabled_sequence.simps(1) Nil 
+      by (metis (mono_tags, lifting) get_io.simps(1) mem_Collect_eq)
+  next
+    case (Cons xy io2)
+    then obtain xi yi where head_split : "xy = (xi,yi)" by fastforce
+    then show ?thesis 
+    proof (cases "fmlookup f yi")
+      case None
+      then have reaction : "io2 = [] \<and> (\<exists> s2 . (q,xi,yi,s2) \<in> transitions M)"
+        using 
+          is_atc_reaction.simps(4) 
+          Cons Node.prems trans_def head_split
+        by simp
+      then have io_eq : "io = [(xi,yi)]" using Cons head_split by simp
+      obtain s2 where s2_def : "(q,xi,yi,s2) \<in> transitions M" using reaction by auto
+      then have "is_enabled_sequence M q [(q,xi,yi,s2)]" using is_enabled_sequence.simps by auto
+      moreover have "get_io [(q,xi,yi,s2)] = io" using io_eq get_io.simps by auto
+      ultimately show ?thesis using Cons language_state_def
+        by fastforce
+    next
+      case (Some t)
+      then have reaction : "\<exists> s2 . (q,xi,yi,s2) \<in> transitions M \<and> is_atc_reaction M s2 t io2"
+        using 
+          is_atc_reaction.simps(4) 
+          Cons Node.prems trans_def head_split
+        by simp
+      then obtain s2 where s2_def : "(q,xi,yi,s2) \<in> transitions M \<and> is_atc_reaction M s2 t io2"
+        by auto
+      then have "io2 \<in> language_state M s2" using Node.IH Some 
+        by (meson fmran'I)
+      then obtain seq2 where seq2_def : "get_io seq2 = io2 \<and> is_enabled_sequence M s2 seq2"
+        unfolding language_state_def by auto
+      then have "is_sequence M ((q,xi,yi,s2)#seq2)"
+      proof (cases seq2)
+        case Nil
+        then show ?thesis using is_sequence.simps s2_def by auto
+      next
+        case (Cons a seq3)
+        then have "t_source a = s2" 
+          using seq2_def s2_def is_enabled_sequence.simps(2)[of "M" "s2" "a" "seq3"]
+          by auto
+        moreover have "t_target (q,xi,yi,s2) = s2" by auto
+        ultimately show ?thesis 
+          using seq2_def s2_def Cons is_enabled_sequence.simps(2)[of "M" "s2" "a" "seq3"] is_sequence.simps(3)[of "M" "(q,xi,yi,s2)" "a" "seq3"]
+          by auto
+      qed  
+      then have "is_enabled_sequence M q ((q,xi,yi,s2)#seq2)" by auto
+      moreover have "get_io ((q,xi,yi,s2)#seq2) = (xi,yi)#io2"
+        using seq2_def Cons by auto
+      moreover have "get_io ((q,xi,yi,s2)#seq2) = io"
+        using Cons head_split calculation by auto
+      ultimately show ?thesis 
+        using language_state_def[of "M" "q"] by blast
+    qed
+  qed
+qed
+
+
+lemma atc_io_subset :
+  "atc_io M q t \<subseteq> language_state M q"
+  using atc_reaction_el atc_io_def by fastforce
+
+lemma union_of_subsets :
+  assumes "\<forall> s \<in> S . s \<subseteq> T"
+  shows "\<Union> S \<subseteq> T"
+  using assms by (simp add: Union_least)
 
 
 
+lemma atc_io_set_subset :
+  "atc_io_set M q T \<subseteq> language_state M q"
+  unfolding atc_io_set_def
+  using atc_io_subset union_of_subsets by fastforce
 
-
+lemma B_language_in :
+  assumes "h_y_seq M (initial M) io = {q}"
+  shows "B M io \<Omega> \<subseteq> language_state M q"
+proof -
+  have "B M io \<Omega> = \<Union> (image (\<lambda> s . atc_io_set M s \<Omega>) {q})"
+    using assms by (simp add: B_def)
+  then have "B M io \<Omega> = atc_io_set M q \<Omega>"
+    by auto
+  moreover have "atc_io_set M q \<Omega> \<subseteq> language_state M q"
+    using atc_io_set_subset by fastforce
+  ultimately show ?thesis by auto
+end
 
 (*
-TODO:
-- concat ATCs (for alphabet Y)
-- input list \<rightarrow> ATC (for alphabet Y)
-*)
+lemma is_reduction_on_reverse : 
+  assumes rd: "M1 \<preceq> M2"
+  shows "is_reduction_on M1 M2 t \<Omega>"
+proof -
+  have "language_in M1 t \<subseteq> language_in M2 t"
+    using rd reduction_in_subset by auto
+  then have "(\<forall> io \<in> language_in M1 t . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
+
+lemma is_reduction_reverse :
+  assumes rd: "M1 \<preceq> M2"
+  shows "is_reduction_on_sets M1 M2 TS \<Omega>"
 
 end

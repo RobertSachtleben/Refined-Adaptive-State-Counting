@@ -77,7 +77,7 @@ qed
 
 fun is_enabled_sequence :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('state * 'in * 'out * 'state) list => bool" where
 "is_enabled_sequence M s Nil = True" |
-"is_enabled_sequence M s (a#seq) = ((fst a = s) \<and> is_sequence M (a#seq))"
+"is_enabled_sequence M s (a#seq) = ((t_source a = s) \<and> is_sequence M (a#seq))"
 
 
 
@@ -264,7 +264,7 @@ proof (rule ccontr)
   show "False"
   proof (cases mdi) (* rework case split, as both cases only differ meaningfully in the proof of s1=t1 *)
     case 0
-    have "s1 = t1" using assms by (metis "0" diff1_def diff2_def fst_conv is_enabled_sequence.elims(2) list.size(3) mdi_def nth_Cons_0 sameLength)
+    have "s1 = t1" using assms by (metis "0" diff1_def diff2_def t_source.simps is_enabled_sequence.elims(2) list.size(3) mdi_def nth_Cons_0 sameLength)
     moreover have "xa = xb" using assms using "0" diff1_def diff2_def get_io_index_eq mdi_def by fastforce
     moreover have "ya = yb" using assms by (metis "0" diff1_def diff2_def get_io_output_index mdi_def sameLength t_output.simps)
     moreover have "(s1,xa,ya,s2) \<in> transitions M" using diff1_def seq1_trans by auto
@@ -337,6 +337,8 @@ abbreviation L :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set" 
 definition language_state_in :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in * 'out) list set" where
 "language_state_in M s in_seq = { io . io \<in> language_state M s \<and> in_seq = map fst io }"
 
+abbreviation "language_in M iseq \<equiv> language_state_in M (initial M) iseq"
+
 lemma language_state_i_length :
   assumes io: "io \<in> language_state_in M s iseq"
   shows "length io = length iseq"
@@ -373,10 +375,15 @@ lemma language_state_dist :
   shows "s1 \<noteq> s2"
   using assms by auto
 
+lemma language_in_subset :
+  "language_in M t \<subseteq> language M"
+  using language_def language_state_in_def by fastforce
 
 
-
-
+lemma reduction_in_subset :
+  assumes "M1 \<preceq> M2"
+  shows   "language_in M1 t \<subseteq> language_in M2 t"
+  using assms language_in_subset by (simp add: io_reduction_def language_def language_state_in_def subset_eq)
 
 
 
