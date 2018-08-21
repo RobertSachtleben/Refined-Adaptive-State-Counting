@@ -81,9 +81,10 @@ fun is_enabled_sequence :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Right
 
 
 
-fun get_io :: "('state * 'in * 'out * 'state) list \<Rightarrow> ('in * 'out) list" where
-"get_io Nil = Nil" |
-"get_io ((s1,x,y,s2)#seq) = (x,y) # get_io seq"
+definition get_io :: "('state * 'in * 'out * 'state) list \<Rightarrow> ('in * 'out) list" where
+"get_io seq = map (\<lambda> a . (t_input a, t_output a)) seq"
+(*"get_io Nil = Nil" |
+"get_io ((s1,x,y,s2)#seq) = (x,y) # get_io seq"*)
 
 definition is_enabled_io_sequence :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in * 'out) list => bool" where
 "is_enabled_io_sequence M s io \<equiv> \<exists> seq . is_enabled_sequence M s seq \<and> io = get_io seq"
@@ -153,9 +154,7 @@ lemma observable_alt : "well_formed M \<Longrightarrow> observable M \<Longright
   by (metis (mono_tags, lifting) Collect_cong singleton_conv)
 
 lemma get_io_length : "length seq = length (get_io seq)"
-  apply (induction seq)
-  apply auto
-  done
+  by (simp add: get_io_def)
 
 lemma get_io_length_eq : 
   assumes "get_io seq1 = get_io seq2"
@@ -217,12 +216,10 @@ proof -
 qed 
 
 lemma get_io_input_index : "\<forall> j . ((j < length seq) \<and> (length seq > 0)) \<longrightarrow> t_input (seq ! j) = fst ((get_io seq) ! j)"
-  apply (induction seq)
-  using less_Suc_eq_0_disj by auto
-
+  by (simp add: get_io_def)  
+  
 lemma get_io_output_index : "\<forall> j . ((j < length seq) \<and> (length seq > 0)) \<longrightarrow> t_output (seq ! j) = snd ((get_io seq) ! j)"
-  apply (induction seq)
-  using less_Suc_eq_0_disj by auto
+  by (simp add: get_io_def)
 
 lemma get_io_index_eq :
   assumes en : "get_io seq1 = get_io seq2"
@@ -326,7 +323,8 @@ abbreviation LS :: "('in, 'out, 'state) FSM \<Rightarrow> ('state * 'in * 'out *
 lemma language_state_sequence_ex : 
   assumes "io \<in> language_state M s"
   shows "\<exists> seq . is_enabled_sequence M s seq \<and> get_io seq = io"
-  using assms language_state_def by force
+    unfolding language_state_def using assms
+    by (smt language_state_def mem_Collect_eq)
 
 definition language :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list set" where
 "language M \<equiv> language_state M (initial M)"
@@ -350,7 +348,7 @@ qed
 lemma language_state_in_nil : "language_state_in M s [] = {Nil}"
 proof -
   have "is_enabled_sequence M s []" by simp
-  then have nil_el : "Nil \<in> language_state M s" using get_io.simps(1) language_state_def by (metis (mono_tags, lifting) mem_Collect_eq)
+  then have nil_el : "Nil \<in> language_state M s" by (simp add: get_io_def language_state_def)
   have "\<forall> io \<in> language_state_in M s [] . length io = 0" by (simp add: language_state_in_def)
   then have "language_state_in M s [] \<subseteq> {Nil}" by auto
   then show ?thesis using nil_el using language_state_in_def by fastforce

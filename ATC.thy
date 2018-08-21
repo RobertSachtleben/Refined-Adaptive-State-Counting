@@ -627,16 +627,16 @@ lemma io_in_seq_alphabets :
   shows "\<forall> x \<in> set io . x \<in> (inputs M \<times> outputs M)"
 using assms proof (induction seq arbitrary: io)
   case Nil
-  then show ?case by auto
+  then show ?case by (simp add: get_io_def)
 next
   case (Cons a seq2)
   obtain xy io2 where io_split : "io = xy # io2" using get_io_length by (metis Cons.prems(2) length_Suc_conv)
-  then have "io2 = get_io seq2" using Cons.prems(2) get_io.elims by auto
+  then have "io2 = get_io seq2" using Cons.prems(2) by (simp add: get_io_def)
   then have el2 : "\<forall> x \<in> set io2 . x \<in> (inputs M \<times> outputs M)" using Cons.IH by (simp add: Cons.prems(1))
 
   
   obtain s1 x y s2 where a_def : "a = (s1,x,y,s2)" using local.Cons(2) by auto
-  then have "xy = (x,y)" using io_split Cons a_def by simp
+  then have "xy = (x,y)" using io_split Cons a_def by (simp add: get_io_def)
   moreover have "(s1,x,y,s2) \<in> (states M \<times> inputs M \<times> outputs M \<times> states M)" using Cons sq a_def by simp
   ultimately have el_xy : "xy \<in> (inputs M \<times> outputs M)" by blast
 
@@ -906,7 +906,7 @@ shows "card S \<le> card (states M)"
 
 
   
-abbreviation append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
+definition append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
 "append_io_B M io \<Omega> \<equiv> { io@res | res . res \<in> B M io \<Omega> }"
 
 definition is_reduction_on :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
@@ -918,22 +918,36 @@ definition is_reduction_on_sets :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 
 "is_reduction_on_sets M1 M2 TS \<Omega> \<equiv> \<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>"
 
 
+lemma language_state_alt_def :
+  "language_state M q =  image get_io {seq . is_enabled_sequence M q seq }"
+  using language_state_def by (metis setcompr_eq_image)
+
+lemma language_state_nil :
+  "[] \<in> language_state M q"
+proof -
+  have "is_enabled_sequence M q []"
+    using is_enabled_sequence.simps(1) by auto
+  moreover have "get_io [] = []" by (simp add: get_io_def)
+  ultimately have "[] \<in> image get_io {seq . is_enabled_sequence M q seq }"
+    by (metis CollectI image_eqI)
+  then show ?thesis using language_state_alt_def[of "M" "q"] by auto
+qed
+
+
 lemma atc_reaction_el :
   assumes "is_atc_reaction M q t io"
   shows "io \<in> language_state M q"
 using assms proof (induction t arbitrary: q io)
   case Leaf
   then have "io = []" using is_atc_reaction.simps(2) by (metis list.exhaust)
-  then show ?case using language_state_def is_enabled_sequence.simps(1) Leaf 
-      by (metis (mono_tags, lifting) get_io.simps(1) mem_Collect_eq)  
+  then show ?case using language_state_nil by auto  
 next
   case (Node x f)
   
   then show ?case
   proof (cases io)
     case Nil
-    then show ?thesis using language_state_def is_enabled_sequence.simps(1) Nil 
-      by (metis (mono_tags, lifting) get_io.simps(1) mem_Collect_eq)
+    then show ?thesis using language_state_nil by auto
   next
     case (Cons xy io2)
     then obtain xi yi where head_split : "xy = (xi,yi)" by fastforce
@@ -948,7 +962,7 @@ next
       then have io_eq : "io = [(xi,yi)]" using Cons head_split by simp
       obtain s2 where s2_def : "(q,xi,yi,s2) \<in> transitions M" using reaction by auto
       then have "is_enabled_sequence M q [(q,xi,yi,s2)]" using is_enabled_sequence.simps by auto
-      moreover have "get_io [(q,xi,yi,s2)] = io" using io_eq get_io.simps by auto
+      moreover have "get_io [(q,xi,yi,s2)] = io" using io_eq by (simp add: get_io_def)
       ultimately show ?thesis using Cons language_state_def
         by fastforce
     next
@@ -980,7 +994,7 @@ next
       qed  
       then have "is_enabled_sequence M q ((q,xi,yi,s2)#seq2)" by auto
       moreover have "get_io ((q,xi,yi,s2)#seq2) = (xi,yi)#io2"
-        using seq2_def Cons by auto
+        using seq2_def Cons by (simp add: get_io_def)
       moreover have "get_io ((q,xi,yi,s2)#seq2) = io"
         using Cons head_split calculation by auto
       ultimately show ?thesis 
@@ -1017,16 +1031,229 @@ proof -
   moreover have "atc_io_set M q \<Omega> \<subseteq> language_state M q"
     using atc_io_set_subset by fastforce
   ultimately show ?thesis by auto
-end
+qed
 
-(*
+lemma enabled_subsequence :
+  assumes "is_enabled_sequence M s1 (Cons a seq1)"
+shows "is_enabled_sequence M (t_target a) seq1"
+using assms proof (induction seq1)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons b seq1)
+  then have is_seq1 : "is_sequence M (Cons a (Cons b seq1))" using Cons 
+    by (metis is_enabled_sequence.elims(2) is_sequence.simps(1))
+  then have is_seq2 : "is_sequence M (Cons b seq1)" using Cons 
+    by (metis is_sequence.simps(3))
+
+  have "t_target a = t_source b" 
+    using Cons is_seq1 is_seq2 is_enabled_sequence.simps 
+    by auto
+    
+  then show ?case using is_seq2 by auto
+qed
+
+lemma reaches_subsequence : 
+  assumes "reaches M s1 (Cons a seq) s2"
+shows "reaches M (t_target a) seq s2"
+proof - (* auto-gen *)
+  obtain pp :: "('c \<times> 'a \<times> 'b \<times> 'c) list \<Rightarrow> 'c \<times> 'a \<times> 'b \<times> 'c" and pps :: "('c \<times> 'a \<times> 'b \<times> 'c) list \<Rightarrow> ('c \<times> 'a \<times> 'b \<times> 'c) list" where
+    f1: "(seq = [] \<or> seq = pp seq # pps seq) \<and> (seq \<noteq> [] \<or> (\<forall>p ps. seq \<noteq> p # ps))"
+    by (metis (no_types) neq_Nil_conv)
+  { assume "reaches M (t_target (last (a # seq))) [] (t_target (last (a # seq))) \<noteq> reaches M (t_target a) seq s2"
+    then have "seq \<noteq> []"
+      using assms by force
+    then have ?thesis
+      using f1 by (metis (no_types) assms enabled_subsequence last.simps reaches.simps(2)) }
+  then show ?thesis
+    by fastforce
+qed
+
+lemma enabled_sequences_append :
+  assumes "is_enabled_sequence M s1 seq1"
+  and     "reaches M s1 seq1 s2"
+  and     "is_enabled_sequence M s2 seq2"
+shows "is_enabled_sequence M s1 (seq1@seq2)"
+using assms proof (induction seq1 arbitrary: s1)
+  case Nil
+  then have "s1 = s2" using reaches.simps(1) by auto
+  then show ?case using Nil by auto
+next
+  case (Cons a seq1)
+  then have "is_enabled_sequence M s1 [a]" 
+    using is_sequence.elims(2) by auto
+  then have a_el : "a \<in> transitions M" 
+    using is_enabled_sequence.simps is_sequence.simps
+    by auto
+  
+  have "is_enabled_sequence M (t_target a) seq1"
+    using Cons enabled_subsequence[of "M" "s1" "a" "seq1"]
+    by auto
+  moreover have "reaches M (t_target a) seq1 s2"
+    using Cons reaches_subsequence[of "M" "s1" "a" "seq1" "s2"] 
+    by auto
+  ultimately have en12 : "is_enabled_sequence M (t_target a) (seq1@seq2)"
+    using Cons.IH[of "(t_target a)"] Cons 
+    by auto
+  
+  have "is_sequence M (Cons a (seq1@seq2))"
+  proof (cases "seq1@seq2")
+    case Nil
+    then show ?thesis using a_el by auto
+  next
+    case (Cons b list)
+    have seq12 : "is_sequence M (seq1@seq2)"
+      using en12
+      by (metis is_enabled_sequence.elims(2) is_sequence.simps(1))
+    moreover have "t_source b = t_target a"
+      using en12 is_sequence.simps Cons
+      by simp
+    ultimately show ?thesis using is_sequence.simps Cons a_el by auto
+  qed
+  moreover have "t_source a = s1"
+    using Cons by auto
+  ultimately show ?case by auto
+qed
+
+
+
+
+
+
+lemma append_io_B_subset :
+  assumes "io \<in> language M"
+  shows "append_io_B M io \<Omega> \<subseteq> language M"
+proof 
+  fix iores
+  assume res_assm : "iores \<in> append_io_B M io \<Omega>"
+  then obtain res where res_def : "iores = io@res \<and> res \<in> B M io \<Omega>"
+    unfolding append_io_B_def
+    by auto
+  then obtain s2 where s2_def : "s2 \<in> h_y_seq M (initial M) io \<and> res \<in> atc_io_set M s2 \<Omega>"
+    unfolding B_def
+    by auto
+  then have res_el : "res \<in> language_state M s2"
+    using atc_io_set_subset[of "M" "s2" "\<Omega>"]
+    by auto
+  then obtain seqRES where seqRES_def : "is_enabled_sequence M s2 seqRES \<and> get_io seqRES = res"
+    using language_state_def[of "M" "s2"]
+    by auto
+
+  moreover obtain seqIO where seqIO_def : "is_enabled_sequence M (initial M) seqIO \<and>
+      reaches M (initial M) seqIO s2 \<and> get_io seqIO = io"
+    using s2_def h_y_seq.simps[of "M" "(initial M)" "io"] 
+    by auto
+
+  ultimately have en: "is_enabled_sequence M (initial M) (seqIO@seqRES)"
+    using enabled_sequences_append[of "M" "initial M" "seqIO" "s2" "seqRES"]
+    by auto
+
+  have "get_io (seqIO@seqRES) = (get_io seqIO)@(get_io seqRES)"
+    by (simp add: get_io_def)
+  then have "get_io (seqIO@seqRES) = iores"
+    using seqRES_def seqIO_def res_def by auto
+
+  then have "iores \<in>  image get_io {seq . is_enabled_sequence M (initial M) seq }"
+    using en by auto
+  then show "iores \<in> language M" 
+    using language_state_alt_def[of "M" "initial M"] language_def[of "M"]  by auto 
+qed
+
+
+lemma enabled_sequence_prefix : 
+  assumes "is_enabled_sequence M s (seq1@seq2)"
+  shows "is_enabled_sequence M s seq1"
+using assms proof (induction seq1 arbitrary: seq2)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a seq1)
+  then show ?case sorry (* TODO *)
+qed
+
+lemma language_reached_state :
+  assumes "h_y_seq M (initial M) io = {q}"
+  and     "io@ext \<in> language M"
+shows     "ext \<in> language_state M q"
+proof -
+  obtain seqIO where seqIO_def : "is_enabled_sequence M (initial M) seqIO \<and> reaches M (initial M) seqIO q \<and> get_io seqIO = io" 
+    using assms h_y_seq.simps[of "M" "initial M" "io"] by auto
+  obtain seqIOExt where seqIOExt_def : "is_enabled_sequence M (initial M) seqIOExt \<and> get_io seqIOExt = io@ext"
+    using assms(2) language_def[of "M"] language_state_def[of "M" "initial M"] by auto
+
+  have "length (io@ext) \<ge> length io"
+    by auto
+  moreover have ln_io : "length seqIO = length (io)"
+    using seqIO_def by (simp add: get_io_length)
+  moreover have "length seqIOExt = length (io@ext)"
+    using seqIOExt_def by (simp add: get_io_length)
+  ultimately have ln: "length seqIOExt \<ge> length seqIO"
+    by auto
+
+  let ?seqIO2 = "take (length seqIO) seqIOExt"
+  have "length seqIO = length ?seqIO2"
+    using ln by auto
+  moreover have "get_io ?seqIO2 = take (length seqIO) (io@ext)"
+    using ln seqIOExt_def get_io_def by (metis (no_types, lifting) take_map)
+  ultimately have io2 : "get_io ?seqIO2 = io"
+    using ln ln_io by auto
+
+
+  then have "is_enabled_sequence M (initial M) ?seqIO2"
+    using seqIOExt_def is_enabled_sequence.simps by sledgehamme
+  then have "reaches M (initial M) ?seqIO2 q"
+
+end (*
+lemma test :
+  assumes "h_y_seq M1 (initial M1) io = {q1}"
+  and     "h_y_seq M2 (initial M2) io = {q2}"
+  and     "M1 \<preceq> M2"
+shows "language_state M1 q1 \<subseteq> language_state M2 q2"
+proof 
+  obtain seq1 where seq1_def : "is_enabled_sequence M1 (initial M1) seq1 \<and> reaches M1 (initial M1) seq1 q1 \<and> get_io seq1 = io" 
+    using assms h_y_seq.simps[of "M1" "initial M1" "io"] by auto
+  obtain seq2 where seq2_def : "is_enabled_sequence M2 (initial M2) seq2 \<and> reaches M2 (initial M2) seq2 q2 \<and> get_io seq2 = io" 
+    using assms h_y_seq.simps[of "M2" "initial M2" "io"] by auto
+  
+  fix ext
+  assume ext_assm : "ext \<in> language_state M1 q1"
+
+  then obtain suf1 where suf1_def : "is_enabled_sequence M1 q1 suf1 \<and> get_io suf1 = ext"
+    using language_state_def[of "M1" "q1"] by auto
+  moreover have "reaches M1 (initial M1) seq1 q1"
+    using seq1_def by auto
+  ultimately have "is_enabled_sequence M1 (initial M1) (seq1@suf1)"
+    using seq1_def enabled_sequences_append[of "M1" "initial M1" "seq1" "q1" "suf1"] by auto
+  moreover have "get_io (seq1@suf1) = io@ext"
+    using seq1_def suf1_def by (simp add: get_io_def)
+  ultimately have "io@ext \<in>  image get_io {seq . is_enabled_sequence M1 (initial M1) seq }"
+    by (metis CollectI image_eqI)
+  then have lang1_el : "io@ext \<in> language M1" 
+    using language_state_alt_def[of "M1" "initial M1"] language_def[of "M1"]  by auto
+
+  show "ext \<in> language_state M2 q2"
+  proof (rule ccontr)
+    assume ext_assm_c : "ext \<notin> language_state M2 q2"
+    then have "io@ext \<notin> language M2"  
+
+end (*
 lemma is_reduction_on_reverse : 
   assumes rd: "M1 \<preceq> M2"
   shows "is_reduction_on M1 M2 t \<Omega>"
 proof -
-  have "language_in M1 t \<subseteq> language_in M2 t"
+  have lr : "language_in M1 t \<subseteq> language_in M2 t"
     using rd reduction_in_subset by auto
-  then have "(\<forall> io \<in> language_in M1 t . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
+  (*moreover have "(\<forall> io \<in> language_in M1 t . append_io_B M1 io \<Omega> \<subseteq> language M1)"
+    using append_io_B_subset language_in_subset by blast 
+  moreover have "(\<forall> io \<in> language_in M2 t . append_io_B M2 io \<Omega> \<subseteq> language M2)"
+    using append_io_B_subset language_in_subset by blast 
+  ultimately *)
+  have "(\<forall> io \<in> language_in M1 t . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
+  proof 
+    fix io
+    assume io_assm : "io \<in> language_in M1 t"
+    show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
+    
 
 lemma is_reduction_reverse :
   assumes rd: "M1 \<preceq> M2"
