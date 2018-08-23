@@ -1160,16 +1160,111 @@ proof
 qed
 
 
-lemma enabled_sequence_prefix : 
-  assumes "is_enabled_sequence M s (seq1@seq2)"
-  shows "is_enabled_sequence M s seq1"
-using assms proof (induction seq1 arbitrary: seq2)
+lemma sequence_split :
+  assumes "is_sequence M (seq1@seq2)"
+  shows "is_sequence M seq1 \<and> is_sequence M seq2"
+using assms proof (induction seq1)
   case Nil
   then show ?case by auto
 next
   case (Cons a seq1)
-  then show ?case sorry (* TODO *)
+  then show ?case 
+  proof (cases "seq1@seq2")
+    case Nil
+    then have "is_sequence M (a#seq1)" using Cons is_sequence.simps by auto
+    then show ?thesis using is_sequence.simps Cons Nil by auto
+  next
+    case (Cons b seq12)
+    print_theorems
+    then have "is_sequence M (seq1@seq2)" 
+      using Cons.prems is_sequence.simps(3) [of "M" "a" "b" "seq12"] by auto 
+    then have seqs : "is_sequence M seq1 \<and> is_sequence M seq2"
+      using Cons.IH by auto
+    moreover have "t_target a = t_source b \<and> a \<in> transitions M" using Cons Cons.prems is_sequence.simps(3) by auto
+    moreover have "is_sequence M (a#seq1)"
+    proof (cases seq1)
+      case Nil
+      then show ?thesis using calculation is_sequence.simps(2) by auto
+    next
+      case (Cons a1 seq11)
+      print_theorems
+      then have "a1 = b" using \<open>seq1 @ seq2 = b # seq12\<close> by auto
+      then have "t_target a = t_source a1" using \<open> t_target a = t_source b \<and> a \<in> transitions M\<close> by auto
+      then show ?thesis
+        using Cons calculation is_sequence.simps(3)[of "M" "a" "a1" "seq11"] by auto
+    qed
+    ultimately show ?thesis by auto
+  qed
 qed
+
+
+lemma enabled_sequence_prefix : 
+  assumes "is_enabled_sequence M s1 (seq1@seq2)"
+  shows "is_enabled_sequence M s1 seq1 \<and> (\<exists> s2 . reaches M s1 seq1 s2 \<and> is_enabled_sequence M s2 seq2)"
+using assms proof (induction seq1 arbitrary: seq2 s1)
+  case Nil
+  then have "is_enabled_sequence M s1 []" by simp
+  moreover have "\<exists> s2 . reaches M s1 [] s2 \<and> is_enabled_sequence M s2 seq2"
+  proof 
+    have "reaches M s1 [] s1" using reaches.simps by auto
+    moreover have "is_enabled_sequence M s1 seq2" using Nil by simp
+    ultimately show "reaches M s1 [] s1 \<and> is_enabled_sequence M s1 seq2" by simp
+  qed
+  ultimately show ?case by simp
+next
+  case (Cons a seq1)
+  then have sseq : "t_source a = s1 \<and> is_sequence M (a#seq1@seq2)" using is_enabled_sequence.simps by auto
+  moreover have spl: "is_sequence M [a] \<and> is_sequence M (seq1@seq2)" using sequence_split[of "M" "[a]" "seq1@seq2"] calculation by auto
+  moreover have a_el : "a \<in> transitions M" using calculation is_sequence.simps(2) by auto
+  ultimately have "is_enabled_sequence M s1 [a]"
+    using is_enabled_sequence.simps(2) by auto
+
+  have en12 : "is_enabled_sequence M (t_target a) (seq1@seq2)"
+  proof (cases "seq1@seq2")
+    case Nil
+    then show ?thesis by auto
+  next
+    case (Cons b seq12)
+    then have "t_target a = t_source b" using sseq is_sequence.simps(3)[of "M" "a" "b" "seq12"] a_el by auto
+    then show ?thesis using spl Cons by auto
+  qed
+
+  then have en12_split : "is_enabled_sequence M (t_target a) seq1 \<and> (\<exists> s2 . reaches M (t_target a) seq1 s2 \<and> is_enabled_sequence M s2 seq2)"
+    using Cons.IH[of "(t_target a)" "seq2"] by auto
+  then obtain sa where sa_def : "reaches M (t_target a) seq1 sa \<and> is_enabled_sequence M sa seq2" by auto
+
+  have seq_a1 : "is_sequence M (a#seq1)" 
+  proof (cases seq1)
+    case Nil
+    then show ?thesis using is_sequence.simps(2) a_el by auto
+  next
+    case (Cons a1 seq11)
+    then have "t_target a = t_source a1" using sseq is_sequence.simps(3)[of "M" "a" "a1" "seq11"] a_el by auto
+    moreover have "is_sequence M seq1" using spl sequence_split by auto
+    ultimately show ?thesis using Cons a_el is_sequence.simps(3) by auto
+  qed
+
+  then have en_a1 :  "is_enabled_sequence M s1 (a#seq1)"
+    using sseq by auto
+  moreover have "sa = t_target (last (a#seq1))"
+  proof (cases seq1)
+    case Nil
+    then have "sa = (t_target a)" using sa_def reaches.simps(1) by auto
+    then show ?thesis using Nil by auto
+  next
+    case (Cons a1 seq11)
+    then have "sa = t_target (last seq1)" using sa_def reaches.simps(2) by auto
+    then show ?thesis using Cons by auto
+  qed
+  ultimately have "reaches M s1 (a#seq1) sa"
+    using reaches.simps by auto
+
+  then have "is_enabled_sequence M s1 (a#seq1) \<and> reaches M s1 (a#seq1) sa \<and> is_enabled_sequence M sa seq2"
+    using en_a1 sa_def by auto
+  then show ?case by auto
+qed
+
+end (*
 
 lemma language_reached_state :
   assumes "h_y_seq M (initial M) io = {q}"
