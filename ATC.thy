@@ -1160,6 +1160,7 @@ proof
 qed
 
 
+
 lemma sequence_split :
   assumes "is_sequence M (seq1@seq2)"
   shows "is_sequence M seq1 \<and> is_sequence M seq2"
@@ -1196,6 +1197,7 @@ next
     ultimately show ?thesis by auto
   qed
 qed
+
 
 
 lemma enabled_sequence_split : 
@@ -1313,13 +1315,58 @@ proof -
   then show "ext \<in> language_state M q"
     using io2 sa_def language_state_def[of "M" "q"] by auto
 qed
-end (*
-lemma test :
+
+lemma language_reached_state' :
+  assumes "h_y_seq M (initial M) io = {q}"
+  and     "ext \<in> language_state M q"
+shows     "io@ext \<in> language M"
+proof -
+  obtain seq1 where seq1_def : "is_enabled_sequence M (initial M) seq1 \<and>
+                                  reaches M (initial M) seq1 q \<and>
+                                  get_io seq1 = io"
+    using assms h_y_seq.simps by auto
+  moreover obtain seq2 where seq2_def : "is_enabled_sequence M q seq2 \<and>
+                                  get_io seq2 = ext"
+    using assms language_state_def[of "M" "q"] by auto
+  ultimately have "is_enabled_sequence M (initial M) (seq1@seq2)"
+    using enabled_sequences_append by auto
+  moreover have "get_io (seq1@seq2) = io@ext" 
+    using seq1_def seq2_def by (simp add: get_io_def)
+  ultimately show ?thesis 
+    using language_def[of "M"] language_state_def[of "M" "initial M"]
+    by fastforce
+qed
+
+lemma io_reduction_reached_state :
   assumes "h_y_seq M1 (initial M1) io = {q1}"
   and     "h_y_seq M2 (initial M2) io = {q2}"
   and     "M1 \<preceq> M2"
 shows "language_state M1 q1 \<subseteq> language_state M2 q2"
-proof 
+proof -
+  have "\<forall> ext \<in> language_state M1 q1 . (io@ext \<in> language M1)"
+    using assms language_reached_state'
+    by auto
+  moreover have "\<forall> ext . (io@ext \<in> language M1 \<longrightarrow> ext \<in> language_state M1 q1)"
+    using assms language_reached_state
+    by auto
+  ultimately have eq1 : "\<forall> ext . (ext \<in> language_state M1 q1 \<longleftrightarrow> io@ext \<in> language M1)"
+    by auto
+
+  have "\<forall> ext \<in> language_state M2 q2 . (io@ext \<in> language M2)"
+    using assms language_reached_state'
+    by auto
+  moreover have "\<forall> ext . (io@ext \<in> language M2 \<longrightarrow> ext \<in> language_state M2 q2)"
+    using assms language_reached_state
+    by auto
+  ultimately have eq2 : "\<forall> ext . (ext \<in> language_state M2 q2 \<longleftrightarrow> io@ext \<in> language M2)"
+    by auto
+
+  have "language M1 \<subseteq> language M2"
+    using assms io_reduction_def by blast
+  then show ?thesis using eq1 eq2 by auto
+qed
+
+end (*proof
   obtain seq1 where seq1_def : "is_enabled_sequence M1 (initial M1) seq1 \<and> reaches M1 (initial M1) seq1 q1 \<and> get_io seq1 = io" 
     using assms h_y_seq.simps[of "M1" "initial M1" "io"] by auto
   obtain seq2 where seq2_def : "is_enabled_sequence M2 (initial M2) seq2 \<and> reaches M2 (initial M2) seq2 q2 \<and> get_io seq2 = io" 
