@@ -1198,7 +1198,7 @@ next
 qed
 
 
-lemma enabled_sequence_prefix : 
+lemma enabled_sequence_split : 
   assumes "is_enabled_sequence M s1 (seq1@seq2)"
   shows "is_enabled_sequence M s1 seq1 \<and> (\<exists> s2 . reaches M s1 seq1 s2 \<and> is_enabled_sequence M s2 seq2)"
 using assms proof (induction seq1 arbitrary: seq2 s1)
@@ -1264,7 +1264,7 @@ next
   then show ?case by auto
 qed
 
-end (*
+
 
 lemma language_reached_state :
   assumes "h_y_seq M (initial M) io = {q}"
@@ -1286,18 +1286,33 @@ proof -
     by auto
 
   let ?seqIO2 = "take (length seqIO) seqIOExt"
-  have "length seqIO = length ?seqIO2"
+  let ?seqIO_drop = "drop (length seqIO) seqIOExt"
+  have ext_td : "seqIOExt = ?seqIO2 @ ?seqIO_drop"
+    by auto
+  then have "length seqIO = length ?seqIO2"
     using ln by auto
   moreover have "get_io ?seqIO2 = take (length seqIO) (io@ext)"
     using ln seqIOExt_def get_io_def by (metis (no_types, lifting) take_map)
-  ultimately have io2 : "get_io ?seqIO2 = io"
+  moreover have "get_io ?seqIO_drop = drop (length seqIO) (io@ext)"
+    using ln seqIOExt_def get_io_def by (metis (no_types, lifting) drop_map)
+  ultimately have io2 : "get_io ?seqIO2 = io \<and> get_io ?seqIO_drop = ext"
     using ln ln_io by auto
 
+  have spl:  "is_enabled_sequence M (initial M) ?seqIO2 \<and> (\<exists> s2 . reaches M (initial M) ?seqIO2 s2 \<and> is_enabled_sequence M s2 ?seqIO_drop)"
+    using enabled_sequence_split[of "M" "initial M" "?seqIO2" "(drop (length seqIO) seqIOExt)"] seqIOExt_def by auto
+  then obtain sa where sa_def : "reaches M (initial M) ?seqIO2 sa \<and> is_enabled_sequence M sa ?seqIO_drop"
+    by auto
+  then have "sa = q"
+  proof -
+    have "sa \<in> h_y_seq M (initial M) io" 
+      using h_y_seq.simps[of "M" "initial M" "io"] io2 sa_def spl
+      by auto
+    then show "sa = q" using assms by auto
+  qed
 
-  then have "is_enabled_sequence M (initial M) ?seqIO2"
-    using seqIOExt_def is_enabled_sequence.simps by sledgehamme
-  then have "reaches M (initial M) ?seqIO2 q"
-
+  then show "ext \<in> language_state M q"
+    using io2 sa_def language_state_def[of "M" "q"] by auto
+qed
 end (*
 lemma test :
   assumes "h_y_seq M1 (initial M1) io = {q1}"
