@@ -1366,32 +1366,94 @@ proof -
   then show ?thesis using eq1 eq2 by auto
 qed
 
-end (*proof
-  obtain seq1 where seq1_def : "is_enabled_sequence M1 (initial M1) seq1 \<and> reaches M1 (initial M1) seq1 q1 \<and> get_io seq1 = io" 
-    using assms h_y_seq.simps[of "M1" "initial M1" "io"] by auto
-  obtain seq2 where seq2_def : "is_enabled_sequence M2 (initial M2) seq2 \<and> reaches M2 (initial M2) seq2 q2 \<and> get_io seq2 = io" 
-    using assms h_y_seq.simps[of "M2" "initial M2" "io"] by auto
+(* TODO: should require well-formed and completely specified *)
+lemma atc_reduction_reached_state :
+  assumes "h_y_seq M1 (initial M1) io = {q1}"
+  and     "h_y_seq M2 (initial M2) io = {q2}"
+  and     "M1 \<preceq> M2"
+  and     "is_atc_reaction M1 q1 t io"
+shows "is_atc_reaction M2 q2 t io"
+proof (cases t)
+  case Leaf
+  then have "io = []" 
+    using assms 
+    by (metis is_atc_reaction.simps(2) list.exhaust) 
+  then show ?thesis using assms Leaf is_atc_reaction.simps(1)[of "M2" "initial M2"] 
+    by auto
+next
+  case (Node x f)
+  then show ?thesis 
+  proof (cases io)
+    case Nil
+    then have no_trans : "\<nexists>y s2. (q1, x, y, s2) \<in> transitions M1"
+      using Node assms is_atc_reaction.simps[of "M1" "q1"]
+      by auto
+    have "\<not> (\<exists> seq y . is_enabled_sequence M1 q1 seq \<and> get_io seq = [(x,y)])"
+    proof (rule ccontr)
+      assume "\<not>(\<nexists>seq y . is_enabled_sequence M1 q1 seq \<and> get_io seq = [(x,y)])"
+      then obtain seq y where seq_y_def : "is_enabled_sequence M1 q1 seq \<and> get_io seq = [(x,y)]"
+        by auto
+      then have "length seq = 1" by (simp add: get_io_length)
+      then obtain a where a_def : "seq = [a]" 
+        by (metis One_nat_def length_0_conv length_Suc_conv)
+      then have "t_source a = q1 \<and> a \<in> transitions M1" 
+        using is_enabled_sequence.simps[of "M1" "q1"] seq_y_def by auto
+      moreover have "t_input a = x"
+        using seq_y_def get_io_def[of "seq"] a_def by auto
+      moreover have "\<exists>y s2. a = (q1, x, y, s2)"
+        using t_input.simps t_source.simps calculation
+        by (smt t_target.cases)
+      ultimately have "\<exists>y s2. (q1, x, y, s2) \<in> transitions M1" 
+        by metis
+      then show "False" using no_trans by auto
+    qed
+    then have "\<nexists> y . [(x,y)] \<in> language_state M1 q1"
+      by (meson language_state_sequence_ex)
+
+    have "language_state M1 q1 \<subseteq> language_state M2 q2"
+  next
+    case (Cons a list)
+    then show ?thesis sorry
+  qed
+qed
   
-  fix ext
-  assume ext_assm : "ext \<in> language_state M1 q1"
+  assume "\<not> is_atc_reaction M2 q2 t io"
+  
 
-  then obtain suf1 where suf1_def : "is_enabled_sequence M1 q1 suf1 \<and> get_io suf1 = ext"
-    using language_state_def[of "M1" "q1"] by auto
-  moreover have "reaches M1 (initial M1) seq1 q1"
-    using seq1_def by auto
-  ultimately have "is_enabled_sequence M1 (initial M1) (seq1@suf1)"
-    using seq1_def enabled_sequences_append[of "M1" "initial M1" "seq1" "q1" "suf1"] by auto
-  moreover have "get_io (seq1@suf1) = io@ext"
-    using seq1_def suf1_def by (simp add: get_io_def)
-  ultimately have "io@ext \<in>  image get_io {seq . is_enabled_sequence M1 (initial M1) seq }"
-    by (metis CollectI image_eqI)
-  then have lang1_el : "io@ext \<in> language M1" 
-    using language_state_alt_def[of "M1" "initial M1"] language_def[of "M1"]  by auto
+end (*
+lemma atc_reduction_reached_state :
+  assumes "h_y_seq M1 (initial M1) io = {q1}"
+  and     "h_y_seq M2 (initial M2) io = {q2}"
+  and     "M1 \<preceq> M2"
+shows "atc_io M1 q1 t \<subseteq> atc_io M2 q2 t"
+proof - 
+  
+qed
 
-  show "ext \<in> language_state M2 q2"
-  proof (rule ccontr)
-    assume ext_assm_c : "ext \<notin> language_state M2 q2"
-    then have "io@ext \<notin> language M2"  
+
+end (*
+lemma B_reduction_reached_state :
+  assumes "h_y_seq M1 (initial M1) io = {q1}"
+  and     "h_y_seq M2 (initial M2) io = {q2}"
+  and     "M1 \<preceq> M2"
+shows "B M1 io \<Omega> \<subseteq> B M2 io \<Omega>"
+proof - 
+  have "B M1 io \<Omega> = atc_io_set M1 q1 \<Omega>"
+    using B_def[of "M1" "io" "\<Omega>"] assms by auto
+  moreover have "B M2 io \<Omega> = atc_io_set M2 q2 \<Omega>"
+    using B_def[of "M2" "io" "\<Omega>"] assms by auto
+  ultimately have "\<forall> t \<in> \<Omega> . atc_io M1 q1 t \<subseteq> atc_io M2 q2 t"
+qed
+
+
+lemma append_io_reduction_reached_state :
+  assumes "h_y_seq M1 (initial M1) io = {q1}"
+  and     "h_y_seq M2 (initial M2) io = {q2}"
+  and     "M1 \<preceq> M2"
+shows "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
+proof - 
+  
+qed
 
 end (*
 lemma is_reduction_on_reverse : 
@@ -1411,7 +1473,7 @@ proof -
     assume io_assm : "io \<in> language_in M1 t"
     show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
     
-
+end (*
 lemma is_reduction_reverse :
   assumes rd: "M1 \<preceq> M2"
   shows "is_reduction_on_sets M1 M2 TS \<Omega>"
