@@ -1,5 +1,5 @@
 theory ATC
-  imports Main FSM "~~/src/HOL/Library/Finite_Set" "~~/src/HOL/Library/Finite_Map"
+  imports Main FSM "~~/src/HOL/Library/Finite_Map"
 begin
 
 
