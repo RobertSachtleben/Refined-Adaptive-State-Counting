@@ -460,7 +460,11 @@ proof -
     then show "False" using s_io2_def by simp
   qed
   ultimately show ?thesis by blast    
-qed  
+qed 
+
+lemma h_y_seq_nil : "h_y_seq M s [] = {s}"
+  using h_y_seq.simps[of "M" "s" "[]"] 
+  by (simp add: get_io_def)
 
 (* all transitions seqs with input iseq reach only s1 *)
 definition d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'in list \<Rightarrow> 'state \<Rightarrow> bool" 
