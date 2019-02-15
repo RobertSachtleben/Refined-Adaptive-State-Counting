@@ -1835,48 +1835,59 @@ next
       moreover obtain q2x where q2x_def : "(q2,x,y,q2x) \<in> transitions M2"
         using calculation Cons 
         by (meson language_state_to_transition subsetCE transition_to_language_state)
-      ultimately have "language_state M1 q1x \<subseteq> language_state M2 q2x"
+      ultimately have reduction_next : "language_state M1 q1x \<subseteq> language_state M2 q2x"
         using language_state_inclusion_after_transition Cons assms
         by simp
 
+
+      have state_next_1 : "q1x \<in> states M1"
+        using q1x_def transition_contents assms(3) t_target.simps
+        by fastforce
+      have state_next_2 : "q2x \<in> states M2"
+        using q2x_def transition_contents assms(4) fault_model_m_def t_target.simps
+        by fastforce
+
+      have ls1 : "a # io \<in> language_state M1 q1"
+        using assms
+        proof -
+          have "\<exists>ps. is_enabled_sequence M1 q1 ps \<and> reaches M1 q1 ps q1t \<and> get_io ps = a # io"
+            using Cons.prems(5) by auto
+          then have "\<exists>ps. a # io = get_io ps \<and> is_enabled_sequence M1 q1 ps"
+            by metis
+          then show ?thesis
+            by (simp add: language_state_def)
+        qed
+      then have ls2 : "a # io \<in> language_state M2 q2"
+        using Cons.prems(1) by blast
+
       obtain q1x' where q1x_alt_def : "h_y_seq M1 q1 [a] = {q1x'} \<and> h_y_seq M1 q1x' io = {q1t}"
         using assms h_y_seq_split[of "M1" "q1" "a" "io" "q1t"]
-        proof -
-          assume a1: "\<And>q1x'. h_y_seq M1 q1 [a] = {q1x'} \<and> h_y_seq M1 q1x' io = {q1t} \<Longrightarrow> thesis"
-          have "\<exists>ps. is_enabled_sequence M1 q1 ps \<and> reaches M1 q1 ps q1t \<and> get_io ps = a # io"
-            using local.Cons(6) by auto
-          then have "\<exists>ps. a # io = get_io ps \<and> is_enabled_sequence M1 q1 ps"
-          by (metis (full_types))
-          then have "a # io \<in> language_state M1 q1"
-            by (simp add: language_state_def)
-          then show ?thesis
-          using a1 \<open>\<lbrakk>h_y_seq M1 q1 (a # io) = {q1t}; a # io \<in> language_state M1 q1; q1 \<in> states M1; observable M1; well_formed M1\<rbrakk> \<Longrightarrow> \<exists>q2. h_y_seq M1 q1 [a] = {q2} \<and> h_y_seq M1 q2 io = {q1t}\<close> local.Cons(3) local.Cons(4) local.Cons(6) local.Cons(8) by presburger
-        qed
+        using Cons.prems(5) Cons.prems(7) ls1 by blast
 
       then have "q1x' = q1x"
         using a_split assms(2) assms(3) h_y_seq_single_transition observable_def q1x_def 
         by fastforce
+      then have q1x_seq : "h_y_seq M1 q1x io = {q1t}"
+        using q1x_alt_def
+        by simp
 
       have "well_formed M2 \<and> observable M2"
         using assms fault_model_m_def
         by blast
-      then obtain q2x' where q2x_alt_def : "h_y_seq M2 q2 [a] = {q2x'} \<and> h_y_seq M2 q2x' io = {q2t}"
-        using local.Cons h_y_seq_split[of "M2" "q2" "a" "io" "q2t"] 
-        sledgehammer(add: strict=true)
-
-      then have "h_y_seq M1 q1x io = {q1t}"
-        using q1x_alt_def
+      moreover obtain q2x' where q2x_alt_def : "h_y_seq M2 q2 [a] = {q2x'} \<and> h_y_seq M2 q2x' io = {q2t}"
+        by (meson calculation Cons.prems(6) Cons.prems(8) h_y_seq_split ls2)
+      ultimately have "q2x' = q2x"
+        using a_split assms(4) fault_model_m_def[of "M1" "m"] observable_def q2x_def h_y_seq_single_transition
+        by (metis (no_types, hide_lams))
+      then have q2x_seq : "h_y_seq M2 q2x io = {q2t}"
+        using q2x_alt_def
         by simp
 
-      
-
-
       then show ?thesis
-        using Cons.IH
-      
-         
-    
-qed
+        using reduction_next assms q1x_seq q2x_seq state_next_1 state_next_2 Cons.IH[of "q1x" "q2x"]
+        by simp
+    qed
+  qed
   
 
 
@@ -1896,6 +1907,23 @@ lemma atc_reduction_reached_state :
   and     ap1 : "atc_applicable M1 t"
 shows "is_atc_reaction M2 q2 t io2"
 *)
+
+lemma atc_reaction_first_input :
+  assumes "is_atc_reaction M q (Node x f) ((ioX,ioY) # ioR)"
+  shows "x = ioX"
+proof (cases "fmlookup f ioY")
+  case None
+  then show ?thesis using assms is_atc_reaction.simps(4)[of "M" "q" "x" "f" "ioX" "ioY" "ioR"]
+    by simp
+next
+  case (Some a)
+  then show ?thesis using assms is_atc_reaction.simps(4)[of "M" "q" "x" "f" "ioX" "ioY" "ioR"]
+    by simp
+qed
+  
+  
+  
+
 
 lemma atc_reduction_reached_state :
   assumes ls : "language_state M1 q1 \<subseteq> language_state M2 q2"
@@ -1920,23 +1948,44 @@ next
   then show ?case
   proof -
 
+    
+
+
     have "x \<in> atc_inputs (Node x f)"
       using atc_inputs.simps
       by simp
-    then have "x \<in> inputs M1"
+    then have x_input : "x \<in> inputs M1"
       using Node atc_applicable_def[of "M1" "Node x f"]
       by simp
-    then have trans1: "\<exists> y q3 . (q1,x,y,q3) \<in> transitions M1"
+    then have trans_ex: "\<exists> y q3 . (q1,x,y,q3) \<in> transitions M1"
       using Node assms completely_specified_def[of "M1"] 
       by blast
-    then obtain y q1x where q1x_def: "(q1,x,y,q1x) \<in> transitions M1"
+
+
+    have "length io2 \<noteq> 0"
+      using is_atc_reaction.simps Node trans_ex
       by auto
+    then obtain io2x y io2R where io2R_def : "io2 = (io2x,y) # io2R"
+      by (metis Suc_length_conv gr0_conv_Suc length_0_conv length_greater_0_conv surj_pair)
+    then have "io2x = x"
+      using Node atc_reaction_first_input
+      by fastforce 
+    then have io2_split : "io2 = (x,y) # io2R"
+      using io2R_def by simp
+      
+      
     
+
+    then have trans1: "\<exists> q3 . (q1,x,y,q3) \<in> transitions M1"
+      using Node x_input assms completely_specified_def[of "M1"] 
+      by (metis (no_types, lifting) atc_reaction_el h_y_seq_first_transition h_y_seq_observable singletonI)
+    then obtain q1x where q1x_def: "(q1,x,y,q1x) \<in> transitions M1"
+      by auto
   
     have "x \<in> inputs M2"
       using fault_model_m_def[of "M1" "m"] fm  \<open> x \<in> inputs M1 \<close>
       by simp
-    then have trans2: "\<exists> y q3 . (q2,x,y,q3) \<in> transitions M2"
+    then have trans2: "\<exists> q3 . (q2,x,y,q3) \<in> transitions M2"
       using Node assms completely_specified_def[of "M2"] 
       by (meson language_state_to_transition q1x_def subsetCE transition_to_language_state)    
     moreover have "language_state M1 q1 \<subseteq> language_state M2 q2"
@@ -1953,127 +2002,81 @@ next
       using ob fm fault_model_m_def[of "M1" "m"] observable_def[of "M2"] q2x_def
       by simp
     ultimately have "language_state M1 q1x \<subseteq> language_state M2 q2x"
-      using Node assms
-      by sledgehammer
-      
-  
+      using Node
+      by (meson language_state_inclusion_after_transition q1x_def q2x_def)
 
-  have "y = y2"
-
-
-  then have "\<exists> io3 . io2 = (x,y) # io3"
-    using 
-
-  have "io2 \<noteq> []"
-  proof (rule ccontr)
     
-
-
-
-
-
-  show ?case
-    using assms
-    proof (induction io2 rule: rev_induct)
-    case Nil
-    then show "is_atc_reaction M2 q2 (Node x f) []"
-    proof (rule ccontr)
       
-      
-
-    then have "\<exists> y q2 . (q1,x,y,q2) \<in> transitions M1"
-      using atc_applicable_def[of "M1" "t"] 
-  next
-    case (Cons a io2)
-    then show ?case sorry
-  qed
-  
-    
-
-
-
-proof -
-  have "language_state M1 q1 \<subseteq> language_state M2 q2"
-    using assms io_reduction_reached_state
-    by simp
-  moreover have "io2 \<in> language_state M1 q1"
-    using assms atc_reaction_el
-    by simp
-  ultimately have "io2 \<in> language_state M2 q2"
-    by auto
-
-  then show ?thesis
-  proof (induction t)
-    case Leaf
-    then have "io2 = []"
-        using Leaf assms is_atc_reaction.simps[of "M1" "q1"] list.exhaust
-        by meti
-    then show ?case using assms Leaf is_atc_reaction.simps(1)[of "M2" "initial M2"] 
-      by auto
-  next
-    case (Node x t2)
-    then show ?case sorry
-  qed
-
-
-proof (induction io2 arbitrary: io q1 q2)
-  case Nil
-  then show ?case
-  proof (cases t)
-    case Leaf
-    then have "io2 = []" 
-      using assms 
-      by (metis is_atc_reaction.simps(2) list.exhaust) 
-    then show ?thesis using assms Leaf is_atc_reaction.simps(1)[of "M2" "initial M2"] 
-      by auto
-  next
-    case (Node x f)
-    then have no_trans : "\<nexists>y s2. (q1, x, y, s2) \<in> transitions M1"
-      using Nil assms is_atc_reaction.simps[of "M1" "q1"]
-      by auto
-    moreover have "q1 \<in> states M1"
-      using Node Nil assms(1)
-    proof -
-      have "\<exists>ps. reaches M1 (initial M1) ps q1"
-        using assms
-        by auto
-      then show ?thesis
-        by (metis (no_types) local.wf reach_enabled_ex well_formed_def)
-    qed
-
-    ultimately have "x \<notin> inputs M1"
-      using assms completely_specified_def[of "M1"]
-      by blast
-
-    then have "x \<notin> inputs M2"
-      using assms fault_model_m_def[of "M1" "m"]
-      by blast
-
-    then have "\<not>(\<exists> y s2 . (q2, x, y, s2) \<in> transitions M2)"
-      using assms fault_model_m_def[of "M1" "m"] completely_specified_def[of "M2"] well_formed_def[of "M2"]
-      by blast
 
     then show ?thesis
-      using 0 Node
-      by auto
-  qed
-next
-  case (Suc k)
-  then show ?case
-    using assms
-  proof (cases t)
-    case Leaf
-    then have "io2 = []" 
-      using assms 
-      by (metis is_atc_reaction.simps(2) list.exhaust) 
-    then show ?thesis using assms Leaf is_atc_reaction.simps(1)[of "M2" "initial M2"] 
-      by auto
-  next
-    case (Node x f)
-    then show ?thesis using assms
-    proof -
+    proof (cases io2R)
+      case Nil
+      then have reaction_first_1 : "is_atc_reaction M1 q1 (Node x f) [(x,y)]"
+        using Node io2_split by blast
 
-    oops
+
+
+      moreover have reaction_first_2 : "is_atc_reaction M2 q2 (Node x f) [(x,y)]"
+        proof (cases "fmlookup f y")
+          case None
+          then show ?thesis using io2_split trans2 is_atc_reaction.simps
+            by simp
+        next
+          case (Some a)
+          then have "\<exists>s2. (q1, x, y, s2) \<in> transitions M1 \<and> is_atc_reaction M1 s2 a []" 
+            using Node io2_split trans1 reaction_first_1 
+            by auto
+
+          then have "\<exists>s2. (q2, x, y, s2) \<in> transitions M2 \<and> is_atc_reaction M2 s2 a []"
+            using Some Node io2_split trans2
+            by (metis (no_types, lifting)  \<open>\<forall>q1x'. (q1, x, y, q1x') \<in> transitions M1 \<longrightarrow> q1x' = q1x\<close> \<open>language_state M1 q1x \<subseteq> language_state M2 q2x\<close> applicable_subtest fault_model_m_def fmran'I mem_Collect_eq q2x_def t_target.simps transition_contents)
+            
+          then show ?thesis
+            using Some Node io2_split trans2 
+            by simp
+        qed
+
+      then show ?thesis using io2_split Nil by simp
+    next
+      case (Cons io2RA io2RR)
+      then have atc_next : "fmlookup f y \<noteq> None"
+        using Node is_atc_reaction.simps(4)[of "M1" "q1" "x" "f" "x" "y" "io2R"] q1x_def
+        by (metis (mono_tags, lifting) io2_split list.distinct(1) option.simps(4))
+      then obtain t2 where t2_def : "fmlookup f y = Some t2"
+        by blast
+      then have "\<exists>s2. (q1,x,y,s2) \<in> transitions M1 \<and> is_atc_reaction M1 s2 t2 io2R"
+        using atc_next is_atc_reaction.simps Node(5) io2_split
+        by simp
+      then have "is_atc_reaction M1 q1x t2 io2R"
+        using q1x_def \<open>\<forall>q1x'. (q1, x, y, q1x') \<in> transitions M1 \<longrightarrow> q1x' = q1x\<close> by blast
+
+      then have "is_atc_reaction M2 q2x t2 io2R"
+        using Node.IH
+        proof -
+          have f1: "\<And>a. a \<notin> fmran' f \<or> atc_applicable M1 a"
+            by (meson Node.prems(9) applicable_subtest)
+              have f2: "\<And>f c a b ca. \<not> well_formed f \<or> (c::'c, a::'a, b::'b, ca) \<notin> transitions f \<or> ca \<in> states f"
+                by (metis (no_types) t_target.simps transition_contents)
+          then have f3: "q2x \<in> states M2"
+            using fault_model_m_def fm q2x_def by blast
+          have "t2 \<in> fmran' f"
+            by (meson fmran'I t2_def)
+          then show ?thesis
+            using f3 f2 f1 \<open>\<And>x2a q2 q1 io2. \<lbrakk>x2a \<in> fmran' f; language_state M1 q1 \<subseteq> language_state M2 q2; q1 \<in> states M1; q2 \<in> states M2; is_atc_reaction M1 q1 x2a io2; completely_specified M1; observable M1; M2 \<in> fault_model_m M1 m; well_formed M1; atc_applicable M1 x2a\<rbrakk> \<Longrightarrow> is_atc_reaction M2 q2 x2a io2\<close> \<open>is_atc_reaction M1 q1x t2 io2R\<close> \<open>language_state M1 q1x \<subseteq> language_state M2 q2x\<close> cs1 fm local.wf ob q1x_def by blast
+        qed
+        
+         then show ?thesis 
+          using io2_split q2x_def t2_def by auto
+      qed
+    qed
+  qed
+
+    
+      
+      
+ 
+
+
 
 
 
@@ -2082,7 +2085,7 @@ next
 
 
 (* TODO: should require well-formed and completely specified *)
-lemma atc_reduction_reached_state :
+lemma atc_reduction_reached_state_by_h_y_seq :
   assumes "h_y_seq M1 (initial M1) io = {q1}"
   and     "h_y_seq M2 (initial M2) io = {q2}"
   and     "M1 \<preceq> M2"
@@ -2090,7 +2093,36 @@ lemma atc_reduction_reached_state :
   and     cs1 : "completely_specified M1"
   and     fm : "M2 \<in> fault_model_m M1 m"
   and     wf : "well_formed M1"
+  and     ob : "observable M1"
 shows "is_atc_reaction M2 q2 t io2"
+proof -
+  have "q1 \<in> states M1"
+    proof -
+      have "\<exists>ps. is_enabled_sequence M1 (initial M1) ps \<and> reaches M1 (initial M1) ps q1 \<and> get_io ps = io"
+        using assms(1) by auto
+      then show ?thesis
+        by (metis (no_types) local.wf reach_enabled_ex well_formed_def)
+    qed 
+  moreover have "q2 \<in> states M2"
+    proof -
+      have "\<exists>ps. is_enabled_sequence M2 (initial M2) ps \<and> reaches M2 (initial M2) ps q2 \<and> get_io ps = io"
+        using assms(2) by auto
+      then show ?thesis
+      proof -
+        have "well_formed M2 \<and> inputs M1 = inputs M2 \<and> outputs M1 = outputs M2 \<and> card (states M2) \<le> m \<and> card (states M1) \<le> m \<and> observable M2 \<and> completely_specified M2"
+          using fault_model_m_def fm by auto
+        then show ?thesis
+          by (metis (no_types) \<open>\<exists>ps. is_enabled_sequence M2 (initial M2) ps \<and> reaches M2 (initial M2) ps q2 \<and> get_io ps = io\<close> reach_enabled_ex well_formed_def)
+      qed
+    qed
+  moreover have "language_state M1 q1 \<subseteq> language_state M2 q2"
+    using assms
+    by (simp add: io_reduction_reached_state)
+    
+  ultimately show ?thesis using assms atc_reduction_reached_state[of "M1" "q1" "M2" "q2" "t" "io2" "m"] 
+    by 
+
+
 proof (cases t)
   case Leaf
   then have "io2 = []" 
