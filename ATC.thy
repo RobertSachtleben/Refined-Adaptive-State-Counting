@@ -487,7 +487,7 @@ proof -
   then show ?thesis by (meson td_def atc_dist_set_def)
 qed
 
-(* explicitly requires the ATC set to be applicable to the FSN *)
+(* explicitly requires the ATC set to be applicable to the FSM *)
 definition characterizing_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
 "characterizing_set M T \<equiv> atc_applicable_set M T \<and> (\<forall> s1 \<in> (states M) . \<forall> s2 \<in> (states M) . 
     (\<exists> td . atc_rdist M td s1 s2) \<longrightarrow> (\<exists> tt \<in> T . atc_rdist M tt s1 s2))"
@@ -1895,7 +1895,7 @@ next
 
 (* TODO: should require well-formed and completely specified *)
 (*
-lemma atc_reduction_reached_state :
+lemma atc_reaction_reached_state :
   assumes h1 : "h_y_seq M1 (initial M1) io = {q1}"
   and     h2 : "h_y_seq M2 (initial M2) io = {q2}"
   and     red : "M1 \<preceq> M2"
@@ -1925,7 +1925,7 @@ qed
   
 
 
-lemma atc_reduction_reached_state :
+lemma atc_reaction_reached_state :
   assumes ls : "language_state M1 q1 \<subseteq> language_state M2 q2"
   and     el1 : "q1 \<in> states M1"
   and     el2 : "q2 \<in> states M2"
@@ -2085,7 +2085,7 @@ next
 
 
 (* TODO: should require well-formed and completely specified *)
-lemma atc_reduction_reached_state_by_h_y_seq :
+lemma atc_reaction_reached_state_by_h_y_seq :
   assumes "h_y_seq M1 (initial M1) io = {q1}"
   and     "h_y_seq M2 (initial M2) io = {q2}"
   and     "M1 \<preceq> M2"
@@ -2094,6 +2094,7 @@ lemma atc_reduction_reached_state_by_h_y_seq :
   and     fm : "M2 \<in> fault_model_m M1 m"
   and     wf : "well_formed M1"
   and     ob : "observable M1"
+  and     ap1 : "atc_applicable M1 t"
 shows "is_atc_reaction M2 q2 t io2"
 proof -
   have "q1 \<in> states M1"
@@ -2119,161 +2120,154 @@ proof -
     using assms
     by (simp add: io_reduction_reached_state)
     
-  ultimately show ?thesis using assms atc_reduction_reached_state[of "M1" "q1" "M2" "q2" "t" "io2" "m"] 
-    by 
-
-
-proof (cases t)
-  case Leaf
-  then have "io2 = []" 
-    using assms 
-    by (metis is_atc_reaction.simps(2) list.exhaust) 
-  then show ?thesis using assms Leaf is_atc_reaction.simps(1)[of "M2" "initial M2"] 
-    by auto
-next
-  case (Node x f)
-  then show ?thesis 
-    using assms
-  (*proof (induct io2 arbitrary: q1 q2 io rule: rev_induct )*)
-  proof (induction "length io2")
-    case 0
-    then have no_trans : "\<nexists>y s2. (q1, x, y, s2) \<in> transitions M1"
-      using Node assms is_atc_reaction.simps[of "M1" "q1"]
-      by auto
-
-    moreover have "q1 \<in> states M1"
-      using Node Nil assms(1)
-    proof -
-      have "\<exists>ps. reaches M1 (initial M1) ps q1"
-        using assms
-        by auto
-      then show ?thesis
-        by (metis (no_types) local.wf reach_enabled_ex well_formed_def)
-    qed
-    (*proof -
-      have "\<exists>ps. is_enabled_sequence M1 (initial M1) ps \<and> reaches M1 (initial M1) ps q1 \<and> get_io ps = io"
-        using assms(1) by auto
-      then show ?thesis
-        by (metis (no_types) local.wf reach_enabled_ex well_formed_def)
-    qed*)
-
-    ultimately have "x \<notin> inputs M1"
-      using assms completely_specified_def[of "M1"]
-      by blast
-
-    then have "x \<notin> inputs M2"
-      using assms fault_model_m_def[of "M1" "m"]
-      by blast
-
-    then have "\<not>(\<exists> y s2 . (q2, x, y, s2) \<in> transitions M2)"
-      using assms fault_model_m_def[of "M1" "m"] completely_specified_def[of "M2"] well_formed_def[of "M2"]
-      by blast
-
-    then show ?case
-      using 0 Node
-      by auto
-
-
-(*
-    have "\<not> (\<exists> seq y . is_enabled_sequence M1 q1 seq \<and> get_io seq = [(x,y)])"
-    proof (rule ccontr)
-      assume "\<not>(\<nexists>seq y . is_enabled_sequence M1 q1 seq \<and> get_io seq = [(x,y)])"
-      then obtain seq y where seq_y_def : "is_enabled_sequence M1 q1 seq \<and> get_io seq = [(x,y)]"
-        by auto
-      then have "length seq = 1" by (simp add: get_io_length)
-      then obtain a where a_def : "seq = [a]" 
-        by (metis One_nat_def length_0_conv length_Suc_conv)
-      then have "t_source a = q1 \<and> a \<in> transitions M1" 
-        using is_enabled_sequence.simps[of "M1" "q1"] seq_y_def by auto
-      moreover have "t_input a = x"
-        using seq_y_def get_io_def[of "seq"] a_def by auto
-      moreover have "\<exists>y s2. a = (q1, x, y, s2)"
-        using t_input.simps t_source.simps calculation
-        by (smt t_target.cases)
-      ultimately have "\<exists>y s2. (q1, x, y, s2) \<in> transitions M1" 
-        by metis
-      then show "False" using no_trans by auto
-    qed
-    then have "\<nexists> y . [(x,y)] \<in> language_state M1 q1"
-      by (meson language_state_sequence_ex)
-
-    have "language_state M1 q1 \<subseteq> language_state M2 q2"
-      by (meson assms(1) assms(2) assms(3) io_reduction_reached_state)
-*)
-  next
-    case (Suc k)
-
-    obtain ax ay where a_def : "a = (ax,ay)"
-      by fastforce
-
-    then have "ax \<in> inputs M1"
-      using snoc
-      
-
-
-    then show ?case
-  qed
+  ultimately show ?thesis using assms atc_reaction_reached_state[of "M1" "q1" "M2" "q2" "t" "io2" "m"] 
+    by simp
 qed
-  
-  assume "\<not> is_atc_reaction M2 q2 t io"
-  
 
-end (*
-lemma atc_reduction_reached_state :
+
+
+
+lemma atc_io_reduction_reached_state :
   assumes "h_y_seq M1 (initial M1) io = {q1}"
   and     "h_y_seq M2 (initial M2) io = {q2}"
   and     "M1 \<preceq> M2"
+  and     "completely_specified M1"
+  and     "M2 \<in> fault_model_m M1 m"
+  and     "well_formed M1"
+  and     "observable M1"
+  and     "atc_applicable M1 t"
 shows "atc_io M1 q1 t \<subseteq> atc_io M2 q2 t"
-proof - 
-  
+proof 
+  fix io assume "io \<in> atc_io M1 q1 t"
+  then have "is_atc_reaction M1 q1 t io"
+    by (simp add: atc_io_def)
+  then have "is_atc_reaction M2 q2 t io"
+    using assms atc_reaction_reached_state_by_h_y_seq
+    by simp
+  then show "io \<in> atc_io M2 q2 t"
+    by (simp add: atc_io_def)
 qed
 
 
-end (*
+ 
+
 lemma B_reduction_reached_state :
   assumes "h_y_seq M1 (initial M1) io = {q1}"
   and     "h_y_seq M2 (initial M2) io = {q2}"
   and     "M1 \<preceq> M2"
+  and     "completely_specified M1"
+  and     "M2 \<in> fault_model_m M1 m"
+  and     "well_formed M1"
+  and     "observable M1"
+  and     "atc_applicable_set M1 \<Omega>"
 shows "B M1 io \<Omega> \<subseteq> B M2 io \<Omega>"
 proof - 
-  have "B M1 io \<Omega> = atc_io_set M1 q1 \<Omega>"
+  have b1 : "B M1 io \<Omega> = atc_io_set M1 q1 \<Omega>"
     using B_def[of "M1" "io" "\<Omega>"] assms by auto
-  moreover have "B M2 io \<Omega> = atc_io_set M2 q2 \<Omega>"
+  moreover have b2 : "B M2 io \<Omega> = atc_io_set M2 q2 \<Omega>"
     using B_def[of "M2" "io" "\<Omega>"] assms by auto
-  ultimately have "\<forall> t \<in> \<Omega> . atc_io M1 q1 t \<subseteq> atc_io M2 q2 t"
-qed
+  ultimately have atc_io_red : "\<forall> t \<in> \<Omega> . atc_io M1 q1 t \<subseteq> atc_io M2 q2 t"
+    using assms atc_io_reduction_reached_state
+    by (metis atc_applicable_set_def)
 
+  have "atc_io_set M1 q1 \<Omega> \<subseteq> atc_io_set M2 q2 \<Omega>"
+    proof (rule ccontr)
+      assume "\<not> atc_io_set M1 q1 \<Omega> \<subseteq> atc_io_set M2 q2 \<Omega>"
+      then obtain io where io_def : "io \<in> atc_io_set M1 q1 \<Omega> \<and> io \<notin> atc_io_set M2 q2 \<Omega>"
+        by blast 
+      then have "io \<in> \<Union> { atc_io M1 q1 t | t . t \<in> \<Omega> }"
+        by (simp add: atc_io_set_def)
+      then obtain t where t_def : "t \<in> \<Omega> \<and> io \<in> atc_io M1 q1 t"
+        by blast
+      moreover have "\<forall> t2 \<in> \<Omega> . io \<notin> atc_io M2 q2 t2"
+        using io_def atc_io_set_def by fastforce
+      ultimately have "\<exists> t \<in> \<Omega> . io \<in> atc_io M1 q1 t \<and> io \<notin> atc_io M2 q2 t"
+        by blast 
+      then show "False"
+        using atc_io_red by blast
+    qed
 
+    then show ?thesis 
+      using B_def  b1 b2 by auto 
+  qed
+        
 lemma append_io_reduction_reached_state :
   assumes "h_y_seq M1 (initial M1) io = {q1}"
   and     "h_y_seq M2 (initial M2) io = {q2}"
   and     "M1 \<preceq> M2"
+  and     "completely_specified M1"
+  and     "M2 \<in> fault_model_m M1 m"
+  and     "well_formed M1"
+  and     "observable M1"
+  and     "atc_applicable_set M1 \<Omega>"
 shows "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
-proof - 
-  
+proof 
+  fix io2 assume "io2 \<in> append_io_B M1 io \<Omega>"
+  then obtain io2R where io2R_def : "io2 = io @ io2R \<and> io2R \<in> B M1 io \<Omega>"
+    proof -
+      assume a1: "\<And>io2R. io2 = io @ io2R \<and> io2R \<in> B M1 io \<Omega> \<Longrightarrow> thesis"
+      have "\<exists>ps. io2 = io @ ps \<and> ps \<in> B M1 io \<Omega>"
+        using \<open>io2 \<in> append_io_B M1 io \<Omega>\<close> append_io_B_def by blast
+      then show ?thesis
+        using a1 by blast
+    qed 
+  then have "io2R \<in> B M2 io \<Omega>"
+    using assms B_reduction_reached_state
+    by (smt insert_Diff insert_subset) 
+  then have "io@io2R \<in> append_io_B M2 io \<Omega>"
+    by (simp add: append_io_B_def)
+  then show "io2 \<in> append_io_B M2 io \<Omega>"
+    using io2R_def by simp  
 qed
 
-end (*
+
+
 lemma is_reduction_on_reverse : 
-  assumes rd: "M1 \<preceq> M2"
+  assumes "M1 \<preceq> M2"
+  and     "completely_specified M1"
+  and     "M2 \<in> fault_model_m M1 m"
+  and     "well_formed M1"
+  and     "observable M1"
+  and     "atc_applicable_set M1 \<Omega>"
   shows "is_reduction_on M1 M2 t \<Omega>"
 proof -
   have lr : "language_in M1 t \<subseteq> language_in M2 t"
-    using rd reduction_in_subset by auto
-  (*moreover have "(\<forall> io \<in> language_in M1 t . append_io_B M1 io \<Omega> \<subseteq> language M1)"
-    using append_io_B_subset language_in_subset by blast 
-  moreover have "(\<forall> io \<in> language_in M2 t . append_io_B M2 io \<Omega> \<subseteq> language M2)"
-    using append_io_B_subset language_in_subset by blast 
-  ultimately *)
-  have "(\<forall> io \<in> language_in M1 t . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
+    using assms reduction_in_subset by auto
+   moreover have "(\<forall> io \<in> language_in M1 t . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
   proof 
-    fix io
-    assume io_assm : "io \<in> language_in M1 t"
-    show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
-    
-end (*
+    fix io assume io_assm : "io \<in> language_in M1 t"
+    then obtain q1 where q1_def : "h_y_seq M1 (initial M1) io = {q1}"
+      by (metis (no_types, hide_lams) assms(4) assms(5) contra_subsetD h_y_seq_observable language_def language_in_subset well_formed_def)
+    moreover have "io \<in> language_in M2 t"
+      using lr io_assm by blast
+    moreover obtain q2 where q2_def : "h_y_seq M2 (initial M2) io = {q2}"
+      using calculation by (metis (no_types, lifting) assms(3) fault_model_m_def h_y_seq_observable language_state_in_def mem_Collect_eq well_formed_def)
+    ultimately show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
+      using assms  append_io_reduction_reached_state
+      by metis
+  qed
+
+  ultimately show ?thesis
+    by (simp add: is_reduction_on_def)
+qed
+
 lemma is_reduction_reverse :
-  assumes rd: "M1 \<preceq> M2"
-  shows "is_reduction_on_sets M1 M2 TS \<Omega>"
+  assumes "M1 \<preceq> M2"
+  and     "completely_specified M1"
+  and     "M2 \<in> fault_model_m M1 m"
+  and     "well_formed M1"
+  and     "observable M1"
+  and     "atc_applicable_set M1 \<Omega>"
+shows "is_reduction_on_sets M1 M2 TS \<Omega>"
+proof -
+  have "\<forall>A f fa Aa. \<exists>as. \<not> is_reduction_on (f::('a, 'b, 'c) FSM) fa as Aa \<or> is_reduction_on_sets f fa A Aa"
+    using is_reduction_on_sets_def by blast
+  then obtain aas :: "'a list set \<Rightarrow> ('a, 'b, 'c) FSM \<Rightarrow> ('a, 'b, 'c) FSM \<Rightarrow> ('a, 'b) ATC set \<Rightarrow> 'a list" where
+    "\<And>f fa A Aa. \<not> is_reduction_on f fa (aas A f fa Aa) Aa \<or> is_reduction_on_sets f fa A Aa"
+  by (metis (no_types))
+  then show ?thesis
+    using assms(1) assms(2) assms(3) assms(4) assms(5) assms(6) is_reduction_on_reverse by blast
+qed
+
 
 end
