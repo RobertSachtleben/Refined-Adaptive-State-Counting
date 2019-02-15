@@ -2259,15 +2259,10 @@ lemma is_reduction_reverse :
   and     "observable M1"
   and     "atc_applicable_set M1 \<Omega>"
 shows "is_reduction_on_sets M1 M2 TS \<Omega>"
-proof -
-  have "\<forall>A f fa Aa. \<exists>as. \<not> is_reduction_on (f::('a, 'b, 'c) FSM) fa as Aa \<or> is_reduction_on_sets f fa A Aa"
-    using is_reduction_on_sets_def by blast
-  then obtain aas :: "'a list set \<Rightarrow> ('a, 'b, 'c) FSM \<Rightarrow> ('a, 'b, 'c) FSM \<Rightarrow> ('a, 'b) ATC set \<Rightarrow> 'a list" where
-    "\<And>f fa A Aa. \<not> is_reduction_on f fa (aas A f fa Aa) Aa \<or> is_reduction_on_sets f fa A Aa"
-  by (metis (no_types))
-  then show ?thesis
-    using assms(1) assms(2) assms(3) assms(4) assms(5) assms(6) is_reduction_on_reverse by blast
-qed
+  by (metis (no_types) assms(1) assms(2) assms(3) assms(4) assms(5) assms(6) is_reduction_on_reverse is_reduction_on_sets_def)
+
+
+
 
 
 end
