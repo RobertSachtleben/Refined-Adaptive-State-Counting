@@ -122,6 +122,18 @@ fun IO_set :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 
 lemma IO_language : "IO M q t \<subseteq> language_state M q"
   by (metis atc_reaction_path IO.elims language_state mem_Collect_eq subsetI) 
 
+lemma IO_leaf[simp] : "IO M q Leaf = {[]}"
+proof   
+  show "IO M q Leaf \<subseteq> {[]}" 
+  proof (rule ccontr)
+    assume assm : "\<not> IO M q Leaf \<subseteq> {[]}"
+    then obtain io_hd io_tl where elem_ex : "Cons io_hd io_tl \<in> IO M q Leaf" by (metis (no_types, hide_lams) insertI1 neq_Nil_conv subset_eq) 
+    then show "False" using atc_reaction_nonempty_no_leaf assm by (metis IO.simps mem_Collect_eq)
+  qed  
+next
+  show "{[]} \<subseteq> IO M q Leaf" by auto 
+qed
+
 
 fun r_dist :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
 "r_dist M t s1 s2 = (IO M s1 t \<inter> IO M s2 t = {})"
@@ -213,23 +225,169 @@ fun B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> 
 
 (* Proposition 5.4.2 *)
 lemma B_dist :
-  assumes wf: "well_formed M"
-  and     ob: "observable M"
+  assumes ob: "observable M"
   and     ln1: "io1 \<in> language_state M (initial M)"
   and     ln2: "io2 \<in> language_state M (initial M)"
   and     df: "B M io1 \<Omega> \<noteq> B M io2 \<Omega>"
   shows   "(io_targets M (initial M) io1) \<noteq> (io_targets M (initial M) io2)"
 proof -
-  obtain q1 where q1_def : "io_targets M (initial M) io1 = {q1}" by (meson assms io_targets_observable_singleton)
+  obtain q1 where q1_def : "io_targets M (initial M) io1 = {q1}" by (meson assms io_targets_observable_singleton_ex)
   then have B1 : "B M io1 \<Omega> = IO_set M q1 \<Omega>" by auto
-  obtain q2 where q2_def : "io_targets M (initial M) io2 = {q2}" by (meson assms io_targets_observable_singleton)
+  obtain q2 where q2_def : "io_targets M (initial M) io2 = {q2}" by (meson assms io_targets_observable_singleton_ex)
   then have B2 : "B M io2 \<Omega> = IO_set M q2 \<Omega>" by auto
   have "q1 \<noteq> q2" using B1 B2 df by blast
   then show ?thesis using q1_def q2_def by blast
 qed
 
+fun language_state_in :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" where
+  "language_state_in M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> language_state M (initial M))}"
+
 fun D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in * 'out) list set set" where
-"D M T ISeqs = { B M io T | io . \<exists> iseq \<in> ISeqs . (map fst io = iseq \<and> io \<in> language_state M (initial M)) }"
+  "D M \<Omega> ISeqs = image (\<lambda> io . B M io \<Omega>) (language_state_in M (initial M) ISeqs)"
+
+
+
+lemma D_bound :
+  assumes wf: "well_formed M"
+  and     ob: "observable M"
+  and     fi: "finite ISeqs"
+  shows "card (D M \<Omega> ISeqs) \<le> card (nodes M)" 
+proof -
+  have "D M \<Omega> ISeqs \<subseteq> image (\<lambda> s . IO_set M s \<Omega>) (nodes M)"
+  proof 
+    fix RS assume RS_def : "RS \<in> D M \<Omega> ISeqs"
+    then obtain xs ys where RS_tr : "RS = B M (xs || ys) \<Omega>" "(xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> language_state M (initial M))"by auto
+    then obtain qx where qx_def : "io_targets M (initial M) (xs || ys) = { qx }" by (meson io_targets_observable_singleton_ex ob)  
+    then have "RS = IO_set M qx \<Omega>" using RS_tr by auto
+    moreover have "qx \<in> nodes M" by (metis FSM.nodes.initial io_targets_nodes qx_def singletonI) 
+    ultimately show "RS \<in> image (\<lambda> s . IO_set M s \<Omega>) (nodes M)" by auto
+  qed
+  moreover have "finite (nodes M)" using assms by auto
+  ultimately show ?thesis by (meson Finite_Set.card_image_le surj_card_le)
+qed
+
+
+
+
+
+fun append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
+"append_io_B M io \<Omega> = { io@res | res . res \<in> B M io \<Omega> }"
+
+fun is_reduction_on :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"is_reduction_on M1 M2 iseq \<Omega> = (language_state_in M1 (initial M1) {iseq} \<subseteq> language_state_in M2 (initial M2) {iseq} 
+  \<and> (\<forall> io \<in> language_state_in M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))"
+
+fun is_reduction_on_sets :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"is_reduction_on_sets M1 M2 TS \<Omega> = (\<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>)"
+
+
+
+lemma atc_reaction_reduction :
+  assumes ls : "language_state M1 q1 \<subseteq> language_state M2 q2"
+  and     el1 : "q1 \<in> nodes M1"
+  and     el2 : "q2 \<in> nodes M2"
+  and     rct : "atc_reaction M1 q1 t io"
+  and     ob2 : "observable M2"
+  and     ob1 : "observable M1"
+shows "atc_reaction M2 q2 t io"
+using assms proof (induction t arbitrary: io q1 q2)
+  case Leaf
+  then have "io = []" by (metis atc_reaction_nonempty_no_leaf list.exhaust) 
+  then show ?case by (simp add: leaf)  
+next
+  case (Node x f)
+  then obtain io_hd io_tl where io_split : "io = io_hd # io_tl" by (metis ATC.distinct(1) atc_reaction_empty list.exhaust) 
+  moreover obtain y where y_def : "io_hd = (x,y)" using Node calculation by (metis ATC.inject atc_reaction_nonempty surj_pair) 
+  ultimately  obtain q1x where q1x_def : "q1x \<in> succ M1 (x,y) q1" "atc_reaction M1 q1x (f y) io_tl" using Node.prems(4) by blast 
+
+  then have pt1 : "path M1 ([(x,y)] || [q1x]) q1" by auto
+  then have ls1 : "[(x,y)] \<in> language_state M1 q1" unfolding language_state_def path_def using list.simps(9) by force
+  moreover have "q1x \<in> io_targets M1 q1 [(x,y)]" unfolding io_targets.simps
+  proof -
+    have f1: "length [(x, y)] = length [q1x]"
+      by simp
+    have "q1x = target ([(x, y)] || [q1x]) q1"
+      by simp
+    then show "q1x \<in> {target ([(x, y)] || cs) q1 |cs. path M1 ([(x, y)] || cs) q1 \<and> length [(x, y)] = length cs}"
+      using f1 pt1 by blast
+  qed 
+  ultimately have tgt1 : "io_targets M1 q1 [(x,y)] = {q1x}" using Node.prems io_targets_observable_singleton_ex q1x_def 
+    by (metis (no_types, lifting) mem_Collect_eq singletonD) 
+
+  
+  then have ls2 : "[(x,y)] \<in> language_state M2 q2" using Node.prems(1) ls1 by auto
+  then obtain q2x where q2x_def : "q2x \<in> succ M2 (x,y) q2" unfolding language_state_def path_def using transition_system.path.cases by fastforce 
+  then have pt2 : "path M2 ([(x,y)] || [q2x]) q2" by auto
+  then have "q2x \<in> io_targets M2 q2 [(x,y)]" using ls2 unfolding io_targets.simps 
+  proof -
+    have f1: "length [(x, y)] = length [q2x]"
+      by simp
+    have "q2x = target ([(x, y)] || [q2x]) q2"
+      by simp
+    then show "q2x \<in> {target ([(x, y)] || cs) q2 |cs. path M2 ([(x, y)] || cs) q2 \<and> length [(x, y)] = length cs}"
+      using f1 pt2 by blast
+  qed
+
+  then have tgt2 : "io_targets M2 q2 [(x,y)] = {q2x}" using Node.prems io_targets_observable_singleton_ex ls2 q2x_def 
+    by (metis (no_types, lifting) singletonD) 
+
+
+  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using language_state_inclusion_next[of M1 q1 M2 q2 "[(x,y)]" q1x q2x] tgt1 tgt2 Node.prems fault_model_m.simps  by auto
+  moreover have "q1x \<in> nodes M1" using q1x_def(1) Node.prems(2) by (metis insertI1 io_targets_nodes tgt1)
+  moreover have "q2x \<in> nodes M2" using q2x_def(1) Node.prems(3) by (metis insertI1 io_targets_nodes tgt2)
+  ultimately have "q2x \<in> succ M2 (x,y) q2 \<and> atc_reaction M2 q2x (f y) io_tl" using Node.IH[of "f y" q1x q2x io_tl] Node.prems fault_model_m.simps q2x_def q1x_def(2) by blast 
+
+  then show "atc_reaction M2 q2 (Node x f) io" using io_split y_def by blast 
+qed
+
+
+lemma IO_reduction :
+  assumes ls : "language_state M1 q1 \<subseteq> language_state M2 q2"
+  and     el1 : "q1 \<in> nodes M1"
+  and     el2 : "q2 \<in> nodes M2"
+  and     ob1 : "observable M1"
+  and     ob2 : "observable M2"
+shows "IO M1 q1 t \<subseteq> IO M2 q2 t"
+  using assms atc_reaction_reduction unfolding IO.simps by auto
+
+(* "B M io \<Omega> = \<Union> (image (\<lambda> s . IO_set M s \<Omega>) (io_targets M (initial M) io))"*)
+lemma IO_reduction :
+  assumes red : "M1 \<preceq> M2"
+  and     ob1 : "observable M1"
+  and     ob2 : "observable M2"
+shows "B M1 io \<Omega> \<subseteq> B M2 io \<Omega>"
+proof 
+  fix xy assume xy_assm : "xy \<in> B M1 io \<Omega>"
+  then obtain q1x where q1x_def : "q1x \<in> (io_targets M1 (initial M1) io) \<and> xy \<in> IO_set M1 q1x \<Omega>" unfolding B.simps by auto
+  then obtain tr1 where tr1_def : "path M1 (io || tr1) (initial M1) \<and> length io = length tr1" by auto
+  
+
+  then have ls1 : "io \<in> language_state M1 (initial M1)" by auto 
+  then have ls2 : "io \<in> language_state M2 (initial M2)" using red by auto
+
+  obtain q2x where q2x_def : 
+  
+
+
+lemma IO_reduction_reached_state :
+  assumes "io_targets M1 (initial M1) io = {q1}"
+  and     "io_targets M2 (initial M2) io = {q2}"
+  and     "M1 \<preceq> M2"
+  and     ob1 : "observable M1"
+  and     ob2 : "observable M2"
+shows "IO M1 q1 t \<subseteq> IO M2 q2 t"
+proof -
+  have "q1 \<in> nodes M1" using assms io_targets_nodes FSM.nodes.initial unfolding io_reduction.simps by (metis insertI1)
+  moreover have "q2 \<in> nodes M2" using assms io_targets_nodes FSM.nodes.initial unfolding io_reduction.simps by (metis insertI1)
+  moreover have "language_state M1 q1 \<subseteq> language_state M2 q2" using assms io_targets_nodes unfolding io_reduction.simps 
+  proof -
+    assume "language_state M1 (initial M1) \<subseteq> language_state M2 (initial M2)"
+    then show ?thesis by (meson assms language_state_inclusion_next ob1 ob2)
+  qed 
+  ultimately show ?thesis using assms IO_reduction_reached_state by metis 
+qed
+
+
 
 
 
