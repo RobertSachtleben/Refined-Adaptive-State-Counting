@@ -36,8 +36,8 @@ fun productF :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM
   \<and> (fst FAIL \<notin> nodes A) 
   \<and> (snd FAIL \<notin> nodes B)
   \<and> AB =  \<lparr>
-            succ = (\<lambda> a (p1,p2) . (if (p1 \<in> nodes A \<and> p2 \<in> nodes B)
-                                    then (if (succ A a p1 = {} \<and> (fst a \<in> inputs A) \<and> (snd a \<in> outputs A \<union> outputs B))
+            succ = (\<lambda> a (p1,p2) . (if (p1 \<in> nodes A \<and> p2 \<in> nodes B \<and> (fst a \<in> inputs A) \<and> (snd a \<in> outputs A \<union> outputs B))
+                                    then (if (succ A a p1 = {})
                                       then {FAIL} 
                                       else (succ A a p1 \<times> succ B a p2))
                                     else {})),
@@ -47,8 +47,8 @@ fun productF :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM
           \<rparr> )"
 
 lemma productF_simps[simp]:
-  "productF A B FAIL AB \<Longrightarrow> succ AB a (p1,p2) = (if (p1 \<in> nodes A \<and> p2 \<in> nodes B)
-                                    then (if (succ A a p1 = {} \<and> (fst a \<in> inputs A) \<and> (snd a \<in> outputs A \<union> outputs B))
+  "productF A B FAIL AB \<Longrightarrow> succ AB a (p1,p2) = (if (p1 \<in> nodes A \<and> p2 \<in> nodes B \<and> (fst a \<in> inputs A) \<and> (snd a \<in> outputs A \<union> outputs B))
+                                    then (if (succ A a p1 = {})
                                       then {FAIL} 
                                       else (succ A a p1 \<times> succ B a p2))
                                     else {})"
@@ -87,14 +87,14 @@ proof
   next
     case (execute p a)
     then obtain p1 p2 x y q1 q2  where p_a_split[simp] : "p = (p1,p2)" "a = ((x,y),q)" "q = (q1,q2)" by (metis eq_snd_iff)
-    have subnodes : "p1 \<in> nodes M2 \<and> p2 \<in> nodes M1"  
+    have subnodes : "p1 \<in> nodes M2 \<and> p2 \<in> nodes M1 \<and> (x \<in> inputs M2) \<and> (y \<in> outputs M2 \<union> outputs M1)"  
     proof (rule ccontr)
-      assume "\<not> (p1 \<in> nodes M2 \<and> p2 \<in> nodes M1)"
+      assume "\<not> (p1 \<in> nodes M2 \<and> p2 \<in> nodes M1  \<and> (x \<in> inputs M2) \<and> (y \<in> outputs M2 \<union> outputs M1))"
       then have "succ PM (x,y) (p1,p2) = {}" using assms(3) by auto
       then show "False" using execute by auto
     qed
       
-    show ?thesis proof (cases "(succ M2 (x,y) p1 = {} \<and> (x \<in> inputs M2) \<and> (y \<in> outputs M2 \<union> outputs M1))")
+    show ?thesis proof (cases "(succ M2 (x,y) p1 = {})")
       case True 
       then have "q = FAIL" using subnodes assms(3) execute by auto
       then show ?thesis by auto
@@ -136,12 +136,12 @@ unfolding well_formed.simps proof
   ultimately show "finite_FSM PM" using infinite_subset by auto  
 next
   have "inputs PM = inputs M2" "outputs PM = outputs M2 \<union> outputs M1" using assms by auto
-  then show "\<forall>s1 x y. x \<notin> inputs PM \<or> y \<notin> outputs PM \<longrightarrow> succ PM (x, y) s1 = {}" 
-  proof -
+  then show "\<forall>s1 x y. x \<notin> inputs PM \<or> y \<notin> outputs PM \<longrightarrow> succ PM (x, y) s1 = {}" using assms by auto
+qed
   
 
 
-
+(*
 lemma fail_reachable :
   assumes "\<not> M1 \<preceq> M2"
   and     "well_formed M2"
