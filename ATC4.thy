@@ -224,20 +224,20 @@ fun B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> 
 "B M io \<Omega> = \<Union> (image (\<lambda> s . IO_set M s \<Omega>) (io_targets M (initial M) io))"
 
 (* Proposition 5.4.2 *)
-lemma B_dist :
-  assumes ob: "observable M"
-  and     ln1: "io1 \<in> language_state M (initial M)"
-  and     ln2: "io2 \<in> language_state M (initial M)"
-  and     df: "B M io1 \<Omega> \<noteq> B M io2 \<Omega>"
+lemma B_dist' :
+  assumes df: "B M io1 \<Omega> \<noteq> B M io2 \<Omega>"
   shows   "(io_targets M (initial M) io1) \<noteq> (io_targets M (initial M) io2)"
-proof -
-  obtain q1 where q1_def : "io_targets M (initial M) io1 = {q1}" by (meson assms io_targets_observable_singleton_ex)
-  then have B1 : "B M io1 \<Omega> = IO_set M q1 \<Omega>" by auto
-  obtain q2 where q2_def : "io_targets M (initial M) io2 = {q2}" by (meson assms io_targets_observable_singleton_ex)
-  then have B2 : "B M io2 \<Omega> = IO_set M q2 \<Omega>" by auto
-  have "q1 \<noteq> q2" using B1 B2 df by blast
-  then show ?thesis using q1_def q2_def by blast
-qed
+  using assms by force 
+
+lemma B_dist :
+  assumes "io_targets M (initial M) io1 = {q1}"
+  and     "io_targets M (initial M) io2 = {q2}"
+  and     "B M io1 \<Omega> \<noteq> B M io2 \<Omega>"
+shows   "q1 \<noteq> q2"
+  using assms by force
+
+
+
 
 fun language_state_in :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" where
   "language_state_in M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> language_state M (initial M))}"

@@ -12,8 +12,6 @@ record ('in, 'out, 'state) FSM =
   outputs :: "'out set"
   initial :: "'state"
 
-(* "\<lambda> a p. snd a" "\<lambda> a p. snd a \<in> succ A (fst a) p \<and> (fst (fst a) \<in> inputs A) \<and> (snd (fst a) \<in> outputs A)" "\<lambda> p. p = initial A" *)
-
 global_interpretation FSM : transition_system_initial
 "\<lambda> a p. snd a" "\<lambda> a p. snd a \<in> succ A (fst a) p" "\<lambda> p. p = initial A"
   for A
