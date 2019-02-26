@@ -312,7 +312,7 @@ next
       using f1 pt1 by blast
   qed 
   ultimately have tgt1 : "io_targets M1 q1 [(x,y)] = {q1x}" using Node.prems io_targets_observable_singleton_ex q1x_def 
-    by (metis (no_types, lifting) mem_Collect_eq singletonD) 
+    by (metis (no_types, lifting) singletonD) 
 
   
   then have ls2 : "[(x,y)] \<in> language_state M2 q2" using Node.prems(1) ls1 by auto
@@ -350,8 +350,19 @@ lemma IO_reduction :
 shows "IO M1 q1 t \<subseteq> IO M2 q2 t"
   using assms atc_reaction_reduction unfolding IO.simps by auto
 
-(* "B M io \<Omega> = \<Union> (image (\<lambda> s . IO_set M s \<Omega>) (io_targets M (initial M) io))"*)
-lemma IO_reduction :
+lemma IO_set_reduction :
+  assumes ls : "language_state M1 q1 \<subseteq> language_state M2 q2"
+  and     el1 : "q1 \<in> nodes M1"
+  and     el2 : "q2 \<in> nodes M2"
+  and     ob1 : "observable M1"
+  and     ob2 : "observable M2"
+shows "IO_set M1 q1 \<Omega> \<subseteq> IO_set M2 q2 \<Omega>"
+proof -
+  have "\<forall> t \<in> \<Omega> . IO M1 q1 t \<subseteq> IO M2 q2 t" using assms IO_reduction by metis 
+  then show ?thesis unfolding IO_set.simps by blast
+qed
+
+lemma B_reduction :
   assumes red : "M1 \<preceq> M2"
   and     ob1 : "observable M1"
   and     ob2 : "observable M2"
@@ -360,34 +371,60 @@ proof
   fix xy assume xy_assm : "xy \<in> B M1 io \<Omega>"
   then obtain q1x where q1x_def : "q1x \<in> (io_targets M1 (initial M1) io) \<and> xy \<in> IO_set M1 q1x \<Omega>" unfolding B.simps by auto
   then obtain tr1 where tr1_def : "path M1 (io || tr1) (initial M1) \<and> length io = length tr1" by auto
-  
 
+  then have q1x_ob : "io_targets M1 (initial M1) io = {q1x}" using assms
+    by (metis io_targets_observable_singleton_ex language_state q1x_def singleton_iff) 
+  
   then have ls1 : "io \<in> language_state M1 (initial M1)" by auto 
   then have ls2 : "io \<in> language_state M2 (initial M2)" using red by auto
 
-  obtain q2x where q2x_def : 
-  
+  then obtain tr2 where tr2_def : "path M2 (io || tr2) (initial M2) \<and> length io = length tr2" by auto
+  then obtain q2x where q2x_def : "q2x \<in> (io_targets M2 (initial M2) io)" by auto
 
+  then have q2x_ob : "io_targets M2 (initial M2) io = {q2x}" using tr2_def assms
+    by (metis io_targets_observable_singleton_ex language_state singleton_iff) 
 
-lemma IO_reduction_reached_state :
-  assumes "io_targets M1 (initial M1) io = {q1}"
-  and     "io_targets M2 (initial M2) io = {q2}"
-  and     "M1 \<preceq> M2"
-  and     ob1 : "observable M1"
-  and     ob2 : "observable M2"
-shows "IO M1 q1 t \<subseteq> IO M2 q2 t"
-proof -
-  have "q1 \<in> nodes M1" using assms io_targets_nodes FSM.nodes.initial unfolding io_reduction.simps by (metis insertI1)
-  moreover have "q2 \<in> nodes M2" using assms io_targets_nodes FSM.nodes.initial unfolding io_reduction.simps by (metis insertI1)
-  moreover have "language_state M1 q1 \<subseteq> language_state M2 q2" using assms io_targets_nodes unfolding io_reduction.simps 
-  proof -
-    assume "language_state M1 (initial M1) \<subseteq> language_state M2 (initial M2)"
-    then show ?thesis by (meson assms language_state_inclusion_next ob1 ob2)
-  qed 
-  ultimately show ?thesis using assms IO_reduction_reached_state by metis 
+  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using q1x_ob assms unfolding io_reduction.simps by (simp add: language_state_inclusion_next) 
+  then have "IO_set M1 q1x \<Omega> \<subseteq> IO_set M2 q2x \<Omega>" using assms IO_set_reduction by (metis FSM.nodes.initial io_targets_nodes q1x_def q2x_def) 
+  moreover have "B M1 io \<Omega> = IO_set M1 q1x \<Omega>" using q1x_ob by auto
+  moreover have "B M2 io \<Omega> = IO_set M2 q2x \<Omega>" using q2x_ob by auto
+  ultimately have "B M1 io \<Omega> \<subseteq> B M2 io \<Omega>" by simp
+  then show "xy \<in> B M2 io \<Omega>" using xy_assm by blast
 qed
 
 
+lemma append_io_B_reduction :
+  assumes red : "M1 \<preceq> M2"
+  and     ob1 : "observable M1"
+  and     ob2 : "observable M2"
+shows "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
+proof 
+  fix ioR assume ioR_assm : "ioR \<in> append_io_B M1 io \<Omega>" 
+  then obtain res where res_def : "ioR = io @ res" "res \<in> B M1 io \<Omega>" by auto
+  then have "res \<in> B M2 io \<Omega>" using assms B_reduction by blast
+  then show "ioR \<in> append_io_B M2 io \<Omega>" using ioR_assm res_def by auto
+qed 
+
+
+
+lemma is_reduction_on_reduction :
+  assumes red : "M1 \<preceq> M2"
+  and     ob1 : "observable M1"
+  and     ob2 : "observable M2"
+shows "is_reduction_on M1 M2 iseq \<Omega>"
+unfolding is_reduction_on.simps proof 
+  show "language_state_in M1 (initial M1) {iseq} \<subseteq> language_state_in M2 (initial M2) {iseq}" using red by auto 
+next
+  show "\<forall>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>" using  append_io_B_reduction assms by blast
+qed
+    
+
+lemma is_reduction_on_sets_reduction :
+  assumes red : "M1 \<preceq> M2"
+  and     ob1 : "observable M1"
+  and     ob2 : "observable M2"
+shows "is_reduction_on_sets M1 M2 TS \<Omega>"
+  using assms is_reduction_on_reduction by (metis is_reduction_on_sets.elims(3)) 
 
 
 
