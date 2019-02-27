@@ -292,7 +292,7 @@ proof
 qed
 
 
-  
+
 
 lemma productF_path_rev :
   assumes "length w = length r1" "length r1 = length r2"
@@ -348,6 +348,191 @@ next
     ultimately show ?thesis using path_head path_tail by auto  
   qed
 qed
+
+lemma butlast_zip_cons : "length ws = length r1s \<Longrightarrow> ws \<noteq> [] \<Longrightarrow> butlast (w # ws || r1 # r1s) = ((w,r1) # (butlast (ws || r1s)))"
+proof -
+assume a1: "length ws = length r1s"
+assume a2: "ws \<noteq> []"
+  have "length (w # ws) = length r1s + Suc 0"
+    using a1 by (metis list.size(4))
+  then have f3: "length (w # ws) = length (r1 # r1s)"
+    by (metis list.size(4))
+  have f4: "ws @ w # ws \<noteq> w # ws"
+    using a2 by (meson append_self_conv2)
+  have "length (ws @ w # ws) = length (r1s @ r1 # r1s)"
+    using a1 by auto
+  then have "ws @ w # ws || r1s @ r1 # r1s \<noteq> w # ws || r1 # r1s"
+    using f4 f3 by (meson zip_eq)
+  then show ?thesis
+    using a1 by simp
+qed
+  
+
+lemma productF_path_rev :
+  assumes "length w = length r1" "length r1 = length r2"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "path AB (w || r1 || r2) (p1, p2)"
+  and     "p1 \<in> nodes A"
+  and     "p2 \<in> nodes B"
+shows "(path A (w || r1) p1 \<and> path B (w || r2) p2) 
+           \<or> (path B (w || r2) p2 
+              \<and> target (w || r1 || r2) (p1, p2) = FAIL 
+              \<and> (length w > 0 \<longrightarrow> path A (butlast (w || r1)) p1))"
+using assms  proof (induction w r1 r2 arbitrary: p1 p2 rule: list_induct3)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons w ws r1 r1s r2 r2s) 
+  show ?case proof (cases "(r1,r2) = FAIL")
+    case False
+
+    have path_head : "path AB ([w] || [(r1,r2)]) (p1,p2)" using Cons by auto
+    then have "succ AB w (p1,p2) \<noteq> {}" by force
+    then have succ_if_1 : "p1 \<in> nodes A \<and> p2 \<in> nodes B \<and> (fst w \<in> inputs A) \<and> (snd w \<in> outputs A \<union> outputs B)" using Cons by auto
+
+    moreover have no_FAIL_next : "(r1,r2) \<noteq> FAIL" using False by auto
+
+    ultimately have succ_if_2 : "succ A w p1 \<noteq> {}" using Cons by auto
+
+    then have "succ AB w (p1,p2) = (succ A w p1 \<times> succ B w p2)" using succ_if_1 Cons by auto
+    then have "(r1,r2) \<in> (succ A w p1 \<times> succ B w p2)" using Cons by auto
+    then have succs_next : "r1 \<in> succ A w p1 \<and> r2 \<in> succ B w p2" by auto
+    then have nodes_next : "r1 \<in> nodes A \<and> r2 \<in> nodes B" using Cons succ_nodes by metis 
+    
+
+    moreover have path_tail : "path AB (ws || r1s || r2s) (r1,r2)" using Cons by auto
+    ultimately have prop_tail : "path A (ws || r1s) r1 \<and> path B (ws || r2s) r2 \<or>
+        path B (ws || r2s) r2 \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> (length ws > 0 \<longrightarrow> path A (butlast (ws || r1s)) r1)" using Cons.IH Cons.prems by auto
+
+    moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
+    then show ?thesis
+    proof (cases "path B (ws || r2s) r2 \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> path A (butlast (ws || r1s)) r1")
+      case True 
+      moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
+      moreover have "length ws = length r1s" using Cons by auto
+      moreover have "ws \<noteq> [] \<Longrightarrow> butlast (w # ws || r1 # r1s) = ((w,r1) # (butlast (ws || r1s)))" using Cons calculation butlast_zip_cons by metis
+      ultimately show ?thesis by auto
+    next
+      case False
+      then have "path A (ws || r1s) r1 \<and> path B (ws || r2s) r2" using prop_tail by auto
+      moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
+      ultimately show ?thesis by auto
+    qed
+
+  next
+    case True
+    then show ?thesis 
+    proof (cases "length ws")
+      case 0
+      then show ?thesis sorry (* requires reformulation of succ: only allow transition to fail if (succ A w p1 = {} & succ B w p2 != {}) ? *)
+    next
+      case (Suc nat)
+      then have "target (take 1 (w # ws || r1 # r1s || r2 # r2s)) (p1, p2) \<noteq> FAIL" using Cons no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1] by auto
+      moreover have "(r1,r2) = target (take 1 (w # ws || r1 # r1s || r2 # r2s)) (p1, p2)" by auto
+      ultimately show ?thesis by (simp add: True)
+    qed
+  qed
+qed
+    moreover have "(r1,r2) = target (take 1 (w # ws || r1 # r1s || r2 # r2s)) (p1, p2)" by auto
+    ultimately have "False" using Cons no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1] 
+
+    ultimately have "r1s = []" using Cons no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1] 
+    then show ?thesis using Cons.IH
+
+
+
+
+
+
+
+
+
+
+
+
+
+  show ?case proof (cases "target (w # ws || r1 # r1s || r2 # r2s) (p1, p2) = FAIL")
+    case False
+
+    have path_head : "path AB ([w] || [(r1,r2)]) (p1,p2)" using Cons by auto
+    then have "succ AB w (p1,p2) \<noteq> {}" by force
+    then have succ_if_1 : "p1 \<in> nodes A \<and> p2 \<in> nodes B \<and> (fst w \<in> inputs A) \<and> (snd w \<in> outputs A \<union> outputs B)" using Cons by auto
+
+    moreover have no_FAIL_next : "(r1,r2) \<noteq> FAIL"
+    proof (cases "length ws")
+      case 0
+      show ?thesis 
+      proof (rule ccontr)
+        assume "\<not> ((r1,r2) \<noteq> FAIL)"
+        then show "False" using False 0 by auto
+      qed
+    next
+      case (Suc nat)
+      then have "1 < length (w # ws || r1 # r1s || r2 # r2s)" using Cons by auto
+      then have "target (take 1 (w # ws || r1 # r1s || r2 # r2s)) (p1,p2) \<noteq> FAIL" using no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1 ] Cons.prems(1) Cons.prems(4) by auto
+      then show ?thesis by auto
+    qed
+
+    ultimately have succ_if_2 : "succ A w p1 \<noteq> {}" using Cons by auto
+
+    then have "succ AB w (p1,p2) = (succ A w p1 \<times> succ B w p2)" using succ_if_1 Cons by auto
+    then have "(r1,r2) \<in> (succ A w p1 \<times> succ B w p2)" using Cons by auto
+    then have succs_next : "r1 \<in> succ A w p1 \<and> r2 \<in> succ B w p2" by auto
+    then have nodes_next : "r1 \<in> nodes A \<and> r2 \<in> nodes B" using Cons succ_nodes by metis 
+    
+
+    moreover have path_tail : "path AB (ws || r1s || r2s) (r1,r2)" using Cons by auto
+    ultimately have prop_tail : "path A (ws || r1s) r1 \<and> path B (ws || r2s) r2 \<or>
+        path B (ws || r2s) r2 \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> path A (butlast (ws || r1s)) r1" using Cons.IH Cons.prems by auto
+
+    moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
+    then show ?thesis
+    proof (cases "path B (ws || r2s) r2 \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> path A (butlast (ws || r1s)) r1")
+      case True 
+      moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
+      moreover have "length ws = length r1s" using Cons by auto
+      moreover have "ws \<noteq> [] \<Longrightarrow> butlast (w # ws || r1 # r1s) = ((w,r1) # (butlast (ws || r1s)))" using Cons calculation butlast_zip_cons by metis
+      ultimately show ?thesis by auto
+    next
+      case False
+      then have "path A (ws || r1s) r1 \<and> path B (ws || r2s) r2" using prop_tail by auto
+      moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
+      ultimately show ?thesis by auto
+    qed
+
+  next
+    case True
+    then show ?thesis using Cons.IH
+
+
+
+end (*
+
+
+lemma productF_path_impl :
+  assumes "length w = length r1" "length r1 = length r2"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "p1 \<in> nodes A"
+  and     "p2 \<in> nodes B"
+shows "path AB (w || r1 || r2) (p1, p2) \<longleftrightarrow> (   
+           (path A (w || r1) p1 \<and> path B (w || r2) p2) 
+           \<or> (path B (w || r2) p2 
+              \<and> target (w || r1 || r2) (p1, p2) = FAIL 
+              \<and> path A (take (length w - 1) (w || r1)) p1))"
+
+lemma productF_path :
+  assumes "length w = length r1" "length r1 = length r2"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "target (w || r1 || r2) (p1, p2) = FAIL"
+  and     "p1 \<in> nodes A"
+  and     "p2 \<in> nodes B"
+shows "path (AB) (w || r1 || r2) (p1, p2)"
 
 (*
 lemma product_target[simp]:
