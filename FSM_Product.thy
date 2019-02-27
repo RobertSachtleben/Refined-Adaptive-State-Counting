@@ -205,6 +205,8 @@ lemma fail_reachable :
   assumes "\<not> M1 \<preceq> M2"
   and     "well_formed M1"
   and     "well_formed M2"
+  and     "observable M1"
+  and     "observable M2"
   and "productF M2 M1 FAIL PM"
 shows "FAIL \<in> reachable PM (initial PM)"
 proof -
@@ -216,10 +218,7 @@ proof -
   then have "io \<noteq> []" using assms io_def using language_state by auto 
   then obtain io_init io_last where io_split[simp] : "io = io_init @ [io_last]" using list.exhaust by blast 
 
-  
-  
-  
-  have "io_init \<in> language_state M1 (initial M1) \<and> io_init \<in> language_state M2 (initial M2)"
+  have io_init_inclusion : "io_init \<in> language_state M1 (initial M1) \<and> io_init \<in> language_state M2 (initial M2)"
   proof (rule ccontr)
     assume assm : "\<not> (io_init \<in> language_state M1 (initial M1) \<and> io_init \<in> language_state M2 (initial M2))"
 
@@ -240,9 +239,58 @@ proof -
 
   then obtain tr1 tr2 where tr_def : "path M1 (io_init || tr1) (initial M1)" "length tr1 = length io_init"
                                      "path M2 (io_init || tr2) (initial M2)" "length tr2 = length io_init" by fastforce  
-  then have "path PM (io_init || tr2 || tr1) (initial PM)" using productF_path[of io_init tr2 tr1 M2 M1 FAIL PM "initial M2" "initial M1"] assms by auto
-  then have "io_init \<in> language_state PM (initial PM)" using tr_def by auto
+  then have paths_init : "path PM (io_init || tr2 || tr1) (initial PM)" using productF_path[of io_init tr2 tr1 M2 M1 FAIL PM "initial M2" "initial M1"] assms by auto
+  let ?t1 = "target (io_init || tr1) (initial M1)"
+  let ?t2 = "target (io_init || tr2) (initial M2)"
+  have targets_init : "(?t2,?t1) = target (io_init || tr2 || tr1) (initial PM)" using assms(6) tr_def(2) tr_def(4) by force 
 
-  
+  have succ_last_2 : "succ M2 io_last ?t2 = {}" 
+  proof (rule ccontr)
+    assume "succ M2 io_last ?t2 \<noteq> {}"
+    then obtain t2x where t1x_def : "t2x \<in> succ M2 io_last ?t2" by auto
+    then have path2x : "path M2 (io_init @ [io_last] || tr2 @ [t2x]) (initial M2)"
+    proof -
+      have "initial PM = (initial M2, initial M1)" using assms(6) productF_simps(4) by blast
+      moreover have "length tr2 = length tr1" by (metis tr_def(2) tr_def(4))
+      moreover have "path M2 ([io_last] || [t2x]) ?t2" using t1x_def by auto
+      ultimately show ?thesis by (metis (no_types) FSM.path_append tr_def(3) tr_def(4) zip_append)
+    qed 
+    then have "io_init @ [io_last] \<in> language_state M2 (initial M2)" unfolding language_state_def
+    proof -
+      have "length [io_last] = length [t2x]" by auto
+      then have "\<exists>ps. io_init @ [io_last] = map fst ps \<and> path M2 ps (initial M2)" by (metis (no_types) path2x map_append map_fst_zip tr_def(4) zip_append)
+      then show "io_init @ [io_last] \<in> {map fst ps |ps. path M2 ps (initial M2)}" by blast
+    qed 
+    then show "False" using io_split io_diff by auto 
+  qed
+
+  have "succ M1 io_last ?t1 \<noteq> {}"
+  proof (rule ccontr)
+    assume "\<not> (succ M1 io_last ?t1 \<noteq> {})"
+    then have assm : "succ M1 io_last ?t1 = {}" by simp
+    then have no_trans : "\<not> (\<exists> tr1_last . path M1 ([io_last] || [tr1_last]) ?t1)" by auto
+    
+
+    have "io_init @ [io_last] \<in> language_state M1 (initial M1)" using io_diff io_split by auto
+    then obtain tr1' tr1_last where tr1_last_def : "path M1 (io_init @ [io_last] || tr1' @ [tr1_last]) (initial M1)" "length (tr1' @ [tr1_last]) = length (io_init @ [io_last])"
+      by (metis append_Nil append_butlast_last_id append_is_Nil_conv language_state_elim language_state_split not_Cons_self2 zip.simps(1) zip_Nil zip_eq)
+    then have "tr1' = tr1" using assms(4) io_init_inclusion tr1_last_def(1) tr1_last_def(2) tr_def(1) tr_def(2) by auto
+    then have "path M1 (io_init @ [io_last] || tr1 @ [tr1_last]) (initial M1)" using tr1_last_def by auto
+    then have "path M1 ([io_last] || [tr1_last]) ?t1" using targets_init using tr_def by auto 
+    then show "False" using no_trans by simp
+  qed
+
+  then have "fst io_last \<in> inputs M1 \<and> snd io_last \<in> outputs M1" by (metis assms(2) prod.exhaust_sel well_formed.simps) 
+  then have "fst io_last \<in> inputs M2 \<and> snd io_last \<in> outputs M1" using assms by auto
+  moreover have "?t2 \<in> nodes M2" "?t1 \<in> nodes M1" using tr_def by auto
+
+  ultimately have "FAIL \<in> succ PM io_last (?t2,?t1)" using assms succ_last_2 by auto
+
+  then show ?thesis
+    by (metis FSM.nodes.initial FSM.nodes_target FSM.nodes_target_elim FSM.reachable.reflexive FSM.reachable_target paths_init succ_nodes targets_init) 
+qed
+
+
+
 
 end
