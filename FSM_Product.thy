@@ -2,32 +2,6 @@ theory FSM_Product
 imports FSM2
 begin
 
-(*
-
-definition productF :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('state1 \<times> 'state2) \<Rightarrow> 'out 
-  \<Rightarrow> ('in, 'out, 'state1 \<times>'state2) FSM \<Rightarrow> bool" where
-  "productF A B FAIL fail AB \<equiv> 
-    (inputs A = inputs B) 
-  \<and> (fst FAIL \<notin> nodes A) 
-  \<and> (snd FAIL \<notin> nodes B) 
-  \<and> (fail \<notin> outputs A) 
-  \<and> (fail \<notin> outputs B) 
-  \<and> AB =  \<lparr>
-            succ = (
-              \<lambda> a (p1,p2) . (if (((p1,p2) = FAIL) \<and> (snd a = fail) \<and> (fst a \<in> inputs A))
-                then {FAIL}
-                else (if (succ A a p1 = {} \<and> (fst a \<in> inputs A))
-                  then {FAIL} 
-                  else (succ A a p1 \<times> succ B a p2)
-                )
-              )
-            ),
-            inputs = inputs A \<union> inputs B,
-            outputs = outputs A \<union> outputs B,
-            initial = (initial A, initial B)
-          \<rparr> "
-
-*)
 
 fun productF :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('state1 \<times> 'state2)  
   \<Rightarrow> ('in, 'out, 'state1 \<times>'state2) FSM \<Rightarrow> bool" where
@@ -57,19 +31,7 @@ lemma productF_simps[simp]:
   "productF A B FAIL AB \<Longrightarrow> initial AB = (initial A, initial B)"
   unfolding productF.simps by simp+
 
-(*
-lemma product_target[simp]:
-  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
-  shows "target (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) = (target (w || r\<^sub>1) p\<^sub>1, target (w || r\<^sub>2) p\<^sub>2)"
-  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
-lemma product_path[iff]:
-  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
-  shows "path (product A B) (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) \<longleftrightarrow> path A (w || r\<^sub>1) p\<^sub>1 \<and> path B (w || r\<^sub>2) p\<^sub>2"
-  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
 
-lemma product_language_state[simp]: "language_state (product A B) (q1,q2) = language_state A q1 \<inter> language_state B q2"
-  by (fastforce iff: split_zip)
-*)
 
 
 lemma succ_nodes :
@@ -102,7 +64,7 @@ next
   case (Cons w ws r1 r1s r2 r2s) 
   then have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" by auto
   then have succs : "r1 \<in> succ A w p1 \<and> r2 \<in> succ B w p2" by auto
-  then have "succ A w p1 \<noteq> {}" using succs by force
+  then have "succ A w p1 \<noteq> {}" by force
   then have w_elem : "fst w \<in> inputs A \<and> snd w \<in> outputs A " using Cons by (metis assms(4) prod.collapse well_formed.elims(2))
   then have "(r1,r2) \<in> succ AB w (p1,p2)" using Cons succs by auto 
   then have path_head : "path AB ([w] || [(r1,r2)]) (p1,p2)" by auto
@@ -113,6 +75,8 @@ next
 
   then show ?case using path_head by auto
 qed
+
+
 
 
 
@@ -311,24 +275,104 @@ lemma no_transition_after_FAIL :
 
 lemma no_prefix_targets_FAIL :
   assumes "productF M2 M1 FAIL PM"
-  and     "target p (initial PM) = FAIL"
-  and     "path PM p (initial PM)"
+  and     "path PM p q"
   and     "k < length p"
-shows "target (take k p) (initial PM) \<noteq> FAIL"
+shows "target (take k p) q \<noteq> FAIL"
 proof 
-  assume assm : "target (take k p) (initial PM) = FAIL"
-  have "path PM (take k p @ drop k p) (initial PM)" using assms by auto
-  then have "path PM (drop k p) (target (take k p) (initial PM))" by blast
+  assume assm : "target (take k p) q = FAIL"
+  have "path PM (take k p @ drop k p) q" using assms by auto
+  then have "path PM (drop k p) (target (take k p) q)" by blast
   then have path_from_FAIL : "path PM (drop k p) FAIL" using assm by auto
   
   have "length (drop k p) \<noteq> 0" using assms by auto
-  then obtain io q where "drop k p = (io,q) # (drop (Suc k) p)" by (metis Cons_nth_drop_Suc assms(4) prod_cases3) 
+  then obtain io q where "drop k p = (io,q) # (drop (Suc k) p)" by (metis Cons_nth_drop_Suc assms(3) prod_cases3) 
   then have "succ PM io FAIL \<noteq> {}" using path_from_FAIL by auto 
 
   then show "False" using no_transition_after_FAIL assms by auto
 qed
+
+
   
 
+lemma productF_path_rev :
+  assumes "length w = length r1" "length r1 = length r2"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "path AB (w || r1 || r2) (p1, p2)"
+  and     "p1 \<in> nodes A"
+  and     "p2 \<in> nodes B"
+shows "target (w || r1 || r2) (p1, p2) = FAIL \<or> path A (w || r1) p1 \<and> path B (w || r2) p2"
+using assms  proof (induction w r1 r2 arbitrary: p1 p2 rule: list_induct3)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons w ws r1 r1s r2 r2s) 
+  show ?case proof (cases "target (w # ws || r1 # r1s || r2 # r2s) (p1, p2) = FAIL")
+    case True
+    then show ?thesis by auto
+  next
+    case False
+
+    then have path_head : "path AB ([w] || [(r1,r2)]) (p1,p2)" using Cons by auto
+    then have "succ AB w (p1,p2) \<noteq> {}" by force
+    then have succ_if_1 : "p1 \<in> nodes A \<and> p2 \<in> nodes B \<and> (fst w \<in> inputs A) \<and> (snd w \<in> outputs A \<union> outputs B)" using Cons by auto
+
+    moreover have no_FAIL_next : "(r1,r2) \<noteq> FAIL"
+    proof (cases "length ws")
+      case 0
+      show ?thesis 
+      proof (rule ccontr)
+        assume "\<not> ((r1,r2) \<noteq> FAIL)"
+        then show "False" using False 0 by auto
+      qed
+    next
+      case (Suc nat)
+      then have "1 < length (w # ws || r1 # r1s || r2 # r2s)" using Cons by auto
+      then have "target (take 1 (w # ws || r1 # r1s || r2 # r2s)) (p1,p2) \<noteq> FAIL" using no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1 ] Cons.prems(1) Cons.prems(4) by auto
+      then show ?thesis by auto
+    qed
+
+    ultimately have succ_if_2 : "succ A w p1 \<noteq> {}" using Cons by auto
+
+    then have "succ AB w (p1,p2) = (succ A w p1 \<times> succ B w p2)" using succ_if_1 Cons by auto
+    then have "(r1,r2) \<in> (succ A w p1 \<times> succ B w p2)" using Cons by auto
+    then have succs_next : "r1 \<in> succ A w p1 \<and> r2 \<in> succ B w p2" by auto
+    then have nodes_next : "r1 \<in> nodes A \<and> r2 \<in> nodes B" using Cons succ_nodes by metis 
+    
+
+    moreover have path_tail : "path AB (ws || r1s || r2s) (r1,r2)" using Cons by auto
+    ultimately have "target (ws || r1s || r2s) (r1, r2) = FAIL \<or> path A (ws || r1s) r1 \<and> path B (ws || r2s) r2" using Cons.IH Cons.prems by auto
+
+    moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
+    ultimately show ?thesis using path_head path_tail by auto  
+  qed
+qed
+
+(*
+lemma product_target[simp]:
+  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
+  shows "target (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) = (target (w || r\<^sub>1) p\<^sub>1, target (w || r\<^sub>2) p\<^sub>2)"
+  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
+
+lemma product_path[iff]:
+  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
+  shows "path (product A B) (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) \<longleftrightarrow> path A (w || r\<^sub>1) p\<^sub>1 \<and> path B (w || r\<^sub>2) p\<^sub>2"
+  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
+
+lemma product_language_state[simp]: "language_state (product A B) (q1,q2) = language_state A q1 \<inter> language_state B q2"
+  by (fastforce iff: split_zip)
+*)
+
+
+lemma productF_language_state_dist:  
+  assumes "(io_init @ [io_tail]) \<in> language_state AB (q1,q2)"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "observable A"
+  and     "observable B"
+shows "io_init \<in> (language_state A q1 \<inter> language_state B q2)" 
 
 
 end
