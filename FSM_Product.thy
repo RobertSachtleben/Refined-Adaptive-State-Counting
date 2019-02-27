@@ -290,6 +290,44 @@ proof -
     by (metis FSM.nodes.initial FSM.nodes_target FSM.nodes_target_elim FSM.reachable.reflexive FSM.reachable_target paths_init succ_nodes targets_init) 
 qed
 
+lemma fail_reachable_ob :
+  assumes "\<not> M1 \<preceq> M2"
+  and     "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M1"
+  and     "observable M2"
+  and "productF M2 M1 FAIL PM"
+obtains p
+where "path PM p (initial PM)" "target p (initial PM) = FAIL"
+using assms fail_reachable by (metis FSM.reachable_target_elim) 
+
+
+
+
+lemma no_transition_after_FAIL :
+  assumes "productF A B FAIL AB"
+  shows "succ AB io FAIL = {}"
+  using assms by auto
+
+lemma no_prefix_targets_FAIL :
+  assumes "productF M2 M1 FAIL PM"
+  and     "target p (initial PM) = FAIL"
+  and     "path PM p (initial PM)"
+  and     "k < length p"
+shows "target (take k p) (initial PM) \<noteq> FAIL"
+proof 
+  assume assm : "target (take k p) (initial PM) = FAIL"
+  have "path PM (take k p @ drop k p) (initial PM)" using assms by auto
+  then have "path PM (drop k p) (target (take k p) (initial PM))" by blast
+  then have path_from_FAIL : "path PM (drop k p) FAIL" using assm by auto
+  
+  have "length (drop k p) \<noteq> 0" using assms by auto
+  then obtain io q where "drop k p = (io,q) # (drop (Suc k) p)" by (metis Cons_nth_drop_Suc assms(4) prod_cases3) 
+  then have "succ PM io FAIL \<noteq> {}" using path_from_FAIL by auto 
+
+  then show "False" using no_transition_after_FAIL assms by auto
+qed
+  
 
 
 
