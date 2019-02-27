@@ -57,6 +57,66 @@ lemma productF_simps[simp]:
   "productF A B FAIL AB \<Longrightarrow> initial AB = (initial A, initial B)"
   unfolding productF.simps by simp+
 
+(*
+lemma product_target[simp]:
+  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
+  shows "target (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) = (target (w || r\<^sub>1) p\<^sub>1, target (w || r\<^sub>2) p\<^sub>2)"
+  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
+lemma product_path[iff]:
+  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
+  shows "path (product A B) (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) \<longleftrightarrow> path A (w || r\<^sub>1) p\<^sub>1 \<and> path B (w || r\<^sub>2) p\<^sub>2"
+  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
+
+lemma product_language_state[simp]: "language_state (product A B) (q1,q2) = language_state A q1 \<inter> language_state B q2"
+  by (fastforce iff: split_zip)
+*)
+
+
+lemma succ_nodes :
+  fixes A :: "('a,'b,'c) FSM"
+  and   w :: "('a \<times> 'b)"
+  assumes "q2 \<in> succ A w q1"
+  and     "q1 \<in> nodes A"
+shows "q2 \<in> nodes A"
+proof -
+  obtain x y where "w = (x,y)" by (meson surj_pair)
+  then have "q2 \<in> successors A q1" using assms  by auto
+  then have "q2 \<in> reachable A q1" by blast 
+  then have "q2 \<in> reachable A (initial A)" using assms by blast 
+  then show "q2 \<in> nodes A" by blast
+qed
+
+lemma productF_path :
+  assumes "length w = length r1" "length r1 = length r2"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "path A (w || r1) p1 \<and> path B (w || r2) p2"
+  and     "p1 \<in> nodes A"
+  and     "p2 \<in> nodes B"
+shows "path (AB) (w || r1 || r2) (p1, p2)"
+using assms  proof (induction w r1 r2 arbitrary: p1 p2 rule: list_induct3)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons w ws r1 r1s r2 r2s) 
+  then have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" by auto
+  then have succs : "r1 \<in> succ A w p1 \<and> r2 \<in> succ B w p2" by auto
+  then have "succ A w p1 \<noteq> {}" using succs by force
+  then have w_elem : "fst w \<in> inputs A \<and> snd w \<in> outputs A " using Cons by (metis assms(4) prod.collapse well_formed.elims(2))
+  then have "(r1,r2) \<in> succ AB w (p1,p2)" using Cons succs by auto 
+  then have path_head : "path AB ([w] || [(r1,r2)]) (p1,p2)" by auto
+  
+  have "path A (ws || r1s) r1 \<and> path B (ws || r2s) r2" using Cons by auto
+  moreover have "r1 \<in> nodes A \<and> r2 \<in> nodes B" using succs Cons.prems succ_nodes[of r1 A w p1] succ_nodes[of r2 B w p2] by auto
+  ultimately have "path AB (ws || r1s || r2s) (r1,r2)" using Cons by blast 
+
+  then show ?case using path_head by auto
+qed
+
+
+
+
 lemma fail_next_productF : 
   assumes "well_formed M1"
   and     "well_formed M2"
@@ -141,21 +201,48 @@ qed
   
 
 
-(*
 lemma fail_reachable :
   assumes "\<not> M1 \<preceq> M2"
+  and     "well_formed M1"
   and     "well_formed M2"
   and "productF M2 M1 FAIL PM"
 shows "FAIL \<in> reachable PM (initial PM)"
 proof -
   let ?diff = "{ io . io \<in> language_state M1 (initial M1) \<and> io \<notin> language_state M2 (initial M2)}"
   have "?diff \<noteq> empty" using assms by auto
-  moreover  obtain io where io_def : "io = arg_min length (\<lambda> io . io \<in> ?diff)" using assms by auto
-  ultimately have "io \<in> ?diff" using assms by (meson all_not_in_conv arg_min_natI)
+  moreover  obtain io where io_def[simp] : "io = arg_min length (\<lambda> io . io \<in> ?diff)" using assms by auto
+  ultimately have io_diff : "io \<in> ?diff" using assms by (meson all_not_in_conv arg_min_natI) 
+
+  then have "io \<noteq> []" using assms io_def using language_state by auto 
+  then obtain io_init io_last where io_split[simp] : "io = io_init @ [io_last]" using list.exhaust by blast 
 
   
   
-*)
+  
+  have "io_init \<in> language_state M1 (initial M1) \<and> io_init \<in> language_state M2 (initial M2)"
+  proof (rule ccontr)
+    assume assm : "\<not> (io_init \<in> language_state M1 (initial M1) \<and> io_init \<in> language_state M2 (initial M2))"
 
+    have "io_init @ [io_last] \<in> language_state M1 (initial M1)" using io_diff io_split by auto
+    then have "io_init \<in> language_state M1 (initial M1)" by (meson language_state language_state_split) 
+    moreover have "io_init \<notin> language_state M2 (initial M2)" using assm calculation by auto
+    ultimately have "io_init \<in> ?diff" by auto 
+    moreover have "length io_init < length io" using io_split by auto 
+    ultimately have "io \<noteq> arg_min length (\<lambda> io . io \<in> ?diff)"
+    proof -
+      have "\<exists>ps. ps \<in> {ps \<in> language_state M1 (initial M1). ps \<notin> language_state M2 (initial M2)} \<and> \<not> length io \<le> length ps"
+        using \<open>io_init \<in> {io \<in> language_state M1 (initial M1). io \<notin> language_state M2 (initial M2)}\<close> \<open>length io_init < length io\<close> linorder_not_less by blast
+      then show ?thesis
+        by (meson arg_min_nat_le)
+    qed
+    then show "False" using io_def by simp
+  qed
+
+  then obtain tr1 tr2 where tr_def : "path M1 (io_init || tr1) (initial M1)" "length tr1 = length io_init"
+                                     "path M2 (io_init || tr2) (initial M2)" "length tr2 = length io_init" by fastforce  
+  then have "path PM (io_init || tr2 || tr1) (initial PM)" using productF_path[of io_init tr2 tr1 M2 M1 FAIL PM "initial M2" "initial M1"] assms by auto
+  then have "io_init \<in> language_state PM (initial PM)" using tr_def by auto
+
+  
 
 end
