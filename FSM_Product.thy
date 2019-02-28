@@ -384,7 +384,7 @@ lemma productF_path_rev :
   and     "p1 \<in> nodes A"
   and     "p2 \<in> nodes B"
 shows "(path A (w || r1) p1 \<and> path B (w || r2) p2) 
-           \<or> (path B (w || r2) p2 
+           \<or> ((\<exists> r2' . (path B (w || r2') p2) \<and> length w = length r2') 
               \<and> target (w || r1 || r2) (p1, p2) = FAIL 
               \<and> (length w > 0 \<longrightarrow> path A (butlast (w || r1)) p1))"
 using assms  proof (induction w r1 r2 arbitrary: p1 p2 rule: list_induct3)
@@ -417,16 +417,21 @@ next
 
     moreover have path_tail : "path AB (ws || r1s || r2s) (r1,r2)" using Cons by auto
     ultimately have prop_tail : "path A (ws || r1s) r1 \<and> path B (ws || r2s) r2 \<or>
-        path B (ws || r2s) r2 \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> (length ws > 0 \<longrightarrow> path A (butlast (ws || r1s)) r1)" using Cons.IH Cons.prems by auto
+        ((\<exists> r2s' . (path B (ws || r2s') r2) \<and> length ws = length r2s')  \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> (length ws > 0 \<longrightarrow> path A (butlast (ws || r1s)) r1))" using Cons.IH Cons.prems by auto
 
     moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
     then show ?thesis
-    proof (cases "path B (ws || r2s) r2 \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> path A (butlast (ws || r1s)) r1")
+    proof (cases "(\<exists> r2s' . (path B (ws || r2s') r2) \<and> length ws = length r2s')  \<and> target (ws || r1s || r2s) (r1, r2) = FAIL \<and> (length ws > 0 \<longrightarrow> path A (butlast (ws || r1s)) r1)")
       case True 
+      then obtain r2s' where "(path B (ws || r2s') r2) \<and> length ws = length r2s'" by auto
       moreover have "path A ([w] || [r1]) p1 \<and> path B ([w] || [r2]) p2" using succs_next by auto
       moreover have "length ws = length r1s" using Cons by auto
-      moreover have "ws \<noteq> [] \<Longrightarrow> butlast (w # ws || r1 # r1s) = ((w,r1) # (butlast (ws || r1s)))" using Cons calculation butlast_zip_cons by metis
-      ultimately show ?thesis by auto
+      moreover have "length ws > 0 \<longrightarrow> butlast (w # ws || r1 # r1s) = ((w,r1) # (butlast (ws || r1s)))" by (metis (no_types) butlast_zip_cons calculation(3) less_nat_zero_code list.size(3))
+      ultimately have "(path B (w # ws || r2 # r2s') p2 \<and> length (w # ws) = length (r2 # r2s')) \<and>
+          target (w # ws || r1 # r1s || r2 # r2s) (p1, p2) = FAIL \<and>
+          (0 < length (w # ws) \<longrightarrow> path A (butlast (w # ws || r1 # r1s)) p1)" using True by auto
+
+      then show ?thesis by blast 
     next
       case False
       then have "path A (ws || r1s) r1 \<and> path B (ws || r2s) r2" using prop_tail by auto
@@ -448,9 +453,9 @@ next
 
    
       then have "succ B w p2 \<noteq> {}" using Cons succ_if_1 by auto
-      
-      then have "path B (w # ws || r2 # r2s) p2" using empty path_AB 
-      then show ?thesis  sorry (* requires reformulation of succ: only allow transition to fail if (succ A w p1 = {} & succ B w p2 != {}) ? *)
+      then obtain r2' where r2'_def : "r2' \<in> succ B w p2" by auto
+      then have "path B (w # ws || r2' # r2s) p2" using empty path_AB by auto
+      then show ?thesis by (metis FSM.nil butlast.simps(2) empty(1) length_Cons list.size(3) tgt_fail zip_Cons_Cons zip_Nil)      
     next
       case (Suc nat)
       then have "target (take 1 (w # ws || r1 # r1s || r2 # r2s)) (p1, p2) \<noteq> FAIL" using Cons no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1] by auto
@@ -459,11 +464,6 @@ next
     qed
   qed
 qed
-    moreover have "(r1,r2) = target (take 1 (w # ws || r1 # r1s || r2 # r2s)) (p1, p2)" by auto
-    ultimately have "False" using Cons no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1] 
-
-    ultimately have "r1s = []" using Cons no_prefix_targets_FAIL[of A B FAIL AB "(w # ws || r1 # r1s || r2 # r2s)" "(p1,p2)" 1] 
-    then show ?thesis using Cons.IH
 
 
 
