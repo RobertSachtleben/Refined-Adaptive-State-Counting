@@ -439,6 +439,57 @@ next
   qed
 qed
 
+lemma butlast_zip[simp] :
+  assumes "length xs = length ys"
+  shows "butlast (xs || ys) = (butlast xs || butlast ys)"
+  using assms by (metis (no_types, lifting) map_butlast map_fst_zip map_snd_zip zip_map_fst_snd) 
+
+
+
+lemma productF_path_reverse_ob : 
+  assumes "length w = length r1" "length r1 = length r2"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "path AB (w || r1 || r2) (p1, p2)"
+  and     "p1 \<in> nodes A"
+  and     "p2 \<in> nodes B"
+obtains r2' 
+where "path B (w || r2') p2 \<and> length w = length r2'"
+proof -
+  have path_prop : "(path A (w || r1) p1 \<and> path B (w || r2) p2) 
+                    \<or> (target (w || r1 || r2) (p1, p2) = FAIL
+                      \<and> length w > 0
+                      \<and> path A (butlast (w || r1)) p1
+                      \<and> path B (butlast (w || r2)) p2
+                      \<and> succ A (last w) (target (butlast (w || r1)) p1) = {}
+                      \<and> succ B (last w) (target (butlast (w || r2)) p2) \<noteq> {})" using assms productF_path_reverse[of w r1 r2 A B FAIL AB p1 p2] by simp
+  have "\<exists> r1' . path B (w || r1') p2 \<and> length w = length r1'"
+  proof (cases "path A (w || r1) p1 \<and> path B (w || r2) p2")
+    case True
+    then show ?thesis using assms by auto
+  next
+    case False 
+    then have B_prop : "length w > 0
+                \<and> path B (butlast (w || r2)) p2
+                \<and> succ B (last w) (target (butlast (w || r2)) p2) \<noteq> {}" using path_prop by auto
+    then obtain rx where "rx \<in> succ B (last w) (target (butlast (w || r2)) p2)" by auto
+    
+    then have "path B ([last w] || [rx]) (target (butlast (w || r2)) p2)" using B_prop by auto
+    then have "path B ((butlast (w || r2)) @ ([last w] || [rx])) p2" using B_prop by auto
+    moreover have "butlast (w || r2) = (butlast w || butlast r2)" using assms by simp 
+    
+    ultimately have "path B ((butlast w) @ [last w] || (butlast r2) @ [rx]) p2" using assms B_prop by auto
+    moreover have "(butlast w) @ [last w] = w" using B_prop by simp
+    moreover have "length ((butlast r2) @ [rx]) = length w" using assms B_prop by auto
+    ultimately show ?thesis by auto
+  qed
+  then obtain r1' where "path B (w || r1') p2 \<and> length w = length r1'" by blast
+  then show ?thesis using that by blast
+qed
+  
+
+
 
 lemma productF_path[iff] :
   assumes "length w = length r1" "length r1 = length r2"
@@ -480,8 +531,6 @@ lemma fail_reachable :
   assumes "\<not> M1 \<preceq> M2"
   and     "well_formed M1"
   and     "well_formed M2"
-  and     "observable M"
-  and     "observable M"
   and "productF M2 M1 FAIL PM"
 shows "FAIL \<in> reachable PM (initial PM)"
 proof -
@@ -491,7 +540,7 @@ proof -
   ultimately have io_diff : "io \<in> ?diff" using assms by (meson all_not_in_conv arg_min_natI) 
 
   then have "io \<noteq> []" using assms io_def using language_state by auto 
-  then obtain io_init io_last where io_split[simp] : "io = io_init @ [io_last]" using list.exhaust by blast 
+  then obtain io_init io_last where io_split[simp] : "io = io_init @ [io_last]" by (metis append_butlast_last_id) 
 
   have io_init_inclusion : "io_init \<in> language_state M1 (initial M1) \<and> io_init \<in> language_state M2 (initial M2)"
   proof (rule ccontr)
@@ -512,127 +561,125 @@ proof -
     then show "False" using io_def by simp
   qed
 
-  (* might require extended version of path_rev *)
-  obtain tr1_init tr1_last tr2 where tr_def : "path M1 (io_init @ [io_last] || tr1_init @ [tr1_last]) (initial M1) \<and> length (tr1_init @ [tr1_last]) = length (io_init @ [io_last])" using io_diff io_split
+  have "io_init @ [io_last] \<in> language_state M1 (initial M1)" using io_diff io_split by auto
+  then obtain tr1_init tr1_last where tr1_def : "path M1 (io_init @ [io_last] || tr1_init @ [tr1_last]) (initial M1) \<and> length (tr1_init @ [tr1_last]) = length (io_init @ [io_last])"
+    by (metis append_butlast_last_id language_state_elim length_0_conv length_append_singleton nat.simps(3)) 
+  
+  then have path_init_1 : "path M1 (io_init || tr1_init) (initial M1) \<and> length tr1_init = length io_init" by auto
+  then have "path M1 ([io_last] || [tr1_last]) (target (io_init || tr1_init) (initial M1))" using tr1_def by auto
+  then have succ_1 : "succ M1 io_last (target (io_init || tr1_init) (initial M1)) \<noteq> {}" by auto
 
-  then obtain tr1 tr2 where tr_def : "path M1 (io_init || tr1) (initial M1)" "length tr1 = length io_init"
-                                     "path M2 (io_init || tr2) (initial M2)" "length tr2 = length io_init" by fastforce  
-  then have paths_init : "path PM (io_init || tr2 || tr1) (initial PM)" using productF_path[of io_init tr2 tr1 M2 M1 FAIL PM "initial M2" "initial M1"] assms by auto
-  let ?t1 = "target (io_init || tr1) (initial M1)"
-  let ?t2 = "target (io_init || tr2) (initial M2)"
-  have targets_init : "(?t2,?t1) = target (io_init || tr2 || tr1) (initial PM)" using assms(6) tr_def(2) tr_def(4) by force 
-
-  have succ_last_2 : "succ M2 io_last ?t2 = {}" 
+  obtain tr2 where tr2_def : "path M2 (io_init || tr2) (initial M2) \<and> length tr2 = length io_init" using io_init_inclusion by auto
+  have succ_2 : "succ M2 io_last (target (io_init || tr2) (initial M2)) = {}" 
   proof (rule ccontr)
-    assume "succ M2 io_last ?t2 \<noteq> {}"
-    then obtain t2x where t1x_def : "t2x \<in> succ M2 io_last ?t2" by auto
-    then have path2x : "path M2 (io_init @ [io_last] || tr2 @ [t2x]) (initial M2)"
-    proof -
-      have "initial PM = (initial M2, initial M1)" using assms(6) productF_simps(4) by blast
-      moreover have "length tr2 = length tr1" by (metis tr_def(2) tr_def(4))
-      moreover have "path M2 ([io_last] || [t2x]) ?t2" using t1x_def by auto
-      ultimately show ?thesis by (metis (no_types) FSM.path_append tr_def(3) tr_def(4) zip_append)
-    qed 
-    then have "io_init @ [io_last] \<in> language_state M2 (initial M2)" unfolding language_state_def
-    proof -
-      have "length [io_last] = length [t2x]" by auto
-      then have "\<exists>ps. io_init @ [io_last] = map fst ps \<and> path M2 ps (initial M2)" by (metis (no_types) path2x map_append map_fst_zip tr_def(4) zip_append)
-      then show "io_init @ [io_last] \<in> {map fst ps |ps. path M2 ps (initial M2)}" by blast
-    qed 
-    then show "False" using io_split io_diff by auto 
+    assume "succ M2 io_last (target (io_init || tr2) (initial M2)) \<noteq> {}"
+    then obtain tr2_last where "tr2_last \<in> succ M2 io_last (target (io_init || tr2) (initial M2))" by auto
+    then have "path M2 ([io_last] || [tr2_last]) (target (io_init || tr2) (initial M2))" by auto
+    then have "io_init @ [io_last] \<in> language_state M2 (initial M2)" by (metis FSM.path_append language_state length_Cons length_append list.size(3) tr2_def zip_append) 
+    then show "False" using io_diff io_split by simp
   qed
 
-  have succ_last_1 : "succ M1 io_last ?t1 \<noteq> {}"
-  proof (rule ccontr)
-    assume "\<not> (succ M1 io_last ?t1 \<noteq> {})"
-    then have assm : "succ M1 io_last ?t1 = {}" by simp
-    then have no_trans : "\<not> (\<exists> tr1_last . path M1 ([io_last] || [tr1_last]) ?t1)" by auto
-    
+  have fail_lengths : "length (io_init @ [io_last]) = length (tr2 @ [fst FAIL]) \<and> length (tr2 @ [fst FAIL]) = length (tr1_init @ [snd FAIL])" using assms io_def io_diff tr2_def tr1_def by auto
+  then have fail_tgt : "target (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1) = FAIL" by auto
 
-    have "io_init @ [io_last] \<in> language_state M1 (initial M1)" using io_diff io_split by auto
-    then obtain tr1' tr1_last where tr1_last_def : "path M1 (io_init @ [io_last] || tr1' @ [tr1_last]) (initial M1)" "length (tr1' @ [tr1_last]) = length (io_init @ [io_last])"
-      by (metis append_Nil append_butlast_last_id append_is_Nil_conv language_state_elim language_state_split not_Cons_self2 zip.simps(1) zip_Nil zip_eq)
-    then have "tr1' = tr1" using assms(4) io_init_inclusion tr1_last_def(1) tr1_last_def(2) tr_def(1) tr_def(2) by auto
-    then have "path M1 (io_init @ [io_last] || tr1 @ [tr1_last]) (initial M1)" using tr1_last_def by auto
-    then have "path M1 ([io_last] || [tr1_last]) ?t1" using targets_init using tr_def by auto 
-    then show "False" using no_trans by simp
-  qed
+  have fail_butlast_simp[simp] : "butlast (io_init @ [io_last] || tr2 @ [fst FAIL]) = io_init || tr2" "butlast (io_init @ [io_last] || tr1_init @ [snd FAIL]) = io_init || tr1_init" using fail_lengths by simp+
 
-  then have "fst io_last \<in> inputs M1 \<and> snd io_last \<in> outputs M1" by (metis assms(2) prod.exhaust_sel well_formed.simps) 
-  then have "fst io_last \<in> inputs M2 \<and> snd io_last \<in> outputs M1" using assms by auto
-  moreover have "?t2 \<in> nodes M2" "?t1 \<in> nodes M1" using tr_def by auto
-
-  ultimately have "FAIL \<in> succ PM io_last (?t2,?t1)" using assms succ_last_2 succ_last_1 by auto
-
+  have "path M2 (butlast (io_init @ [io_last] || tr2 @ [fst FAIL])) (initial M2) \<and>
+    path M1 (butlast (io_init @ [io_last] || tr1_init @ [snd FAIL])) (initial M1)" using tr1_def tr2_def by auto
+  moreover have "succ M2 (last (io_init @ [io_last])) (target (butlast (io_init @ [io_last] || tr2 @ [fst FAIL])) (initial M2)) = {}" using succ_2 by simp
+  moreover have "succ M1 (last (io_init @ [io_last])) (target (butlast (io_init @ [io_last] || tr1_init @ [snd FAIL])) (initial M1)) \<noteq> {}" using succ_1 by simp
+  moreover have "initial M2 \<in> nodes M2 \<and> initial M1 \<in> nodes M1" by auto
+  ultimately have "path PM (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1)" using fail_lengths fail_tgt assms path_init_1 tr2_def productF_path_forward[of "io_init @ [io_last]" "tr2 @ [fst FAIL]" "tr1_init @ [snd FAIL]" M2 M1 FAIL PM "initial M2" "initial M1" ] by simp
+  
   then show ?thesis
-    by (metis FSM.nodes.initial FSM.nodes_target FSM.nodes_target_elim FSM.reachable.reflexive FSM.reachable_target paths_init succ_nodes targets_init) 
+  proof -
+    have "initial PM = (initial M2, initial M1)"
+      using assms(4) productF_simps(4) by blast
+    then show ?thesis
+      by (metis (no_types) FSM.reachable.reflexive FSM.reachable_target \<open>path PM (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1)\<close> fail_tgt)
+  qed 
 qed
+  
+
+
 
 lemma fail_reachable_ob :
   assumes "\<not> M1 \<preceq> M2"
   and     "well_formed M1"
   and     "well_formed M2"
-  and     "observable M1"
   and     "observable M2"
   and "productF M2 M1 FAIL PM"
 obtains p
 where "path PM p (initial PM)" "target p (initial PM) = FAIL"
 using assms fail_reachable by (metis FSM.reachable_target_elim) 
 
+
+lemma fail_reachable_reverse : 
+  assumes "well_formed M1"
+  and     "well_formed M2" 
+  and     "productF M2 M1 FAIL PM"
+  and     "FAIL \<in> reachable PM (initial PM)"
+shows "\<not> M1 \<preceq> M2" 
+proof -
+  obtain pathF where pathF_def : "path PM pathF (initial PM) \<and> target pathF (initial PM) = FAIL" using assms by auto
+  let ?io = "map fst pathF"
+  let ?tr2 = "map fst (map snd pathF)"
+  let ?tr1 = "map snd (map snd pathF)" 
+
+  have "initial PM \<noteq> FAIL" using assms by auto
+  then have "pathF \<noteq> []" using pathF_def by auto
+  moreover have "initial PM = (initial M2, initial M1)" using assms by simp
+  ultimately have "path M2 (?io || ?tr2) (initial M2) \<and> path M1 (?io || ?tr1) (initial M1) \<or>
+    target (?io || ?tr2 || ?tr1) (initial M2, initial M1) = FAIL \<and>
+    0 < length (?io) \<and>
+    path M2 (butlast (?io || ?tr2)) (initial M2) \<and>
+    path M1 (butlast (?io || ?tr1)) (initial M1) \<and>
+    succ M2 (last (?io)) (target (butlast (?io || ?tr2)) (initial M2)) = {} \<and>
+    succ M1 (last (?io)) (target (butlast (?io || ?tr1)) (initial M1)) \<noteq> {}" using productF_path_reverse[of ?io ?tr2 ?tr1 M2 M1 FAIL PM "initial M2" "initial M1"] using assms pathF_def
+  proof -
+    have f1: "path PM (?io || ?tr2 || ?tr1) (initial M2, initial M1)" by (metis (no_types) \<open>initial PM = (initial M2, initial M1)\<close> pathF_def zip_map_fst_snd)
+    have f2: "length (?io) = length pathF \<longrightarrow> length (?io) = length (?tr2)" by auto
+    have "length (?io) = length pathF \<and> length (?tr2) = length (?tr1)" by auto
+    then show ?thesis using f2 f1 \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> by blast
+  qed
+    
+  moreover have "\<not> (path M2 (?io || ?tr2) (initial M2) \<and> path M1 (?io || ?tr1) (initial M1))" 
+  proof (rule ccontr)
+    assume " \<not> \<not> (path M2 (?io || ?tr2) (initial M2) \<and>
+          path M1 (?io || ?tr1) (initial M1))"
+    then have "path M2 (?io || ?tr2) (initial M2)" by simp
+    then have "target (?io || ?tr2) (initial M2) \<in> nodes M2" by auto
+    then have "target (?io || ?tr2) (initial M2) \<noteq> fst FAIL" using assms by auto
+    then show "False" using pathF_def
+    proof -
+      have "FAIL = target (map fst pathF || map fst (map snd pathF) || map snd (map snd pathF)) (initial M2, initial M1)"
+        by (metis (no_types) \<open>initial PM = (initial M2, initial M1)\<close> \<open>path PM pathF (initial PM) \<and> target pathF (initial PM) = FAIL\<close> zip_map_fst_snd)
+      then show ?thesis
+        using \<open>target (map fst pathF || map fst (map snd pathF)) (initial M2) \<noteq> fst FAIL\<close> by auto
+    qed 
+  qed
+
+  ultimately have fail_prop : "target (?io || ?tr2 || ?tr1) (initial M2, initial M1) = FAIL \<and>
+        0 < length (?io) \<and>
+        path M2 (butlast (?io || ?tr2)) (initial M2) \<and>
+        path M1 (butlast (?io || ?tr1)) (initial M1) \<and>
+        succ M2 (last (?io)) (target (butlast (?io || ?tr2)) (initial M2)) = {} \<and>
+        succ M1 (last (?io)) (target (butlast (?io || ?tr1)) (initial M1)) \<noteq> {}" by auto
+
+  then have "?io \<in> language_state M1 (initial M1)"
+  proof -
+    have f1: "path PM (map fst pathF || map fst (map snd pathF) || map snd (map snd pathF)) (initial M2, initial M1)"
+      by (metis (no_types) \<open>initial PM = (initial M2, initial M1)\<close> pathF_def zip_map_fst_snd)
+    have "\<forall>c f. c \<noteq> initial (f::('a, 'b, 'c) FSM) \<or> c \<in> nodes f"
+      by blast
+    then show ?thesis
+      using f1 by (metis (no_types) assms(1) assms(2) assms(3) language_state length_map productF_path_reverse_ob)
+  qed 
+
+  (*
   
-
-
-
-end (*
-
-
-lemma productF_path_impl :
-  assumes "length w = length r1" "length r1 = length r2"
-  and     "productF A B FAIL AB"
-  and     "well_formed A"
-  and     "well_formed B"
-  and     "p1 \<in> nodes A"
-  and     "p2 \<in> nodes B"
-shows "path AB (w || r1 || r2) (p1, p2) \<longleftrightarrow> (   
-           (path A (w || r1) p1 \<and> path B (w || r2) p2) 
-           \<or> (path B (w || r2) p2 
-              \<and> target (w || r1 || r2) (p1, p2) = FAIL 
-              \<and> path A (take (length w - 1) (w || r1)) p1))"
-
-lemma productF_path :
-  assumes "length w = length r1" "length r1 = length r2"
-  and     "productF A B FAIL AB"
-  and     "well_formed A"
-  and     "well_formed B"
-  and     "target (w || r1 || r2) (p1, p2) = FAIL"
-  and     "p1 \<in> nodes A"
-  and     "p2 \<in> nodes B"
-shows "path (AB) (w || r1 || r2) (p1, p2)"
-
-(*
-lemma product_target[simp]:
-  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
-  shows "target (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) = (target (w || r\<^sub>1) p\<^sub>1, target (w || r\<^sub>2) p\<^sub>2)"
-  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
-
-lemma product_path[iff]:
-  assumes "length w = length r\<^sub>1" "length r\<^sub>1 = length r\<^sub>2"
-  shows "path (product A B) (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) \<longleftrightarrow> path A (w || r\<^sub>1) p\<^sub>1 \<and> path B (w || r\<^sub>2) p\<^sub>2"
-  using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
-
-lemma product_language_state[simp]: "language_state (product A B) (q1,q2) = language_state A q1 \<inter> language_state B q2"
-  by (fastforce iff: split_zip)
-*)
-
-
-lemma productF_language_state_dist:  
-  assumes "(io_init @ [io_tail]) \<in> language_state AB (q1,q2)"
-  and     "productF A B FAIL AB"
-  and     "well_formed A"
-  and     "well_formed B"
-  and     "observable A"
-  and     "observable B"
-shows "io_init \<in> (language_state A q1 \<inter> language_state B q2)" 
-
+  M2 observable \<rightarrow> butlast ?io is only realized by butlast ?tr2 \<rightarrow> lat ?io not realized by target \<rightarrow> ex no trace s.t. ?io is realized
+  
+  *)
 
 end
