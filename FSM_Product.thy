@@ -619,6 +619,7 @@ lemma fail_reachable_reverse :
   and     "well_formed M2" 
   and     "productF M2 M1 FAIL PM"
   and     "FAIL \<in> reachable PM (initial PM)"
+  and     "observable M2"
 shows "\<not> M1 \<preceq> M2" 
 proof -
   obtain pathF where pathF_def : "path PM pathF (initial PM) \<and> target pathF (initial PM) = FAIL" using assms by auto
@@ -676,10 +677,40 @@ proof -
       using f1 by (metis (no_types) assms(1) assms(2) assms(3) language_state length_map productF_path_reverse_ob)
   qed 
 
-  (*
-  
-  M2 observable \<rightarrow> butlast ?io is only realized by butlast ?tr2 \<rightarrow> lat ?io not realized by target \<rightarrow> ex no trace s.t. ?io is realized
-  
-  *)
+  moreover have "?io \<notin> language_state M2 (initial M2)"
+  proof (rule ccontr)
+    assume "\<not> ?io \<notin> language_state M2 (initial M2)"
+    then have assm : "?io \<in> language_state M2 (initial M2)" by simp
+    then obtain tr2' where tr2'_def : "path M2 (?io || tr2') (initial M2) \<and> length ?io = length tr2'" by auto
+    then obtain tr2'_init tr2'_last where tr2'_split : "tr2' = tr2'_init @ [tr2'_last]" using fail_prop by (metis \<open>pathF \<noteq> []\<close> append_butlast_last_id length_0_conv map_is_Nil_conv) 
+
+    have "butlast ?io \<in> language_state M2 (initial M2)" using fail_prop by auto
+    then have "{t. path M2 (butlast ?io || t) (initial M2) \<and> length (butlast ?io) = length t} = {butlast ?tr2}" 
+      using assms(5) observable_path_unique[of "butlast ?io" M2 "initial M2" "butlast ?tr2"] fail_prop by fastforce
+    then have "\<forall> t ts . path M2 ((butlast ?io) @ [last ?io] || ts @ [t]) (initial M2) \<and> length ((butlast ?io) @ [last ?io]) = length (ts @ [t]) \<longrightarrow> ts = butlast ?tr2"
+      by (metis (no_types, lifting) FSM.path_append_elim \<open>butlast (map fst pathF) \<in> language_state M2 (initial M2)\<close> assms(5) butlast_snoc butlast_zip fail_prop length_butlast length_map observable_path_unique zip_append)
+    
+    then have "tr2'_init = butlast ?tr2" using tr2'_def tr2'_split using \<open>pathF \<noteq> []\<close> by auto
+    then have "path M2 ((butlast ?io) @ [last ?io] || (butlast ?tr2) @ [tr2'_last]) (initial M2) \<and> length ((butlast ?io) @ [last ?io]) = length ((butlast ?tr2) @ [tr2'_last])" using tr2'_def fail_prop tr2'_split by auto
+    then have "path M2 ([last ?io] || [tr2'_last]) (target (butlast ?io || butlast ?tr2) (initial M2)) \<and> length [last ?io] = length [tr2'_last]" by auto
+    then have "tr2'_last \<in> succ M2 (last (?io)) (target (butlast (?io || ?tr2)) (initial M2))" by auto
+    then show "False" using fail_prop by auto
+  qed
+
+  ultimately show ?thesis by auto
+qed
+
+
+
+lemma fail_reachable_iff[iff] : 
+  assumes "well_formed M1"
+  and     "well_formed M2" 
+  and     "productF M2 M1 FAIL PM"
+  and     "observable M2"
+shows "FAIL \<in> reachable PM (initial PM) \<longleftrightarrow> \<not> M1 \<preceq> M2"
+proof
+  show "FAIL \<in> reachable PM (initial PM) \<Longrightarrow> \<not> M1 \<preceq> M2" using assms fail_reachable_reverse by blast 
+  show "\<not> M1 \<preceq> M2 \<Longrightarrow> FAIL \<in> reachable PM (initial PM)" using assms fail_reachable by blast
+qed
 
 end
