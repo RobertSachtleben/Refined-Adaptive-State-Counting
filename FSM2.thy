@@ -133,7 +133,7 @@ lemma product_language_state[simp]: "language_state (product A B) (q1,q2) = lang
 
 
 fun finite_FSM :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
-  "finite_FSM M = finite (nodes M)"
+  "finite_FSM M = (finite (nodes M) \<and> finite (inputs M) \<and> finite (outputs M))"
 
 fun observable :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
   "observable M = (\<forall> t . \<forall> s1 . ((succ M) t s1 = {}) \<or> (\<exists> s2 . (succ M) t s1 = {s2}))"
@@ -257,15 +257,15 @@ lemma d_reachable_reachable : "d_reachable M p \<subseteq> reachable M p"
 unfolding d_reaches.simps d_reachable.simps by blast
 
 fun is_det_state_cover_ass :: "('in, 'out, 'state) FSM \<Rightarrow> ('state \<Rightarrow> 'in list) \<Rightarrow> bool" where
-  "is_det_state_cover_ass M f = (\<forall> s \<in> d_reachable M (initial M) . d_reaches M (initial M) (f s) s)"
+  "is_det_state_cover_ass M f = (f (initial M) = [] \<and> (\<forall> s \<in> d_reachable M (initial M) . d_reaches M (initial M) (f s) s))"
 
 lemma det_state_cover_ass_dist : 
   assumes "is_det_state_cover_ass M f"
   shows "\<forall> s1 \<in> d_reachable M (initial M) . \<forall> s2 \<in> d_reachable M (initial M) . s1 \<noteq> s2 \<longrightarrow> \<not>(d_reaches M (initial M) (f s2) s1)"
   using assms unfolding d_reachable.simps is_det_state_cover_ass.simps 
   proof -
-    assume "\<forall>s\<in>{q. \<exists>xs. d_reaches M (initial M) xs q}. d_reaches M (initial M) (f s) s"
-    then show "\<forall>c\<in>{c. \<exists>as. d_reaches M (initial M) as c}. \<forall>ca\<in>{c. \<exists>as. d_reaches M (initial M) as c}. c \<noteq> ca \<longrightarrow> \<not> d_reaches M (initial M) (f ca) c"
+    assume "f (initial M) = [] \<and> (\<forall>s\<in>{q. \<exists>xs. d_reaches M (initial M) xs q}. d_reaches M (initial M) (f s) s)"
+    then show "\<forall>c\<in>{c. \<exists>as. d_reaches M (initial M) as c}. \<forall>ca\<in>{c. \<exists>as. d_reaches M (initial M) as c}. c \<noteq> ca \<longrightarrow> \<not> d_reaches M (initial M) (f ca) c" 
       by (meson d_reaches_unique)
   qed
 
@@ -274,7 +274,7 @@ lemma det_state_cover_ass_diff :
   shows "\<forall> s1 \<in> d_reachable M (initial M) . \<forall> s2 \<in> d_reachable M (initial M) . s1 \<noteq> s2 \<longrightarrow> f s1 \<noteq> f s2"
   using assms unfolding d_reachable.simps is_det_state_cover_ass.simps
 proof -
-  assume "\<forall>s\<in>{q. \<exists>xs. d_reaches M (initial M) xs q}. d_reaches M (initial M) (f s) s"
+  assume "f (initial M) = [] \<and> (\<forall>s\<in>{q. \<exists>xs. d_reaches M (initial M) xs q}. d_reaches M (initial M) (f s) s)"
   then show "\<forall>c\<in>{c. \<exists>as. d_reaches M (initial M) as c}. \<forall>ca\<in>{c. \<exists>as. d_reaches M (initial M) as c}. c \<noteq> ca \<longrightarrow> f c \<noteq> f ca"
     by (metis (no_types) d_reaches_unique)
 qed 

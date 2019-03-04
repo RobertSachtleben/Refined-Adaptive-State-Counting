@@ -131,7 +131,8 @@ unfolding well_formed.simps proof
   have "finite (nodes M1)" "finite (nodes M2)" using assms by auto
   then have "finite (insert FAIL (nodes M2 \<times> nodes M1))" by simp
   moreover have "nodes PM \<subseteq> insert FAIL (nodes M2 \<times> nodes M1)" using nodes_productF assms by blast
-  ultimately show "finite_FSM PM" using infinite_subset by auto  
+  moreover have "inputs PM = inputs M2" "outputs PM = outputs M2 \<union> outputs M1" using assms by auto
+  ultimately show "finite_FSM PM" using infinite_subset assms by auto  
 next
   have "inputs PM = inputs M2" "outputs PM = outputs M2 \<union> outputs M1" using assms by auto
   then show "\<forall>s1 x y. x \<notin> inputs PM \<or> y \<notin> outputs PM \<longrightarrow> succ PM (x, y) s1 = {}" using assms by auto
@@ -712,5 +713,250 @@ proof
   show "FAIL \<in> reachable PM (initial PM) \<Longrightarrow> \<not> M1 \<preceq> M2" using assms fail_reachable_reverse by blast 
   show "\<not> M1 \<preceq> M2 \<Longrightarrow> FAIL \<in> reachable PM (initial PM)" using assms fail_reachable by blast
 qed
+
+
+
+fun minimal_path_to :: "('in,'out,'state) FSM \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
+  "minimal_path_to M p q t = (
+    path M p q 
+    \<and> target p q = t
+    \<and> (\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> length p))"
+
+fun minimal_path_extending_to :: "('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
+  "minimal_path_extending_to M v p t = (
+    \<exists> pv . path M (v || pv) (initial M) \<and> length v = length pv \<and> minimal_path_to M p (target (v || pv) (initial M)) t)"
+
+
+
+lemma non_distinct_duplicate_indices :
+  assumes "\<not> distinct xs"
+shows "\<exists> i1 i2 . i1 \<noteq> i2 \<and> xs ! i1 = xs ! i2 \<and> i1 \<le> length xs \<and> i2 \<le> length xs"
+  using assms by (meson distinct_conv_nth less_imp_le) 
+
+lemma set_of_succs_finite :
+  assumes "well_formed M"
+  and     "q \<in> nodes M"
+shows "finite (succ M io q)"
+proof (rule ccontr)
+  assume "infinite (succ M io q)"
+  moreover have "succ M io q \<subseteq> nodes M" using assms by (simp add: subsetI succ_nodes) 
+  ultimately have "infinite (nodes M)" using infinite_super by blast 
+  then show "False" using assms by auto
+qed
+
+lemma well_formed_path_io_containment : 
+  assumes "well_formed M"
+  and     "path M p q"
+shows "set (map fst p) \<subseteq> (inputs M \<times> outputs M)"
+using assms proof (induction p arbitrary: q)
+case Nil
+  then show ?case by auto
+next
+  case (Cons a p)
+  have "fst a \<in> (inputs M \<times> outputs M)"
+  proof (rule ccontr)
+    assume "fst a \<notin> inputs M \<times> outputs M"
+    then have "fst (fst a) \<notin> inputs M \<or> snd (fst a) \<notin> outputs M" by (metis SigmaI prod.collapse) 
+    then have "succ M (fst a) q = {}" using Cons by (metis prod.collapse well_formed.elims(2)) 
+    moreover have "(snd a) \<in> succ M (fst a) q" using Cons by auto
+    ultimately show "False" by auto
+  qed
+  moreover have "set (map fst p) \<subseteq> (inputs M \<times> outputs M)" using Cons by blast 
+  ultimately show ?case by auto
+qed
+
+lemma path_state_containment :
+  assumes "path M p q"
+  and     "q \<in> nodes M"
+shows "set (map snd p) \<subseteq> nodes M"
+  using assms by (metis FSM.nodes_states states_alt_def) 
+
+
+
+
+lemma set_of_paths_finite : 
+  assumes "well_formed M"
+  and     "q1 \<in> nodes M"
+shows "finite { p . path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k }"
+proof -
+
+  let ?trs = "{ tr . set tr \<subseteq> nodes M \<and> length tr \<le> k }"
+  let ?ios = "{ io . set io \<subseteq> inputs M \<times> outputs M \<and> length io \<le> k }"
+  let ?iotrs = "image (\<lambda> (io,tr) . io || tr) (?ios \<times> ?trs)"
+
+  let ?paths = "{ p . path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k }"
+  
+  have "finite (inputs M \<times> outputs M)" using assms by auto
+  then have "finite ?ios" using assms by (simp add: finite_lists_length_le) 
+  moreover have "finite ?trs" using assms by (simp add: finite_lists_length_le)
+  ultimately have "finite ?iotrs" by auto
+
+  moreover have "?paths \<subseteq> ?iotrs" 
+  proof 
+    fix p assume p_assm : "p \<in> { p . path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k }"
+    then obtain io tr where p_split : "p = io || tr \<and> length io = length tr" using that by (metis (no_types) length_map zip_map_fst_snd)
+    then have "io \<in> ?ios" using well_formed_path_io_containment
+    proof -
+      have f1: "path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k"
+        using p_assm by force
+      then have "set io \<subseteq> inputs M \<times> outputs M"
+        by (metis (no_types) assms(1) map_fst_zip p_split well_formed_path_io_containment)
+      then show ?thesis
+        using f1 by (simp add: p_split)
+    qed 
+
+    moreover have "tr \<in> ?trs" using p_split
+    proof -
+      have f1: "path M (io || tr) q1 \<and> target (io || tr) q1 = q2 \<and> length (io || tr) \<le> k" using \<open>p \<in> {p. path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k}\<close> p_split by force
+      then have f2: "length tr \<le> k" by (simp add: p_split)
+      have "set tr \<subseteq> nodes M" using f1 by (metis (no_types) assms(2) length_map p_split path_state_containment zip_eq zip_map_fst_snd)
+      then show ?thesis using f2 by blast
+    qed 
+    ultimately show "p \<in> ?iotrs" using p_split by auto
+  qed
+
+  ultimately show ?thesis using Finite_Set.finite_subset by blast
+qed 
+
+
+(* use above lemma to use MIN for a FINITE set *)
+
+lemma reaching_path_without_repetition :
+  assumes "well_formed M"
+  and     "q2 \<in> reachable M q1"
+shows "\<exists> p . path M p q1 \<and> target p q1 = q2 \<and> distinct (states p q1)"
+proof -
+  have "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
+               \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
+  proof 
+    fix p 
+    show "(path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
+               \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
+    proof 
+      assume assm : "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)"
+      have "\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p"
+      proof (rule ccontr)
+        assume "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p)"
+        then have "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> (states p q1) ! i1 = (states p q1) ! i2 \<and> i1 \<le> length (states p q1) \<and> i2 \<le> length (states p q1))"
+          by (metis (no_types, lifting) Suc_leI assm distinct_conv_nth nat.inject scan_length scan_nth) 
+  
+        then have "distinct (states p q1)" using non_distinct_duplicate_indices by blast 
+        then show "False" using assm by auto
+      qed
+      then obtain i1 i2 where i_def : "i1 < i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p" by (metis nat_neq_iff)
+  
+      then have "path M (take i1 p) q1" using assm by (metis FSM.path_append_elim append_take_drop_id)  
+      moreover have "path M (drop i2 p) (target (take i2 p) q1)" by (metis FSM.path_append_elim append_take_drop_id assm) 
+      ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> (target ((take i1 p) @ (drop i2 p)) q1 = q2)" using i_def assm
+        by (metis FSM.path_append append_take_drop_id fold_append o_apply) 
+  
+      moreover have "length ((take i1 p) @ (drop i2 p)) < length p" using i_def by auto
+  
+      ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> target ((take i1 p) @ (drop i2 p)) q1 = q2 \<and> length ((take i1 p) @ (drop i2 p)) < length p" by simp
+      
+      then show  "(\<exists>p'. path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)" by blast
+    qed
+  qed
+
+
+  obtain p where p_def : "path M p q1 \<and> target p q1 = q2" using assms by auto
+  then show ?thesis 
+  proof (cases "distinct (states p q1)")
+    case True
+    then show ?thesis using p_def by auto
+  next
+    case False
+    then have "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)" using p_def by auto
+    
+  
+    then show ?thesis using infinite_descent_measure[of _ length]
+  qed
+
+
+
+  moreover have "\<forall> p . Suc (length p) \<ge> card (set (states p q1))" by (metis (no_types) card_length le_SucI scan_length) 
+  
+  have "\<forall> p \<in> {p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1))} .
+                (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> distinct (states p' q1))" 
+  proof -
+    fix p assume assm : "p \<in> {p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1))}" 
+    
+  proof (rule infinite_descent0_measure [of "\<lambda> p' . length p'"])
+  
+
+
+  ultimately have "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
+               \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> distinct (states p' q1))"
+  
+
+  then show ?thesis using assms 
+    
+  
+
+
+
+  obtain p where p_def : "path M p q1 \<and> target p q1 = q2" using assms by auto
+  then show ?thesis 
+  proof (induction "length (states p q1) - card (set (states p q1))")
+    case 0
+    then have "distinct (states p q1)" by (metis card_distinct card_length diff_is_0_eq' eq_diff_iff eq_refl) 
+    then show ?case using p_def by auto
+  next
+    case (Suc x)
+    then show ?case sorry
+  qed
+  
+
+
+lemma reaching_path_length :
+  assumes "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "q2 \<in> reachable AB q1"
+shows "\<exists> p . path AB p q1 \<and> target p q1 = q2 \<and> length p \<le> card (nodes A) * card (nodes B)"
+
+
+
+
+
+lemma minimal_path_extending_to_ex :
+  assumes "t \<in> reachable M q"
+  shows "\<exists> p . minimal_path_to M p q t"
+proof (rule ccontr)
+  assume "\<nexists>p. minimal_path_to M p q t"
+  then have "\<forall> p . (\<not> path M p q) \<or> (\<not> target p q = t) \<or> (\<not> (\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> length p))" by simp
+  moreover have path_ex : "\<exists> p' . (path M p' q \<and> target p' q = t)" using assms by auto
+  ultimately have "\<forall> p . (path M p q \<and> target p q = t) \<longrightarrow> (\<exists> p' . (path M p' q \<and> target p' q = t \<and> length p' < length p))" by (meson not_le_imp_less) 
+  moreover have "\<forall> p . path M p q \<longrightarrow> length p \<ge> 0" by auto
+  (*ultimately have "\<exists> p . (path M p q \<and> target p q = t \<and> length p < 0)"  by sorry*)
+
+
+  let ?min = "Min (image length {p' . (path M p' q \<and> target p' q = t)})"
+  have path_ex : "\<exists> p' . (path M p' q \<and> target p' q = t)" using assms by auto
+  then have "\<forall> m \<in> (image length {p' . (path M p' q \<and> target p' q = t)}) . m \<ge> ?min" 
+  then have "\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> ?min" 
+
+
+  ultimately show "False" using path_ex 
+
+
+  
+
+
+proof 
+  let ?p = "arg_min length (\<lambda> io . io \<in> {p' . (path M p' q \<and> target p' q = t)})"
+
+  have "\<exists> p' . (path M p' q \<and> target p' q = t)" using assms by auto
+  have "\<exists> p' . (path M p' q \<and> target p' q = t) \<and> (\<forall> p'' . (path M p'' q \<and> target p'' q = t) \<longrightarrow> length p'' \<ge> length p')"
+  proof (rule ccontr)
+ 
+
+  then have "{p' . (path M p' q \<and> target p' q = t)} \<noteq> {}" by simp
+  then have "?p \<in> {p' . (path M p' q \<and> target p' q = t)}" 
+  then show "minimal_path_to M ?p q t" 
+  
+
+  
+
 
 end
