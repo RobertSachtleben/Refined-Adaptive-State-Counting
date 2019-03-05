@@ -716,15 +716,6 @@ qed
 
 
 
-fun minimal_path_to :: "('in,'out,'state) FSM \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
-  "minimal_path_to M p q t = (
-    path M p q 
-    \<and> target p q = t
-    \<and> (\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> length p))"
-
-fun minimal_path_extending_to :: "('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
-  "minimal_path_extending_to M v p t = (
-    \<exists> pv . path M (v || pv) (initial M) \<and> length v = length pv \<and> minimal_path_to M p (target (v || pv) (initial M)) t)"
 
 
 
@@ -819,14 +810,15 @@ proof -
 qed 
 
 
-(* use above lemma to use MIN for a FINITE set *)
+
 
 lemma reaching_path_without_repetition :
   assumes "well_formed M"
   and     "q2 \<in> reachable M q1"
+  and     "q1 \<in> nodes M"
 shows "\<exists> p . path M p q1 \<and> target p q1 = q2 \<and> distinct (states p q1)"
 proof -
-  have "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
+  have shorten_nondistinct : "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
                \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
   proof 
     fix p 
@@ -860,52 +852,34 @@ proof -
 
 
   obtain p where p_def : "path M p q1 \<and> target p q1 = q2" using assms by auto
-  then show ?thesis 
-  proof (cases "distinct (states p q1)")
-    case True
-    then show ?thesis using p_def by auto
-  next
-    case False
-    then have "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)" using p_def by auto
-    
+
+  let ?paths = "{p' . (path M p' q1 \<and> target p' q1 = q2 \<and> length p' \<le> length p)}"
+  let ?minPath = "arg_min length (\<lambda> io . io \<in> ?paths)" 
   
-    then show ?thesis using infinite_descent_measure[of _ length]
+  have "?paths \<noteq> empty" using p_def by auto
+  moreover have "finite ?paths" using assms by (simp add: set_of_paths_finite) 
+  ultimately have minPath_def : "?minPath \<in> ?paths \<and> (\<forall> p' \<in> ?paths . length ?minPath \<le> length p')" by (meson arg_min_nat_lemma equals0I) 
+  
+  
+
+  moreover have "distinct (states ?minPath q1)"
+  proof (rule ccontr)
+    assume "\<not> distinct (states ?minPath q1)"
+    then have "\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length ?minPath" using shorten_nondistinct minPath_def by blast 
+    then show "False" using minPath_def using arg_min_nat_le dual_order.strict_trans1 by auto 
   qed
 
-
-
-  moreover have "\<forall> p . Suc (length p) \<ge> card (set (states p q1))" by (metis (no_types) card_length le_SucI scan_length) 
-  
-  have "\<forall> p \<in> {p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1))} .
-                (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> distinct (states p' q1))" 
-  proof -
-    fix p assume assm : "p \<in> {p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1))}" 
-    
-  proof (rule infinite_descent0_measure [of "\<lambda> p' . length p'"])
-  
-
-
-  ultimately have "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
-               \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> distinct (states p' q1))"
-  
-
-  then show ?thesis using assms 
-    
+  ultimately show ?thesis by auto
+qed
   
 
 
 
-  obtain p where p_def : "path M p q1 \<and> target p q1 = q2" using assms by auto
-  then show ?thesis 
-  proof (induction "length (states p q1) - card (set (states p q1))")
-    case 0
-    then have "distinct (states p q1)" by (metis card_distinct card_length diff_is_0_eq' eq_diff_iff eq_refl) 
-    then show ?case using p_def by auto
-  next
-    case (Suc x)
-    then show ?case sorry
-  qed
-  
+
+lemma states_target_index :
+  assumes "i < length p"
+  shows "(states p q1) ! i = target (take (Suc i) p) q1"
+  using assms by auto 
 
 
 lemma reaching_path_length :
@@ -913,7 +887,60 @@ lemma reaching_path_length :
   and     "well_formed A"
   and     "well_formed B"
   and     "q2 \<in> reachable AB q1"
+  and     "q2 \<noteq> FAIL"
+  and     "q1 \<in> nodes AB"
 shows "\<exists> p . path AB p q1 \<and> target p q1 = q2 \<and> length p \<le> card (nodes A) * card (nodes B)"
+proof -
+  obtain p where p_def : "path AB p q1 \<and> target p q1 = q2 \<and> distinct (states p q1)" using assms reaching_path_without_repetition by (metis well_formed_productF) 
+
+  have "FAIL \<notin> set (states p q1)"
+  proof(cases p)
+    case Nil
+    then show ?thesis by auto
+  next
+    case (Cons a list)
+    have "FAIL \<notin> set (butlast (states p q1))" 
+    proof (rule ccontr)
+      assume assm : "\<not> FAIL \<notin> set (butlast (states p q1))"
+      then obtain i where i_def : "i < length (butlast (states p q1)) \<and> butlast (states p q1) ! i = FAIL" by (metis distinct_Ex1 distinct_butlast p_def) 
+      then have "i < length (butlast p)" by auto
+  
+      then have "butlast (states p q1) ! i = target (take (Suc i) p) q1" by (metis (mono_tags, lifting) diff_le_self i_def length_butlast less_le_trans nth_butlast states_target_index) 
+      then have "target (take (Suc i) p) q1 = FAIL" using i_def by auto
+      moreover have "\<forall> k . k < length p \<longrightarrow> target (take k p) q1 \<noteq> FAIL" using no_prefix_targets_FAIL[of A B FAIL AB p q1] assms p_def by auto
+      ultimately show "False" by (metis assms(5) linorder_neqE_nat nat_less_le order_refl p_def take_all) 
+    qed
+
+    moreover have "last (states p q1) \<noteq> FAIL" using assms(5) local.Cons p_def transition_system_universal.target_alt_def by force 
+    ultimately show ?thesis by (metis (no_types, lifting) UnE append_butlast_last_id list.set(1) list.set(2) list.simps(3) local.Cons scan_eq_nil set_append singletonD) 
+  qed
+
+  moreover have "set (states p q1) \<subseteq> nodes AB" using assms by (metis FSM.nodes_states p_def) 
+  ultimately have "set (states p q1) \<subseteq> nodes A \<times> nodes B" using nodes_productF assms by blast 
+
+  moreover have "finite (nodes A \<times> nodes B)" using assms(2) assms(3) by auto 
+  moreover have "length p = card (set (states p q1))" by (simp add: distinct_card p_def) 
+  ultimately have "length p \<le> card (nodes A) * card (nodes B)" by (metis (no_types) card_cartesian_product card_mono)
+
+  then show ?thesis using p_def by blast    
+qed 
+  
+
+
+
+
+
+
+fun minimal_path_to :: "('in,'out,'state) FSM \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
+  "minimal_path_to M p q t = (
+    path M p q 
+    \<and> target p q = t
+    \<and> (\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> length p))"
+
+fun minimal_path_extending_to :: "('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
+  "minimal_path_extending_to M v p t = (
+    \<exists> pv . path M (v || pv) (initial M) \<and> length v = length pv \<and> minimal_path_to M p (target (v || pv) (initial M)) t)"
+
 
 
 
