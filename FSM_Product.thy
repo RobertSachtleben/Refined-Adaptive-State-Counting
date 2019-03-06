@@ -816,39 +816,67 @@ lemma reaching_path_without_repetition :
   assumes "well_formed M"
   and     "q2 \<in> reachable M q1"
   and     "q1 \<in> nodes M"
-shows "\<exists> p . path M p q1 \<and> target p q1 = q2 \<and> distinct (states p q1)"
+shows "\<exists> p . path M p q1 \<and> target p q1 = q2 \<and> distinct (q1 # states p q1)"
 proof -
-  have shorten_nondistinct : "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
+  have shorten_nondistinct : "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (q1 # states p q1)) 
                \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
   proof 
     fix p 
-    show "(path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)) 
+    show "(path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (q1 # states p q1)) 
                \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
     proof 
-      assume assm : "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)"
-      have "\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p"
-      proof (rule ccontr)
-        assume "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p)"
-        then have "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> (states p q1) ! i1 = (states p q1) ! i2 \<and> i1 \<le> length (states p q1) \<and> i2 \<le> length (states p q1))"
-          by (metis (no_types, lifting) Suc_leI assm distinct_conv_nth nat.inject scan_length scan_nth) 
-  
-        then have "distinct (states p q1)" using non_distinct_duplicate_indices by blast 
-        then show "False" using assm by auto
-      qed
-      then obtain i1 i2 where i_def : "i1 < i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p" by (metis nat_neq_iff)
-  
-      then have "path M (take i1 p) q1" using assm by (metis FSM.path_append_elim append_take_drop_id)  
-      moreover have "path M (drop i2 p) (target (take i2 p) q1)" by (metis FSM.path_append_elim append_take_drop_id assm) 
-      ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> (target ((take i1 p) @ (drop i2 p)) q1 = q2)" using i_def assm
-        by (metis FSM.path_append append_take_drop_id fold_append o_apply) 
-  
-      moreover have "length ((take i1 p) @ (drop i2 p)) < length p" using i_def by auto
-  
-      ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> target ((take i1 p) @ (drop i2 p)) q1 = q2 \<and> length ((take i1 p) @ (drop i2 p)) < length p" by simp
+      assume assm : "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (q1 # states p q1)"
+      then show "(\<exists>p'. path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
+      proof (cases "q1 \<in> set (states p q1)")
+        case True
+        have "\<exists> i1 . target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0"
+        proof (rule ccontr)
+          assume "\<nexists>i1. target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0"
+          then have "\<not> (\<exists> i1 . (states p q1) ! i1 = q1 \<and> i1 \<le> length (states p q1))" by (metis True in_set_conv_nth less_eq_Suc_le scan_length scan_nth zero_less_Suc)
+          then have "q1 \<notin> set (states p q1)" by (meson in_set_conv_nth less_imp_le)  
+          then show "False" using True by auto
+        qed
+        then obtain i1 where i1_def : "target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0" by auto
+
+        then have "path M (take i1 p) q1" using assm by (metis FSM.path_append_elim append_take_drop_id)  
+        moreover have "path M (drop i1 p) q1" using i1_def by (metis FSM.path_append_elim append_take_drop_id assm) 
+        ultimately have "path M (drop i1 p) q1 \<and> (target (drop i1 p) q1 = q2)" using i1_def by (metis (no_types) append_take_drop_id assm fold_append o_apply)
+        
+        moreover have "length (drop i1 p) < length p" using i1_def by auto
+        ultimately show ?thesis using assms by blast
       
-      then show  "(\<exists>p'. path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)" by blast
+     next
+        case False
+        then have assm' : "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)" using assm by auto
+
+        have "\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p"
+        proof (rule ccontr)
+          assume "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p)"
+          then have "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> (states p q1) ! i1 = (states p q1) ! i2 \<and> i1 \<le> length (states p q1) \<and> i2 \<le> length (states p q1))"
+            by (metis (no_types, lifting) Suc_leI assm' distinct_conv_nth nat.inject scan_length scan_nth) 
+    
+          then have "distinct (states p q1)" using non_distinct_duplicate_indices by blast 
+          then show "False" using assm' by auto
+        qed
+        then obtain i1 i2 where i_def : "i1 < i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p" by (metis nat_neq_iff)
+    
+        then have "path M (take i1 p) q1" using assm by (metis FSM.path_append_elim append_take_drop_id)  
+        moreover have "path M (drop i2 p) (target (take i2 p) q1)" by (metis FSM.path_append_elim append_take_drop_id assm) 
+        ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> (target ((take i1 p) @ (drop i2 p)) q1 = q2)" using i_def assm
+          by (metis FSM.path_append append_take_drop_id fold_append o_apply) 
+    
+        moreover have "length ((take i1 p) @ (drop i2 p)) < length p" using i_def by auto
+    
+        ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> target ((take i1 p) @ (drop i2 p)) q1 = q2 \<and> length ((take i1 p) @ (drop i2 p)) < length p" by simp
+      
+        then show ?thesis using assms by blast
+      qed
+
+
+      
     qed
   qed
+
 
 
   obtain p where p_def : "path M p q1 \<and> target p q1 = q2" using assms by auto
@@ -860,11 +888,9 @@ proof -
   moreover have "finite ?paths" using assms by (simp add: set_of_paths_finite) 
   ultimately have minPath_def : "?minPath \<in> ?paths \<and> (\<forall> p' \<in> ?paths . length ?minPath \<le> length p')" by (meson arg_min_nat_lemma equals0I) 
   
-  
-
-  moreover have "distinct (states ?minPath q1)"
+  moreover have "distinct (q1 # states ?minPath q1)"
   proof (rule ccontr)
-    assume "\<not> distinct (states ?minPath q1)"
+    assume "\<not> distinct (q1 # states ?minPath q1)"
     then have "\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length ?minPath" using shorten_nondistinct minPath_def by blast 
     then show "False" using minPath_def using arg_min_nat_le dual_order.strict_trans1 by auto 
   qed
@@ -889,44 +915,94 @@ lemma reaching_path_length :
   and     "q2 \<in> reachable AB q1"
   and     "q2 \<noteq> FAIL"
   and     "q1 \<in> nodes AB"
-shows "\<exists> p . path AB p q1 \<and> target p q1 = q2 \<and> length p \<le> card (nodes A) * card (nodes B)"
+shows "\<exists> p . path AB p q1 \<and> target p q1 = q2 \<and> length p < card (nodes A) * card (nodes B)"
 proof -
-  obtain p where p_def : "path AB p q1 \<and> target p q1 = q2 \<and> distinct (states p q1)" using assms reaching_path_without_repetition by (metis well_formed_productF) 
+  obtain p where p_def : "path AB p q1 \<and> target p q1 = q2 \<and> distinct (q1 # states p q1)" using assms reaching_path_without_repetition by (metis well_formed_productF) 
 
-  have "FAIL \<notin> set (states p q1)"
+  have "FAIL \<notin> set (q1 # states p q1)"
   proof(cases p)
     case Nil
-    then show ?thesis by auto
+    then have "q1 = q2" using p_def by auto
+    then have "q1 \<noteq> FAIL" using assms by auto
+    then show ?thesis using Nil by auto
   next
     case (Cons a list)
-    have "FAIL \<notin> set (butlast (states p q1))" 
+    have "FAIL \<notin> set (butlast (q1 # states p q1))" 
     proof (rule ccontr)
-      assume assm : "\<not> FAIL \<notin> set (butlast (states p q1))"
-      then obtain i where i_def : "i < length (butlast (states p q1)) \<and> butlast (states p q1) ! i = FAIL" by (metis distinct_Ex1 distinct_butlast p_def) 
-      then have "i < length (butlast p)" by auto
+      assume assm : "\<not> FAIL \<notin> set (butlast (q1 # states p q1))"
+      then obtain i where i_def : "i < length (butlast (q1 # states p q1)) \<and> butlast (q1 # states p q1) ! i = FAIL" by (metis distinct_Ex1 distinct_butlast p_def) 
+      then have "i < Suc (length (butlast p))" using local.Cons by fastforce 
+      then have "i < length p" by (metis append_butlast_last_id length_append_singleton list.simps(3) local.Cons) 
   
-      then have "butlast (states p q1) ! i = target (take (Suc i) p) q1" by (metis (mono_tags, lifting) diff_le_self i_def length_butlast less_le_trans nth_butlast states_target_index) 
-      then have "target (take (Suc i) p) q1 = FAIL" using i_def by auto
+      then have "butlast (q1 # states p q1) ! i = target (take i p) q1" 
+      using i_def assm proof (induction i)
+        case 0
+        then show ?case by auto
+      next
+        case (Suc i)
+        then show ?case by (metis Suc_lessD nth_Cons_Suc nth_butlast states_target_index)  
+      qed
+
+      then have "target (take i p) q1 = FAIL" using i_def by auto
       moreover have "\<forall> k . k < length p \<longrightarrow> target (take k p) q1 \<noteq> FAIL" using no_prefix_targets_FAIL[of A B FAIL AB p q1] assms p_def by auto
       ultimately show "False" by (metis assms(5) linorder_neqE_nat nat_less_le order_refl p_def take_all) 
     qed
 
-    moreover have "last (states p q1) \<noteq> FAIL" using assms(5) local.Cons p_def transition_system_universal.target_alt_def by force 
+    moreover have "last (q1 # states p q1) \<noteq> FAIL" using assms(5) local.Cons p_def transition_system_universal.target_alt_def by force 
     ultimately show ?thesis by (metis (no_types, lifting) UnE append_butlast_last_id list.set(1) list.set(2) list.simps(3) local.Cons scan_eq_nil set_append singletonD) 
   qed
 
-  moreover have "set (states p q1) \<subseteq> nodes AB" using assms by (metis FSM.nodes_states p_def) 
-  ultimately have "set (states p q1) \<subseteq> nodes A \<times> nodes B" using nodes_productF assms by blast 
+  moreover have "set (q1 # states p q1) \<subseteq> nodes AB" using assms by (metis FSM.nodes_states insert_subset list.simps(15) p_def) 
+  ultimately have states_subset : "set (q1 # states p q1) \<subseteq> nodes A \<times> nodes B" using nodes_productF assms by blast 
 
-  moreover have "finite (nodes A \<times> nodes B)" using assms(2) assms(3) by auto 
-  moreover have "length p = card (set (states p q1))" by (simp add: distinct_card p_def) 
-  ultimately have "length p \<le> card (nodes A) * card (nodes B)" by (metis (no_types) card_cartesian_product card_mono)
+  have finite_nodes : "finite (nodes A \<times> nodes B)" using assms(2) assms(3) by auto 
+  have "length p \<le> length (states p q1)" by simp
+  then have "length p < card (nodes A) * card (nodes B)"  by (metis (no_types) finite_nodes states_subset card_cartesian_product card_mono distinct_card impossible_Cons less_le_trans not_less p_def)
 
   then show ?thesis using p_def by blast    
 qed 
   
 
+lemma reaching_path_fail_length :
+  assumes "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "q2 \<in> reachable AB q1"
+  and     "q1 \<in> nodes AB"
+shows "\<exists> p . path AB p q1 \<and> target p q1 = q2 \<and> length p \<le> card (nodes A) * card (nodes B)"
+proof (cases "q2 = FAIL")
+  case True
 
+  then have q2_def : "q2 = FAIL" by simp
+  then show ?thesis 
+  proof (cases "q1 = q2")
+    case True
+    then show ?thesis by auto
+  next
+    case False
+    then obtain px where px_def : "path AB px q1 \<and> target px q1 = q2" using assms by auto
+    then have px_nonempty : "px \<noteq> []" using q2_def using False by auto 
+    let ?qx = "target (butlast px) q1"
+    have "?qx \<in> reachable AB q1" using px_def px_nonempty
+      by (metis FSM.path_append_elim FSM.reachable.reflexive FSM.reachable_target append_butlast_last_id) 
+    moreover have "?qx \<noteq> FAIL" using False q2_def assms by (metis One_nat_def Suc_pred butlast_conv_take length_greater_0_conv lessI no_prefix_targets_FAIL px_def px_nonempty) 
+    ultimately obtain px' where px'_def : "path AB px' q1 \<and> target px' q1 = ?qx \<and> length px' < card (nodes A) * card (nodes B)" using assms reaching_path_length[of A B FAIL AB ?qx q1] by blast  
+
+    have px_split : "path AB ((butlast px) @ [last px]) q1 \<and> target ((butlast px) @ [last px]) q1 = q2" using px_def px_nonempty by auto
+    then have "path AB [last px] ?qx \<and> target [last px] ?qx = q2" using px_nonempty
+    proof -
+      have "target [last px] (target (butlast px) q1) = q2" using px_split by force
+      then show ?thesis using px_split by blast
+    qed 
+
+    then have "path AB (px' @ [last px]) q1 \<and> target (px' @ [last px]) q1 = q2" using px'_def by auto
+    moreover have "length (px' @ [last px]) \<le> card (nodes A) * card (nodes B)" using px'_def by auto
+    ultimately show ?thesis by blast 
+  qed  
+next
+  case False
+  then show ?thesis using assms reaching_path_length by (metis less_imp_le) 
+qed
 
 
 
