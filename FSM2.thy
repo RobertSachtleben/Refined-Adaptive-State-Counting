@@ -458,4 +458,12 @@ proof -
   then show ?thesis using language_state_in_alt_def by (metis UN_I assms) 
 qed
 
+lemma language_state_for_input_empty[simp] : 
+  "language_state_for_input M q [] = {[]}"
+by auto
+
+
+
+abbreviation "L M \<equiv> language_state M (initial M)"
+
 end
