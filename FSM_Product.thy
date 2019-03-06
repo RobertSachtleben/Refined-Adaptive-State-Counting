@@ -518,22 +518,70 @@ qed
 
 
 
+fun sequence_to_failure :: "('in,'out,'state) FSM \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "sequence_to_failure M1 M2 xs = (
+    (butlast xs) \<in> (language_state M2 (initial M2) \<inter> language_state M1 (initial M1))
+    \<and> xs \<in> (language_state M1 (initial M1) - language_state M2 (initial M2)))"
+
+lemma fail_reachable_by_sequence_to_failure :
+  assumes "sequence_to_failure M1 M2 io"
+  and     "well_formed M1"
+  and     "well_formed M2"
+  and "productF M2 M1 FAIL PM"
+obtains p
+where "path PM (io || p) (initial PM) \<and> length p = length io \<and> target (io || p) (initial PM) = FAIL"
+proof -
+  have "io \<noteq> []" using assms by auto 
+  then obtain io_init io_last where io_split[simp] : "io = io_init @ [io_last]" by (metis append_butlast_last_id) 
+  have io_init_inclusion : "io_init \<in> language_state M1 (initial M1) \<and> io_init \<in> language_state M2 (initial M2)" using assms by auto
+
+  have "io_init @ [io_last] \<in> language_state M1 (initial M1)" using assms by auto
+  then obtain tr1_init tr1_last where tr1_def : "path M1 (io_init @ [io_last] || tr1_init @ [tr1_last]) (initial M1) \<and> length (tr1_init @ [tr1_last]) = length (io_init @ [io_last])"
+    by (metis append_butlast_last_id language_state_elim length_0_conv length_append_singleton nat.simps(3)) 
+  
+  then have path_init_1 : "path M1 (io_init || tr1_init) (initial M1) \<and> length tr1_init = length io_init" by auto
+  then have "path M1 ([io_last] || [tr1_last]) (target (io_init || tr1_init) (initial M1))" using tr1_def by auto
+  then have succ_1 : "succ M1 io_last (target (io_init || tr1_init) (initial M1)) \<noteq> {}" by auto
+
+  obtain tr2 where tr2_def : "path M2 (io_init || tr2) (initial M2) \<and> length tr2 = length io_init" using io_init_inclusion by auto
+  have succ_2 : "succ M2 io_last (target (io_init || tr2) (initial M2)) = {}" 
+  proof (rule ccontr)
+    assume "succ M2 io_last (target (io_init || tr2) (initial M2)) \<noteq> {}"
+    then obtain tr2_last where "tr2_last \<in> succ M2 io_last (target (io_init || tr2) (initial M2))" by auto
+    then have "path M2 ([io_last] || [tr2_last]) (target (io_init || tr2) (initial M2))" by auto
+    then have "io_init @ [io_last] \<in> language_state M2 (initial M2)" by (metis FSM.path_append language_state length_Cons length_append list.size(3) tr2_def zip_append) 
+    then show "False" using assms io_split by simp
+  qed
+
+  have fail_lengths : "length (io_init @ [io_last]) = length (tr2 @ [fst FAIL]) \<and> length (tr2 @ [fst FAIL]) = length (tr1_init @ [snd FAIL])" using assms tr2_def tr1_def by auto
+  then have fail_tgt : "target (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1) = FAIL" by auto
+
+  have fail_butlast_simp[simp] : "butlast (io_init @ [io_last] || tr2 @ [fst FAIL]) = io_init || tr2" "butlast (io_init @ [io_last] || tr1_init @ [snd FAIL]) = io_init || tr1_init" using fail_lengths by simp+
+
+  have "path M2 (butlast (io_init @ [io_last] || tr2 @ [fst FAIL])) (initial M2) \<and>
+    path M1 (butlast (io_init @ [io_last] || tr1_init @ [snd FAIL])) (initial M1)" using tr1_def tr2_def by auto
+  moreover have "succ M2 (last (io_init @ [io_last])) (target (butlast (io_init @ [io_last] || tr2 @ [fst FAIL])) (initial M2)) = {}" using succ_2 by simp
+  moreover have "succ M1 (last (io_init @ [io_last])) (target (butlast (io_init @ [io_last] || tr1_init @ [snd FAIL])) (initial M1)) \<noteq> {}" using succ_1 by simp
+  moreover have "initial M2 \<in> nodes M2 \<and> initial M1 \<in> nodes M1" by auto
+  ultimately have "path PM (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1)" using fail_lengths fail_tgt assms path_init_1 tr2_def productF_path_forward[of "io_init @ [io_last]" "tr2 @ [fst FAIL]" "tr1_init @ [snd FAIL]" M2 M1 FAIL PM "initial M2" "initial M1" ] by simp
+
+  moreover have "initial PM = (initial M2, initial M1)" using assms(4) productF_simps(4) by blast
+ 
+  ultimately have "path PM (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial PM)
+   \<and> length (tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) = length (io_init @ [io_last])
+   \<and> target (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial PM) = FAIL" using fail_lengths fail_tgt by auto
+  then show ?thesis using that using io_split by blast 
+qed
 
 
 
-
-
-
-
-
-
-
-lemma fail_reachable :
+lemma sequence_to_failure_ob :
   assumes "\<not> M1 \<preceq> M2"
   and     "well_formed M1"
   and     "well_formed M2"
   and "productF M2 M1 FAIL PM"
-shows "FAIL \<in> reachable PM (initial PM)"
+obtains io
+where "sequence_to_failure M1 M2 io"
 proof -
   let ?diff = "{ io . io \<in> language_state M1 (initial M1) \<and> io \<notin> language_state M2 (initial M2)}"
   have "?diff \<noteq> empty" using assms by auto
@@ -562,46 +610,24 @@ proof -
     then show "False" using io_def by simp
   qed
 
-  have "io_init @ [io_last] \<in> language_state M1 (initial M1)" using io_diff io_split by auto
-  then obtain tr1_init tr1_last where tr1_def : "path M1 (io_init @ [io_last] || tr1_init @ [tr1_last]) (initial M1) \<and> length (tr1_init @ [tr1_last]) = length (io_init @ [io_last])"
-    by (metis append_butlast_last_id language_state_elim length_0_conv length_append_singleton nat.simps(3)) 
-  
-  then have path_init_1 : "path M1 (io_init || tr1_init) (initial M1) \<and> length tr1_init = length io_init" by auto
-  then have "path M1 ([io_last] || [tr1_last]) (target (io_init || tr1_init) (initial M1))" using tr1_def by auto
-  then have succ_1 : "succ M1 io_last (target (io_init || tr1_init) (initial M1)) \<noteq> {}" by auto
-
-  obtain tr2 where tr2_def : "path M2 (io_init || tr2) (initial M2) \<and> length tr2 = length io_init" using io_init_inclusion by auto
-  have succ_2 : "succ M2 io_last (target (io_init || tr2) (initial M2)) = {}" 
-  proof (rule ccontr)
-    assume "succ M2 io_last (target (io_init || tr2) (initial M2)) \<noteq> {}"
-    then obtain tr2_last where "tr2_last \<in> succ M2 io_last (target (io_init || tr2) (initial M2))" by auto
-    then have "path M2 ([io_last] || [tr2_last]) (target (io_init || tr2) (initial M2))" by auto
-    then have "io_init @ [io_last] \<in> language_state M2 (initial M2)" by (metis FSM.path_append language_state length_Cons length_append list.size(3) tr2_def zip_append) 
-    then show "False" using io_diff io_split by simp
-  qed
-
-  have fail_lengths : "length (io_init @ [io_last]) = length (tr2 @ [fst FAIL]) \<and> length (tr2 @ [fst FAIL]) = length (tr1_init @ [snd FAIL])" using assms io_def io_diff tr2_def tr1_def by auto
-  then have fail_tgt : "target (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1) = FAIL" by auto
-
-  have fail_butlast_simp[simp] : "butlast (io_init @ [io_last] || tr2 @ [fst FAIL]) = io_init || tr2" "butlast (io_init @ [io_last] || tr1_init @ [snd FAIL]) = io_init || tr1_init" using fail_lengths by simp+
-
-  have "path M2 (butlast (io_init @ [io_last] || tr2 @ [fst FAIL])) (initial M2) \<and>
-    path M1 (butlast (io_init @ [io_last] || tr1_init @ [snd FAIL])) (initial M1)" using tr1_def tr2_def by auto
-  moreover have "succ M2 (last (io_init @ [io_last])) (target (butlast (io_init @ [io_last] || tr2 @ [fst FAIL])) (initial M2)) = {}" using succ_2 by simp
-  moreover have "succ M1 (last (io_init @ [io_last])) (target (butlast (io_init @ [io_last] || tr1_init @ [snd FAIL])) (initial M1)) \<noteq> {}" using succ_1 by simp
-  moreover have "initial M2 \<in> nodes M2 \<and> initial M1 \<in> nodes M1" by auto
-  ultimately have "path PM (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1)" using fail_lengths fail_tgt assms path_init_1 tr2_def productF_path_forward[of "io_init @ [io_last]" "tr2 @ [fst FAIL]" "tr1_init @ [snd FAIL]" M2 M1 FAIL PM "initial M2" "initial M1" ] by simp
-  
-  then show ?thesis
-  proof -
-    have "initial PM = (initial M2, initial M1)"
-      using assms(4) productF_simps(4) by blast
-    then show ?thesis
-      by (metis (no_types) FSM.reachable.reflexive FSM.reachable_target \<open>path PM (io_init @ [io_last] || tr2 @ [fst FAIL] || tr1_init @ [snd FAIL]) (initial M2, initial M1)\<close> fail_tgt)
-  qed 
+  then have "sequence_to_failure M1 M2 io" using io_split io_diff by auto
+  then show ?thesis using that by auto  
 qed
-  
 
+
+
+
+
+lemma fail_reachable :
+  assumes "\<not> M1 \<preceq> M2"
+  and     "well_formed M1"
+  and     "well_formed M2"
+  and "productF M2 M1 FAIL PM"
+shows "FAIL \<in> reachable PM (initial PM)"
+proof -
+  obtain io where "sequence_to_failure M1 M2 io" using sequence_to_failure_ob assms by blast
+  then show ?thesis using assms fail_reachable_by_sequence_to_failure[of M1 M2 io FAIL PM] by (metis FSM.reachable.reflexive FSM.reachable_target)  
+qed
 
 
 lemma fail_reachable_ob :
@@ -613,6 +639,8 @@ lemma fail_reachable_ob :
 obtains p
 where "path PM p (initial PM)" "target p (initial PM) = FAIL"
 using assms fail_reachable by (metis FSM.reachable_target_elim) 
+
+
 
 
 lemma fail_reachable_reverse : 
@@ -949,7 +977,7 @@ proof -
     qed
 
     moreover have "last (q1 # states p q1) \<noteq> FAIL" using assms(5) local.Cons p_def transition_system_universal.target_alt_def by force 
-    ultimately show ?thesis by (metis (no_types, lifting) UnE append_butlast_last_id list.set(1) list.set(2) list.simps(3) local.Cons scan_eq_nil set_append singletonD) 
+    ultimately show ?thesis by (metis (no_types, lifting) UnE append_butlast_last_id list.set(1) list.set(2) list.simps(3) set_append singletonD) 
   qed
 
   moreover have "set (q1 # states p q1) \<subseteq> nodes AB" using assms by (metis FSM.nodes_states insert_subset list.simps(15) p_def) 
@@ -1007,59 +1035,47 @@ qed
 
 
 
-fun minimal_path_to :: "('in,'out,'state) FSM \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
-  "minimal_path_to M p q t = (
-    path M p q 
-    \<and> target p q = t
-    \<and> (\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> length p))"
-
-fun minimal_path_extending_to :: "('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> (('in \<times> 'out) \<times> 'state) list \<Rightarrow> 'state \<Rightarrow> bool" where
-  "minimal_path_extending_to M v p t = (
-    \<exists> pv . path M (v || pv) (initial M) \<and> length v = length pv \<and> minimal_path_to M p (target (v || pv) (initial M)) t)"
 
 
 
 
 
 
-lemma minimal_path_extending_to_ex :
-  assumes "t \<in> reachable M q"
-  shows "\<exists> p . minimal_path_to M p q t"
-proof (rule ccontr)
-  assume "\<nexists>p. minimal_path_to M p q t"
-  then have "\<forall> p . (\<not> path M p q) \<or> (\<not> target p q = t) \<or> (\<not> (\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> length p))" by simp
-  moreover have path_ex : "\<exists> p' . (path M p' q \<and> target p' q = t)" using assms by auto
-  ultimately have "\<forall> p . (path M p q \<and> target p q = t) \<longrightarrow> (\<exists> p' . (path M p' q \<and> target p' q = t \<and> length p' < length p))" by (meson not_le_imp_less) 
-  moreover have "\<forall> p . path M p q \<longrightarrow> length p \<ge> 0" by auto
-  (*ultimately have "\<exists> p . (path M p q \<and> target p q = t \<and> length p < 0)"  by sorry*)
+fun minimal_sequence_to_failure_extending :: "'in list set \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "minimal_sequence_to_failure_extending V M1 M2 io = (
+   \<exists> v \<in> V . \<exists> v' \<in> language_state_in M1 (initial M1) V .sequence_to_failure M1 M2 (v' @ io) 
+              \<and> \<not> (\<exists> io' . \<exists> w' \<in> language_state_in M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length io))"
 
+lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
+  assumes "productF M2 M1 FAIL PM"
+  and     "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M2"
+  and     "is_det_state_cover M2 V"
+  and     "\<not> M1 \<preceq> M2"
+obtains io
+where "minimal_sequence_to_failure_extending V M1 M2 io" 
+proof
+  let ?seqs = "{seq . \<exists> v' \<in> language_state_in M1 (initial M1) V .sequence_to_failure M1 M2 (v' @ seq)}"
+  obtain seq where "sequence_to_failure M1 M2 seq" using assms sequence_to_failure_ob by blast
+  then have "sequence_to_failure M1 M2 ([] @ seq)" by simp
+  moreover have "[] \<in> language_state_in M1 (initial M1) V" using assms det_state_cover_empty language_state_in_empty by metis
+  ultimately have "seq \<in> ?seqs" using assms(5) by blast
+  then have seqs_nonempty : "?seqs \<noteq> {}" by auto
 
-  let ?min = "Min (image length {p' . (path M p' q \<and> target p' q = t)})"
-  have path_ex : "\<exists> p' . (path M p' q \<and> target p' q = t)" using assms by auto
-  then have "\<forall> m \<in> (image length {p' . (path M p' q \<and> target p' q = t)}) . m \<ge> ?min" 
-  then have "\<forall> p' . (path M p' q \<and> target p' q = t) \<longrightarrow> length p' \<ge> ?min" 
-
-
-  ultimately show "False" using path_ex 
-
-
-  
-
-
-proof 
-  let ?p = "arg_min length (\<lambda> io . io \<in> {p' . (path M p' q \<and> target p' q = t)})"
-
-  have "\<exists> p' . (path M p' q \<and> target p' q = t)" using assms by auto
-  have "\<exists> p' . (path M p' q \<and> target p' q = t) \<and> (\<forall> p'' . (path M p'' q \<and> target p'' q = t) \<longrightarrow> length p'' \<ge> length p')"
+  let ?minSeq = "arg_min length (\<lambda> io . io \<in> ?seqs)"
+  have minSeq_def : "?minSeq \<in> ?seqs \<and> (\<forall> seq' \<in> ?seqs . length  ?minSeq \<le> length seq')" using seqs_nonempty by (meson all_not_in_conv arg_min_nat_lemma) 
+  moreover have "\<not> (\<exists> io' . \<exists> w' \<in> language_state_in M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
   proof (rule ccontr)
- 
-
-  then have "{p' . (path M p' q \<and> target p' q = t)} \<noteq> {}" by simp
-  then have "?p \<in> {p' . (path M p' q \<and> target p' q = t)}" 
-  then show "minimal_path_to M ?p q t" 
+    assume "\<not> (\<nexists>io'. \<exists>w'\<in>language_state_in M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
+    then obtain seq' where seq'_def : "\<exists>w' \<in> language_state_in M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ seq') \<and> length seq' < length ?minSeq" by auto
+    then have "seq' \<in> ?seqs \<and> length seq' < length ?minSeq " by auto
+    then show "False" using minSeq_def using leD by blast  
+  qed
+  ultimately show "minimal_sequence_to_failure_extending V M1 M2 ?minSeq" by auto
+qed
   
 
-  
 
 
 end

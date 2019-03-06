@@ -408,4 +408,54 @@ next
   then show ?thesis using Cons.prems tgt1 tgt2 Cons.IH by auto
 qed
 
+
+fun language_state_for_input :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in \<times> 'out) list set" where
+  "language_state_for_input M q xs = {(xs || ys) | ys . (length xs = length ys \<and> (xs || ys) \<in> language_state M (initial M))}"
+
+fun language_state_in :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" where
+  "language_state_in M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> language_state M (initial M))}"
+
+lemma language_state_in_alt_def :
+  "language_state_in M q ISeqs = \<Union> (image (language_state_for_input M q) ISeqs)"
+proof 
+  show "language_state_in M q ISeqs \<subseteq> UNION ISeqs (language_state_for_input M q)" 
+  proof 
+    fix x assume "x \<in> language_state_in M q ISeqs"
+    then show "x \<in> UNION ISeqs (language_state_for_input M q)" by auto 
+  qed
+  show "UNION ISeqs (language_state_for_input M q) \<subseteq> language_state_in M q ISeqs"
+  proof
+    fix x assume x_assm : "x \<in> UNION ISeqs (language_state_for_input M q)"
+    then show "x \<in> language_state_in M q ISeqs" by auto
+  qed
+qed
+
+
+
+
+
+
+lemma det_state_cover_empty : 
+  assumes "is_det_state_cover M V"
+  shows "[] \<in> V"
+proof -
+  obtain f where f_def : "is_det_state_cover_ass M f \<and> V = f ` d_reachable M (initial M)" using assms by auto
+  then have "f (initial M) = []" by auto
+  moreover have "initial M \<in> d_reachable M (initial M)" 
+  proof -
+    have "d_reaches M (initial M) [] (initial M)" by auto
+    then show ?thesis by (metis d_reachable.simps mem_Collect_eq) 
+  qed
+  moreover have "f (initial M) \<in> V" using f_def calculation by blast
+  ultimately show ?thesis by auto
+qed
+
+lemma language_state_in_empty : 
+  assumes "[] \<in> V"
+  shows "[] \<in> language_state_in M q V"
+proof -
+  have "[] \<in> language_state_for_input M q []" by auto
+  then show ?thesis using language_state_in_alt_def by (metis UN_I assms) 
+qed
+
 end

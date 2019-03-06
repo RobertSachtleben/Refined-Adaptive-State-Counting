@@ -239,8 +239,6 @@ shows   "q1 \<noteq> q2"
 
 
 
-fun language_state_in :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" where
-  "language_state_in M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> language_state M (initial M))}"
 
 fun D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in * 'out) list set set" where
   "D M \<Omega> ISeqs = image (\<lambda> io . B M io \<Omega>) (language_state_in M (initial M) ISeqs)"
