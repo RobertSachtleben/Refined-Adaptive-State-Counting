@@ -464,6 +464,24 @@ by auto
 
 
 
+lemma observable_path_prefix :
+  assumes "observable M"
+  and     "path M (io || tr) q"
+  and     "length io = length tr"
+  and     "path M (ioP || trP) q"
+  and     "length ioP = length trP"
+  and     "prefix ioP io" 
+shows "trP = take (length ioP) tr"
+proof -
+  have ioP_def : "ioP = take (length ioP) io" using assms(6) by (metis append_eq_conv_conj prefixE) 
+  then have "take (length ioP) (io || tr) = take (length ioP) io || take (length ioP) tr" using take_zip by blast 
+  moreover have "path M (take (length ioP) (io || tr)) q" using assms by (metis FSM.path_append_elim append_take_drop_id)
+  ultimately have "path M (take (length ioP) io || take (length ioP) tr) q \<and> length (take (length ioP) io) = length (take (length ioP) tr)" using assms(3) by auto
+  then have "path M (ioP || take (length ioP) tr) q \<and> length ioP = length (take (length ioP) tr)" using assms(3) using ioP_def by auto
+  then show ?thesis by (meson assms(1) assms(4) assms(5) language_state observable_path_unique)
+qed
+
+
 abbreviation "L M \<equiv> language_state M (initial M)"
 
 end

@@ -77,6 +77,8 @@ lemma R_count :
   and "distinct (states (xs || tr) (q1,q2))" 
   shows "card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))) = card (R M2 s vs xs)"
 proof -
+  have obs_PM : "observable PM" using observable_productF assms(2) assms(3) assms(7) by blast
+
   have state_component_2 : "\<forall> io \<in> (R M2 s vs xs) . io_targets M2 (initial M2) io = {s}" 
     proof 
       fix io assume "io \<in> R M2 s vs xs"
@@ -194,11 +196,16 @@ proof -
 
     obtain io1X io2X where rep_ios_split : "io1 = vs @ io1X \<and> prefix io1X xs \<and> io2 = vs @ io2X \<and> prefix io2X xs" using rep_ios_def by auto
 
+    (* path from init to (q2,q1) *)
+
     have "vs \<in> L PM" using assms by auto
     then obtain trV where trV_def : "{ tr . path PM (vs || tr) (initial PM) \<and> length vs = length tr } = { trV }" using observable_path_unique_ex[of PM vs "initial PM"] assms(2) assms(3) assms(7) observable_productF by blast
     let ?qv = "target (vs || trV) (initial PM)"
-    have "?qv \<in> nodes PM" using trV_def by auto
-
+    
+    have "?qv \<in> io_targets PM (initial PM) vs" using trV_def by auto
+    then have qv_simp[simp] : "?qv = (q2,q1)" using singletons assms by blast
+    then have "?qv \<in> nodes PM" using trV_def assms by blast  
+   
     (* path from ?qv by io1X *)
 
     obtain tr1X_all where tr1X_all_def : "path PM (vs @ io1X || tr1X_all) (initial PM) \<and> length (vs @ io1X) = length tr1X_all" using rep_ios_def rep_ios_split by auto 
@@ -241,12 +248,24 @@ proof -
     moreover have "?tr2X \<in> { tr . path PM (io2X || tr) ?qv \<and> length io2X = length tr }" using tr2X_def by auto
     ultimately have tr2x_unique : "tr2X' = ?tr2X" by simp
 
-    (* both prefixes of (io || tr) *)
+    (* both prefixes of tr *)
 
-    have "?qv = (q2,q1)" 
+    have "io_targets PM (initial PM) (vs @ io1X) = {(s,rep)}" using rep_state rep_ios_split by auto
+    moreover have "io_targets PM (initial PM) vs = {?qv}" using assms(8) by auto 
+    ultimately have "io_targets PM ?qv io1X = {(s,rep)}" by sorry (* TODO: add lemma observable_io_targets_split *) 
+
+    have tr1X_alt_def : "tr1X' = take (length io1X) tr" by (metis (no_types) assms(10) assms(9) obs_PM observable_path_prefix qv_simp rep_ios_split tr1X_def tr1x_unique)
+    moreover have "io1X = take (length io1X) xs" using rep_ios_split by (metis append_eq_conv_conj prefixE)
+    moreover have "io_targets PM ?qv io1X = {(s,rep)}" by sorry 
+    ultimately have " (states (xs || tr) (q2,q1)) ! (length io1X) = (s,rep)" using rep_state 
+    
+    moreover have tr2X_alt_def : "tr2X' = take (length tr2X') tr" by (metis (no_types) assms(10) assms(9) obs_PM observable_path_prefix qv_simp rep_ios_split tr2X_def tr2x_unique)
+
+    
+    
 
 
-    then have "\<not> distinct (states (xs || tr) (q1,q2))"
+    ultimately have "\<not> distinct (states (xs || tr) (q1,q2))" using rep_state 
 
 
 
