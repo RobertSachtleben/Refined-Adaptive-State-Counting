@@ -122,7 +122,7 @@ qed
 
 
 
-lemma well_formed_productF :
+lemma well_formed_productF[simp] :
   assumes "well_formed M1"
   and     "well_formed M2"
   and     "productF M2 M1 FAIL PM"
@@ -137,8 +137,21 @@ next
   have "inputs PM = inputs M2" "outputs PM = outputs M2 \<union> outputs M1" using assms by auto
   then show "\<forall>s1 x y. x \<notin> inputs PM \<or> y \<notin> outputs PM \<longrightarrow> succ PM (x, y) s1 = {}" using assms by auto
 qed
-  
 
+lemma observable_productF[simp] : 
+  assumes "observable M1"
+  and     "observable M2"
+  and     "productF M2 M1 FAIL PM"
+shows "observable PM"
+  unfolding observable.simps
+proof -
+  have "\<forall> t s . succ M1 t (fst s) = {} \<or> (\<exists>s2. succ M1 t (fst s) = {s2})" using assms by auto
+  moreover have "\<forall> t s . succ M2 t (snd s) = {} \<or> (\<exists>s2. succ M2 t (snd s) = {s2})" using assms by auto
+  ultimately have sub_succs : "\<forall> t s . succ M2 t (fst s) \<times> succ M1 t (snd s) = {} \<or> (\<exists> s2 . succ M2 t (fst s) \<times> succ M1 t (snd s) = {s2})" by fastforce
+  moreover have succ_split : "\<forall> t s . succ PM t s = {} \<or> succ PM t s = {FAIL} \<or> succ PM t s = succ M2 t (fst s) \<times> succ M1 t (snd s)" using assms by auto
+  ultimately show "\<forall>t s. succ PM t s = {} \<or> (\<exists>s2. succ PM t s = {s2})" by metis 
+qed
+  
 
 
 
@@ -1077,5 +1090,19 @@ qed
   
 
 
+
+
+lemma productF_language :
+  assumes "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "io \<in> L A \<inter> L B"
+shows "io \<in> L AB"
+proof -
+  obtain trA trB where tr_def : "path A (io || trA) (initial A) \<and> length io = length trA" 
+                                "path B (io || trB) (initial B) \<and> length io = length trB" using assms by blast 
+  then have "path AB (io || trA || trB) (initial A, initial B)" using assms by (metis FSM.nodes.initial productF_path_inclusion)
+  then show ?thesis using tr_def by (metis assms(1) language_state length_zip min.idem productF_simps(4)) 
+qed
 
 end
