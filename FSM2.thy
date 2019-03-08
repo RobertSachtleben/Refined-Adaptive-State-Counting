@@ -230,12 +230,14 @@ lemma io_targets_nodes :
 shows "q2 \<in> nodes M"
   using assms by auto
 
-  
+abbreviation  "d_reached_by M p xs q tr ys \<equiv> ((length xs = length ys \<and> length xs = length tr \<and> (path M ((xs || ys) || tr) p) \<and> target ((xs || ys) || tr) p = q) 
+                            \<and> (\<forall> ys2 tr2 .  (length xs = length ys2 \<and> length xs = length tr2 \<and> path M ((xs || ys2) || tr2) p) \<longrightarrow> target ((xs || ys2) || tr2) p = q))"  
 
 fun d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> 'state \<Rightarrow> bool" where
-  "d_reaches M p xs q = ((\<exists> ys tr . length xs = length ys \<and> length xs = length tr \<and> (path M ((xs || ys) || tr) p) \<and> target ((xs || ys) || tr) p = q) 
+  "d_reaches M p xs q = (\<exists> tr ys . d_reached_by M p xs q tr ys)"
+(*  "d_reaches M p xs q = ((\<exists> ys tr . length xs = length ys \<and> length xs = length tr \<and> (path M ((xs || ys) || tr) p) \<and> target ((xs || ys) || tr) p = q)
                             \<and> (\<forall> ys2 tr2 .  (length xs = length ys2 \<and> length xs = length tr2 \<and> path M ((xs || ys2) || tr2) p) \<longrightarrow> target ((xs || ys2) || tr2) p = q))"
-
+*)
 lemma d_reaches_unique : 
   assumes "d_reaches M p xs q1"
   and    "d_reaches M p xs q2"
@@ -249,6 +251,19 @@ lemma d_reaches_unique_obtain[simp] :
   assumes "d_reaches M (initial M) xs q"
 shows "{ p . d_reaches M (initial M) xs p } = { q }"
   using assms unfolding d_reaches.simps by blast
+
+lemma d_reaches_io_target :
+  assumes "d_reaches M p xs q"
+  and     "length ys = length xs"
+shows "io_targets M p (xs || ys) \<subseteq> {q}"
+proof 
+  fix q' assume "q' \<in> io_targets M p (xs || ys)"
+  then obtain trQ where "path M ((xs || ys) || trQ) p \<and> length (xs || ys) = length trQ" by auto
+  moreover obtain trD ysD where "d_reached_by M p xs q trD ysD" using assms(1) by auto
+  ultimately have "target ((xs || ys) || trQ) p = q" by (simp add: assms(2))
+  then show "q' \<in> {q}" using \<open>d_reached_by M p xs q trD ysD\<close> \<open>q' \<in> io_targets M p (xs || ys)\<close> assms(2) by auto
+qed
+   
 
 fun d_reachable :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'state set" where
   "d_reachable M p = { q . (\<exists> xs . d_reaches M p xs q) }"
@@ -281,6 +296,14 @@ qed
 
 fun is_det_state_cover :: "('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> bool" where
   "is_det_state_cover M V = (\<exists> f . is_det_state_cover_ass M f \<and> V = image f (d_reachable M (initial M)))"
+
+lemma det_state_cover_d_reachable :
+  assumes "is_det_state_cover M V"
+  and     "v \<in> V"
+obtains q
+where "d_reaches M (initial M) v q"
+  by (metis (no_types, hide_lams) assms(1) assms(2) image_iff is_det_state_cover.simps is_det_state_cover_ass.elims(2))
+
 
 
 lemma det_state_cover_card :

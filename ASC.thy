@@ -289,7 +289,7 @@ qed
 
 (* V' *)
 fun Perm :: "'in list set \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> ('in \<times> 'out) list set set" where
-  "Perm V M = {image f V | f . \<forall> v . f v \<in> language_state_for_input M (initial M) v }"
+  "Perm V M = {image f V | f . \<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v }"
 
 lemma perm_empty :
   assumes "is_det_state_cover M V"
@@ -297,27 +297,125 @@ lemma perm_empty :
 shows "[] \<in> V''"
 proof -
   have init_seq : "[] \<in> V" using det_state_cover_empty assms by simp
-  obtain f where f_def : "V'' = image f V \<and> (\<forall> v . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
+  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
   then have "f [] = []" using init_seq by (metis language_state_for_input_empty singleton_iff) 
   then show ?thesis using init_seq f_def by (metis image_eqI) 
 qed
+
+lemma perm_elem_finite :
+  assumes "is_det_state_cover M2 V"
+  and     "well_formed M2"
+  and     "V'' \<in> Perm V M1"
+  shows "finite V''"
+proof -
+  obtain f where "is_det_state_cover_ass M2 f \<and> V = f ` d_reachable M2 (initial M2)" using assms by auto
+  moreover have "finite (d_reachable M2 (initial M2))" 
+  proof -
+    have "finite (nodes M2)" using assms by auto
+    moreover have "nodes M2 = reachable M2 (initial M2)" by auto
+    ultimately have "finite (reachable M2 (initial M2))" by simp
+    moreover have "d_reachable M2 (initial M2) \<subseteq> reachable M2 (initial M2)" by auto
+    ultimately show ?thesis using infinite_super by blast 
+  qed
+  ultimately have "finite V" by auto
+  moreover obtain f'' where "V'' = image f'' V \<and> (\<forall> v \<in> V . f'' v \<in> language_state_for_input M1 (initial M1) v)" using assms(3) by auto 
+  ultimately show ?thesis by simp
+qed
+
+lemma perm_inputs :
+  assumes "V'' \<in> Perm V M"
+  and     "vs \<in> V''"
+shows "map fst vs \<in> V"
+proof -
+  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
+  then obtain v where v_def : "v \<in> V \<and> f v = vs" using assms by auto
+  then have "vs \<in> language_state_for_input M (initial M) v" using f_def by auto
+  then show ?thesis using v_def unfolding language_state_for_input.simps by auto
+qed
+
+lemma perm_inputs_diff :
+  assumes "V'' \<in> Perm V M"
+  and     "vs1 \<in> V''"
+  and     "vs2 \<in> V''"
+  and     "vs1 \<noteq> vs2"
+shows "map fst vs1 \<noteq> map fst vs2"
+proof -
+  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
+  then obtain v1 v2 where v_def : "v1 \<in> V \<and> f v1 = vs1 \<and> v2 \<in> V \<and> f v2 = vs2" using assms by auto
+  then have "vs1 \<in> language_state_for_input M (initial M) v1"
+            "vs2 \<in> language_state_for_input M (initial M) v2" using f_def by auto
+  moreover have "v1 \<noteq> v2" using v_def using assms(4) by blast 
+  ultimately show ?thesis by auto
+qed
+
+
+
+(* TODO: show that Perm sets used during testing actually exist *)
+(*
+lemma perm_nonempty : 
+  assumes "is_det_state_cover M2 V"
+  and "completely_specified M1"
+  and "inputs M1 = inputs M2"
+shows "Perm V M1 \<noteq> {}"
+*)
 
 
 (* R\<^sup>+ *)
 fun RP :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in \<times> 'out) list set" where
   "RP M s vs xs V'' = R M s vs xs \<union> {vs' \<in> V'' . io_targets M (initial M) vs' = {s}}"
 
+lemma RP_from_R :
+  assumes "is_det_state_cover M2 V"
+  and     "V'' \<in> Perm V M1"
+shows "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" 
+proof (rule ccontr)
+  assume assm : "\<not> (RP M2 s vs xs V'' = R M2 s vs xs \<or>
+        (\<exists>vs'\<in>V''. vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs)))"
+ 
+  moreover have "R M2 s vs xs \<subseteq> RP M2 s vs xs V''" by simp
+  moreover have "RP M2 s vs xs V'' \<subseteq> R M2 s vs xs \<union> V''" by auto
+  ultimately obtain vs1 vs2 where vs_def : 
+       "vs1 \<noteq> vs2 \<and> vs1 \<in> V'' \<and> vs2 \<in> V'' \<and> vs1 \<notin> R M2 s vs xs \<and> vs2 \<notin> R M2 s vs xs \<and> vs1 \<in> RP M2 s vs xs V'' \<and> vs2 \<in> RP M2 s vs xs V''" by blast 
+
+  then have "io_targets M2 (initial M2) vs1 = {s} \<and> io_targets M2 (initial M2) vs2 = {s}" by (metis (mono_tags, lifting) RP.simps Un_iff mem_Collect_eq) 
+  then have "io_targets M2 (initial M2) vs1 = io_targets M2 (initial M2) vs2" by simp
+ 
+  obtain f where f_def : "is_det_state_cover_ass M2 f \<and> V = f ` d_reachable M2 (initial M2)" using assms by auto
+  moreover have "V = image f (d_reachable M2 (initial M2))" using f_def by blast 
+  moreover have "map fst vs1 \<in> V \<and> map fst vs2 \<in> V" using assms(2) perm_inputs vs_def by blast
+  ultimately obtain r1 r2 where r_def : 
+    "f r1 = map fst vs1 \<and> r1 \<in> d_reachable M2 (initial M2)"
+    "f r2 = map fst vs2 \<and> r2 \<in> d_reachable M2 (initial M2)" by force 
+  then have "d_reaches M2 (initial M2) (map fst vs1) r1"
+            "d_reaches M2 (initial M2) (map fst vs2) r2" by (metis f_def is_det_state_cover_ass.elims(2))+ 
+
+  then have "io_targets M2 (initial M2) vs1 \<subseteq> {r1}" using d_reaches_io_target[of M2 "initial M2" "map fst vs1" r1 "map snd vs1"] by simp
+  moreover have "io_targets M2 (initial M2) vs2 \<subseteq> {r2}" using d_reaches_io_target[of M2 "initial M2" "map fst vs2" r2 "map snd vs2"] \<open>d_reaches M2 (initial M2) (map fst vs2) r2\<close> by auto 
+  ultimately have "r1 = r2" using \<open>io_targets M2 (initial M2) vs1 = {s} \<and> io_targets M2 (initial M2) vs2 = {s}\<close> by auto 
+
+  have "map fst vs1 \<noteq> map fst vs2" using assms(2) perm_inputs_diff vs_def by blast 
+  then have "r1 \<noteq> r2" using r_def(1) r_def(2) by force  
+
+  then show "False" using \<open>r1 = r2\<close> by auto
+qed 
+
+
 (* Lemma 5.4.8 *)
 lemma RP_count :
   assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
   and "s \<in> nodes M2"
   and "productF M2 M1 FAIL PM"
-  and "io_targets PM (initial PM) vs = {q}"
-  and "path PM (xs || tr) q" 
-  and "length tr = length xs"
-  and "distinct (states (xs || tr) q)" 
-  and "V'' \<in> Perm V M"
-  shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
+  and "io_targets PM (initial PM) vs = {(q2,q1)}"
+  and "path PM (xs || tr) (q2,q1)" 
+  and "length xs = length tr"
+  and "distinct (states (xs || tr) (q1,q2))" 
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
   by sorry
 
 
