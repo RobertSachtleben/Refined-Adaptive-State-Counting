@@ -29,6 +29,8 @@ proof -
   ultimately show ?thesis by auto
 qed
 
+
+
 lemma card_union_of_singletons :
   assumes "\<forall> S \<in> SS . (\<exists> t . S = {t})"
 shows "card (\<Union> SS) = card SS"
@@ -75,8 +77,9 @@ lemma R_count :
   and "path PM (xs || tr) (q2,q1)" 
   and "length xs = length tr"
   and "distinct (states (xs || tr) (q1,q2))" 
-  shows "card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))) = card (R M2 s vs xs)"
+shows "card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))) = card (R M2 s vs xs)"
 proof -
+
   have obs_PM : "observable PM" using observable_productF assms(2) assms(3) assms(7) by blast
 
   have state_component_2 : "\<forall> io \<in> (R M2 s vs xs) . io_targets M2 (initial M2) io = {s}" 
@@ -146,15 +149,10 @@ proof -
   ultimately have state_components : "\<forall> io \<in> R M2 s vs xs . io_targets PM (initial PM) io = {s} \<times> io_targets M1 (initial M1) io" by auto
 
   then have "\<Union> (image (io_targets PM (initial PM)) (R M2 s vs xs)) = \<Union> (image (\<lambda> io . {s} \<times> io_targets M1 (initial M1) io) (R M2 s vs xs))" by auto
-
   then have "\<Union> (image (io_targets PM (initial PM)) (R M2 s vs xs)) = {s} \<times> \<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))" by auto
-
   then have "card (\<Union> (image (io_targets PM (initial PM)) (R M2 s vs xs))) = card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs)))" by (metis (no_types) card_cartesian_product_singleton)
 
   moreover have "card (\<Union> (image (io_targets PM (initial PM)) (R M2 s vs xs))) = card (R M2 s vs xs)"
- 
-  
-  
   proof (rule ccontr)
     assume assm : "card (UNION (R M2 s vs xs) (io_targets PM (initial PM))) \<noteq> card (R M2 s vs xs)"
 
@@ -166,7 +164,6 @@ proof -
       then show "io \<in> L PM" using productF_language assms by blast 
     qed
     then have singletons : "\<forall> io \<in> R M2 s vs xs . (\<exists> t . io_targets PM (initial PM) io = {t})" using io_targets_observable_singleton_ex observable_productF assms by metis 
-    (*then have "\<forall> io \<in> R M2 s vs xs . card (io_targets PM (initial PM) io) = Suc 0" using card_Suc_eq card_empty by blast *)
     then have card_targets : "card (UNION (R M2 s vs xs) (io_targets PM (initial PM))) = card (image (io_targets PM (initial PM)) (R M2 s vs xs))" using finite_R card_union_of_singletons[of "image (io_targets PM (initial PM)) (R M2 s vs xs)"] by simp
     
     moreover have "card (image (io_targets PM (initial PM)) (R M2 s vs xs)) \<le> card (R M2 s vs xs)" using finite_R by (metis card_image_le)
@@ -195,6 +192,7 @@ proof -
     then obtain rep where rep_state : "io_targets PM (initial PM) io1 = {(s,rep)} \<and> io_targets PM (initial PM) io2 = {(s,rep)}" using singletons by (smt SigmaE disjoint_iff_not_equal singletonD state_components)   
 
     obtain io1X io2X where rep_ios_split : "io1 = vs @ io1X \<and> prefix io1X xs \<and> io2 = vs @ io2X \<and> prefix io2X xs" using rep_ios_def by auto
+    then have "length io1 > length vs" using rep_ios_def by auto
 
     (* path from init to (q2,q1) *)
 
@@ -248,110 +246,44 @@ proof -
     moreover have "?tr2X \<in> { tr . path PM (io2X || tr) ?qv \<and> length io2X = length tr }" using tr2X_def by auto
     ultimately have tr2x_unique : "tr2X' = ?tr2X" by simp
 
-    (* both prefixes of tr *)
+    (* both reach same state in PM *)
 
     have "io_targets PM (initial PM) (vs @ io1X) = {(s,rep)}" using rep_state rep_ios_split by auto
     moreover have "io_targets PM (initial PM) vs = {?qv}" using assms(8) by auto 
-    ultimately have "io_targets PM ?qv io1X = {(s,rep)}" by sorry (* TODO: add lemma observable_io_targets_split *) 
-
+    ultimately have rep_via_1 : "io_targets PM ?qv io1X = {(s,rep)}" by (meson obs_PM observable_io_targets_split) 
+    then have rep_tgt_1 : "target (io1X || tr1X') ?qv = (s,rep)" using obs_PM observable_io_target_unique_target[of PM ?qv io1X "(s,rep)"] tr1X'_def by blast 
+    have length_1 : "length (io1X || tr1X') > 0" using \<open>length vs < length io1\<close> rep_ios_split tr1X_def tr1x_unique by auto
+    
     have tr1X_alt_def : "tr1X' = take (length io1X) tr" by (metis (no_types) assms(10) assms(9) obs_PM observable_path_prefix qv_simp rep_ios_split tr1X_def tr1x_unique)
     moreover have "io1X = take (length io1X) xs" using rep_ios_split by (metis append_eq_conv_conj prefixE)
-    moreover have "io_targets PM ?qv io1X = {(s,rep)}" by sorry 
-    ultimately have " (states (xs || tr) (q2,q1)) ! (length io1X) = (s,rep)" using rep_state 
+    ultimately have "(io1X || tr1X') = take (length io1X) (xs || tr)" by (metis take_zip) 
+    moreover have "length (xs || tr) \<ge> length (io1X || tr1X')" using calculation by auto 
+    ultimately have rep_idx_1 : "(states (xs || tr) ?qv) ! ((length io1X) - 1) = (s,rep)"
+      by (metis (no_types, lifting) One_nat_def Suc_less_eq Suc_pred rep_tgt_1 length_1 less_Suc_eq_le map_snd_zip scan_length scan_nth states_alt_def tr1X_def tr1x_unique) 
+
+
+    have "io_targets PM (initial PM) (vs @ io2X) = {(s,rep)}" using rep_state rep_ios_split by auto
+    moreover have "io_targets PM (initial PM) vs = {?qv}" using assms(8) by auto 
+    ultimately have rep_via_2 : "io_targets PM ?qv io2X = {(s,rep)}" by (meson obs_PM observable_io_targets_split) 
+    then have rep_tgt_2 : "target (io2X || tr2X') ?qv = (s,rep)" using obs_PM observable_io_target_unique_target[of PM ?qv io2X "(s,rep)"] tr2X'_def by blast 
+    moreover have length_2 : "length (io2X || tr2X') > 0" by (metis \<open>length vs < length io1\<close> append.right_neutral length_0_conv length_zip less_asym min.idem neq0_conv rep_ios_def rep_ios_split tr2X_def tr2x_unique)
     
-    moreover have tr2X_alt_def : "tr2X' = take (length tr2X') tr" by (metis (no_types) assms(10) assms(9) obs_PM observable_path_prefix qv_simp rep_ios_split tr2X_def tr2x_unique)
+    have tr2X_alt_def : "tr2X' = take (length io2X) tr" by (metis (no_types) assms(10) assms(9) obs_PM observable_path_prefix qv_simp rep_ios_split tr2X_def tr2x_unique)
+    moreover have "io2X = take (length io2X) xs" using rep_ios_split by (metis append_eq_conv_conj prefixE)
+    ultimately have "(io2X || tr2X') = take (length io2X) (xs || tr)" by (metis take_zip) 
+    moreover have "length (xs || tr) \<ge> length (io2X || tr2X')" using calculation by auto 
+    ultimately have rep_idx_2 : "(states (xs || tr) ?qv) ! ((length io2X) - 1) = (s,rep)"
+      by (metis (no_types, lifting) One_nat_def Suc_less_eq Suc_pred rep_tgt_2 length_2 less_Suc_eq_le map_snd_zip scan_length scan_nth states_alt_def tr2X_def tr2x_unique) 
 
-    
-    
+    (* then (xs||tr) repeats a state *)
 
-
-    ultimately have "\<not> distinct (states (xs || tr) (q1,q2))" using rep_state 
-
-
-
-
-
-
-
-
-
-
-
-
-      then have "\<forall>io1\<in>R M2 s vs xs. \<forall>io2\<in>R M2 s vs xs. io1 = io2 \<or> io_targets PM (initial PM) io1 \<noteq> io_targets PM (initial PM) io2" using singletons by (metis empty_iff inf.idem singletonI)
-
-    then have 
-
-
-    then show "False" 
-    proof (cases "card (UNION (R M2 s vs xs) (io_targets PM (initial PM))) < card (R M2 s vs xs)")
-      case True
-      have "\<exists> io1 \<in> (R M2 s vs xs) . \<exists> io2 \<in> (R M2 s vs xs) . io1 \<noteq> io2 \<and> io_targets PM (initial PM) io1 \<inter> io_targets PM (initial PM) io2 \<noteq> {}" 
-
-      proof (rule ccontr)
-        assume "\<not> (\<exists>io1\<in>R M2 s vs xs. \<exists>io2\<in>R M2 s vs xs. io1 \<noteq> io2 \<and> io_targets PM (initial PM) io1 \<inter> io_targets PM (initial PM) io2 \<noteq> {})"
-        then have "\<forall>io1\<in>R M2 s vs xs. \<forall>io2\<in>R M2 s vs xs. io1 = io2 \<or> io_targets PM (initial PM) io1 \<inter> io_targets PM (initial PM) io2 = {}" by blast  
-        
-
-      then show ?thesis sorry
-    next
-      case False
-      have "\<forall> io \<in> R M2 s vs xs . io \<in> L PM" 
-      proof 
-        fix io assume io_assm : "io \<in> R M2 s vs xs" 
-        then have "prefix io (vs @ xs)" by auto
-        then have "io \<in> L M1 \<and> io \<in> L M2" using assms(1) unfolding prefix_def by (metis IntE language_state language_state_split) 
-        then show "io \<in> L PM" using productF_language assms by blast 
-      qed
-      then have singletons : "\<forall> io \<in> R M2 s vs xs . (\<exists> t . io_targets PM (initial PM) io = {t})" using io_targets_observable_singleton_ex observable_productF assms by metis 
-      (*then have "\<forall> io \<in> R M2 s vs xs . card (io_targets PM (initial PM) io) = Suc 0" using card_Suc_eq card_empty by blast *)
-      then have "card (UNION (R M2 s vs xs) (io_targets PM (initial PM))) = card (image (io_targets PM (initial PM)) (R M2 s vs xs))" using finite_R card_union_of_singletons[of "image (io_targets PM (initial PM)) (R M2 s vs xs)"] by simp
-      
-      moreover have "card (image (io_targets PM (initial PM)) (R M2 s vs xs)) \<le> card (R M2 s vs xs)" using finite_R by (metis card_image_le)
-      ultimately have "card (UNION (R M2 s vs xs) (io_targets PM (initial PM))) \<le> card (R M2 s vs xs)" by simp
-      
-      then show "False" using False assm nat_less_le by blast  
-    qed
+    have "length io1X \<noteq> length io2X" by (metis \<open>io1X = take (length io1X) xs\<close> \<open>io2X = take (length io2X) xs\<close> less_irrefl rep_ios_def rep_ios_split) 
+    moreover have "(states (xs || tr) ?qv) ! ((length io1X) - 1) = (states (xs || tr) ?qv) ! ((length io2X) - 1)" using rep_idx_1 rep_idx_2 by simp
+    ultimately have "\<not> (distinct (states (xs || tr) ?qv))" by (metis Suc_less_eq \<open>io1X = take (length io1X) xs\<close> \<open>io1X || tr1X' = take (length io1X) (xs || tr)\<close> \<open>io2X = take (length io2X) xs\<close> \<open>io2X || tr2X' = take (length io2X) (xs || tr)\<close> \<open>length (io1X || tr1X') \<le> length (xs || tr)\<close> \<open>length (io2X || tr2X') \<le> length (xs || tr)\<close> assms(10) diff_Suc_1 distinct_conv_nth gr0_conv_Suc le_imp_less_Suc length_1 length_2 length_take map_snd_zip scan_length states_alt_def) 
+    then show "False" by (metis assms(11) states_alt_def) 
   qed
-    
-    
 
-
-
-
-
-
-  moreover have "card (\<Union> (image (io_targets PM (initial PM)) (R M2 s vs xs))) = card (R M2 s vs xs)" 
-  proof -
-    have "xs \<in> language_state PM (q2,q1)" using assms by auto
-    then have "\<forall> tr' . (path PM (xs || tr') (q2,q1) \<and> length xs = length tr') \<longrightarrow> tr' = tr" using assms(2) assms(6) assms(7) observable_path_unique[of xs PM "(q2,q1)" tr] by 
-      
-  
-  
-  
-  
-  have "\<forall> io \<in> (R M2 s vs xs) . s \<in> io_targets M2 (initial M2) io" using assms by auto
-  then have "\<forall> io \<in> (R M2 s vs xs) . io_targets M2 (initial M2) io = {s}" using assms io_targets_observable_singleton_ex
-proof -
-obtain dds :: "'d \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'd \<Rightarrow> ('a, 'b, 'd) FSM \<Rightarrow> 'd list" where
-  "\<forall>x0 x1 x2 x3. (\<exists>v4. x0 = target (x1 || v4) x2 \<and> path x3 (x1 || v4) x2 \<and> length x1 = length v4) = (x0 = target (x1 || dds x0 x1 x2 x3) x2 \<and> path x3 (x1 || dds x0 x1 x2 x3) x2 \<and> length x1 = length (dds x0 x1 x2 x3))"
-  by moura
-  then have f1: "((\<nexists>ds. s = target (v0_10 || ds) (initial M2) \<and> path M2 (v0_10 || ds) (initial M2) \<and> length v0_10 = length ds) \<or> s = target (v0_10 || dds s v0_10 (initial M2) M2) (initial M2) \<and> path M2 (v0_10 || dds s v0_10 (initial M2) M2) (initial M2) \<and> length v0_10 = length (dds s v0_10 (initial M2) M2)) \<and> ((\<exists>ds. s = target (v0_10 || ds) (initial M2) \<and> path M2 (v0_10 || ds) (initial M2) \<and> length v0_10 = length ds) \<or> (\<forall>ds. s \<noteq> target (v0_10 || ds) (initial M2) \<or> \<not> path M2 (v0_10 || ds) (initial M2) \<or> length v0_10 \<noteq> length ds))"
-by blast
-  obtain pps :: "('a \<times> 'b) list" where
-    "(\<exists>v0. v0 \<in> R M2 s vs xs \<and> io_targets M2 (initial M2) v0 \<noteq> {s}) = (pps \<in> R M2 s vs xs \<and> io_targets M2 (initial M2) pps \<noteq> {s})"
-    by metis
-  moreover
-  { assume "io_targets M2 (initial M2) pps \<noteq> {s}"
-    { assume "s \<noteq> target (pps || dds s pps (initial M2) M2) (initial M2) \<or> \<not> path M2 (pps || dds s pps (initial M2) M2) (initial M2) \<or> length pps \<noteq> length (dds s pps (initial M2) M2)"
-      then have "s \<notin> io_targets M2 (initial M2) pps"
-        using f1 by auto
-      then have "pps \<notin> R M2 s vs xs \<or> io_targets M2 (initial M2) pps = {s}"
-        using \<open>\<forall>io\<in>R M2 s vs xs. s \<in> io_targets M2 (initial M2) io\<close> by blast }
-then have "pps \<notin> R M2 s vs xs \<or> io_targets M2 (initial M2) pps = {s}"
-by (metis (no_types) \<open>\<And>q1 io M. \<lbrakk>observable M; io \<in> language_state M q1\<rbrakk> \<Longrightarrow> \<exists>q2. io_targets M q1 io = {q2}\<close> \<open>\<forall>io\<in>R M2 s vs xs. s \<in> io_targets M2 (initial M2) io\<close> \<open>observable M2\<close> language_state singleton_iff) }
-  ultimately show ?thesis
-    by meson
+  ultimately show ?thesis by linarith 
 qed 
 
 

@@ -482,6 +482,44 @@ proof -
 qed
 
 
+lemma observable_io_targets_split :
+  assumes "observable M"
+  and "io_targets M q1 (vs @ xs) = {q3}"
+  and "io_targets M q1 vs = {q2}"
+shows "io_targets M q2 xs = {q3}"
+proof -
+  have "vs @ xs \<in> language_state M q1" using assms(2) by force 
+  then obtain trV trX where tr_def : 
+        "path M (vs || trV) q1" "length vs = length trV"
+        "path M (xs || trX) (target (vs || trV) q1)" "length xs = length trX" using language_state_split[of vs xs M q1] by auto
+  then have tgt_V : "target (vs || trV) q1 = q2" using assms(3) by auto
+  then have path_X : "path M (xs || trX) q2 \<and> length xs = length trX" using tr_def by auto
+
+  have tgt_all :  "target (vs @ xs || trV @ trX) q1 = q3"
+  proof -
+    have f1: "\<exists>cs. q3 = target (vs @ xs || cs) q1 \<and> path M (vs @ xs || cs) q1 \<and> length (vs @ xs) = length cs"
+      using assms(2) by auto
+    have "length (vs @ xs) = length trV + length trX"
+      by (simp add: tr_def(2) tr_def(4))
+    then have "length (vs @ xs) = length (trV @ trX)"
+      by simp
+    then show ?thesis
+      using f1 by (metis FSM.path_append \<open>vs @ xs \<in> language_state M q1\<close> assms(1) observable_path_unique tr_def(1) tr_def(2) tr_def(3) zip_append)
+  qed 
+  then have "target ((vs || trV) @ (xs || trX)) q1 = q3" using tr_def by simp 
+  then have "target (xs || trX) q2 = q3" using tgt_V by auto
+  then have "q3 \<in> io_targets M q2 xs" using path_X by auto
+  then show ?thesis by (metis (no_types) \<open>observable M\<close> path_X insert_absorb io_targets_observable_singleton_ex language_state singleton_insert_inj_eq')
+qed 
+
+lemma observable_io_target_unique_target :
+  assumes "observable M"
+  and     "io_targets M q1 io = {q2}"
+shows "\<forall> tr . (path M (io || tr) q1 \<and> length io = length tr) \<longrightarrow> target (io || tr) q1 = q2"
+  using assms(2) by auto
+  
+
+
 abbreviation "L M \<equiv> language_state M (initial M)"
 
 end
