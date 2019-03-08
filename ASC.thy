@@ -454,19 +454,41 @@ fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rig
 
 (* Prereq *)
 fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> bool" where 
-  "Prereq M2 M1 vs xs T S \<Omega> V V'' = True"
-(* 1 *)
-(* 2 *)
-(* 3 *)
-(* 4 *)
-(* 5 *)
-
+  "Prereq M2 M1 vs xs T S \<Omega> V V'' = (
+    (\<forall> vs' \<in> V'' . (prefix vs' (vs @ xs) \<longrightarrow> length vs' \<le> length vs))      \<comment>\<open>(1.)\<close>
+    \<and> (is_reduction_on_sets M1 M2 T \<Omega>)                                     \<comment>\<open>(2.) and (3.)\<close>
+    \<and> V \<subseteq> T \<and> (\<forall> xs' . prefix xs' xs \<longrightarrow> map fst (vs @ xs') \<in> V)           \<comment>\<open>(4.)\<close>
+    \<and> (\<forall> s1 \<in> S . \<forall> s2 \<in> S . s1 \<noteq> s2                                       \<comment>\<open>(5.)\<close>
+        \<longrightarrow> (\<forall> seq1 \<in> RP M2 s1 vs xs V'' . \<forall> seq2 \<in> RP M2 s2 vs xs V'' . 
+               \<forall> t1 \<in> io_targets M1 (initial M1) seq1 . \<forall> t2 \<in> io_targets M1 (initial M1) seq2 .  
+                 r_dist_set M1 \<Omega> t1 t2)))"
 
 (* Rep_pre *)
+fun Rep_Pre :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "Rep_Pre M2 M1 vs xs = (\<exists> xs1 xs2 . xs1 \<noteq> [] \<and> prefix xs1 xs \<and> prefix xs2 xs \<and> xs1 \<noteq> xs2 
+    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs1) = {s2} \<and> io_targets M2 (initial M2) (vs @ xs2) = {s2})
+    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs1) = {s1} \<and> io_targets M1 (initial M1) (vs @ xs2) = {s1}))"
 
-(* Rep_V *)
+(* Rep_Cov *)
+fun Rep_Cov :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "Rep_Cov M2 M1 V'' vs xs = (\<exists> xs' vs' . xs' \<noteq> [] \<and> prefix xs' xs \<and> vs' \<in> V'' 
+    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs') = {s2} \<and> io_targets M2 (initial M2) (vs') = {s2})
+    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs') = {s1} \<and> io_targets M1 (initial M1) (vs') = {s1}))"
 
 (* Lemma 5.4.11 *)
+lemma LB_count :
+  assumes "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
+  and "productF M2 M1 FAIL PM"
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+  and "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and "\<not> Rep_Pre M2 M1 vs xs"
+  and "\<not> Rep_Cov M2 M1 V'' vs xs"
+shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" 
+  sorry
 
 
 (* Lemma 5.4.13 *)
