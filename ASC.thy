@@ -364,7 +364,7 @@ shows "Perm V M1 \<noteq> {}"
 fun RP :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in \<times> 'out) list set" where
   "RP M s vs xs V'' = R M s vs xs \<union> {vs' \<in> V'' . io_targets M (initial M) vs' = {s}}"
 
-lemma RP_from_R :
+lemma RP_from_R [case_names just_R with_V''] :
   assumes "is_det_state_cover M2 V"
   and     "V'' \<in> Perm V M1"
 shows "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" 
@@ -399,6 +399,14 @@ proof (rule ccontr)
   then show "False" using \<open>r1 = r2\<close> by auto
 qed 
 
+lemma finite_RP : 
+  assumes "is_det_state_cover M2 V"
+  and     "V'' \<in> Perm V M1"
+shows "finite (RP M2 s vs xs V'')"
+  using assms RP_from_R finite_R by (metis finite_insert) 
+  
+
+
 
 (* Lemma 5.4.8 *)
 lemma RP_count :
@@ -415,8 +423,27 @@ lemma RP_count :
   and "distinct (states (xs || tr) (q1,q2))" 
   and "is_det_state_cover M2 V"
   and "V'' \<in> Perm V M1"
+  and "\<forall> s' \<in> set (states (xs || map fst tr) (initial M2)) . \<not> (\<exists> v \<in> V . d_reaches M2 (initial M2) v s')" (* correct ? *)
 shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
-  by sorry
+proof -
+  have RP_cases : "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" using RP_from_R assms by metis
+  show ?thesis 
+  proof (cases "RP M2 s vs xs V'' = R M2 s vs xs")
+    case True
+    then show ?thesis using R_count assms by metis
+  next
+    case False
+    then obtain vs' where "vs' \<in> V'' \<and> vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs)" using RP_cases by auto
+    (* similar to 5.4.8 
+       - split card into R + {vs'}
+       - show that io_targets for {vs'} not in those of R
+         \<rightarrow> proof via ccontr with last assm
+     *)
+    then show ?thesis sorry
+  qed
+qed
+
+  
 
 
 (* LB *)
