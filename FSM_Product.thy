@@ -528,6 +528,127 @@ next
 qed
 
 
+lemma path_last_succ :
+  assumes "path A (ws || r1s) p1"
+  and     "length r1s = length ws"
+  and     "length ws > 0"
+shows     "last r1s \<in> succ A (last ws) (target (butlast (ws || r1s)) p1)"
+proof -
+  have "path A (butlast (ws || r1s)) p1 \<and> path A [last (ws || r1s)] (target (butlast (ws || r1s)) p1)"
+    by (metis FSM.path_append_elim append_butlast_last_id assms length_greater_0_conv list.size(3) zip_Nil zip_eq) 
+
+  then have "snd (last (ws || r1s)) \<in> succ A (fst (last (ws || r1s))) (target (butlast (ws || r1s)) p1)" by auto
+  moreover have "ws || r1s \<noteq> []" using assms(3) assms(2) by (metis length_zip list.size(3) min.idem neq0_conv) 
+  ultimately have "last r1s \<in> succ A (last ws) (target (butlast (ws || r1s)) p1)" by (simp add: assms(2)) 
+  then show ?thesis by auto
+qed 
+
+
+
+lemma productF_path_reverse_ob_2 : 
+  assumes "length w = length r1" "length r1 = length r2"
+  and     "productF A B FAIL AB"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "path AB (w || r1 || r2) (p1, p2)"
+  and     "p1 \<in> nodes A"
+  and     "p2 \<in> nodes B"
+  and     "w \<in> language_state A p1"
+  and     "observable A"
+shows "path A (w || r1) p1 \<and> length w = length r1" "path B (w || r2) p2 \<and> length w = length r2"
+proof -
+
+  have "(path A (w || r1) p1 \<and> path B (w || r2) p2) 
+            \<or> (target (w || r1 || r2) (p1, p2) = FAIL
+              \<and> length w > 0
+              \<and> path A (butlast (w || r1)) p1
+              \<and> path B (butlast (w || r2)) p2
+              \<and> succ A (last w) (target (butlast (w || r1)) p1) = {}
+              \<and> succ B (last w) (target (butlast (w || r2)) p2) \<noteq> {})" using productF_path[of w r1 r2 A B FAIL AB p1 p2] assms by blast
+
+  moreover have "path A (butlast (w || r1)) p1 \<and> succ A (last w) (target (butlast (w || r1)) p1) = {} \<and> length w > 0 \<Longrightarrow> False"
+  proof -
+    assume assm : "path A (butlast (w || r1)) p1 \<and> succ A (last w) (target (butlast (w || r1)) p1) = {} \<and> length w > 0"
+    obtain r1' where r1'_def : "path A (w || r1') p1 \<and> length r1' = length w" using assms by auto
+    then have "path A (butlast (w || r1')) p1 \<and> length (butlast r1') = length (butlast w)" by (metis FSM.path_append_elim append_butlast_last_id butlast.simps(1) length_butlast)
+    moreover have "path A (butlast (w || r1)) p1 \<and> length (butlast r1) = length (butlast w)" using assm assms(1) by auto
+    ultimately have "butlast r1 = butlast r1'" by (metis assms(1) assms(10) butlast_zip language_state observable_path_unique r1'_def) 
+
+    then have "butlast (w || r1) = butlast (w || r1')" using assms(1) r1'_def by simp
+    moreover have "succ A (last w) (target (butlast (w || r1')) p1) \<noteq> {}" by (metis (no_types) assm empty_iff path_last_succ r1'_def)
+    ultimately show "False" using assm by auto
+  qed
+
+  ultimately have paths : "(path A (w || r1) p1 \<and> path B (w || r2) p2)" by auto
+
+  show "path A (w || r1) p1 \<and> length w = length r1" using assms(1) paths by simp
+  show "path B (w || r2) p2 \<and> length w = length r2" using assms(1) assms(2) paths by simp
+qed
+
+
+
+
+lemma productF_path_unzip :
+  assumes "productF A B FAIL AB"
+  and     "path AB (w || tr) q"
+  and     "length tr = length w"
+shows "path AB (w || (map fst tr || map snd tr)) q" 
+proof -
+  have "map fst tr || map snd tr = tr" by auto
+  then show ?thesis using assms by auto
+qed
+
+
+
+
+lemma io_target_from_path :
+  assumes "path M (w || tr) q"
+  and     "length w = length tr"
+shows "target (w || tr) q \<in> io_targets M q w"
+  using assms by auto
+
+
+lemma productF_path_io_targets :
+  assumes "productF A B FAIL AB"
+  and     "io_targets AB (qA,qB) w = {(pA,pB)}"
+  and     "w \<in> language_state A qA"
+  and     "w \<in> language_state B qB"
+  and     "observable A"
+  and     "observable B"
+  and     "well_formed A"
+  and     "well_formed B"
+  and     "qA \<in> nodes A"
+  and     "qB \<in> nodes B" 
+shows "pA \<in> io_targets A qA w" "pB \<in> io_targets B qB w"
+proof -
+  obtain tr where tr_def : "target (w || tr) (qA,qB) = (pA,pB) \<and> path AB (w || tr) (qA,qB) \<and> length w = length tr" using assms(2) by blast
+  have path_A : "path A (w || map fst tr) qA \<and> length w = length (map fst tr)" using productF_path_reverse_ob_2[of w "map fst tr" "map snd tr" A B FAIL AB qA qB] assms tr_def by auto
+  have path_B : "path B (w || map snd tr) qB \<and> length w = length (map snd tr)" using productF_path_reverse_ob_2[of w "map fst tr" "map snd tr" A B FAIL AB qA qB] assms tr_def by auto
+  
+  have targets : "target (w || map fst tr) qA = pA \<and> target (w || map snd tr) qB = pB"
+  proof (cases tr)
+    case Nil
+    then have "qA = pA \<and> qB = pB" using tr_def by auto
+    then show ?thesis by (simp add: local.Nil) 
+  next
+    case (Cons a list)
+    then have "last tr = (pA,pB)" using tr_def by (simp add: tr_def FSM.target_alt_def states_alt_def) 
+     
+    moreover have "target (w || map fst tr) qA = last (map fst tr)" using Cons by (simp add: FSM.target_alt_def states_alt_def tr_def) 
+    moreover have "last (map fst tr) = fst (last tr)" using last_map Cons by blast 
+
+    moreover have "target (w || map snd tr) qB = last (map snd tr)" using Cons by (simp add: FSM.target_alt_def states_alt_def tr_def) 
+    moreover have "last (map snd tr) = snd (last tr)" using last_map Cons by blast
+
+    ultimately show ?thesis by simp 
+  qed
+
+  show "pA \<in> io_targets A qA w" using path_A targets by auto
+  show "pB \<in> io_targets B qB w" using path_B targets by auto
+qed
+
+
+
 
 
 

@@ -181,7 +181,7 @@ proof (rule ccontr)
 qed
 
 
-lemma observable_path_unique_ex : 
+lemma observable_path_unique_ex[elim] : 
   assumes "observable M"
   and     "io \<in> language_state M q"
 obtains tr 
@@ -193,6 +193,8 @@ proof -
     using assms tr_def by auto  
   ultimately show ?thesis using that by moura
 qed
+
+
 
 fun io_targets :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'state set" where
   "io_targets M q io = { target (io || tr) q | tr . path M (io || tr) q \<and> length io = length tr }"
@@ -218,6 +220,12 @@ proof -
   then show ?thesis using that by blast 
 qed
 
+lemma io_targets_elim[elim] :
+  assumes "p \<in> io_targets M q io"
+obtains tr 
+where "target (io || tr) q = p \<and> path M (io || tr) q \<and> length io = length tr" 
+  using assms  unfolding io_targets.simps by force 
+
 
 lemma io_targets_reachable :
   assumes "q2 \<in> io_targets M q1 io"
@@ -238,13 +246,13 @@ fun d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in
 (*  "d_reaches M p xs q = ((\<exists> ys tr . length xs = length ys \<and> length xs = length tr \<and> (path M ((xs || ys) || tr) p) \<and> target ((xs || ys) || tr) p = q)
                             \<and> (\<forall> ys2 tr2 .  (length xs = length ys2 \<and> length xs = length tr2 \<and> path M ((xs || ys2) || tr2) p) \<longrightarrow> target ((xs || ys2) || tr2) p = q))"
 *)
-lemma d_reaches_unique : 
+lemma d_reaches_unique[elim] : 
   assumes "d_reaches M p xs q1"
   and    "d_reaches M p xs q2"
 shows "q1 = q2"
 using assms unfolding d_reaches.simps by blast
 
-lemma d_reaches_unique_cases : "{ q . d_reaches M (initial M) xs q } = {} \<or> (\<exists> q2 . { q . d_reaches M (initial M) xs q } = { q2 })"
+lemma d_reaches_unique_cases[simp] : "{ q . d_reaches M (initial M) xs q } = {} \<or> (\<exists> q2 . { q . d_reaches M (initial M) xs q } = { q2 })"
   unfolding d_reaches.simps by blast
 
 lemma d_reaches_unique_obtain[simp] :
@@ -265,6 +273,8 @@ proof
 qed
    
 
+
+
 fun d_reachable :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'state set" where
   "d_reachable M p = { q . (\<exists> xs . d_reaches M p xs q) }"
 
@@ -276,28 +286,26 @@ fun is_det_state_cover_ass :: "('in, 'out, 'state) FSM \<Rightarrow> ('state \<R
 
 lemma det_state_cover_ass_dist : 
   assumes "is_det_state_cover_ass M f"
-  shows "\<forall> s1 \<in> d_reachable M (initial M) . \<forall> s2 \<in> d_reachable M (initial M) . s1 \<noteq> s2 \<longrightarrow> \<not>(d_reaches M (initial M) (f s2) s1)"
-  using assms unfolding d_reachable.simps is_det_state_cover_ass.simps 
-  proof -
-    assume "f (initial M) = [] \<and> (\<forall>s\<in>{q. \<exists>xs. d_reaches M (initial M) xs q}. d_reaches M (initial M) (f s) s)"
-    then show "\<forall>c\<in>{c. \<exists>as. d_reaches M (initial M) as c}. \<forall>ca\<in>{c. \<exists>as. d_reaches M (initial M) as c}. c \<noteq> ca \<longrightarrow> \<not> d_reaches M (initial M) (f ca) c" 
-      by (meson d_reaches_unique)
-  qed
+  and     "s1 \<in> d_reachable M (initial M)"
+  and     "s2 \<in> d_reachable M (initial M)"
+  and     "s1 \<noteq> s2"
+shows "\<not>(d_reaches M (initial M) (f s2) s1)"
+  by (meson assms(1) assms(3) assms(4) d_reaches_unique is_det_state_cover_ass.simps)
+
 
 lemma det_state_cover_ass_diff :
   assumes "is_det_state_cover_ass M f"
-  shows "\<forall> s1 \<in> d_reachable M (initial M) . \<forall> s2 \<in> d_reachable M (initial M) . s1 \<noteq> s2 \<longrightarrow> f s1 \<noteq> f s2"
-  using assms unfolding d_reachable.simps is_det_state_cover_ass.simps
-proof -
-  assume "f (initial M) = [] \<and> (\<forall>s\<in>{q. \<exists>xs. d_reaches M (initial M) xs q}. d_reaches M (initial M) (f s) s)"
-  then show "\<forall>c\<in>{c. \<exists>as. d_reaches M (initial M) as c}. \<forall>ca\<in>{c. \<exists>as. d_reaches M (initial M) as c}. c \<noteq> ca \<longrightarrow> f c \<noteq> f ca"
-    by (metis (no_types) d_reaches_unique)
-qed 
+  and     "s1 \<in> d_reachable M (initial M)"
+  and     "s2 \<in> d_reachable M (initial M)"
+  and     "s1 \<noteq> s2"
+shows "f s1 \<noteq> f s2"
+  by (metis assms det_state_cover_ass_dist is_det_state_cover_ass.simps)
+
 
 fun is_det_state_cover :: "('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> bool" where
   "is_det_state_cover M V = (\<exists> f . is_det_state_cover_ass M f \<and> V = image f (d_reachable M (initial M)))"
 
-lemma det_state_cover_d_reachable :
+lemma det_state_cover_d_reachable[elim] :
   assumes "is_det_state_cover M V"
   and     "v \<in> V"
 obtains q
@@ -306,10 +314,10 @@ where "d_reaches M (initial M) v q"
 
 
 
-lemma det_state_cover_card :
+lemma det_state_cover_card[simp] :
   assumes "is_det_state_cover M V"
   and     "finite (nodes M)"
-shows   "card V = card (d_reachable M (initial M))"
+shows   "card (d_reachable M (initial M)) = card V"
 proof -
   obtain f where f_def : "is_det_state_cover_ass M f \<and> V = image f (d_reachable M (initial M))"
     using assms unfolding is_det_state_cover.simps by blast
@@ -395,9 +403,15 @@ next
     then show ?thesis using a2 by blast
   qed 
   then obtain q2x tr2_tl where tr2_split : "tr2 = q2x # tr2_tl" by (metis Suc_length_conv)
-
-  then have "{t. path M2 (io_tl || t) q2x \<and> length io_tl = length t} = {tr2_tl}"
-    by (smt Collect_cong FSM.path_cons_elim assms(3) language_state length_Cons nat.simps(1) observable_path_unique singleton_conv snd_conv tr2_def(2) tr2_def(3) zip_Cons_Cons) 
+  then have "tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}" using tr2_def(2) tr2_def(3) by auto 
+  
+  have "{t. path M2 (io_tl || t) q2x \<and> length io_tl = length t} = {tr2_tl}"
+  proof -
+    have "io_tl \<in> language_state M2 q2x"
+      using \<open>tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}\<close> by blast
+    then show ?thesis
+      using \<open>tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}\<close> assms(3) by fastforce
+  qed
   moreover have 
      "target (io_tl || tr2_tl) q2x = q2t"
      "path M2 (io_tl || tr2_tl) q2x" 
@@ -487,7 +501,7 @@ by auto
 
 
 
-lemma observable_path_prefix :
+lemma observable_path_prefix[simp] :
   assumes "observable M"
   and     "path M (io || tr) q"
   and     "length io = length tr"
@@ -538,8 +552,10 @@ qed
 lemma observable_io_target_unique_target :
   assumes "observable M"
   and     "io_targets M q1 io = {q2}"
-shows "\<forall> tr . (path M (io || tr) q1 \<and> length io = length tr) \<longrightarrow> target (io || tr) q1 = q2"
-  using assms(2) by auto
+  and     "path M (io || tr) q1"
+  and     "length io = length tr"
+shows "target (io || tr) q1 = q2"
+  using assms by auto
   
 
 

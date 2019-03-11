@@ -27,7 +27,7 @@ proof -
     using assms by blast
 qed  
 
-lemma atc_reaction_nonempty :
+lemma atc_reaction_nonempty[elim] :
   assumes "atc_reaction M q1 t (Cons (x,y) io)"
   obtains q2 f 
   where "t = Node x f" "q2 \<in> succ M (x,y) q1"  "atc_reaction M q2 (f y) io"
@@ -53,7 +53,7 @@ next
   then show ?case using tr_tl_def by fastforce   
 qed
 
-lemma atc_reaction_path : 
+lemma atc_reaction_path[elim] : 
   assumes "atc_reaction M q1 t io"
 obtains tr
   where "path M (io || tr) q1" "length io = length tr"
@@ -191,7 +191,7 @@ fun atc_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow>
 
 
 (* Lemma 5.3.7 *)  
-lemma atc_rdist_dist :
+lemma atc_rdist_dist[intro] :
   assumes wf2   : "well_formed M2"
   and     cs2   : "completely_specified M2"
   and     ap2   : "applicable_set M2 \<Omega>"
@@ -280,7 +280,7 @@ fun is_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 
 
 
 
-lemma atc_reaction_reduction :
+lemma atc_reaction_reduction[intro] :
   assumes ls : "language_state M1 q1 \<subseteq> language_state M2 q2"
   and     el1 : "q1 \<in> nodes M1"
   and     el2 : "q2 \<in> nodes M2"
@@ -399,13 +399,13 @@ shows "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
 proof 
   fix ioR assume ioR_assm : "ioR \<in> append_io_B M1 io \<Omega>" 
   then obtain res where res_def : "ioR = io @ res" "res \<in> B M1 io \<Omega>" by auto
-  then have "res \<in> B M2 io \<Omega>" using assms B_reduction by blast
+  then have "res \<in> B M2 io \<Omega>" using assms B_reduction by (metis (no_types, hide_lams) subset_iff)
   then show "ioR \<in> append_io_B M2 io \<Omega>" using ioR_assm res_def by auto
 qed 
 
 
 
-lemma is_reduction_on_reduction :
+lemma is_reduction_on_reduction[intro] :
   assumes red : "M1 \<preceq> M2"
   and     ob1 : "observable M1"
   and     ob2 : "observable M2"
@@ -417,7 +417,7 @@ next
 qed
     
 
-lemma is_reduction_on_sets_reduction :
+lemma is_reduction_on_sets_reduction[intro] :
   assumes red : "M1 \<preceq> M2"
   and     ob1 : "observable M1"
   and     ob2 : "observable M2"
