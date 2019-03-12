@@ -98,6 +98,13 @@ proof -
   qed
 qed
 
+lemma language_state_prefix :
+  assumes "w1 @ w2 \<in> language_state M q"
+shows "w1 \<in> language_state M q"
+  using assms by (meson language_state language_state_split) 
+
+
+
 definition product :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow>
   ('in, 'out, 'state1 \<times>'state2) FSM" where
   "product A B \<equiv>
@@ -237,6 +244,17 @@ lemma io_targets_nodes :
   and     "q1 \<in> nodes M"
 shows "q2 \<in> nodes M"
   using assms by auto
+
+lemma io_target_target :
+  assumes "io_targets M q1 io = {q2}"
+  and     "path M (io || tr) q1"
+  and     "length io = length tr"
+shows "target (io || tr) q1 = q2"
+proof -
+  have "target (io || tr) q1 \<in> io_targets M q1 io" using assms(2) assms(3) by auto 
+  then show ?thesis using assms(1) by blast
+qed 
+
 
 abbreviation  "d_reached_by M p xs q tr ys \<equiv> ((length xs = length ys \<and> length xs = length tr \<and> (path M ((xs || ys) || tr) p) \<and> target ((xs || ys) || tr) p = q) 
                             \<and> (\<forall> ys2 tr2 .  (length xs = length ys2 \<and> length xs = length tr2 \<and> path M ((xs || ys2) || tr2) p) \<longrightarrow> target ((xs || ys2) || tr2) p = q))"  
@@ -557,7 +575,18 @@ lemma observable_io_target_unique_target :
 shows "target (io || tr) q1 = q2"
   using assms by auto
   
+lemma target_in_states : 
+  assumes "length io = length tr"
+  and     "length io > 0"
+  shows "last (states (io || tr) q) = target (io || tr) q"
+proof -
+  have "0 < length tr"
+    using assms(1) assms(2) by presburger
+  then show ?thesis
+    by (simp add: FSM.target_alt_def assms(1) states_alt_def)
+qed 
 
+  
 
 abbreviation "L M \<equiv> language_state M (initial M)"
 
