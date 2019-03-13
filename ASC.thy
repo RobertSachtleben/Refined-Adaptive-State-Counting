@@ -912,12 +912,242 @@ qed
 
 
 
+lemma R_state_component_2 :  
+  assumes "io \<in> (R M2 s vs xs)" 
+  and     "observable M2"
+shows "io_targets M2 (initial M2) io = {s}" 
+proof -
+  have "s \<in> io_targets M2 (initial M2) io" using assms(1) by auto
+  moreover have "io \<in> language_state M2 (initial M2)" using calculation by auto
+  ultimately show "io_targets M2 (initial M2) io = {s}" using assms(2) io_targets_observable_singleton_ex by (metis singletonD) 
+qed
+
+lemma RP_state_component_2 :
+  assumes "io \<in> (RP M2 s vs xs V'')" 
+  and     "observable M2"
+shows "io_targets M2 (initial M2) io = {s}"
+  by (metis (mono_tags, lifting) RP.simps R_state_component_2 Un_iff assms(1) assms(2) mem_Collect_eq)
+  
+
+lemma RP_io_targets_split :
+  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
+  and "productF M2 M1 FAIL PM"
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+  and "io \<in> RP M2 s vs xs V''"
+shows "io_targets PM (initial PM) io = io_targets M2 (initial M2) io \<times> io_targets M1 (initial M1) io"
+proof -
+  have RP_cases : "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" using RP_from_R assms by metis
+  show "io_targets PM (initial PM) io = io_targets M2 (initial M2) io \<times> io_targets M1 (initial M1) io" 
+  proof (cases "io \<in> R M2 s vs xs")
+    case True
+    then have io_prefix : "prefix io (vs @ xs)" by auto
+    then have io_lang_subs : "io \<in> L M1 \<and> io \<in> L M2" using assms(1) unfolding prefix_def by (metis IntE language_state language_state_split) 
+    then have io_lang_inter : "io \<in> L M1 \<inter> L M2" by simp
+    then have io_lang_pm : "io \<in> L PM" using productF_language assms by blast 
+    moreover obtain p2 p1 where "(p2,p1) \<in> io_targets PM (initial PM) io" by (metis assms(2) assms(3) assms(6) calculation insert_absorb insert_ident insert_not_empty io_targets_observable_singleton_ob observable_productF singleton_insert_inj_eq subrelI) 
+    ultimately have targets_pm : "io_targets PM (initial PM) io = {(p2,p1)}" using assms io_targets_observable_singleton_ex singletonD by (metis observable_productF) 
+    then obtain trP where trP_def : "target (io || trP) (initial PM) = (p2,p1) \<and> path PM (io || trP) (initial PM) \<and> length io = length trP"
+      proof -
+        assume a1: "\<And>trP. target (io || trP) (initial PM) = (p2, p1) \<and> path PM (io || trP) (initial PM) \<and> length io = length trP \<Longrightarrow> thesis"
+        have "\<exists>ps. target (io || ps) (initial PM) = (p2, p1) \<and> path PM (io || ps) (initial PM) \<and> length io = length ps"
+          using \<open>(p2, p1) \<in> io_targets PM (initial PM) io\<close> by auto
+        then show ?thesis
+          using a1 by blast
+      qed 
+    then have trP_unique : "{ tr . path PM (io || tr) (initial PM) \<and> length io = length tr } = { trP }" 
+      using observable_productF observable_path_unique_ex[of PM io "initial PM"] io_lang_pm assms(2) assms(3) assms(7)
+      proof -
+        obtain pps :: "('d \<times> 'c) list" where
+          f1: "{ps. path PM (io || ps) (initial PM) \<and> length io = length ps} = {pps} \<or> \<not> observable PM"
+          by (metis (no_types) \<open>\<And>thesis. \<lbrakk>observable PM; io \<in> L PM; \<And>tr. {t. path PM (io || t) (initial PM) \<and> length io = length t} = {tr} \<Longrightarrow> thesis\<rbrakk> \<Longrightarrow> thesis\<close> io_lang_pm)
+        have f2: "observable PM"
+          by (meson \<open>observable M1\<close> \<open>observable M2\<close> \<open>productF M2 M1 FAIL PM\<close> observable_productF)
+        then have "trP \<in> {pps}"
+          using f1 trP_def by blast
+        then show ?thesis
+          using f2 f1 by force
+      qed
+         
+        
+    obtain trIO2 where trIO2_def : "{ tr . path M2 (io || tr) (initial M2) \<and> length io = length tr } = { trIO2 }" using observable_path_unique_ex[of M2 io "initial M2"] io_lang_subs assms(3) by blast
+    obtain trIO1 where trIO1_def : "{ tr . path M1 (io || tr) (initial M1) \<and> length io = length tr } = { trIO1 }" using observable_path_unique_ex[of M1 io "initial M1"] io_lang_subs assms(2) by blast
+
+    have "path PM (io || trIO2 || trIO1) (initial M2, initial M1) \<and> length io = length trIO2 \<and> length trIO2 = length trIO1" using trIO2_def trIO1_def
+    proof -
+      have f1: "path M2 (io || trIO2) (initial M2) \<and> length io = length trIO2" using trIO2_def by auto
+      have f2: "path M1 (io || trIO1) (initial M1) \<and> length io = length trIO1" using trIO1_def by auto
+      then have "length trIO2 = length trIO1" using f1 by presburger
+      then show ?thesis using f2 f1 assms(4) assms(5) assms(6) by blast
+    qed 
+    then have trP_split : "path PM (io || trIO2 || trIO1) (initial PM) \<and> length io = length trIO2 \<and> length trIO2 = length trIO1" using assms(6) by auto 
+    then have trP_zip : "trIO2 || trIO1 = trP" using trP_def trP_unique using length_zip by fastforce 
+
+    have "target (io || trIO2) (initial M2) = p2 \<and> path M2 (io || trIO2) (initial M2) \<and> length io = length trIO2" using trP_zip trP_split assms(6) trP_def trIO2_def by auto 
+    then have "p2 \<in> io_targets M2 (initial M2) io" by auto
+    then have targets_2 : "io_targets M2 (initial M2) io = {p2}" by (meson assms(3) observable_io_target_is_singleton)    
+
+    have "target (io || trIO1) (initial M1) = p1 \<and> path M1 (io || trIO1) (initial M1) \<and> length io = length trIO1" using trP_zip trP_split assms(6) trP_def trIO1_def by auto 
+    then have "p1 \<in> io_targets M1 (initial M1) io" by auto
+    then have targets_1 : "io_targets M1 (initial M1) io = {p1}" by (metis io_lang_subs assms(2) io_targets_observable_singleton_ex singletonD) 
+
+    have "io_targets M2 (initial M2) io \<times> io_targets M1 (initial M1) io = {(p2,p1)}" using targets_2 targets_1 by simp
+    then show "io_targets PM (initial PM) io = io_targets M2 (initial M2) io \<times> io_targets M1 (initial M1) io" using targets_pm by simp
+  
+  next
+    case False
+    then have "io \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert io (R M2 s vs xs)" using RP_cases assms(9) by (metis insertE) 
+
+    have "io \<in> L M1" using assms(8) perm_language assms(9) using False by auto 
+    then obtain s' where s'_def : "io_targets M1 (initial M1) io = {s'}" by (meson assms(2) io_targets_observable_singleton_ob) 
+    then obtain tr1 where tr1_def : "target (io || tr1) (initial M1) = s' \<and> path M1 (io || tr1) (initial M1) \<and> length tr1 = length io" by (metis io_targets_elim singletonI) 
+    
+    have "io_targets M2 (initial M2) io = {s}" using assms(9) assms(3) RP_state_component_2 by simp
+    then obtain tr2 where tr2_def : "target (io || tr2) (initial M2) = s \<and> path M2 (io || tr2) (initial M2) \<and> length tr2 = length io" by (metis io_targets_elim singletonI)
+    then have paths : "path M2 (io || tr2) (initial M2) \<and> path M1 (io || tr1) (initial M1)" using tr1_def by simp
 
 
+    have "length io = length tr2" using tr2_def by simp
+    moreover have "length tr2 = length tr1" using tr1_def tr2_def by simp
+    ultimately have "path PM (io || tr2 || tr1) (initial M2, initial M1)" using assms(6) assms(5) assms(4) paths  productF_path_forward[of io tr2 tr1 M2 M1 FAIL PM "initial M2" "initial M1"] by blast
+
+    moreover have "target (io || tr2 || tr1) (initial M2, initial M1) = (s,s')" by (simp add: tr1_def tr2_def) 
+    moreover have "length (tr2 || tr2) = length io" using tr1_def tr2_def by simp
+    moreover have "(initial M2, initial M1) = initial PM" using assms(6) by simp
+    ultimately have "(s,s') \<in> io_targets PM (initial PM) io" by (metis io_target_from_path length_zip tr1_def tr2_def) 
+    moreover have "observable PM" using assms(2) assms(3) assms(6) observable_productF by blast 
+    then have "io_targets PM (initial PM) io = {(s,s')}" by (meson calculation observable_io_target_is_singleton) 
+
+    then show ?thesis using \<open>io_targets M2 (initial M2) io = {s}\<close> \<open>io_targets M1 (initial M1) io = {s'}\<close> by simp
+  qed
+qed
 
 
   
-    
+
+
+lemma RP_io_targets_finite_M1 :
+  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "is_det_state_cover M2 V" 
+  and "V'' \<in> Perm V M1"
+shows "finite (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')))" 
+proof 
+  show "finite (RP M2 s vs xs V'')" using finite_RP assms(3) assms(4) by simp
+  show "\<And>a. a \<in> RP M2 s vs xs V'' \<Longrightarrow> finite (io_targets M1 (initial M1) a)" 
+  proof -
+    fix a assume "a \<in> RP M2 s vs xs V''" 
+
+    have RP_cases : "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" using RP_from_R assms by metis
+    have "a \<in> L M1"
+    proof (cases "a \<in> R M2 s vs xs")
+      case True
+      then have "prefix a (vs@xs)" by auto
+      then show "a \<in> L M1" using language_state_prefix by (metis IntD1 assms(1) prefix_def) 
+    next
+      case False
+      then have "a \<in> V'' \<and> RP M2 s vs xs V'' = insert a (R M2 s vs xs)" using RP_cases \<open>a \<in> RP M2 s vs xs V''\<close> by (metis insertE) 
+      then show "a \<in> L M1" by (meson assms(4) perm_language)
+    qed
+    then obtain p where "io_targets M1 (initial M1) a = {p}" using assms(2) io_targets_observable_singleton_ob by metis
+      then show "finite (io_targets M1 (initial M1) a)" by simp   
+  qed
+qed
+
+lemma RP_io_targets_finite_PM :
+  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
+  and "productF M2 M1 FAIL PM"
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+shows "finite (\<Union> (image (io_targets PM (initial PM)) (RP M2 s vs xs V'')))" 
+proof -
+  have "\<forall> io \<in> RP M2 s vs xs V'' . io_targets PM (initial PM) io = {s} \<times> io_targets M1 (initial M1) io"
+  proof 
+    fix io assume "io \<in> RP M2 s vs xs V''"
+    then have "io_targets PM (initial PM) io = io_targets M2 (initial M2) io \<times> io_targets M1 (initial M1) io" using assms RP_io_targets_split[of vs xs M1 M2 FAIL PM V V'' io s] by simp
+    moreover have "io_targets M2 (initial M2) io = {s}" using \<open>io \<in> RP M2 s vs xs V''\<close> assms(3) RP_state_component_2[of io M2 s vs xs V''] by blast
+    ultimately show "io_targets PM (initial PM) io = {s} \<times> io_targets M1 (initial M1) io" by auto
+  qed
+  then have "\<Union> image (io_targets PM (initial PM)) (RP M2 s vs xs V'') = \<Union> image (\<lambda> io . {s} \<times> io_targets M1 (initial M1) io) (RP M2 s vs xs V'')" by simp
+  moreover have "\<Union> image (\<lambda> io . {s} \<times> io_targets M1 (initial M1) io) (RP M2 s vs xs V'') = {s} \<times> \<Union> image (\<lambda> io . io_targets M1 (initial M1) io) (RP M2 s vs xs V'')" by blast
+  ultimately have "\<Union> image (io_targets PM (initial PM)) (RP M2 s vs xs V'') = {s} \<times> \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')" by auto
+  moreover have "finite ({s} \<times> \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))" using assms(1,2,7,8) RP_io_targets_finite_M1[of vs xs M1 M2 V V'' s] by simp
+  ultimately show ?thesis by simp
+qed
+
+
+
+lemma LB_count_helper_RP_disjoint :
+  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
+  and "productF M2 M1 FAIL PM"
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+  and "s1 \<noteq> s2"
+shows "\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V'') \<inter> \<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V'') = {}" 
+proof -
+  have "\<forall> io \<in> RP M2 s1 vs xs V'' . io_targets PM (initial PM) io = {s1} \<times> io_targets M1 (initial M1) io"
+  proof 
+    fix io assume "io \<in> RP M2 s1 vs xs V''"
+    then have "io_targets PM (initial PM) io = io_targets M2 (initial M2) io \<times> io_targets M1 (initial M1) io" using assms RP_io_targets_split[of vs xs M1 M2 FAIL PM V V'' io s1] by simp
+    moreover have "io_targets M2 (initial M2) io = {s1}" using \<open>io \<in> RP M2 s1 vs xs V''\<close> assms(3) RP_state_component_2[of io M2 s1 vs xs V''] by blast
+    ultimately show "io_targets PM (initial PM) io = {s1} \<times> io_targets M1 (initial M1) io" by auto
+  qed
+  then have "\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V'') = \<Union> image (\<lambda> io . {s1} \<times> io_targets M1 (initial M1) io) (RP M2 s1 vs xs V'')" by simp
+  moreover have "\<Union> image (\<lambda> io . {s1} \<times> io_targets M1 (initial M1) io) (RP M2 s1 vs xs V'') \<subseteq> {s1} \<times> UNIV" by blast
+  ultimately have sub_1 : "\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V'') \<subseteq> {s1} \<times> UNIV" by simp
+
+  have "\<forall> io \<in> RP M2 s2 vs xs V'' . io_targets PM (initial PM) io = {s2} \<times> io_targets M1 (initial M1) io"
+  proof
+    fix io assume "io \<in> RP M2 s2 vs xs V''"
+    then have "io_targets PM (initial PM) io = io_targets M2 (initial M2) io \<times> io_targets M1 (initial M1) io" using assms RP_io_targets_split[of vs xs M1 M2 FAIL PM V V'' io s2] by simp
+    moreover have "io_targets M2 (initial M2) io = {s2}" using \<open>io \<in> RP M2 s2 vs xs V''\<close> assms(3) RP_state_component_2[of io M2 s2 vs xs V''] by blast
+    ultimately show "io_targets PM (initial PM) io = {s2} \<times> io_targets M1 (initial M1) io" by auto
+  qed
+  then have "\<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V'') = \<Union> image (\<lambda> io . {s2} \<times> io_targets M1 (initial M1) io) (RP M2 s2 vs xs V'')" by simp
+  moreover have "\<Union> image (\<lambda> io . {s2} \<times> io_targets M1 (initial M1) io) (RP M2 s2 vs xs V'') \<subseteq> {s2} \<times> UNIV" by blast
+  ultimately have sub_2 : "\<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V'') \<subseteq> {s2} \<times> UNIV" by simp
+
+  
+  have "\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V'') \<inter> \<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V'') \<subseteq> {s1} \<times> UNIV \<inter> {s2} \<times> UNIV" using sub_1 sub_2 by blast
+  moreover have "{s1} \<times> UNIV \<inter> {s2} \<times> UNIV = {}" using assms(9) by auto
+  ultimately show ?thesis by blast
+qed
+
+
+lemma LB_count_helper_RP_disjoint_card :
+  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
+  and "productF M2 M1 FAIL PM"
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+  and "s1 \<noteq> s2"
+shows "card (\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V'') \<union> \<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V'')) 
+       = card (\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V'')) + card (\<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V''))"
+proof -
+  have "\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V'') \<inter> \<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V'') = {}" using LB_count_helper_RP_disjoint[OF assms] by simp
+  moreover have "finite (\<Union> image (io_targets PM (initial PM)) (RP M2 s1 vs xs V''))" using RP_io_targets_finite_PM[OF assms(1-8)] by simp
+  moreover have "finite (\<Union> image (io_targets PM (initial PM)) (RP M2 s2 vs xs V''))" using RP_io_targets_finite_PM[OF assms(1-8)] by simp
+  ultimately show ?thesis by (meson card_Un_disjoint) 
+qed
+  
+
+
+
 
 (* Lemma 5.4.11 *)
 lemma LB_count :
