@@ -567,6 +567,8 @@ proof -
   then show ?thesis by (metis (no_types) \<open>observable M\<close> path_X insert_absorb io_targets_observable_singleton_ex language_state singleton_insert_inj_eq')
 qed 
 
+
+
 lemma observable_io_target_unique_target :
   assumes "observable M"
   and     "io_targets M q1 io = {q2}"
@@ -586,7 +588,36 @@ proof -
     by (simp add: FSM.target_alt_def assms(1) states_alt_def)
 qed 
 
-  
+lemma target_alt_def :
+  assumes "length io = length tr"
+  shows "length io = 0 \<Longrightarrow> target (io || tr) q = q"
+        "length io > 0 \<Longrightarrow> target (io || tr) q = last tr"
+proof -
+  show "length io = 0 \<Longrightarrow> target (io || tr) q = q" by simp
+  show "length io > 0 \<Longrightarrow> target (io || tr) q = last tr" 
+    by (metis assms last_ConsR length_greater_0_conv map_snd_zip scan_last states_alt_def) 
+qed
+
+lemma obs_target_is_io_targets :
+  assumes "observable M"
+  and     "path M (io || tr) q"
+  and     "length io = length tr"
+shows "io_targets M q io = {target (io || tr) q}"
+  by (metis assms(1) assms(2) assms(3) io_targets_observable_singleton_ex language_state observable_io_target_unique_target)
+
+
+lemma observable_io_targets_append :
+  assumes "observable M"
+  and "io_targets M q1 vs = {q2}"
+  and "io_targets M q2 xs = {q3}"
+shows "io_targets M q1 (vs@xs) = {q3}"
+proof -
+  obtain trV where "path M (vs || trV) q1 \<and> length trV = length vs \<and> target (vs || trV) q1 = q2" by (metis assms(2) io_targets_elim singletonI) 
+  moreover obtain trX where "path M (xs || trX) q2 \<and> length trX = length xs \<and> target (xs || trX) q2 = q3" by (metis assms(3) io_targets_elim singletonI)
+  ultimately have "path M (vs @ xs || trV @ trX) q1 \<and> length (trV @ trX) = length (vs @ xs) \<and> target (vs @ xs || trV @ trX) q1 = q3" by auto
+  then show ?thesis by (metis assms(1) obs_target_is_io_targets) 
+qed
+
 
 abbreviation "L M \<equiv> language_state M (initial M)"
 

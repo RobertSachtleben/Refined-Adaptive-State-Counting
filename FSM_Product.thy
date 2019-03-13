@@ -543,6 +543,12 @@ proof -
   then show ?thesis by auto
 qed 
 
+lemma zip_last :
+  assumes "length r1 > 0"
+  and     "length r1 = length r2"
+shows "last (r1 || r2) = (last r1, last r2)"
+  by (metis (no_types) assms(1) assms(2) less_nat_zero_code list.size(3) map_fst_zip zip_Nil zip_last)
+  
 
 
 lemma productF_path_reverse_ob_2 : 
@@ -556,6 +562,8 @@ lemma productF_path_reverse_ob_2 :
   and     "w \<in> language_state A p1"
   and     "observable A"
 shows "path A (w || r1) p1 \<and> length w = length r1" "path B (w || r2) p2 \<and> length w = length r2"
+      "target (w || r1) p1 = fst (target (w || r1 || r2) (p1,p2))"
+      "target (w || r2) p2 = snd (target (w || r1 || r2) (p1,p2))"
 proof -
 
   have "(path A (w || r1) p1 \<and> path B (w || r2) p2) 
@@ -583,6 +591,37 @@ proof -
 
   show "path A (w || r1) p1 \<and> length w = length r1" using assms(1) paths by simp
   show "path B (w || r2) p2 \<and> length w = length r2" using assms(1) assms(2) paths by simp
+
+  have "length w = 0 \<Longrightarrow> target (w || r1 || r2) (p1,p2) = (p1,p2)" by simp
+  moreover have "length w > 0 \<Longrightarrow> target (w || r1 || r2) (p1,p2) = last (r1 || r2)" 
+  proof -
+    assume "length w > 0"
+    moreover have "length w = length (r1 || r2)" using assms(1) assms(2) by simp
+    ultimately show ?thesis using target_alt_def(2)[of w "r1 || r2" "(p1,p2)"] by simp
+  qed
+
+  ultimately have "target (w || r1) p1 = fst (target (w || r1 || r2) (p1, p2)) 
+                   \<and> target (w || r2) p2 = snd (target (w || r1 || r2) (p1, p2))"
+  proof (cases "length w")
+    case 0
+    then show ?thesis by simp
+  next
+    case (Suc nat)
+    then have "length w > 0" by simp
+    
+    have "target (w || r1 || r2) (p1,p2) = last (r1 || r2)"
+    proof -
+      have "length w = length (r1 || r2)" using assms(1) assms(2) by simp
+      then show ?thesis using \<open>length w > 0\<close> target_alt_def(2)[of w "r1 || r2" "(p1,p2)"] by simp
+    qed
+    moreover have "target (w || r1) p1 = last r1" using \<open>length w > 0\<close> target_alt_def(2)[of w r1 p1] assms(1) by simp
+    moreover have "target (w || r2) p2 = last r2" using \<open>length w > 0\<close> target_alt_def(2)[of w r2 p2] assms(1) assms(2) by simp
+    moreover have "last (r1 || r2) = (last r1, last r2)" using \<open>length w > 0\<close> assms(1) assms(2) zip_last[of r1 r2] by simp
+    ultimately show ?thesis by simp
+  qed
+
+  then show "target (w || r1) p1 = fst (target (w || r1 || r2) (p1,p2))"
+            "target (w || r2) p2 = snd (target (w || r1 || r2) (p1,p2))" by simp+
 qed
 
 
