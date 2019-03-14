@@ -1165,7 +1165,7 @@ proof -
   ultimately show ?thesis using LB_count_helper_RP_disjoint_and_cards[OF assms] by (metis (no_types)  card_Un_disjoint)
 qed 
 
-lemma LB_count_helper_RP_disjoint_card :
+lemma LB_count_helper_RP_disjoint_M1_pair :
   assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
   and "observable M1"
   and "observable M2"
@@ -1187,14 +1187,15 @@ lemma LB_count_helper_RP_disjoint_card :
   and "applicable_set M1 \<Omega>"
   and "completely_specified M1"
 shows "card (RP M2 s1 vs xs V'') + card (RP M2 s2 vs xs V'') 
-       = card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V'')) + card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V''))"
+        = card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V'')) + card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V''))"
+      "\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V'') \<inter> \<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V'') = {}"
 proof -
   have "s1 \<in> nodes M2" using assms(14,16) unfolding Prereq.simps by blast
   have "s2 \<in> nodes M2" using assms(14,17) unfolding Prereq.simps by blast
   have "card (RP M2 s1 vs xs V'') = card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V''))" using RP_count_alt_def[OF assms(1-5) \<open>s1 \<in> nodes M2\<close> assms(6-13)] by linarith
   moreover have "card (RP M2 s2 vs xs V'') = card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V''))" using RP_count_alt_def[OF assms(1-5) \<open>s2 \<in> nodes M2\<close> assms(6-13)] by linarith
  
-  moreover have "\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V'') \<inter> \<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V'') = {}"
+  moreover show "\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V'') \<inter> \<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V'') = {}"
   proof (rule ccontr)
     assume "\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V'') \<inter> \<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V'') \<noteq> {}"
     then obtain io1 io2 t where shared_elem_def :
@@ -1215,22 +1216,19 @@ proof -
     then show "False" using shared_elem_def(3,4) by blast 
   qed
 
-  ultimately show ?thesis by linarith 
+  ultimately show "card (RP M2 s1 vs xs V'') + card (RP M2 s2 vs xs V'') 
+       = card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s1 vs xs V'')) + card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s2 vs xs V''))" by linarith 
 qed 
 
 
-(*
-lemma LB_count_helper_vs_xs_in_languages :
-  assumes "OFSM M1"
-  and     "OFSM M2"
-  and     "fault_model M2 M1 m"
-  and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
-shows "(vs @ xs) \<in> L M1 \<inter> L M2"
-proof -
-  have "map fst (vs @ xs) \<in> T" using assms(5) by simp
 
-*)
+      
+
+  
+
+
+
+
   
 lemma LB_count_helper_RP_card_union :
   assumes "observable M2"
@@ -1244,6 +1242,38 @@ proof (rule ccontr)
   then have "s1 = s2" using assms(1) by (metis observable_io_target_is_singleton singletonD) 
   then show "False" using assms(2) by simp
 qed
+
+lemma LB_count_helper_RP_inj :
+obtains f
+where "\<forall> q \<in> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S) . f q \<in> nodes M1"
+      "inj_on f (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
+proof -
+  let ?f = "\<lambda> q . if (q \<in> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)) then q else (initial M1)"
+
+  have "(\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S) \<subseteq> nodes M1" by blast
+
+  then have "\<forall> q \<in> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S) . ?f q \<in> nodes M1" by (metis Un_iff  sup.order_iff)
+
+  moreover have "inj_on ?f (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)" 
+  proof 
+    fix x assume "x \<in> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
+    then have "?f x = x" by presburger
+
+    fix y assume "y \<in> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
+    then have "?f y = y" by presburger
+
+    assume "?f x = ?f y"
+    then show "x = y" using \<open>?f x = x\<close> \<open>?f y = y\<close> by presburger
+  qed
+
+  ultimately show ?thesis using that by presburger
+qed
+
+
+
+
+
+
 
 lemma LB_count_helper_RP_card_union_sum :
   assumes "(vs @ xs) \<in> L M2 \<inter> L M1"
@@ -1309,6 +1339,168 @@ using assms proof -
 qed
 
 
+lemma LB_count_helper_RP_disjoint_M1_union :
+  assumes "(vs @ xs) \<in> L M2 \<inter> L M1"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_model M2 M1 m"
+  and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "\<not> Rep_Pre M2 M1 vs xs"
+  and     "\<not> Rep_Cov M2 M1 V'' vs xs"
+shows "sum (\<lambda> s . card (RP M2 s vs xs V'')) S = card (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
+using assms proof -
+  have "finite (nodes M2)" using assms(3) by auto
+  moreover have "S \<subseteq> nodes M2" using assms(6) by simp
+  ultimately have "finite S" using infinite_super by blast 
+
+  then have " vs @ xs \<in> L M2 \<inter> L M1 \<Longrightarrow>
+    OFSM M1 \<Longrightarrow>
+    OFSM M2 \<Longrightarrow>
+    fault_model M2 M1 m \<Longrightarrow>
+    test_tools M2 M1 FAIL PM V V'' \<Omega> \<Longrightarrow>
+    Prereq M2 M1 vs xs T S \<Omega> V V'' \<Longrightarrow>
+    \<not> Rep_Pre M2 M1 vs xs \<Longrightarrow>
+    \<not> Rep_Cov M2 M1 V'' vs xs \<Longrightarrow> 
+    sum (\<lambda> s . card (RP M2 s vs xs V'')) S = card (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
+  proof (induction S)
+    case empty
+    show ?case by simp
+  next
+    case (insert s S)
+
+    have "(insert s S) \<subseteq> nodes M2" using insert.prems(6) by simp
+    then have "s \<in> nodes M2" by simp
+
+    have "Prereq M2 M1 vs xs T S \<Omega> V V''" using \<open>Prereq M2 M1 vs xs T (insert s S) \<Omega> V V''\<close> by simp
+    then have "(\<Sum>s\<in>S. card (RP M2 s vs xs V'')) = card (\<Union>s\<in>S. \<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)" using insert.IH[OF insert.prems(1-5) _ insert.prems(7-8)] by metis
+
+    show ?case
+    proof (cases "(\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a) = {}")
+      case True
+      then show ?thesis sorry
+    next
+      case False
+
+      have "\<not> (\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a) \<subseteq> (\<Union>s\<in>S. \<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)"
+      proof 
+        assume "(\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a) \<subseteq> (\<Union>s\<in>S. \<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)"
+        then obtain t where "t \<in> (\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)" "t \<in> (\<Union>s\<in>S. \<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)"
+          by (metis (mono_tags, lifting) Collect_empty_eq False Sup_set_def mem_Collect_eq subsetCE) 
+        then obtain s' where "s' \<in> S" "t \<in> (\<Union>a\<in>RP M2 s' vs xs V''. io_targets M1 (initial M1) a)" by blast
+        then have shared_elem : "(\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a) \<inter> (\<Union>a\<in>RP M2 s' vs xs V''. io_targets M1 (initial M1) a) \<noteq> {}" 
+          using \<open>t \<in> (\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)\<close> by blast
+
+        have "s \<noteq> s'" using insert.hyps(2) \<open>s' \<in> S\<close> by blast
+        have "s' \<in> insert s S" using \<open>s' \<in> S\<close> by simp
+        have "s \<in> insert s S" by simp
+
+
+
+
+        have "vs@xs \<in> L M1 \<inter> L M2" using insert.prems(1) by simp
+
+        obtain q2 q1 tr where suffix_path : "io_targets PM (initial PM) vs = {(q2,q1)}"
+                              "path PM (xs || tr) (q2,q1)" 
+                              "length xs = length tr" using productF_language_state_intermediate[OF insert.prems(1) test_tools_props(1)[OF insert.prems(5,4)] OFSM_props(2,1)[OF insert.prems(3)]  OFSM_props(2,1)[OF insert.prems(2)]] by blast
+    
+        have "(\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a) \<inter> (\<Union>a\<in>RP M2 s' vs xs V''. io_targets M1 (initial M1) a) = {}"
+          using OFSM_props(2,1)[OF assms(3)] OFSM_props(2,1,3)[OF assms(2)] LB_count_helper_RP_disjoint_M1_pair(2)[OF \<open>vs@xs \<in> L M1 \<inter> L M2\<close> _ _ _ _ test_tools_props(1)[OF insert.prems(5,4)] suffix_path insert.prems(7) test_tools_props(2,3)[OF insert.prems(5,4)] insert.prems(8) insert.prems(6) \<open>s \<noteq> s'\<close> \<open>s \<in> insert s S\<close> \<open>s' \<in> insert s S\<close> test_tools_props(5)[OF insert.prems(5,4)]] 
+          by linarith
+
+        then show "False" using shared_elem by simp
+      qed
+
+      
+       
+   
+
+      then show ?thesis sorry
+    qed
+
+
+     
+
+    then show ?case sorry
+  qed
+
+
+
+
+
+lemma LB_count_helper_RP_card_union_sum :
+  assumes "(vs @ xs) \<in> L M2 \<inter> L M1"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_model M2 M1 m"
+  and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "\<not> Rep_Pre M2 M1 vs xs"
+  and     "\<not> Rep_Cov M2 M1 V'' vs xs"
+  and     "s \<in> S"
+shows "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) \<le> card (nodes M1)"
+proof - 
+  have "finite (nodes M1)" using assms(2) by simp
+  
+  have "finite (nodes M2)" using assms(3) by auto
+  moreover have "S \<subseteq> nodes M2" using assms(6) by simp
+  ultimately have "finite S" using infinite_super by blast 
+
+  
+
+  then have "vs @ xs \<in> L M2 \<inter> L M1 \<Longrightarrow>
+    OFSM M1 \<Longrightarrow>
+    OFSM M2 \<Longrightarrow>
+    fault_model M2 M1 m \<Longrightarrow>
+    test_tools M2 M1 FAIL PM V V'' \<Omega> \<Longrightarrow>
+    Prereq M2 M1 vs xs T S \<Omega> V V'' \<Longrightarrow>
+    \<not> Rep_Pre M2 M1 vs xs \<Longrightarrow>
+    \<not> Rep_Cov M2 M1 V'' vs xs \<Longrightarrow> 
+    (sum (\<lambda> s . card (RP M2 s vs xs V'')) S) \<le> card (nodes M1)"
+  proof (induction S)
+    case empty
+    show ?case by (metis (no_types) le0 sum.empty)
+  next
+    case (insert s S)
+
+    have "(insert s S) \<subseteq> nodes M2" using insert.prems(6) by simp
+    then have "s \<in> nodes M2" by simp
+
+    
+
+
+    have "Prereq M2 M1 vs xs T S \<Omega> V V''" using \<open>Prereq M2 M1 vs xs T (insert s S) \<Omega> V V''\<close> by simp
+    then have "(\<Sum>s\<in>S. card (RP M2 s vs xs V'')) \<le> card (nodes M1)" using insert.IH insert.prems(1) insert.prems(2) insert.prems(3) insert.prems(4) insert.prems(5) insert.prems(7) insert.prems(8) by blast 
+
+    have "(\<Sum>s'\<in>(insert s S). card (RP M2 s' vs xs V'')) = (\<Sum>s'\<in>(insert s S). card (UNION (RP M2 s' vs xs V'') (io_targets M1 (initial M1))))" using LB_count_helper_RP_card_union_sum[OF insert.prems(1-8)] by blast
+    then have "(\<Sum>s'\<in>(insert s S). card (RP M2 s' vs xs V'')) = (\<Sum>s'\<in>S. card (UNION (RP M2 s' vs xs V'') (io_targets M1 (initial M1)))) + card (UNION (RP M2 s vs xs V'') (io_targets M1 (initial M1)))"
+    proof -
+      have "(\<Sum>c\<in>insert s S. card (UNION (RP M2 c vs xs V'') (io_targets M1 (initial M1)))) = card (UNION (RP M2 s vs xs V'') (io_targets M1 (initial M1))) + (\<Sum>c\<in>S. card (UNION (RP M2 c vs xs V'') (io_targets M1 (initial M1))))"
+        by (meson \<open>finite S\<close> \<open>s \<notin> S\<close> sum.insert)
+      then show ?thesis
+        using \<open>(\<Sum>s'\<in>insert s S. card (RP M2 s' vs xs V'')) = (\<Sum>s'\<in>insert s S. card (UNION (RP M2 s' vs xs V'') (io_targets M1 (initial M1))))\<close> by presburger
+    qed 
+
+    have "\<forall> s' . \<Union> (image (io_targets M1 (initial M1)) (RP M2 s' vs xs V''))  \<subseteq> nodes M1" by blast 
+    then have 
+    
+    moreover have "(\<Sum>s'\<in>(insert s S). card (RP M2 s' vs xs V'')) = (\<Sum>s'\<in>S. card (RP M2 s' vs xs V'')) + card (RP M2 s vs xs V'')" by (simp add: add.commute insert.hyps(1) insert.hyps(2))
+    ultimately have S_prop : "(\<Sum>s'\<in>(insert s S). card (RP M2 s' vs xs V'')) = (\<Sum>s\<in>S. card (\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)) + card (RP M2 s vs xs V'')" by presburger
+
+
+    then show ?case sorry
+  qed
+
+
+
+  have "(\<Sum>s\<in>S. card (RP M2 s vs xs V'')) = (\<Sum>s\<in>S. card (UNION (RP M2 s vs xs V'') (io_targets M1 (initial M1))))" using LB_count_helper_RP_card_union_sum[OF assms(1-8)] by blast
+  
+  have "\<forall> s . \<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))  \<subseteq> nodes M1" by blast
+  
+  have "\<forall> s . finite (RP M2 s vs xs V'')" using finite_RP[OF test_tools_props(2,3)[OF assms(5,4)]] by simp
+
+  have "sum (\<lambda> s . card (\<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) S \<le> card (nodes M1)" 
+  
 
 
 (* Lemma 5.4.11 *)
