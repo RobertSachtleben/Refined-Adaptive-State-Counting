@@ -1265,4 +1265,41 @@ proof -
   then show ?thesis using tr_def by (metis assms(1) language_state length_zip min.idem productF_simps(4)) 
 qed
 
+lemma productF_language_state_intermediate :
+  assumes "vs @ xs \<in> L M2 \<inter> L M1"
+  and     "productF M2 M1 FAIL PM"
+  and     "observable M2"
+  and     "well_formed M2"
+  and     "observable M1"
+  and     "well_formed M1"
+obtains q2 q1 tr 
+where "io_targets PM (initial PM) vs = {(q2,q1)}"
+      "path PM (xs || tr) (q2,q1)" 
+      "length xs = length tr"
+proof -
+  have "vs @ xs \<in> L PM" using productF_language[OF assms(2,4,6,1)] by simp
+  then obtain trVX where "path PM (vs@xs || trVX) (initial PM) \<and> length trVX = length (vs@xs)" by auto
+  then have tgt_VX : "io_targets PM (initial PM) (vs@xs) = {target (vs@xs || trVX) (initial PM)}" by (metis assms(2) assms(3) assms(5) obs_target_is_io_targets observable_productF)
+  
+  have "vs \<in> L PM" using \<open>vs@xs \<in> L PM\<close> by (meson language_state_prefix)
+  then obtain trV where "path PM (vs || trV) (initial PM) \<and> length trV = length vs" by auto
+  then have tgt_V : "io_targets PM (initial PM) vs = {target (vs || trV) (initial PM)}" by (metis assms(2) assms(3) assms(5) obs_target_is_io_targets observable_productF) 
+
+  let ?q2 = "fst (target (vs || trV) (initial PM))"
+  let ?q1 = "snd (target (vs || trV) (initial PM))"
+
+
+  have "observable PM" by (meson assms(2,3,5) observable_productF) 
+
+  have "io_targets PM (?q2,?q1) xs = {target (vs @ xs || trVX) (initial PM)}" using observable_io_targets_split[OF \<open>observable PM\<close> tgt_VX tgt_V] by simp
+
+  then have "xs \<in> language_state PM (?q2,?q1)" by auto
+
+  then obtain tr where "path PM (xs || tr) (?q2,?q1)" 
+                       "length xs = length tr" by auto
+
+  then show ?thesis by (metis prod.collapse tgt_V that)  
+qed
+  
+
 end

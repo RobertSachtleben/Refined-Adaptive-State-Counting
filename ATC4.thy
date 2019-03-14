@@ -178,7 +178,13 @@ lemma r_dist_set_dist :
 shows   "q1 \<noteq> q2"
 using assms r_dist_dist by (metis applicable_set.elims(2) r_dist_set.elims(2))  
 
-
+lemma r_dist_set_dist_disjoint :
+  assumes "applicable_set M \<Omega>"
+  and     "completely_specified M"
+  and     "\<forall> t1 \<in> T1 . \<forall> t2 \<in> T2 . r_dist_set M \<Omega> t1 t2"
+shows "T1 \<inter> T2 = {}"
+  by (meson Int_emptyI assms(1) assms(2) assms(3) r_dist_set_dist)
+  
 
 
 
@@ -277,6 +283,42 @@ fun is_reduction_on :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'stat
 
 fun is_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
 "is_reduction_on_sets M1 M2 TS \<Omega> = (\<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>)"
+
+
+
+
+
+lemma append_io_B_nonempty :
+  assumes "applicable_set M \<Omega>"
+  and     "completely_specified M"
+  and     "io \<in> language_state M (initial M)"
+  and     "\<Omega> \<noteq> {}"
+shows "append_io_B M io \<Omega> \<noteq> {}"
+proof -
+  obtain t where "t \<in> \<Omega>" using assms(4) by blast
+  then have "applicable M t" using assms(1) by simp
+  moreover obtain tr where "path M (io || tr) (initial M) \<and> length tr = length io" using assms(3) by auto
+  ultimately have "IO M (target (io || tr) (initial M)) t \<noteq> {}" using assms(2) applicable_nonempty by simp
+  then obtain io' where "io' \<in> IO M (target (io || tr) (initial M)) t" by blast
+  then have "io' \<in> IO_set M (target (io || tr) (initial M)) \<Omega>" using \<open>t \<in> \<Omega>\<close> unfolding IO_set.simps by blast
+  moreover have "(target (io || tr) (initial M)) \<in> io_targets M (initial M) io" using \<open>path M (io || tr) (initial M) \<and> length tr = length io\<close> by auto 
+  ultimately have "io' \<in> B M io \<Omega>" unfolding B.simps by blast
+  then have "io@io' \<in> append_io_B M io \<Omega>" unfolding append_io_B.simps by blast
+  then show ?thesis by blast
+qed
+
+  
+
+lemma append_io_B_prefix_in_language :
+  assumes "append_io_B M io \<Omega> \<noteq> {}"
+  shows "io \<in> L M"
+proof -
+  obtain res where "io @ res \<in> append_io_B M io \<Omega> \<and> res \<in> B M io \<Omega>" using assms by auto 
+  then have "io_targets M (initial M) io \<noteq> {}" by auto
+  then obtain q where "q \<in> io_targets M (initial M) io" by blast
+  then obtain tr where "target (io || tr) (initial M) = q \<and> path M (io || tr) (initial M) \<and> length tr = length io" by auto 
+  then show ?thesis by auto
+qed
 
 
 
