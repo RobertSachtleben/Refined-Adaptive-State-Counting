@@ -255,7 +255,7 @@ lemma D_bound :
   assumes wf: "well_formed M"
   and     ob: "observable M"
   and     fi: "finite ISeqs"
-  shows "card (D M \<Omega> ISeqs) \<le> card (nodes M)" 
+  shows "finite (D M \<Omega> ISeqs)" "card (D M \<Omega> ISeqs) \<le> card (nodes M)" 
 proof -
   have "D M \<Omega> ISeqs \<subseteq> image (\<lambda> s . IO_set M s \<Omega>) (nodes M)"
   proof 
@@ -267,7 +267,7 @@ proof -
     ultimately show "RS \<in> image (\<lambda> s . IO_set M s \<Omega>) (nodes M)" by auto
   qed
   moreover have "finite (nodes M)" using assms by auto
-  ultimately show ?thesis by (meson Finite_Set.card_image_le surj_card_le)
+  ultimately show "finite (D M \<Omega> ISeqs)" "card (D M \<Omega> ISeqs) \<le> card (nodes M)" by (meson  finite_imageI infinite_super surj_card_le)+
 qed
 
 
