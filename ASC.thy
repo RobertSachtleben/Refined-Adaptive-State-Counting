@@ -868,16 +868,14 @@ qed
 
 
 (* helper functions to shorten assumptions *)
-fun fault_model :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> nat \<Rightarrow> bool" where
-  "fault_model M2 M1 m = (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
+abbreviation "fault_model M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
 
 lemma fault_model_props[elim!] :
   assumes "fault_model M2 M1 m"
   shows "inputs M2 = inputs M1"
         "card (nodes M1) \<le> m" using assms by auto
 
-fun OFSM :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
-  "OFSM M = (well_formed M \<and> observable M \<and> completely_specified M)"
+abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
 
 lemma OFSM_props[elim!] :
   assumes "OFSM M"
@@ -885,9 +883,8 @@ shows "well_formed M"
       "observable M" 
       "completely_specified M" using assms by auto
 
-fun test_tools :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('state1 \<times> 'state2)  
-  \<Rightarrow> ('in, 'out, 'state1 \<times>'state2) FSM \<Rightarrow>'in list set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-  "test_tools M2 M1 FAIL PM V V'' \<Omega> = (
+abbreviation
+  "test_tools M2 M1 FAIL PM V V'' \<Omega> \<equiv> (
       productF M2 M1 FAIL PM
     \<and> is_det_state_cover M2 V
     \<and> V'' \<in> Perm V M1
@@ -905,12 +902,12 @@ lemma test_tools_props[elim] :
         "applicable_set M1 \<Omega>"
         "\<Omega> \<noteq> {}"
 proof -
-  show "productF M2 M1 FAIL PM" using assms(1) test_tools.elims by blast
-  show "is_det_state_cover M2 V" using assms(1) test_tools.elims by blast
-  show "V'' \<in> Perm V M1" using assms(1) test_tools.elims by blast
-  show "applicable_set M2 \<Omega>" using assms(1) test_tools.elims by blast
+  show "productF M2 M1 FAIL PM" using assms(1) by blast
+  show "is_det_state_cover M2 V" using assms(1) by blast
+  show "V'' \<in> Perm V M1" using assms(1) by blast
+  show "applicable_set M2 \<Omega>" using assms(1) by blast
   then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
-  show "\<Omega> \<noteq> {}" using assms(1) test_tools.elims by blast
+  show "\<Omega> \<noteq> {}" using assms(1) by blast
 qed
 
 
@@ -1414,7 +1411,7 @@ using assms proof -
 
      have "card (RP M2 s vs xs V'') = card (\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)"
       using assms(2) assms(3) RP_count_alt_def[OF \<open>vs@xs \<in> L M1 \<inter> L M2\<close> _ _ _ _ \<open>s \<in> nodes M2\<close> test_tools_props(1)[OF insert.prems(5,4)] suffix_path insert.prems(7) test_tools_props(2,3)[OF insert.prems(5,4)] insert.prems(8) ]
-      by (metis OFSM_props(1) OFSM_props(2))
+      by metis
 
     show ?case
     proof -
@@ -1533,17 +1530,185 @@ assumes "(vs @ xs) \<in> L M1"
   and     "\<not> Rep_Cov M2 M1 V'' vs xs"
 shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" 
 proof -
+  
+
+  
+  let ?D = "D M1 \<Omega> T"
+  let ?B = "{B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
+  let ?DB = "?D - ?B"
+  let ?RP = "\<Union>s\<in>S. \<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a"
+  
+  have "finite (nodes M1)" using OFSM_props[OF assms(2)] unfolding well_formed.simps finite_FSM.simps by simp
+  then have "finite ?D" using OFSM_props[OF assms(2)] assms(6) D_bound[of M1 T \<Omega>] unfolding Prereq.simps by linarith
+  then have "finite ?DB" by simp
+
+
+  have states_f : "\<And> DB' . DB' \<subseteq> ?DB \<Longrightarrow> \<exists> f . inj_on f DB' \<and> image f DB' \<subseteq> (nodes M1) - ?RP \<and> (\<forall> RS \<in> DB' . IO_set M1 (f RS) \<Omega> = RS)"
+  proof -
+    fix DB' assume "DB' \<subseteq> ?DB"
+    have "finite DB'" 
+    proof (rule ccontr)
+      assume "infinite DB'"
+      have "infinite ?DB" using infinite_super[OF \<open>DB' \<subseteq> ?DB\<close> \<open>infinite DB'\<close> ] by simp
+      then show "False" using \<open>finite ?DB\<close> by simp
+    qed 
+    then show "\<exists> f . inj_on f DB' \<and> image f DB' \<subseteq> (nodes M1) - ?RP \<and> (\<forall> RS \<in> DB' . IO_set M1 (f RS) \<Omega> = RS)"
+    using assms \<open>DB' \<subseteq> ?DB\<close> proof (induction DB')
+      case empty
+      show ?case by simp
+    next
+      case (insert RS DB')
+
+      have "DB' \<subseteq> ?DB" using insert.prems(9) by blast
+      obtain f' where "inj_on f' DB'" "image f' DB' \<subseteq> (nodes M1) - ?RP" "\<forall> RS \<in> DB' . IO_set M1 (f' RS) \<Omega> = RS"  using insert.IH[OF insert.prems(1-8) \<open>DB' \<subseteq> ?DB\<close>] by blast
+      
+      have "RS \<in> D M1 \<Omega> T" using insert.prems(9) by blast
+      obtain q where "q \<in> nodes M1" "RS = IO_set M1 q \<Omega>" using insert.prems(2)  LB_count_helper_D_states[OF _ \<open>RS \<in> D M1 \<Omega> T\<close>] by blast
+      then have "IO_set M1 q \<Omega> \<in> ?DB" using insert.prems(9) by blast 
+      
+      have "q \<notin> ?RP" using insert.prems(2) LB_count_helper_LB2[OF _ insert.prems(6) \<open>IO_set M1 q \<Omega> \<in> ?DB\<close>] by blast
+
+      let ?f = "f'(RS := q)"
+      have "inj_on ?f (insert RS DB')" 
+      proof 
+        have "?f RS \<notin> ?f ` (DB' - {RS})"
+        proof 
+          assume "?f RS \<in> ?f ` (DB' - {RS})"
+          then have "q \<in> ?f ` (DB' - {RS})" by auto
+          have "RS \<in> DB'"
+          proof -
+            have "\<forall>P c f. \<exists>Pa. ((c::'c) \<notin> f ` P \<or> (Pa::('a \<times> 'b) list set) \<in> P) \<and> (c \<notin> f ` P \<or> f Pa = c)"
+              by auto
+            moreover
+            { assume "q \<notin> f' ` DB'"
+              moreover
+              { assume "q \<notin> f'(RS := q) ` DB'"
+                then have ?thesis
+                  using \<open>q \<in> f'(RS := q) ` (DB' - {RS})\<close> by blast }
+              ultimately have ?thesis
+                by (metis fun_upd_image) }
+            ultimately show ?thesis
+              by (metis (no_types) \<open>RS = IO_set M1 q \<Omega>\<close> \<open>\<forall>RS\<in>DB'. IO_set M1 (f' RS) \<Omega> = RS\<close>)
+          qed 
+          then show "False" using insert.hyps(2) by simp
+        qed
+        then show "inj_on ?f DB' \<and> ?f RS \<notin> ?f ` (DB' - {RS})"
+          by (simp add: \<open>inj_on f' DB'\<close> fun_upd_image inj_on_fun_updI insert.hyps(2))
+      qed
+      moreover have "image ?f (insert RS DB') \<subseteq> (nodes M1) - ?RP" 
+      proof -
+        have "image ?f {RS} = {q}" by simp
+        then have "image ?f {RS} \<subseteq> (nodes M1) - ?RP" using \<open>q \<in> nodes M1\<close> \<open>q \<notin> ?RP\<close> by auto
+        moreover have "image ?f (insert RS DB') = image ?f {RS} \<union> image ?f DB'" by auto
+        ultimately show ?thesis by (metis (no_types, lifting) \<open>image f' DB' \<subseteq> (nodes M1) - ?RP\<close> fun_upd_other image_cong image_insert insert.hyps(2) insert_subset) 
+      qed
+      moreover have "\<forall> RS \<in> (insert RS DB') . IO_set M1 (?f RS) \<Omega> = RS"
+        using \<open>RS = IO_set M1 q \<Omega>\<close> \<open>\<forall>RS\<in>DB'. IO_set M1 (f' RS) \<Omega> = RS\<close> by auto 
+        
+      ultimately show ?case by blast
+    qed
+  qed
+
+  have "?DB \<subseteq> ?DB" by simp
+  obtain f where "inj_on f ?DB" "image f ?DB \<subseteq> (nodes M1) - ?RP" using states_f[OF \<open>?DB \<subseteq> ?DB\<close>] by blast
+  have "finite (nodes M1 - ?RP)" using \<open>finite (nodes M1)\<close> by simp
+  have "card ?DB \<le> card (nodes M1 - ?RP)" using card_inj_on_le[OF \<open>inj_on f ?DB\<close> \<open>image f ?DB \<subseteq> (nodes M1) - ?RP\<close> \<open>finite (nodes M1 - ?RP)\<close>] by assumption
+
+  have "?RP \<subseteq> nodes M1" by blast 
+  then have "finite ?RP" 
+  then have "card ?RP < card (nodes M1)" using \<open>finite (nodes M1)\<close> 
+  then have "card (nodes M1 - ?RP) = card (nodes M1) - card ?RP" by (meson \<open>finite (nodes M1)\<close> card_Diff_subset infinite_subset) 
+ 
+  then have "card ?DB \<le> card (nodes M1) - card ?RP" using \<open>card ?DB \<le> card (nodes M1 - ?RP)\<close> by linarith
+
+  have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) + card ?DB \<le> card ?RP +  card (nodes M1) - card ?RP" 
+    using \<open>card ?DB \<le> card (nodes M1) - card ?RP\<close>
+  
   have "vs @ xs \<in> L M2 \<inter> L M1" using LB_count_helper_vs_xs[OF assms(6,1)] by simp
   
   have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) \<le> card (nodes M1)" using LB_count_helper_LB1[OF \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> assms(2-8)] by simp
 
-  have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) = card (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)" using LB_count_helper_RP_disjoint_M1_union[OF \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> assms(2-8)] by simp
+  have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) = card ?RP" using LB_count_helper_RP_disjoint_M1_union[OF \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> assms(2-8)] by simp
+
+  obtain CRP where "card ?RP = CRP" by blast
+
+  obtain LB1 where "sum (\<lambda> s . card (RP M2 s vs xs V'')) S = LB1" by blast
+  then have "LB1 = CRP" using \<open>(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) = card ?RP\<close> \<open>card ?RP = CRP\<close> by simp
+
+  obtain LB2 where "card ?DB = LB2" by blast
+  then have "LB2 \<le> card (nodes M1) - CRP" using \<open>card ?DB \<le> card (nodes M1) - card ?RP\<close> \<open>card ?RP = CRP\<close> by simp
+
+  have "LB1 + LB2 \<le> card (nodes M1)" using \<open>LB1 = CRP\<close> \<open>LB2 \<le> card (nodes M1) - CRP\<close> 
+  
+  
+  
+  
+  show ?thesis 
+
+
+
+          
+
+
+      then have "inj_on ?f (insert RS DB') \<and> image ?f (insert RS DB') \<subseteq> (nodes M1) - ?RP \<and> (\<forall> RS \<in> (insert RS DB') . IO_set M1 (?f RS) \<Omega> = RS)" 
+
+      then show ?case sorry
+    qed
+
+
+  have "\<And> DB' . DB' \<subseteq> ?DB \<Longrightarrow> card DB' \<le> card (nodes M1) - card ?RP"
+  proof -
+    fix DB' assume "DB' \<subseteq> ?DB"
+    have "finite DB'" 
+    proof (rule ccontr)
+      assume "infinite DB'"
+      have "infinite ?DB" using infinite_super[OF \<open>DB' \<subseteq> ?DB\<close> \<open>infinite DB'\<close> ] by simp
+      then show "False" using \<open>finite ?DB\<close> by simp
+    qed 
+    then show "card DB' \<le> card (nodes M1) - card ?RP"
+    using assms \<open>DB' \<subseteq> ?DB\<close> proof (induction DB')
+      case empty
+      show ?case by simp
+    next
+      case (insert RS DB')
+      have "DB' \<subseteq> ?DB" using insert.prems(9) by blast
+      have "card DB' \<le> card (nodes M1) - card ?RP" using insert.IH[OF insert.prems(1-8) \<open>DB' \<subseteq> ?DB\<close>] by assumption
+      have "card (insert RS DB') = Suc (card DB')" using insert.hyps by simp
+
+      have "RS \<in> D M1 \<Omega> T" using insert.prems(9) by blast
+      obtain q where "q \<in> nodes M1" "RS = IO_set M1 q \<Omega>" using insert.prems(2)  LB_count_helper_D_states[OF _ \<open>RS \<in> D M1 \<Omega> T\<close>] by blast
+      then have "IO_set M1 q \<Omega> \<in> ?DB" using insert.prems(9) by blast 
+      
+      have "q \<notin> ?RP" using insert.prems(2) LB_count_helper_LB2[OF _ insert.prems(6) \<open>IO_set M1 q \<Omega> \<in> ?DB\<close>] by blast
+
+
+
+      show ?case 
+      proof (rule ccontr)
+        assume "\<not> card (insert RS DB') \<le>  card (nodes M1) - card ?RP"
+    qed
+
+
+
+
 
   
+  
+  
+  
+  
+  have "finite T"
+    using Prereq.simps assms(6) by blast 
 
-  let ?DB = "(D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
   
-  
+  then have "card ( (D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}) \<le> card (nodes M1) - card (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"   
+  using assms proof (induction T)
+    case empty
+    then show ?case by auto
+  next
+    case (insert t T)
+    then show ?case sorry
+  qed
 
   
   
