@@ -1540,7 +1540,7 @@ proof -
   then have "finite ?D" using OFSM_props[OF assms(2)] assms(6) D_bound[of M1 T \<Omega>] unfolding Prereq.simps by linarith
   then have "finite ?DB" by simp
 
-  (* Construct function f (via induction) that maps each response set in ?DB to some state 
+  (* Construct a function f (via induction) that maps each response set in ?DB to some state 
      that produces that response set.
      This is then used to show that each response sets in ?DB indicates the existence of 
      a distinct state in M1 not reached via the RP-sequences.
@@ -1629,7 +1629,23 @@ qed
   
   
   
-
+(* Usage of LB to show existence of repetition *)
+lemma LB_usage :
+assumes "(vs @ xs) \<in> L M1"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_model M2 M1 m"
+  and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "\<not> Rep_Pre M2 M1 vs xs"
+  and     "\<not> Rep_Cov M2 M1 V'' vs xs"
+  and     "LB M2 M1 vs xs T S \<Omega> V'' > m"
+shows  "False"
+proof -
+  have "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" using LB_count[OF assms(1-8)] by assumption
+  moreover have "card (nodes M1) \<le> m" using assms(4) by auto
+  ultimately show "False" using assms(9) by linarith
+qed
 
 
 
