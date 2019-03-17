@@ -1531,8 +1531,6 @@ assumes "(vs @ xs) \<in> L M1"
 shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" 
 proof -
   
-
-  
   let ?D = "D M1 \<Omega> T"
   let ?B = "{B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
   let ?DB = "?D - ?B"
@@ -1542,7 +1540,11 @@ proof -
   then have "finite ?D" using OFSM_props[OF assms(2)] assms(6) D_bound[of M1 T \<Omega>] unfolding Prereq.simps by linarith
   then have "finite ?DB" by simp
 
-
+  (* Construct function f (via induction) that maps each response set in ?DB to some state 
+     that produces that response set.
+     This is then used to show that each response sets in ?DB indicates the existence of 
+     a distinct state in M1 not reached via the RP-sequences.
+   *)
   have states_f : "\<And> DB' . DB' \<subseteq> ?DB \<Longrightarrow> \<exists> f . inj_on f DB' \<and> image f DB' \<subseteq> (nodes M1) - ?RP \<and> (\<forall> RS \<in> DB' . IO_set M1 (f RS) \<Omega> = RS)"
   proof -
     fix DB' assume "DB' \<subseteq> ?DB"
@@ -1613,161 +1615,22 @@ proof -
   obtain f where "inj_on f ?DB" "image f ?DB \<subseteq> (nodes M1) - ?RP" using states_f[OF \<open>?DB \<subseteq> ?DB\<close>] by blast
   have "finite (nodes M1 - ?RP)" using \<open>finite (nodes M1)\<close> by simp
   have "card ?DB \<le> card (nodes M1 - ?RP)" using card_inj_on_le[OF \<open>inj_on f ?DB\<close> \<open>image f ?DB \<subseteq> (nodes M1) - ?RP\<close> \<open>finite (nodes M1 - ?RP)\<close>] by assumption
-
-  have "?RP \<subseteq> nodes M1" by blast 
-  then have "finite ?RP" 
-  then have "card ?RP < card (nodes M1)" using \<open>finite (nodes M1)\<close> 
+  
+  have "?RP \<subseteq> nodes M1" by blast
   then have "card (nodes M1 - ?RP) = card (nodes M1) - card ?RP" by (meson \<open>finite (nodes M1)\<close> card_Diff_subset infinite_subset) 
- 
   then have "card ?DB \<le> card (nodes M1) - card ?RP" using \<open>card ?DB \<le> card (nodes M1 - ?RP)\<close> by linarith
 
-  have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) + card ?DB \<le> card ?RP +  card (nodes M1) - card ?RP" 
-    using \<open>card ?DB \<le> card (nodes M1) - card ?RP\<close>
-  
   have "vs @ xs \<in> L M2 \<inter> L M1" using LB_count_helper_vs_xs[OF assms(6,1)] by simp
-  
-  have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) \<le> card (nodes M1)" using LB_count_helper_LB1[OF \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> assms(2-8)] by simp
-
   have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) = card ?RP" using LB_count_helper_RP_disjoint_M1_union[OF \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> assms(2-8)] by simp
-
-  obtain CRP where "card ?RP = CRP" by blast
-
-  obtain LB1 where "sum (\<lambda> s . card (RP M2 s vs xs V'')) S = LB1" by blast
-  then have "LB1 = CRP" using \<open>(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) = card ?RP\<close> \<open>card ?RP = CRP\<close> by simp
-
-  obtain LB2 where "card ?DB = LB2" by blast
-  then have "LB2 \<le> card (nodes M1) - CRP" using \<open>card ?DB \<le> card (nodes M1) - card ?RP\<close> \<open>card ?RP = CRP\<close> by simp
-
-  have "LB1 + LB2 \<le> card (nodes M1)" using \<open>LB1 = CRP\<close> \<open>LB2 \<le> card (nodes M1) - CRP\<close> 
+  moreover have "card ?RP \<le> card (nodes M1)" using card_mono[OF \<open>finite (nodes M1)\<close> \<open>?RP \<subseteq> nodes M1\<close>] by assumption
+  ultimately show ?thesis unfolding LB.simps
+    using \<open>card ?DB \<le> card (nodes M1) - card ?RP\<close> by linarith
+qed
   
   
   
-  
-  show ?thesis 
 
 
-
-          
-
-
-      then have "inj_on ?f (insert RS DB') \<and> image ?f (insert RS DB') \<subseteq> (nodes M1) - ?RP \<and> (\<forall> RS \<in> (insert RS DB') . IO_set M1 (?f RS) \<Omega> = RS)" 
-
-      then show ?case sorry
-    qed
-
-
-  have "\<And> DB' . DB' \<subseteq> ?DB \<Longrightarrow> card DB' \<le> card (nodes M1) - card ?RP"
-  proof -
-    fix DB' assume "DB' \<subseteq> ?DB"
-    have "finite DB'" 
-    proof (rule ccontr)
-      assume "infinite DB'"
-      have "infinite ?DB" using infinite_super[OF \<open>DB' \<subseteq> ?DB\<close> \<open>infinite DB'\<close> ] by simp
-      then show "False" using \<open>finite ?DB\<close> by simp
-    qed 
-    then show "card DB' \<le> card (nodes M1) - card ?RP"
-    using assms \<open>DB' \<subseteq> ?DB\<close> proof (induction DB')
-      case empty
-      show ?case by simp
-    next
-      case (insert RS DB')
-      have "DB' \<subseteq> ?DB" using insert.prems(9) by blast
-      have "card DB' \<le> card (nodes M1) - card ?RP" using insert.IH[OF insert.prems(1-8) \<open>DB' \<subseteq> ?DB\<close>] by assumption
-      have "card (insert RS DB') = Suc (card DB')" using insert.hyps by simp
-
-      have "RS \<in> D M1 \<Omega> T" using insert.prems(9) by blast
-      obtain q where "q \<in> nodes M1" "RS = IO_set M1 q \<Omega>" using insert.prems(2)  LB_count_helper_D_states[OF _ \<open>RS \<in> D M1 \<Omega> T\<close>] by blast
-      then have "IO_set M1 q \<Omega> \<in> ?DB" using insert.prems(9) by blast 
-      
-      have "q \<notin> ?RP" using insert.prems(2) LB_count_helper_LB2[OF _ insert.prems(6) \<open>IO_set M1 q \<Omega> \<in> ?DB\<close>] by blast
-
-
-
-      show ?case 
-      proof (rule ccontr)
-        assume "\<not> card (insert RS DB') \<le>  card (nodes M1) - card ?RP"
-    qed
-
-
-
-
-
-  
-  
-  
-  
-  
-  have "finite T"
-    using Prereq.simps assms(6) by blast 
-
-  
-  then have "card ( (D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}) \<le> card (nodes M1) - card (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"   
-  using assms proof (induction T)
-    case empty
-    then show ?case by auto
-  next
-    case (insert t T)
-    then show ?case sorry
-  qed
-
-  
-  
-    
-  
-  (*
-    Sketch: 
-      - finiteness of D-B
-      - induction over D-B
-        - each new elem of D-B indicates distinct state, as it is not in RP-targets and also differs in RS from all others in D-B
-   *)
-  have "finite (nodes M1)" using OFSM_props[OF assms(2)] unfolding well_formed.simps finite_FSM.simps by simp
-  then have "finite (D M1 \<Omega> T)" using OFSM_props[OF assms(2)] assms(6) D_bound[of M1 T \<Omega>] unfolding Prereq.simps by linarith
-  then have "finite ((D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''})" by simp
-
-  thm finite_subset_induct'[OF \<open>finite ?DB\<close>, of ?DB]
-
-  have "card ( (D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}) \<le> card (nodes M1) - card (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
-  proof (induction ?DB rule: finite_subset_induct'[OF \<open>finite ?DB\<close>, of ?DB])
-    
-    using assms proof (induction "(D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}" rule: finite_subset_induct'[OF \<open>finite ?DB\<close>, of ?DB])
-    case empty
-    show ?case using empty.hyps(1) by simp
-    (*proof -
-      have "\<forall>P. ({}::('a \<times> 'b) list set set) - P = {}"
-        by blast
-      then show ?thesis
-        by (metis (no_types) card.empty empty.hyps le0)
-    qed*)
-  next
-    case (insert q Q)
-    
-    then show ?case
-    proof (cases "Q = (D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}")
-      case True
-      show ?thesis using insert.hyps(3)[OF True insert.prems] by linarith
-    next
-      case False
-      then show ?thesis sorry
-    qed
-    
-  qed
-  
-  
-
-(* Lemma 5.4.11 *)
-lemma LB_count :
-  assumes "observable M1"
-  and "observable M2"
-  and "well_formed M1"
-  and "well_formed M2"
-  and "productF M2 M1 FAIL PM"
-  and "is_det_state_cover M2 V"
-  and "V'' \<in> Perm V M1"
-  and "Prereq M2 M1 vs xs T S \<Omega> V V''"
-  and "\<not> Rep_Pre M2 M1 vs xs"
-  and "\<not> Rep_Cov M2 M1 V'' vs xs"
-shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" 
-  sorry
 
 
 (* Lemma 5.4.13 *)
