@@ -294,12 +294,12 @@ fun Perm :: "'in list set \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> ('
   "Perm V M = {image f V | f . \<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v }"
 
 lemma perm_empty :
-  assumes "is_det_state_cover M V"
-  and "V'' \<in> Perm V M"
+  assumes "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
 shows "[] \<in> V''"
 proof -
   have init_seq : "[] \<in> V" using det_state_cover_empty assms by simp
-  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
+  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" using assms by auto
   then have "f [] = []" using init_seq by (metis language_state_for_input_empty singleton_iff) 
   then show ?thesis using init_seq f_def by (metis image_eqI) 
 qed
