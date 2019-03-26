@@ -429,18 +429,69 @@ lemma TS_prefix_containment :
   and     "mcp (vs@xs) V vs"
   and     "prefix xs' xs"
 shows "vs@xs' \<in> TS M2 M1 T S \<Omega> V i"
-using assms proof (induction "length xs - length xs'")
+(* Perform induction on length difference, as from each prefix we can deduce the 
+   desired property for the prefix one element smaller than it via 5.5.5 *)
+using assms proof (induction "length xs - length xs'" arbitrary: xs')
   case 0
   then have "xs = xs'"
     by (metis append_Nil2 append_eq_conv_conj gr_implies_not0 length_drop length_greater_0_conv prefixE)
   then show ?case using 0 by auto
 next
   case (Suc k)
+  then show ?case 
+  proof (cases xs')
+    case Nil
+    then show ?thesis
+      by (metis TS.simps(1) TS_subset append_Nil2 assms(2) mcp.elims(2) subset_iff zero_le) 
+  next
+    case (Cons a list)
+    then show ?thesis
+    proof (cases "xs = xs'")
+      case True
+      then show ?thesis using assms(1) by simp
+    next
+      case False 
+      then obtain xs'' where "xs = xs'@xs''" using Suc.prems(3) using prefixE by blast 
+      then have "xs'' \<noteq> []" using False by auto
+      then have "k = length xs - length (xs' @ [hd xs''])" using \<open>xs = xs'@xs''\<close> Suc.hyps(2) by auto
+      moreover have "prefix (xs' @ [hd xs'']) xs" using \<open>xs = xs'@xs''\<close> \<open>xs'' \<noteq> []\<close>
+        by (metis Cons_prefix_Cons list.exhaust_sel prefix_code(1) same_prefix_prefix) 
+      ultimately have "vs @ (xs' @ [hd xs'']) \<in> TS M2 M1 T S \<Omega> V i" using Suc.hyps(1)[OF _ Suc.prems(1,2)] by simp
+      
+      
+      have "mcp (vs @ xs' @ [hd xs'']) V vs" using \<open>xs = xs'@xs''\<close> \<open>xs'' \<noteq> []\<close> assms(2)
+      proof -
+        obtain aas :: "'a list \<Rightarrow> 'a list set \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+          "\<forall>x0 x1 x2. (\<exists>v3. (prefix v3 x2 \<and> v3 \<in> x1) \<and> \<not> length v3 \<le> length x0) = ((prefix (aas x0 x1 x2) x2 \<and> aas x0 x1 x2 \<in> x1) \<and> \<not> length (aas x0 x1 x2) \<le> length x0)"
+          by moura
+        then have f1: "\<forall>as A asa. (\<not> mcp as A asa \<or> prefix asa as \<and> asa \<in> A \<and> (\<forall>asb. (\<not> prefix asb as \<or> asb \<notin> A) \<or> length asb \<le> length asa)) \<and> (mcp as A asa \<or> \<not> prefix asa as \<or> asa \<notin> A \<or> (prefix (aas asa A as) as \<and> aas asa A as \<in> A) \<and> \<not> length (aas asa A as) \<le> length asa)"
+          by auto
+        obtain aasa :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+          f2: "\<forall>x0 x1. (\<exists>v2. x0 = x1 @ v2) = (x0 = x1 @ aasa x0 x1)"
+          by moura
+        then have f3: "([] @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs'']) = ([] @ [hd xs'']) @ aasa (([] @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs''])) ([] @ [hd xs''])"
+          by (meson prefixE prefixI)
+        have "xs' @ xs'' = (xs' @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs''])"
+          using f2 by (metis (no_types) \<open>prefix (xs' @ [hd xs'']) xs\<close> \<open>xs = xs' @ xs''\<close> prefixE)
+        then have "(vs @ (a # list) @ [hd xs'']) @ aasa (([] @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs''])) ([] @ [hd xs'']) = vs @ xs"
+          using f3 by (simp add: \<open>xs = xs' @ xs''\<close> local.Cons)
+        then have "\<not> prefix (aas vs V (vs @ xs' @ [hd xs''])) (vs @ xs' @ [hd xs'']) \<or> aas vs V (vs @ xs' @ [hd xs'']) \<notin> V \<or> length (aas vs V (vs @ xs' @ [hd xs''])) \<le> length vs"
+          using f1 by (metis (no_types) \<open>mcp (vs @ xs) V vs\<close> local.Cons prefix_append)
+        then show ?thesis
+          using f1 by (meson \<open>mcp (vs @ xs) V vs\<close> prefixI)
+      qed 
+      
+      
+      then have "vs @ butlast (xs' @ [hd xs'']) \<in> TS M2 M1 T S \<Omega> V i" using TS_immediate_prefix_containment[OF \<open>vs @ (xs' @ [hd xs'']) \<in> TS M2 M1 T S \<Omega> V i\<close>] by simp
 
-  (* apply 5.5.5 on IH *)
+      moreover have "xs' = butlast (xs' @ [hd xs''])" using \<open>xs'' \<noteq> []\<close> by simp
 
-  then show ?case sorry
+      ultimately show ?thesis by simp
+    qed
+  qed
 qed
+
+
 
   
 
