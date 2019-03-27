@@ -993,4 +993,235 @@ proof
 qed
 
 
+
+
+
+
+lemma TS_finite :
+  assumes "finite V"
+  and     "finite (inputs M2)"
+shows "finite (TS M2 M1 T S \<Omega> V n)"
+using assms proof (induction n)
+  case 0
+  then show ?case by auto
+next
+  case (Suc n)
+
+  let ?TS = "\<lambda> n . TS M2 M1 T S \<Omega> V n"
+  let ?C = "\<lambda> n . C M2 M1 T S \<Omega> V n"
+  let ?RM = "\<lambda> n . RM M2 M1 T S \<Omega> V n"
+
+  show ?case
+  proof (cases "n=0")
+    case True
+    then have "?TS (Suc n) = V" by auto
+    then show ?thesis using \<open>finite V\<close> by auto
+  next
+    case False
+    then have "?TS (Suc n) = ?TS n \<union> ?C (Suc n)"
+      by (metis TS.simps(3) gr0_implies_Suc neq0_conv) 
+    moreover have "finite (?TS n)" using Suc.IH[OF Suc.prems] by assumption
+    moreover have "finite (?C (Suc n))"
+    proof -
+      have "?C (Suc n) \<subseteq> append_set (?C n) (inputs M2)"
+        using C_step False by blast 
+      moreover have "?C n \<subseteq> ?TS n"
+        by (simp add: C_subset) 
+      ultimately have "?C (Suc n) \<subseteq> append_set (?TS n) (inputs M2)"
+        by blast
+      moreover have "finite (append_set (?TS n) (inputs M2))"
+        by (simp add: \<open>finite (TS M2 M1 T S \<Omega> V n)\<close> assms(2) finite_image_set2) 
+      ultimately show ?thesis
+        using infinite_subset by auto 
+    qed
+    ultimately show ?thesis
+      by auto 
+  qed
+qed
+
+lemma C_finite :
+  assumes "finite V"
+  and     "finite (inputs M2)"
+shows "finite (C M2 M1 T S \<Omega> V n)"
+proof -
+  have "C M2 M1 T S \<Omega> V n \<subseteq> TS M2 M1 T S \<Omega> V n"
+    by (simp add: C_subset) 
+  then show ?thesis using TS_finite[OF assms]
+    using Finite_Set.finite_subset by blast 
+qed
+
+
+
+lemma R_union_card_is_suffix_length :
+  assumes "OFSM M"
+  and     "xs \<in> L M"
+shows "sum (\<lambda> q . card (R M q [] xs)) (nodes M) = length xs"
+using assms proof (induction xs rule: rev_induct)
+  case Nil
+  have "\<forall> q \<in> nodes M . card (R M q [] []) = 0" by auto
+  show ?case
+    by (simp add: sum.neutral)
+next
+  case (snoc x xs)
+
+  have "finite (nodes M)" using assms by auto
+
+  have R_update : "\<And> q . R M q [] (xs@[x]) = (if (q \<in> io_targets M (initial M) (xs @ [x])) 
+                                    then insert (xs@[x]) (R M q [] xs)   
+                                    else R M q [] xs)" by (auto; presburger)
+
+  obtain q where "io_targets M (initial M) (xs @ [x]) = {q}"
+    by (meson assms(1) io_targets_observable_singleton_ex snoc.prems(2)) 
+
+  then have "R M q [] (xs@[x]) = insert (xs@[x]) (R M q [] xs)" using R_update by auto
+  moreover have "(xs@[x]) \<notin> (R M q [] xs)" by auto
+  ultimately have "card (R M q [] (xs@[x])) = Suc (card (R M q [] xs))"
+    by (metis card_insert_disjoint finite_R) 
+
+  have "q \<in> nodes M"
+    by (metis (full_types) FSM.nodes.initial \<open>io_targets M (initial M) (xs @ [x]) = {q}\<close> insertI1 io_targets_nodes) 
+
+  have "\<forall> q' . q' \<noteq> q \<longrightarrow> R M q' [] (xs@[x]) = R M q' [] xs" 
+    using \<open>io_targets M (initial M) (xs @ [x]) = {q}\<close> R_update
+    by auto  
+  then have "\<forall> q' . q' \<noteq> q \<longrightarrow> card (R M q' [] (xs@[x])) = card (R M q' [] xs)" 
+    by auto
+
+  then have "(\<Sum>q\<in>(nodes M - {q}). card (R M q [] (xs@[x]))) = (\<Sum>q\<in>(nodes M - {q}). card (R M q [] xs))"
+    by auto
+  moreover have "(\<Sum>q\<in>nodes M. card (R M q [] (xs@[x]))) = (\<Sum>q\<in>(nodes M - {q}). card (R M q [] (xs@[x]))) + (card (R M q [] (xs@[x])))" 
+                "(\<Sum>q\<in>nodes M. card (R M q [] xs)) = (\<Sum>q\<in>(nodes M - {q}). card (R M q [] xs)) + (card (R M q [] xs))"
+  proof -
+    have "\<forall>C c f. (infinite C \<or> (c::'c) \<notin> C) \<or> sum f C = (f c::nat) + sum f (C - {c})"
+      by (meson sum.remove)
+    then show "(\<Sum>q\<in>nodes M. card (R M q [] (xs@[x]))) = (\<Sum>q\<in>(nodes M - {q}). card (R M q [] (xs@[x]))) + (card (R M q [] (xs@[x])))"
+              "(\<Sum>q\<in>nodes M. card (R M q [] xs)) = (\<Sum>q\<in>(nodes M - {q}). card (R M q [] xs)) + (card (R M q [] xs))"
+      using \<open>finite (nodes M)\<close> \<open>q \<in> nodes M\<close> by presburger+
+  qed 
+  ultimately have "(\<Sum>q\<in>nodes M. card (R M q [] (xs@[x]))) = Suc (\<Sum>q\<in>nodes M. card (R M q [] xs))" 
+    using \<open>card (R M q [] (xs@[x])) = Suc (card (R M q [] xs))\<close> by presburger
+
+  have "(\<Sum>q\<in>nodes M. card (R M q [] xs)) = length xs" using snoc.IH snoc.prems
+    by (meson language_state_prefix)
+  
+  show ?case
+  proof -
+    show ?thesis
+      by (metis (no_types) \<open>(\<Sum>q\<in>nodes M. card (R M q [] (xs @ [x]))) = Suc (\<Sum>q\<in>nodes M. card (R M q [] xs))\<close> \<open>(\<Sum>q\<in>nodes M. card (R M q [] xs)) = length xs\<close> length_append_singleton)
+  qed   
+
+qed 
+
+
+lemma state_repetition_via_long_sequence :
+  assumes "OFSM M"
+  and     "card (nodes M) \<le> m"
+  and     "Suc (m * m) \<le> length xs"
+  and     "xs \<in> L M"
+shows "\<exists> q \<in> nodes M . card (R M q [] xs) > m"
+proof (rule ccontr)
+  assume "\<not> (\<exists>q\<in>nodes M. m < card (R M q [] xs))"
+  then have "\<forall> q \<in> nodes M . card (R M q [] xs) \<le> m" by auto
+  then have "sum (\<lambda> q . card (R M q [] xs)) (nodes M) \<le> sum (\<lambda> q . m) (nodes M)"
+    by (meson sum_mono) 
+  moreover have "sum (\<lambda> q . m) (nodes M) \<le> m * m" 
+    using assms(2) by auto 
+  ultimately have "sum (\<lambda> q . card (R M q [] xs)) (nodes M) \<le> m * m" 
+    by presburger
+
+  moreover have "Suc (m*m) \<le> sum (\<lambda> q . card (R M q [] xs)) (nodes M)" 
+    using R_union_card_is_suffix_length[OF assms(1,4)] assms(3) by auto
+  ultimately show "False" by simp
+qed
+  
+
+
+
+abbreviation "final_iteration M2 M1 T S \<Omega> V i \<equiv> TS M2 M1 T S \<Omega> V i = TS M2 M1 T S \<Omega> V (Suc i)"
+
+
+(* lemma 5.5.9 *)
+lemma final_iteration_ex :
+  assumes "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_model M2 M1 m"
+  and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"
+  shows "\<exists> i . final_iteration M2 M1 T S \<Omega> V i"
+proof 
+  let ?i = "Suc (Suc (m * m))"
+
+  let ?TS = "\<lambda> n . TS M2 M1 T S \<Omega> V n"
+  let ?C = "\<lambda> n . C M2 M1 T S \<Omega> V n"
+  let ?RM = "\<lambda> n . RM M2 M1 T S \<Omega> V n"
+
+
+  (* TODO: extract for reuse if necessary *)
+  have "is_det_state_cover M2 V" using assms by auto
+  moreover have "finite (nodes M2)" using assms(2) by auto
+  moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
+    by auto 
+  ultimately have "finite V" using det_state_cover_card[of M2 V]
+    by (metis finite_if_finite_subsets_card_bdd infinite_subset is_det_state_cover.elims(2) surj_card_le)
+
+
+  have "\<forall> seq \<in> ?C ?i . seq \<in> ?RM ?i"
+  proof  
+    fix seq assume "seq \<in> ?C ?i"
+
+    have "[] \<in> V" using \<open>is_det_state_cover M2 V\<close>
+      using det_state_cover_empty by blast 
+    then obtain vs where "mcp seq V vs" 
+      using mcp_ex[OF _ \<open>finite V\<close>] by blast   
+    then obtain xs where "seq = vs@xs"
+      using prefixE by auto 
+
+    
+    then have "Suc (length xs) = ?i" using C_index
+      using \<open>mcp seq V vs\<close> \<open>seq \<in> C M2 M1 T S \<Omega> V (Suc (Suc (m * m)))\<close> by blast
+    then have "length xs = Suc (m * m)"
+
+    
+
+
+
+
+
+
+
+  
+  
+  moreover have "finite (inputs M2)" using assms by auto
+  ultimately have "finite (?C ?i)" using C_finite by blast
+ 
+  then show "final_iteration M2 M1 T S \<Omega> V ?i"
+  proof (cases "C M2 M1 T S \<Omega> V ?i")
+    case emptyI
+    moreover have "?C (Suc ?i) \<subseteq> append_set (?C ?i) (inputs M2)"
+      using C_step by blast
+    ultimately have "?C (Suc ?i) = {}"
+      by blast 
+    then have "?TS (Suc ?i) = ?TS ?i"
+      using TS.simps(3) by blast 
+    then show ?thesis by blast
+   
+  next
+    case (insertI CS seq)
+    then have "seq \<in> ?C ?i" by blast
+    
+    have "[] \<in> V" using \<open>is_det_state_cover M2 V\<close>
+      using det_state_cover_empty by blast 
+    then obtain vs where "mcp seq V vs" 
+      using mcp_ex[OF _ \<open>finite V\<close>] by blast   
+    then obtain xs where "seq = vs@xs"
+      using prefixE by auto 
+
+    
+    then have "Suc (length xs) = ?i" using C_index
+      using \<open>mcp seq V vs\<close> \<open>seq \<in> C M2 M1 T S \<Omega> V (Suc (Suc (m * m)))\<close> by blast
+    then have "length xs = Suc (m * m)"
+
+    then show ?thesis sorry
+  qed
+
+
 end
