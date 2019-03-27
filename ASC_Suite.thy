@@ -678,13 +678,13 @@ qed
 lemma TS_non_containment_causes :
   assumes "vs@xs \<notin> TS M2 M1 T S \<Omega> V i" 
   and     "mcp (vs@xs) V vs"
-  and     "xs \<in> lists_of_length (inputs M2) kx"
+  and     "set xs \<subseteq> inputs M2"
   and     "0 < i"
-shows "(\<exists> xr j . prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 T S \<Omega> V j)
-       \<or> (\<exists> xc . prefix xc xs \<and> vs@xc \<in> (C M2 M1 T S \<Omega> V i) - (RM M2 M1 T S \<Omega> V i))"
+shows "(\<exists> xr j . xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 T S \<Omega> V j)
+       \<or> (\<exists> xc . xc \<noteq> xs \<and> prefix xc xs \<and> vs@xc \<in> (C M2 M1 T S \<Omega> V i) - (RM M2 M1 T S \<Omega> V i))"
   (is "?PrefPreviouslyRemoved \<or> ?PrefJustContained")
-      "\<not> ((\<exists> xr j . prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 T S \<Omega> V j)
-         \<and> (\<exists> xc . prefix xc xs \<and> vs@xc \<in> (C M2 M1 T S \<Omega> V i) - (RM M2 M1 T S \<Omega> V i)))"
+      "\<not> ((\<exists> xr j . xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 T S \<Omega> V j)
+         \<and> (\<exists> xc . xc \<noteq> xs \<and> prefix xc xs \<and> vs@xc \<in> (C M2 M1 T S \<Omega> V i) - (RM M2 M1 T S \<Omega> V i)))"
   
 proof -
 
@@ -696,6 +696,26 @@ proof -
   proof (rule ccontr)
     assume "\<not> (?PrefPreviouslyRemoved \<or> ?PrefJustContained)"
     then have "\<not> ?PrefPreviouslyRemoved" "\<not> ?PrefJustContained" by auto
+
+    have "\<nexists>xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> ?RM j" 
+    proof 
+      assume "\<exists>xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T S \<Omega> V j"
+      then obtain xr j where "prefix xr xs" "j \<le> i" "vs @ xr \<in> ?RM j" by blast
+      then show "False"
+      proof (cases "xr = xs")
+        case True
+        then have "vs @ xs \<in> ?RM j" using \<open>vs @ xr \<in> ?RM j\<close> by auto
+        then have "vs @ xs \<in> ?TS j"
+          using C_subset RM_subset \<open>vs @ xr \<in> ?RM j\<close> by blast 
+        then have "vs @ xs \<in> ?TS i"
+          using TS_subset \<open>j \<le> i\<close> by blast 
+        then show ?thesis using assms(1) by blast
+      next
+        case False
+        then show ?thesis using \<open>\<not> ?PrefPreviouslyRemoved\<close> \<open>prefix xr xs\<close> \<open>j \<le> i\<close> \<open>vs @ xr \<in> ?RM j\<close> by blast
+      qed
+    qed
+      
 
     have "vs \<in> V" using assms(2) by auto
     then have "vs \<in> ?C 1" by auto
@@ -714,7 +734,9 @@ proof -
         have "1 \<le> Suc k \<and> Suc k \<le> i" using Suc.prems by auto
         then have "vs @ take k xs \<in> ?C (Suc k)" using Suc.IH by simp
 
-        moreover have "vs @ take k xs \<notin> ?RM (Suc k)" using \<open>1 \<le> Suc k \<and> Suc k \<le> i\<close> \<open>\<not> ?PrefPreviouslyRemoved\<close> take_is_prefix by blast
+        moreover have "vs @ take k xs \<notin> ?RM (Suc k)" 
+          using \<open>1 \<le> Suc k \<and> Suc k \<le> i\<close> \<open>\<not> ?PrefPreviouslyRemoved\<close> take_is_prefix
+          using Suc.IH by blast 
 
         ultimately have "vs @ take k xs \<in> (?C (Suc k)) - (?RM (Suc k))" by blast
 
@@ -760,7 +782,7 @@ proof -
     then have "vs @ take (i-1) xs \<in> C M2 M1 T S \<Omega> V i - RM M2 M1 T S \<Omega> V i" using assms(4)
       by (metis One_nat_def Suc_diff_1 Suc_leI le_less) 
     then have "?PrefJustContained"
-      using take_is_prefix by blast  
+      by (metis C_subset DiffD1 assms(1) subsetCE take_is_prefix)
     then show "False" using \<open>\<not> ?PrefJustContained\<close> by simp
   qed
 
@@ -882,7 +904,93 @@ qed
 
   
 
+(* lemma 5.5.8 *)
+lemma TS_non_containment_causes_rev : 
+  assumes "mcp (vs@xs) V vs"
+  and "(\<exists> xr j . xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 T S \<Omega> V j)
+       \<or> (\<exists> xc . xc \<noteq> xs \<and> prefix xc xs \<and> vs@xc \<in> (C M2 M1 T S \<Omega> V i) - (RM M2 M1 T S \<Omega> V i))"
+      (is "?PrefPreviouslyRemoved \<or> ?PrefJustContained")
+
+shows "vs@xs \<notin> TS M2 M1 T S \<Omega> V i"
+
   
+proof 
+  let ?TS = "\<lambda> n . TS M2 M1 T S \<Omega> V n"
+  let ?C = "\<lambda> n . C M2 M1 T S \<Omega> V n"
+  let ?RM = "\<lambda> n . RM M2 M1 T S \<Omega> V n"
+
+  assume "vs @ xs \<in> TS M2 M1 T S \<Omega> V i" 
+
+  have "?PrefPreviouslyRemoved \<Longrightarrow> False"
+  proof -
+    assume ?PrefPreviouslyRemoved
+    then obtain xr j where "xr \<noteq> xs" "prefix xr xs" "j \<le> i" "vs@xr \<in> ?RM j" by blast
+    then have "vs@xr \<notin> ?C j - ?RM j" by blast 
+
+     
+    
+    have "vs@(take (Suc (length xr)) xs) \<notin> ?C (Suc j)" 
+    proof -
+      have "vs@(take (length xr) xs) \<notin> ?C j - ?RM j"
+        by (metis \<open>prefix xr xs\<close> \<open>vs @ xr \<notin> C M2 M1 T S \<Omega> V j - RM M2 M1 T S \<Omega> V j\<close> append_eq_conv_conj prefix_def) 
+      show ?thesis
+        by (smt C_immediate_prefix_containment C_index RM_subset Suc_neq_Zero \<open>prefix xr xs\<close> \<open>vs @ take (length xr) xs \<notin> C M2 M1 T S \<Omega> V j - RM M2 M1 T S \<Omega> V j\<close> \<open>vs @ xr \<in> RM M2 M1 T S \<Omega> V j\<close> assms(1) butlast_take diff_Suc_1 list.size(3) mcp_prefix_of_suffix nat_le_linear subsetCE take_all take_is_prefix)
+
+      (* TODO: replace smt call ?
+        have "\<forall> x \<in> inputs M2 . vs@(take (length xr) xs)@[x] \<notin> append_set (?C j -?RM j) (inputs M2)"
+          by simp 
+        obtain x where x_def : "take (Suc (length xr)) xs = xr@[x]"
+        proof -
+          assume a1: "\<And>x. take (Suc (length xr)) xs = xr @ [x] \<Longrightarrow> thesis"
+          have "take (length xr) xs = xr"
+            by (metis (no_types) \<open>prefix xr xs\<close> append_eq_conv_conj prefix_def)
+          then show ?thesis
+            using a1 by (metis (no_types) \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> nat_less_le prefix_length_le take_Suc_conv_app_nth take_all)
+        qed
+        then have "x \<in> inputs M2" using assms(2)
+          by (metis contra_subsetD in_set_takeD last_in_set snoc_eq_iff_butlast) 
+        moreover have "vs@(take (length xr) xs) \<notin> ?C j - ?RM j"
+          by (metis \<open>prefix xr xs\<close> \<open>vs @ xr \<notin> C M2 M1 T S \<Omega> V j - RM M2 M1 T S \<Omega> V j\<close> append_eq_conv_conj prefix_def) 
+        ultimately have "vs@(take (length xr) xs)@[x] \<notin> append_set (?C j -?RM j) (inputs M2)" by simp
+        moreover have "take (length xr) xs = xr"
+          by (metis (no_types) \<open>prefix xr xs\<close> append_eq_conv_conj prefix_def)
+        ultimately have "vs@xr@[x] \<notin> append_set (?C j -?RM j) (inputs M2)" by simp
+        then have "vs@(take (Suc (length xr)) xs) \<notin> append_set (?C j -?RM j) (inputs M2)" using x_def by auto
+      *)   
+    qed
+    
+    have "prefix (take (Suc (length xr)) xs) xs"
+      by (simp add: take_is_prefix) 
+    then have "vs@(take (Suc (length xr)) xs) \<in> ?TS i" using TS_prefix_containment[OF \<open>vs @ xs \<in> TS M2 M1 T S \<Omega> V i\<close> assms(1)] by simp
+    then obtain j' where "j' < Suc i \<and> vs@(take (Suc (length xr)) xs) \<in> ?C j'" using TS_union[of M2 M1 T S \<Omega> V i] by fastforce
+    then have "Suc (Suc (length xr)) = j'" using C_index[of vs "take (Suc (length xr)) xs"]
+    proof -
+      have "\<not> length xs \<le> length xr"
+        by (metis (no_types) \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> append_Nil2 append_eq_conv_conj leD nat_less_le prefix_def prefix_length_le)
+      then show ?thesis
+        by (metis (no_types) \<open>\<And>i \<Omega> V T S M2 M1. \<lbrakk>vs @ take (Suc (length xr)) xs \<in> C M2 M1 T S \<Omega> V i; mcp (vs @ take (Suc (length xr)) xs) V vs\<rbrakk> \<Longrightarrow> Suc (length (take (Suc (length xr)) xs)) = i\<close> \<open>j' < Suc i \<and> vs @ take (Suc (length xr)) xs \<in> C M2 M1 T S \<Omega> V j'\<close> append_eq_conv_conj assms(1) length_take mcp_prefix_of_suffix min.absorb2 not_less_eq_eq prefix_def)
+    qed
+    moreover have "Suc (length xr) = j" 
+      using \<open>vs@xr \<in> ?RM j\<close> RM_subset C_index
+      by (metis \<open>prefix xr xs\<close> assms(1) mcp_prefix_of_suffix subsetCE)
+    ultimately have "j' = Suc j" by auto
+
+    then have "vs@(take (Suc (length xr)) xs) \<in> ?C (Suc j)" using \<open>j' < Suc i \<and> vs@(take (Suc (length xr)) xs) \<in> ?C j'\<close> by auto
+    then show "False" using \<open>vs@(take (Suc (length xr)) xs) \<notin> ?C (Suc j)\<close> by blast
+  qed
+
+    
+  moreover have "?PrefJustContained \<Longrightarrow> False"
+  proof -
+    assume ?PrefJustContained
+    then obtain xc where "xc \<noteq> xs" "prefix xc xs" "vs @ xc \<in> ?C i - ?RM i" by blast
+    (* only possible if xc = xs *)
+    then show "False"
+      by (metis C_index DiffD1 Suc_less_eq T_index \<open>vs @ xs \<in> ?TS i\<close> assms(1) leD le_neq_trans mcp_prefix_of_suffix prefix_length_le prefix_length_prefix prefix_order.dual_order.antisym prefix_order.order_refl) 
+  qed
+
+  ultimately show "False" using assms(2) by auto
+qed
 
 
 end
