@@ -963,6 +963,23 @@ lemma path_state_containment :
 shows "set (map snd p) \<subseteq> nodes M"
   using assms by (metis FSM.nodes_states states_alt_def) 
 
+lemma path_input_containment :
+  assumes "well_formed M"
+  and     "path M p q"  
+shows "set (map fst (map fst p)) \<subseteq> inputs M"
+using assms proof (induction p arbitrary: q rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc a p)
+  have "set (map fst (p @ [a])) \<subseteq> (inputs M \<times> outputs M)" using well_formed_path_io_containment[OF snoc.prems] by assumption
+  then have "(fst a) \<in> (inputs M \<times> outputs M)" by auto
+  then have "fst (fst a) \<in> inputs M" by auto
+  moreover have "set (map fst (map fst p)) \<subseteq> inputs M" using snoc.IH[OF snoc.prems(1)]
+    using snoc.prems(2) by blast 
+  ultimately show ?case
+    by simp 
+qed
 
 
 
