@@ -769,7 +769,8 @@ proof -
 
   show "\<not> (?PrefPreviouslyRemoved \<and> ?PrefJustContained)"
   proof 
-    assume "?PrefPreviouslyRemoved" "?PrefJustContained"
+    assume "?PrefPreviouslyRemoved \<and> ?PrefJustContained"
+    then have "?PrefPreviouslyRemoved" "?PrefJustContained" by auto
 
     obtain xr j where "prefix xr xs" "j \<le> i" "vs@xr \<in> ?RM j" using \<open>?PrefPreviouslyRemoved\<close> by blast
     obtain xc where "prefix xc xs" "vs@xc \<in> ?C i - ?RM i" using \<open>?PrefJustContained\<close> by blast
@@ -790,13 +791,13 @@ proof -
 
 
 
-    have "\<And> n . (0 \<le> n \<and> n < i) \<longrightarrow> vs@(take n xs) \<in> ?C (Suc n)"
-    proof     
-      fix n assume "0 \<le> n \<and> n < i"
+    have "\<And> n . (n < i) \<Longrightarrow> vs@(take n xs) \<in> ?C (Suc n)"
+    proof -    
+      fix n assume "n < i"
       show "vs @ take n xs \<in> C M2 M1 T S \<Omega> V (Suc n)"
       proof -
         have "n \<le> length xc"
-          using \<open>0 \<le> n \<and> n < i\<close> \<open>Suc (length xc) = i\<close> less_Suc_eq_le by blast 
+          using \<open>n < i\<close> \<open>Suc (length xc) = i\<close> less_Suc_eq_le by blast 
         then have "prefix (vs @ (take n xs)) (vs @ xc)"
         proof -
           have "n \<le> length xs"
@@ -820,9 +821,9 @@ proof -
     qed
 
 
-    have "\<And> n . (0 \<le> n \<and> n < i) \<longrightarrow> vs@(take n xs) \<notin> ?RM (Suc n)"
-    proof     
-      fix n assume "0 \<le> n \<and> n < i"
+    have "\<And> n . (n < i) \<Longrightarrow> vs@(take n xs) \<notin> ?RM (Suc n)"
+    proof -    
+      fix n assume "n < i"
       show "vs @ take n xs \<notin> RM M2 M1 T S \<Omega> V (Suc n)"
       proof (cases "n = length xc")
         case True
@@ -831,16 +832,52 @@ proof -
       next
         case False
         then have "n < length xc"
-          using \<open>0 \<le> n \<and> n < i\<close> \<open>Suc (length xc) = i\<close> by linarith 
+          using \<open>n < i\<close> \<open>Suc (length xc) = i\<close> by linarith 
 
-        (* show result via immediate prefix for C sets *)
-       
-        then show ?thesis sorry
+        (* show property via immediate prefix for C sets, performing a case analysis on
+           whether (take (Suc n) xc) is xc or a proper prefix of it *)
+
+        show ?thesis 
+        proof (cases "Suc n < length xc")
+          case True
+          then have "Suc n < i"
+            using \<open>Suc (length xc) = i\<close> \<open>n < length xc\<close> by blast 
+          then have "vs @ (take (Suc n) xs) \<in> ?C (Suc (Suc n))" 
+            using \<open>\<And> n . (n < i) \<Longrightarrow> vs@(take n xs) \<in> ?C (Suc n)\<close> by blast
+          then have "vs @ butlast (take (Suc n) xs) \<in> ?C (Suc n) - ?RM (Suc n)" 
+            using True C_immediate_prefix_containment[of vs "take (Suc n) xs" M2 M1 T S \<Omega> V n]
+            by (metis Suc_neq_Zero \<open>prefix xc xs\<close> \<open>xc \<noteq> xs\<close> prefix_Nil take_eq_Nil)
+          then show ?thesis
+            by (metis DiffD2 Suc_lessD True \<open>length xc \<le> length xs\<close> butlast_snoc less_le_trans take_Suc_conv_app_nth)
+        next
+          case False
+          then have "Suc n = length xc"
+            using Suc_lessI \<open>n < length xc\<close> by blast
+          then have "vs @ (take (Suc n) xs) \<in> ?C (Suc (Suc n))"
+            using \<open>Suc (length xc) = i\<close> \<open>\<And>n. n < i \<Longrightarrow> vs @ take n xs \<in> C M2 M1 T S \<Omega> V (Suc n)\<close> 
+            by auto 
+          then have "vs @ butlast (take (Suc n) xs) \<in> ?C (Suc n) - ?RM (Suc n)" 
+            using False C_immediate_prefix_containment[of vs "take (Suc n) xs" M2 M1 T S \<Omega> V n]
+            by (metis Suc_neq_Zero \<open>prefix xc xs\<close> \<open>xc \<noteq> xs\<close> prefix_Nil take_eq_Nil)
+          then show ?thesis
+            by (metis Diff_iff \<open>Suc n = length xc\<close> \<open>length xc \<le> length xs\<close> butlast_take diff_Suc_1)
+        qed
       qed
-        
+    qed
+
+
+    have "xr = take j xs"
+    proof -
+      have "vs@xr \<in> ?C j" using \<open>vs@xr \<in> ?RM j\<close> RM_subset by blast 
+      then show ?thesis using C_index
+        by (metis Suc_le_lessD \<open>\<And>n. n < i \<Longrightarrow> vs @ take n xs \<notin> RM M2 M1 T S \<Omega> V (Suc n)\<close> \<open>j \<le> i\<close> \<open>prefix xr xs\<close> \<open>vs @ xr \<in> RM M2 M1 T S \<Omega> V j\<close> append_eq_conv_conj assms(2) mcp_prefix_of_suffix prefix_def) 
+    qed
+ 
+    have "vs@xr \<notin> ?RM j"
+      by (metis (no_types) C_index RM_subset \<open>i \<le> length xs\<close> \<open>j \<le> i\<close> \<open>prefix xr xs\<close> \<open>xr = take j xs\<close> assms(2) contra_subsetD dual_order.trans length_take lessI less_irrefl mcp_prefix_of_suffix min.absorb2) 
     
-
-
+    then show "False" using \<open>vs@xr \<in> ?RM j\<close> by simp    
+  qed
 qed
 
   
