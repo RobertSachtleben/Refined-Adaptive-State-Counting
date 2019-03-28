@@ -268,6 +268,7 @@ abbreviation append_sets :: "'a list set \<Rightarrow> 'a list set \<Rightarrow>
    TS = Test Suite
    C  = currently considered sequences
    RM = sequences to remove
+        \<rightarrow> has been modified to also allow early removal of observed fail traces
 *)
 fun TS :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set" 
 and C  :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
@@ -748,10 +749,10 @@ next
   then show ?case by auto 
 qed
 
-lemma T_index :
+lemma TS_index :
   assumes "vs @ xs \<in> TS M2 M1 T \<Omega> V m i"
   and     "mcp (vs@xs) V vs"
-shows "Suc (length xs) \<le> i"
+shows "Suc (length xs) \<le> i" "vs@xs \<in> C M2 M1 T \<Omega> V m (Suc (length xs))"
 proof -
   let ?TS = "\<lambda> n . TS M2 M1 T \<Omega> V m n"
   let ?C = "\<lambda> n . C M2 M1 T \<Omega> V m n"
@@ -761,7 +762,10 @@ proof -
     by (metis (full_types) UN_iff assms(1) atLeastLessThan_iff set_upt) 
   then have "Suc (length xs) = j" using C_index
     using assms(2) by blast
-  then show ?thesis using \<open>j < Suc i\<close> by auto
+  then show "Suc (length xs) \<le> i" 
+    using \<open>j < Suc i\<close> by auto
+  show "vs@xs \<in> C M2 M1 T \<Omega> V m (Suc (length xs))" 
+    using \<open>vs@xs \<in> ?C j\<close> \<open>Suc (length xs) = j\<close> by auto
 qed
 
 
@@ -901,7 +905,7 @@ proof -
         proof 
           assume "vs @ take (Suc k) xs \<in> ?TS (Suc k)"
           then have "Suc (length (take (Suc k) xs)) \<le> Suc k" 
-            using T_index assms(2) mcp_prefix_of_suffix take_is_prefix by blast 
+            using TS_index(1) assms(2) mcp_prefix_of_suffix take_is_prefix by blast 
           moreover have "Suc (length (take k xs)) = Suc k" using C_index \<open>vs @ take k xs \<in> ?C (Suc k)\<close>
             by (metis assms(2) mcp_prefix_of_suffix take_is_prefix) 
           ultimately show "False" using \<open>k < length xs\<close>
@@ -1069,29 +1073,7 @@ proof
       have "vs@(take (length xr) xs) \<notin> ?C j - ?RM j"
         by (metis \<open>prefix xr xs\<close> \<open>vs @ xr \<notin> C M2 M1 T \<Omega> V m j - RM M2 M1 T \<Omega> V m j\<close> append_eq_conv_conj prefix_def) 
       show ?thesis
-        by (smt C_immediate_prefix_containment C_index RM_subset Suc_neq_Zero \<open>prefix xr xs\<close> \<open>vs @ take (length xr) xs \<notin> C M2 M1 T \<Omega> V m j - RM M2 M1 T \<Omega> V m j\<close> \<open>vs @ xr \<in> RM M2 M1 T \<Omega> V m j\<close> assms(1) butlast_take diff_Suc_1 list.size(3) mcp_prefix_of_suffix nat_le_linear subsetCE take_all take_is_prefix)
-
-      (* TODO: replace smt call ?
-        have "\<forall> x \<in> inputs M2 . vs@(take (length xr) xs)@[x] \<notin> append_set (?C j -?RM j) (inputs M2)"
-          by simp 
-        obtain x where x_def : "take (Suc (length xr)) xs = xr@[x]"
-        proof -
-          assume a1: "\<And>x. take (Suc (length xr)) xs = xr @ [x] \<Longrightarrow> thesis"
-          have "take (length xr) xs = xr"
-            by (metis (no_types) \<open>prefix xr xs\<close> append_eq_conv_conj prefix_def)
-          then show ?thesis
-            using a1 by (metis (no_types) \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> nat_less_le prefix_length_le take_Suc_conv_app_nth take_all)
-        qed
-        then have "x \<in> inputs M2" using assms(2)
-          by (metis contra_subsetD in_set_takeD last_in_set snoc_eq_iff_butlast) 
-        moreover have "vs@(take (length xr) xs) \<notin> ?C j - ?RM j"
-          by (metis \<open>prefix xr xs\<close> \<open>vs @ xr \<notin> C M2 M1 T \<Omega> V m j - RM M2 M1 T \<Omega> V m j\<close> append_eq_conv_conj prefix_def) 
-        ultimately have "vs@(take (length xr) xs)@[x] \<notin> append_set (?C j -?RM j) (inputs M2)" by simp
-        moreover have "take (length xr) xs = xr"
-          by (metis (no_types) \<open>prefix xr xs\<close> append_eq_conv_conj prefix_def)
-        ultimately have "vs@xr@[x] \<notin> append_set (?C j -?RM j) (inputs M2)" by simp
-        then have "vs@(take (Suc (length xr)) xs) \<notin> append_set (?C j -?RM j) (inputs M2)" using x_def by auto
-      *)   
+        by (smt C_immediate_prefix_containment C_index RM_subset Suc_neq_Zero \<open>prefix xr xs\<close> \<open>vs @ take (length xr) xs \<notin> C M2 M1 T \<Omega> V m j - RM M2 M1 T \<Omega> V m j\<close> \<open>vs @ xr \<in> RM M2 M1 T \<Omega> V m j\<close> assms(1) butlast_take diff_Suc_1 list.size(3) mcp_prefix_of_suffix nat_le_linear subsetCE take_all take_is_prefix)  
     qed
     
     have "prefix (take (Suc (length xr)) xs) xs"
@@ -1121,7 +1103,7 @@ proof
     then obtain xc where "xc \<noteq> xs" "prefix xc xs" "vs @ xc \<in> ?C i - ?RM i" by blast
     (* only possible if xc = xs *)
     then show "False"
-      by (metis C_index DiffD1 Suc_less_eq T_index \<open>vs @ xs \<in> ?TS i\<close> assms(1) leD le_neq_trans mcp_prefix_of_suffix prefix_length_le prefix_length_prefix prefix_order.dual_order.antisym prefix_order.order_refl) 
+      by (metis C_index DiffD1 Suc_less_eq TS_index(1) \<open>vs @ xs \<in> ?TS i\<close> assms(1) leD le_neq_trans mcp_prefix_of_suffix prefix_length_le prefix_length_prefix prefix_order.dual_order.antisym prefix_order.order_refl) 
   qed
 
   ultimately show "False" using assms(2) by auto
@@ -1609,19 +1591,56 @@ proof -
            vs@xs must therefore not be contained in (?C i - ?R i)
            contradiction 
       *)
-           
+
+      have "?TS (Suc i) = ?TS i" 
+        using assms(5) by auto
+
+      have "vs@xc@[x] \<notin> ?C (Suc i)" 
+      proof
+        assume "vs @ xc @ [x] \<in> ?C (Suc i)" 
+        then have "vs @ xc @ [x] \<notin> ?TS i"
+          by (metis (no_types, lifting) C.simps(3) DiffE \<open>Suc (length xc) = i\<close>) 
+        then have "?TS i \<noteq> ?TS (Suc i)"
+          using C_subset \<open>vs @ xc @ [x] \<in> C M2 M1 T \<Omega> V m (Suc i)\<close> by blast
+        then show "False" using assms(5) 
+          by auto
+      qed
+      moreover have "?C (Suc i) = append_set (?C i - ?RM i) (inputs M2) - ?TS i"
+        using C.simps(3) \<open>Suc (length xc) = i\<close> by blast 
+      ultimately have "vs @ xc @ [x] \<notin> append_set (?C i - ?RM i) (inputs M2) - ?TS i" 
+        by blast
 
 
-      have "vs@xc \<notin> ?TS (i-1)"
-        by (metis Suc_n_not_le_n T_index \<open>Suc (length xc) = i\<close> \<open>mcp (vs @ xc) V vs\<close> diff_Suc_1)
-  
+      have "vs @ xc @ [x] \<notin> ?TS (Suc i)"
+        by (metis Suc_n_not_le_n TS_index(1) \<open>Suc (length xc) = i\<close> \<open>prefix (vs @ xc @ [x]) (vs @ xs)\<close> assms(2) assms(5) length_append_singleton mcp_prefix_of_suffix same_prefix_prefix) 
+      then have "vs @ xc @ [x] \<notin> ?TS i"
+        by (simp add: assms(5)) 
+
+      have "vs @ xc @ [x] \<notin> append_set (?C i - ?RM i) (inputs M2)"
+        using \<open>vs @ xc @ [x] \<notin> TS M2 M1 T \<Omega> V m i\<close> \<open>vs @ xc @ [x] \<notin> append_set (C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i) (inputs M2) - TS M2 M1 T \<Omega> V m i\<close> by blast  
       
+      then have "vs @ xc \<notin> (?C i - ?RM i)"
+      proof -
+        have f1: "\<forall>a A Aa. (a::'a) \<notin> A \<and> a \<notin> Aa \<or> a \<in> Aa \<union> A"
+          by (meson UnCI)
+        obtain aas :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+          "\<forall>x0 x1. (\<exists>v2. x0 = x1 @ v2) = (x0 = x1 @ aas x0 x1)"
+          by moura
+        then have "vs @ xs = (vs @ xc @ [x]) @ aas (vs @ xs) (vs @ xc @ [x])"
+          by (meson \<open>prefix (vs @ xc @ [x]) (vs @ xs)\<close> prefixE)
+        then have "xs = (xc @ [x]) @ aas (vs @ xs) (vs @ xc @ [x])"
+          by simp
+        then have "x \<in> inputs M2"
+          using f1 by (metis (no_types) assms(3) contra_subsetD insert_iff list.set(2) set_append)
+        then show ?thesis
+          using \<open>vs @ xc @ [x] \<notin> append_set (C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i) (inputs M2)\<close> by force
+      qed 
 
-
-  have "?C i - ?RM i = {}" 
-  proof (rule ccontr)
-    assume "?C i - ?RM i \<noteq> {}"
-    moreover have "inputs M2 \<noteq> {}" using assms(6) by auto
-    ultimately have "append_set (?C i - ?RM i) (inputs M2) \<noteq> {}" 
+      then have "False" 
+        using \<open>vs @ xc \<in> ?C i - ?RM i\<close> by blast
+      then show ?thesis by simp
+    qed
+  qed
+qed
 
 end
