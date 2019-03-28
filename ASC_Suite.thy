@@ -94,15 +94,46 @@ fun N :: "('in \<times> 'out) list \<Rightarrow> ('in, 'out, 'state) FSM \<Right
 *)
 
 
+
+
+lemma language_state_for_input_take :
+  assumes "io \<in> language_state_for_input M q xs"
+shows "take n io \<in> language_state_for_input M q (take n xs)" 
+proof -
+  obtain ys where "io = xs || ys" "length xs = length ys" "xs || ys \<in> language_state M q" 
+    using assms by auto
+  then obtain p where "length p = length xs" "path M ((xs || ys) || p) q "
+    by auto 
+  then have "path M (take n ((xs || ys) || p)) q"
+    by (metis FSM.path_append_elim append_take_drop_id) 
+  then have "take n (xs || ys) \<in> language_state M q"
+    by (simp add: \<open>length p = length xs\<close> \<open>length xs = length ys\<close> language_state take_zip)
+  then have "(take n xs) || (take n ys) \<in> language_state M q"
+    by (simp add: take_zip) 
+  
+  have "take n io = (take n xs) || (take n ys)"
+    using \<open>io = xs || ys\<close> take_zip by blast 
+  moreover have "length (take n xs) = length (take n ys)"
+    by (simp add: \<open>length xs = length ys\<close>) 
+  ultimately show ?thesis 
+    using \<open>(take n xs) || (take n ys) \<in> language_state M q\<close> unfolding language_state_for_input.simps by blast
+qed
+    
+
+
+
 lemma N_nonempty :
   assumes "is_det_state_cover M2 V"
   and     "OFSM M1"
   and     "OFSM M2"
   and     "fault_model M2 M1 m"
+  and     "io \<in> L M1"
 shows "N io M1 V \<noteq> {}"
 proof -
   have "[] \<in> V" using assms(1) det_state_cover_empty by blast 
-  
+
+  have "inputs M1 = inputs M2" using assms(4) by auto
+
   have "is_det_state_cover M2 V" using assms by auto
   moreover have "finite (nodes M2)" using assms(3) by auto
   moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
@@ -121,12 +152,81 @@ proof -
   *)
 
   obtain q2 where "d_reaches M2 (initial M2) ioV q2" using det_state_cover_d_reachable[OF assms(1) \<open>ioV \<in> V\<close>] by blast
-  then have "set ioV \<subseteq> inputs M2" 
+  then obtain ioV' ioP where io_path : "length ioV = length ioV' \<and> length ioV = length ioP \<and> (path M2 ((ioV || ioV') || ioP) (initial M2)) \<and> target ((ioV || ioV') || ioP) (initial M2) = q2"
+    by auto
 
-  obtain ioV2 where "ioV2 \<in> language_state_in M2 (initial M2) {ioV}" 
+  have "well_formed M2" 
+    using assms by auto
+  
+  have "map fst (map fst ((ioV || ioV') || ioP)) = ioV"
+  proof -
+    have "length (ioV || ioV') = length ioP" using io_path
+      by simp 
+    then show ?thesis using io_path by auto
+  qed
+  moreover have "set (map fst (map fst ((ioV || ioV') || ioP))) \<subseteq> inputs M2" using path_input_containment[OF \<open>well_formed M2\<close>, of "(ioV || ioV') || ioP" "initial M2" ] io_path
+    by linarith
+  ultimately have "set ioV \<subseteq> inputs M2" 
+    by presburger
 
-  then have "set ioV \<subseteq> inputs M2" 
-  obtain ioV' where "ioV' \<in> language_state_in M1 (initial M1) {ioV}" 
+  then have "set ioV \<subseteq> inputs M1" 
+    using assms by auto
+
+  then have "language_state_in M1 (initial M1) {ioV} \<noteq> {}" 
+    using assms(2) language_state_in_nonempty by metis
+
+
+  have "prefix ioV (map fst io)"
+    using \<open>mcp (map fst io) V ioV\<close> mcp.simps by blast
+  then have "length ioV \<le> length (map fst io)"
+    using prefix_length_le by blast 
+  then have "length ioV \<le> length io" 
+    by auto
+    
+
+  have "(map fst io || map snd io) \<in> L M1" using assms(5)
+    by auto 
+  moreover have "length (map fst io) = length (map snd io)"
+    by auto 
+  ultimately have "(map fst io || map snd io) \<in> language_state_for_input M1 (initial M1) (map fst io)" 
+    unfolding language_state_def
+    by (metis (mono_tags, lifting) \<open>map fst io || map snd io \<in> L M1\<close> language_state_for_input.simps mem_Collect_eq) 
+
+  have "ioV = take (length ioV) (map fst io)"
+    by (metis (no_types) \<open>prefix ioV (map fst io)\<close> append_eq_conv_conj prefixE)  
+
+  
+  then have "take (length ioV) io \<in> language_state_for_input M1 (initial M1) ioV"
+    using language_state_for_input_take
+    by (metis \<open>map fst io || map snd io \<in> language_state_for_input M1 (initial M1) (map fst io)\<close> zip_map_fst_snd)
+
+  then obtain V'' where "V'' \<in> Perm V M1" "take (length ioV) io \<in> V''" 
+    using perm_elem[OF assms(1-3) \<open>inputs M1 = inputs M2\<close> \<open>ioV \<in> V\<close>] by blast
+
+  have "ioV = mcp' (map fst io) V"
+    using \<open>mcp (map fst io) V ioV\<close> mcp'_intro by blast 
+
+  have "map fst (take (length ioV) io) = ioV"
+    by (metis \<open>ioV = take (length ioV) (map fst io)\<close> take_map) 
+
+  obtain mcpV'' where "mcp io V'' mcpV''"
+    by (meson \<open>V'' \<in> Perm V M1\<close> \<open>well_formed M2\<close> assms(1) mcp_ex perm_elem_finite perm_empty)
+
+  have "map fst mcpV'' \<in> V" using perm_inputs
+    using \<open>V'' \<in> Perm V M1\<close> \<open>mcp io V'' mcpV''\<close> mcp.simps by blast 
+
+  have "map fst mcpV'' = ioV"
+    by (metis (no_types) \<open>map fst (take (length ioV) io) = ioV\<close> \<open>map fst mcpV'' \<in> V\<close> \<open>mcp (map fst io) V ioV\<close> \<open>mcp io V'' mcpV''\<close> \<open>take (length ioV) io \<in> V''\<close> map_mono_prefix mcp.elims(2) prefix_length_prefix prefix_order.dual_order.antisym take_is_prefix)  
+
+  have "map fst (mcp' io V'') = mcp' (map fst io) V"
+    using \<open>ioV = mcp' (map fst io) V\<close> \<open>map fst mcpV'' = ioV\<close> \<open>mcp io V'' mcpV''\<close> mcp'_intro by blast
+
+  then show ?thesis
+    using \<open>V'' \<in> Perm V M1\<close> by fastforce 
+qed
+
+
+
 
 
 (* Corollary 7.1.2 *)
@@ -137,7 +237,7 @@ lemma N_mcp_prefix :
   and     "well_formed M2"
   and     "finite V"
 shows "vs \<in> V''" "vs = mcp' (vs@xs) V''" 
-proof 
+proof -
   have "map fst (mcp' (vs@xs) V'') = mcp' (map fst (vs@xs)) V" using assms(2) by auto
   then have "map fst (mcp' (vs@xs) V'') = map fst vs" using assms(1) by presburger
   then have "length (mcp' (vs@xs) V'') = length vs" by (metis length_map) 
@@ -154,7 +254,7 @@ proof
     by (metis \<open>length (mcp' (vs @ xs) V'') = length vs\<close> append_eq_append_conv prefix_def) 
 
   show "vs \<in> V''"
-    using \<open>mcp (vs @ xs) V'' p\<close> \<open>mcp' (vs @ xs) V'' = p\<close> \<open>vs = mcp' (vs @ xs) V''\<close> by auto 
+    using \<open>mcp (vs @ xs) V'' p\<close> \<open>mcp' (vs @ xs) V'' = p\<close> \<open>vs = mcp' (vs @ xs) V''\<close> by auto
 qed
 
 
@@ -185,7 +285,7 @@ where
           (\<exists> S1 . 
             (\<exists> vs xs .
               io = (vs@xs)
-              \<and> vs = mcp' (vs@xs) V''
+              \<and> mcp (vs@xs) V'' vs
               \<and> S1 \<subseteq> S
               \<and> (\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 .
                 s1 \<noteq> s2 \<longrightarrow> 
@@ -1222,7 +1322,7 @@ proof
                             (\<exists> S1 . 
                               (\<exists> vs xs .
                                 io = (vs@xs)
-                                \<and> vs = mcp' (vs@xs) V''
+                                \<and> mcp (vs@xs) V'' vs
                                 \<and> S1 \<subseteq> S
                                 \<and> (\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 .
                                   s1 \<noteq> s2 \<longrightarrow> 
@@ -1237,7 +1337,7 @@ proof
                             (\<exists> S1 . 
                               (\<exists> vs xs .
                                 io = (vs@xs)
-                                \<and> vs = mcp' (vs@xs) V''
+                                \<and> mcp (vs@xs) V'' vs
                                 \<and> S1 \<subseteq> S
                                 \<and> (\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 .
                                   s1 \<noteq> s2 \<longrightarrow> 
@@ -1247,9 +1347,31 @@ proof
                                 \<and> m < LB M2 M1 vs xs T S \<Omega> V'' ))))"
       proof 
         fix io assume "io\<in>language_state_in M1 (initial M1) {seq}"
-        then obtain V'' where "V'' \<in> N io M1 V" 
+        then have "io \<in> L M1" 
+          by auto
+        moreover have "is_det_state_cover M2 V" 
+          using assms(4) by auto
+        ultimately obtain V'' where "V'' \<in> N io M1 V" 
+          using N_nonempty[OF _ assms(1-3), of V io] by blast
 
+        let ?S1 = "{}"
 
+        have "V'' \<in> Perm V M1" 
+          using \<open>V'' \<in> N io M1 V\<close> by auto
+
+        have "[] \<in> V''"
+          using \<open>V'' \<in> Perm V M1\<close> assms(4) perm_empty by blast 
+        have "finite V''"
+          using \<open>V'' \<in> Perm V M1\<close> assms(2) assms(4) perm_elem_finite by blast
+        obtain vs where "mcp io V'' vs" 
+          using mcp_ex[OF \<open>[] \<in> V''\<close> \<open>finite V''\<close>] by blast
+
+        obtain xs where "io = (vs@xs)"
+          using \<open>mcp io V'' vs\<close> prefixE by auto  
+
+        have "LB M2 M1 vs xs T ?S1 {} V'' = length io" using R_union_card_is_suffix_length[OF assms(1) \<open>io \<in> L M1\<close>]
+
+        have "m < LB M2 M1 vs xs T ?S1 \<Omega> V''" using R_union_card_is_suffix_length[OF assms(1) \<open>io \<in> L M1\<close>]
 
 
 

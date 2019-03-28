@@ -360,14 +360,8 @@ proof -
   then show ?thesis by auto
 qed
 
-(* TODO: show that Perm sets used during testing actually exist *)
-(*
-lemma perm_nonempty : 
-  assumes "is_det_state_cover M2 V"
-  and "completely_specified M1"
-  and "inputs M1 = inputs M2"
-shows "Perm V M1 \<noteq> {}"
-*)
+
+
 
 
 (* R\<^sup>+ *)
@@ -1655,6 +1649,141 @@ qed
 
 
 
+
+
+
+
+
+
+
+(* additional helper lemmata *)
+lemma perm_nonempty : 
+  assumes "is_det_state_cover M2 V"
+  and "OFSM M1"
+  and "OFSM M2"
+  and "inputs M1 = inputs M2"
+shows "Perm V M1 \<noteq> {}"
+proof -
+  have "finite (nodes M2)" using assms(3) by auto
+  moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
+    by auto 
+  ultimately have "finite V" using det_state_cover_card[OF assms(1)]
+    by (metis assms(1) finite_imageI infinite_super is_det_state_cover.elims(2)) 
+  
+  have "[] \<in> V"
+    using assms(1) det_state_cover_empty by blast 
+
+
+  have "\<And> VS . VS \<subseteq> V \<and> VS \<noteq> {} \<Longrightarrow> Perm VS M1 \<noteq> {}"
+  proof -
+    fix VS assume "VS \<subseteq> V \<and> VS \<noteq> {}"
+    then have "finite VS" using \<open>finite V\<close>
+      using infinite_subset by auto 
+    then show "Perm VS M1 \<noteq> {}" 
+      using \<open>VS \<subseteq> V \<and> VS \<noteq> {}\<close> \<open>finite VS\<close>
+    proof (induction VS)
+      case empty
+      then show ?case by auto
+    next
+      case (insert vs F)
+      then have "vs \<in> V" by blast
+      
+      obtain q2 where "d_reaches M2 (initial M2) vs q2" using det_state_cover_d_reachable[OF assms(1) \<open>vs \<in> V\<close>] by blast
+      then obtain vs' vsP where io_path : "length vs = length vs' \<and> length vs = length vsP \<and> (path M2 ((vs || vs') || vsP) (initial M2)) \<and> target ((vs || vs') || vsP) (initial M2) = q2"
+        by auto
+    
+      have "well_formed M2" 
+        using assms by auto
+      
+      have "map fst (map fst ((vs || vs') || vsP)) = vs"
+      proof -
+        have "length (vs || vs') = length vsP" using io_path
+          by simp 
+        then show ?thesis using io_path by auto
+      qed
+      moreover have "set (map fst (map fst ((vs || vs') || vsP))) \<subseteq> inputs M2" using path_input_containment[OF \<open>well_formed M2\<close>, of "(vs || vs') || vsP" "initial M2" ] io_path
+        by linarith
+      ultimately have "set vs \<subseteq> inputs M2" 
+        by presburger
+    
+      then have "set vs \<subseteq> inputs M1" 
+        using assms by auto
+    
+      then have "language_state_in M1 (initial M1) {vs} \<noteq> {}" 
+        using assms(2) language_state_in_nonempty by metis
+      then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"
+        by auto
+      then obtain vs' where "vs' \<in> language_state_for_input M1 (initial M1) vs" 
+        by blast
+
+      show ?case
+      proof (cases "F = {}")
+        case True
+        moreover obtain f where "f vs = vs'" by moura
+        ultimately have "image f (insert vs F) \<in> Perm (insert vs F) M1"
+          using Perm.simps \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by blast     
+        then show ?thesis by blast
+      next
+        case False
+        then obtain F'' where "F'' \<in> Perm F M1" 
+          using insert.IH insert.hyps(1) insert.prems(1) by blast
+        then obtain f where "F'' = image f F" "(\<forall> v \<in> F . f v \<in> language_state_for_input M1 (initial M1) v)" by auto
+        let ?f = "f(vs := vs')"
+        have "\<forall> v \<in> (insert vs F) . ?f v \<in> language_state_for_input M1 (initial M1) v" 
+        proof 
+          fix v assume "v \<in> insert vs F"
+          then show "?f v \<in> language_state_for_input M1 (initial M1) v"
+          proof (cases "v = vs")
+            case True
+            then show ?thesis
+              using \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by auto 
+          next
+            case False
+            then have "v \<in> F"
+              using \<open>v \<in> insert vs F\<close> by blast
+            then show ?thesis
+              using False \<open>\<forall>v\<in>F. f v \<in> language_state_for_input M1 (initial M1) v\<close> by auto 
+          qed
+        qed
+        then have "image ?f (insert vs F) \<in> Perm (insert vs F) M1"
+          using Perm.simps by blast 
+        then show ?thesis by blast
+      qed
+    qed
+  qed
+
+  then show ?thesis
+    using \<open>[] \<in> V\<close> by blast 
+qed
+  
+
+
+lemma perm_elem :
+  assumes "is_det_state_cover M2 V"
+  and "OFSM M1"
+  and "OFSM M2"
+  and "inputs M1 = inputs M2"
+  and     "vs \<in> V"
+  and     "vs' \<in> language_state_for_input M1 (initial M1) vs"
+obtains V''
+where "V'' \<in> Perm V M1" "vs' \<in> V''"
+proof -
+  obtain V'' where "V'' \<in> Perm V M1" 
+    using perm_nonempty[OF assms(1-4)] by blast
+  then obtain f where "V'' = image f V" "(\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" by auto  
+
+  let ?f = "f(vs := vs')"
+
+  have "\<forall> v \<in> V . ?f v \<in> language_state_for_input M1 (initial M1) v"
+    using \<open>\<forall>v\<in>V. f v \<in> language_state_for_input M1 (initial M1) v\<close> assms(6) by fastforce
+
+  then have "image ?f V \<in> Perm V M1" 
+    by auto
+  moreover have "vs' \<in> image ?f V"
+    by (metis assms(5) fun_upd_same imageI) 
+  ultimately show ?thesis
+    using that by blast 
+qed
 
 
 
