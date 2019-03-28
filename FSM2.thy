@@ -151,7 +151,9 @@ fun completely_specified :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
 fun well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
   "well_formed M =
     (finite_FSM M
-    \<and> (\<forall> s1 x y . (x \<notin> inputs M \<or> y \<notin> outputs M) \<longrightarrow> succ M (x,y) s1 = {}))"
+    \<and> (\<forall> s1 x y . (x \<notin> inputs M \<or> y \<notin> outputs M) \<longrightarrow> succ M (x,y) s1 = {})
+    \<and> inputs M \<noteq> {}
+    \<and> outputs M \<noteq> {})"
 
 
 lemma observable_path_unique[simp] :

@@ -1296,6 +1296,8 @@ qed
 abbreviation "final_iteration M2 M1 T \<Omega> V m i \<equiv> TS M2 M1 T \<Omega> V m i = TS M2 M1 T \<Omega> V m (Suc i)"
 
 
+
+
 (* lemma 5.5.9 *)
 lemma final_iteration_ex :
   assumes "OFSM M1"
@@ -1552,5 +1554,74 @@ proof
 qed
         
 
+
+
+
+(* corollary 5.5.10 *)
+lemma TS_non_containment_causes_final :
+  assumes "vs@xs \<notin> TS M2 M1 T \<Omega> V m i" 
+  and     "mcp (vs@xs) V vs"
+  and     "set xs \<subseteq> inputs M2"
+  and     "0 < i"
+  and     "final_iteration M2 M1 T \<Omega> V m i"
+  and     "OFSM M2"
+shows "(\<exists> xr j . xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 T \<Omega> V m j)"
+proof -
+  let ?TS = "\<lambda> n . TS M2 M1 T \<Omega> V m n"
+  let ?C = "\<lambda> n . C M2 M1 T \<Omega> V m n"
+  let ?RM = "\<lambda> n . RM M2 M1 T \<Omega> V m n"
+
+  have ncc1 : "(\<exists>xr j. xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T \<Omega> V m j) \<or>
+          (\<exists>xc. xc \<noteq> xs \<and> prefix xc xs \<and> vs @ xc \<in> C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i)" 
+    using TS_non_containment_causes(1)[OF assms(1-4)] by assumption
+  have ncc2 : "\<not> ((\<exists>xr j. xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T \<Omega> V m j) \<and>
+        (\<exists>xc. xc \<noteq> xs \<and> prefix xc xs \<and> vs @ xc \<in> C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i))"
+    using TS_non_containment_causes(2)[OF assms(1-4)] by assumption
+    
+  from ncc1 show ?thesis
+  proof 
+    show "\<exists>xr j. xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T \<Omega> V m j \<Longrightarrow>
+          \<exists>xr j. xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T \<Omega> V m j" 
+      by simp
+
+    show "\<exists>xc. xc \<noteq> xs \<and> prefix xc xs \<and> vs @ xc \<in> C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i \<Longrightarrow>
+          \<exists>xr j. xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T \<Omega> V m j" 
+    proof -
+      assume "\<exists>xc. xc \<noteq> xs \<and> prefix xc xs \<and> vs @ xc \<in> C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i"
+      then obtain xc where "xc \<noteq> xs" "prefix xc xs" "vs @ xc \<in> ?C i - ?RM i" 
+        by blast
+      then have "vs @ xc \<in> ?C i" 
+        by blast
+      have "mcp (vs @ xc) V vs"
+        using \<open>prefix xc xs\<close> assms(2) mcp_prefix_of_suffix by blast 
+      then have "Suc (length xc) = i" using C_index[OF \<open>vs @ xc \<in> ?C i\<close>] 
+        by simp
+
+      have "length xc < length xs"
+        by (metis \<open>prefix xc xs\<close> \<open>xc \<noteq> xs\<close> append_eq_conv_conj nat_less_le prefix_def prefix_length_le take_all) 
+      then obtain x where "prefix (vs@xc@[x]) (vs@xs)"
+        using \<open>prefix xc xs\<close> append_one_prefix same_prefix_prefix by blast 
+
+      (* sketch:
+           vs@xs@x must not be in ?TS (i+1), else not final iteration
+           vs@xs@x can not be in ?TS i due to its length
+           vs@xs@x must therefore not be contained in (append_set (?C i - ?R i) (inputs M2))
+           vs@xs must therefore not be contained in (?C i - ?R i)
+           contradiction 
+      *)
+           
+
+
+      have "vs@xc \<notin> ?TS (i-1)"
+        by (metis Suc_n_not_le_n T_index \<open>Suc (length xc) = i\<close> \<open>mcp (vs @ xc) V vs\<close> diff_Suc_1)
+  
+      
+
+
+  have "?C i - ?RM i = {}" 
+  proof (rule ccontr)
+    assume "?C i - ?RM i \<noteq> {}"
+    moreover have "inputs M2 \<noteq> {}" using assms(6) by auto
+    ultimately have "append_set (?C i - ?RM i) (inputs M2) \<noteq> {}" 
 
 end
