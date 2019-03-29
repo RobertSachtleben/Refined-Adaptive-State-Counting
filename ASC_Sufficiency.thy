@@ -276,7 +276,7 @@ proof -
 qed
 
 
-lemma mstfe_distinct :
+lemma mstfe_distinct_Rep_Pre :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   and     "OFSM M1"
   and     "OFSM M2"
@@ -373,17 +373,9 @@ proof
 
 
 
-  obtain trP1 where "path PM ((vs@xs1) || trP1) (initial PM)" "length trP1 = length (vs@xs1)" "target ((vs@xs1) || trP1) (initial PM) = (s2,s1)"
-    by (smt \<open>io_targets PM (initial M2, initial M1) (vs @ xs1) = {(s2, s1)}\<close> \<open>productF M2 M1 FAIL PM\<close> insertI1 io_targets_elim productF_simps(4))
-
-  obtain trP2 where "path PM ((vs@xs2) || trP2) (initial PM)" "length trP2 = length (vs@xs2)" "target ((vs@xs2) || trP2) (initial PM) = (s2,s1)"
-    by (smt \<open>io_targets PM (initial M2, initial M1) (vs @ xs2) = {(s2, s1)}\<close> \<open>productF M2 M1 FAIL PM\<close> insertI1 io_targets_elim productF_simps(4))
-
   have "sequence_to_failure M1 M2 (vs@xs)" 
     using assms(1) by auto
-  obtain trP where "path PM (vs@xs || trP) (initial PM)" "length trP = length (vs@xs)" "target (vs@xs || trP) (initial PM) = FAIL"
-    using fail_reachable_by_sequence_to_failure[OF \<open>sequence_to_failure M1 M2 (vs@xs)\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> \<open>productF M2 M1 FAIL PM\<close>] by blast
-
+  
 
   have "prefix (vs@xs1) (vs@xs)"
     using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs\<close> prefix_order.dual_order.trans same_prefix_prefix by blast 
@@ -437,7 +429,163 @@ qed
   
 
 
+
+lemma mstfe_distinct_Rep_Cov :
+  assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_model M2 M1 m"
+  and     "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xs"
+shows "\<not> Rep_Cov M2 M1 V'' vs xs"
+proof 
+  assume "Rep_Cov M2 M1 V'' vs xs"
+  then obtain xs' vs' s2 s1 where "xs' \<noteq> []" 
+                                  "prefix xs' xs" 
+                                  "vs' \<in> V''"
+                                  "io_targets M2 (initial M2) (vs @ xs') = {s2}" 
+                                  "io_targets M2 (initial M2) (vs') = {s2}"
+                                  "io_targets M1 (initial M1) (vs @ xs') = {s1}" 
+                                  "io_targets M1 (initial M1) (vs') = {s1}"
+    by auto
+
+  then have "s2 \<in> io_targets M2 (initial M2) (vs @ xs')"
+            "s2 \<in> io_targets M2 (initial M2) (vs')"
+            "s1 \<in> io_targets M1 (initial M1) (vs @ xs')"
+            "s1 \<in> io_targets M1 (initial M1) (vs')"            
+    by auto
+
+  have "vs@xs' \<in> L M1" 
+    using io_target_implies_L[OF \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs')\<close>] by assumption
+  have "vs' \<in> L M1" 
+    using io_target_implies_L[OF \<open>s1 \<in> io_targets M1 (initial M1) (vs')\<close>] by assumption
+  have "vs@xs' \<in> L M2" 
+    using io_target_implies_L[OF \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs')\<close>] by assumption
+  have "vs' \<in> L M2" 
+    using io_target_implies_L[OF \<open>s2 \<in> io_targets M2 (initial M2) (vs')\<close>] by assumption
+
+  obtain tr1_1 where "path M1 (vs@xs' || tr1_1) (initial M1)" "length tr1_1 = length (vs@xs')" "target (vs@xs' || tr1_1) (initial M1) = s1"
+    using \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs')\<close> by auto
+  obtain tr1_2 where "path M1 (vs' || tr1_2) (initial M1)" "length tr1_2 = length (vs')" "target (vs' || tr1_2) (initial M1) = s1"
+    using \<open>s1 \<in> io_targets M1 (initial M1) (vs')\<close> by auto 
+  obtain tr2_1 where "path M2 (vs@xs' || tr2_1) (initial M2)" "length tr2_1 = length (vs@xs')" "target (vs@xs' || tr2_1) (initial M2) = s2"
+    using \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs')\<close> by auto
+  obtain tr2_2 where "path M2 (vs' || tr2_2) (initial M2)" "length tr2_2 = length (vs')" "target (vs' || tr2_2) (initial M2) = s2"
+    using \<open>s2 \<in> io_targets M2 (initial M2) (vs')\<close> by auto 
+
+
+  have "productF M2 M1 FAIL PM" 
+    using assms(5) by auto
+  have "well_formed M1" 
+    using assms(2) by auto
+  have "well_formed M2" 
+    using assms(3) by auto
+  have "observable PM"
+    by (meson assms(2) assms(3) assms(5) observable_productF)
+
+  have "length (vs@xs') = length tr2_1"
+    using \<open>length tr2_1 = length (vs @ xs')\<close> by presburger
+  then have "length tr2_1 = length tr1_1" 
+    using \<open>length tr1_1 = length (vs@xs')\<close> by presburger
+
+  have "vs@xs' \<in> L PM" 
+    using productF_path_inclusion[OF \<open>length (vs@xs') = length tr2_1\<close> \<open>length tr2_1 = length tr1_1\<close> \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
+    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs @ xs' \<in> L M1\<close> \<open>vs @ xs' \<in> L M2\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> productF_language)
+    
+
+  have "length (vs') = length tr2_2"
+    using \<open>length tr2_2 = length (vs')\<close> by presburger
+  then have "length tr2_2 = length tr1_2" 
+    using \<open>length tr1_2 = length (vs')\<close> by presburger
+
+  have "vs' \<in> L PM" 
+    using productF_path_inclusion[OF \<open>length (vs') = length tr2_2\<close> \<open>length tr2_2 = length tr1_2\<close> \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
+    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs' \<in> L M1\<close> \<open>vs' \<in> L M2\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> productF_language)
+
+
   
+
+  have "io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}" 
+    using productF_path_io_targets_reverse[OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs')\<close> \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs')\<close> \<open>vs @ xs' \<in> L M2\<close> \<open>vs @ xs' \<in> L M1\<close> ]
+  proof -
+    have "\<forall>c f. c \<noteq> initial (f::('a, 'b, 'c) FSM) \<or> c \<in> nodes f"
+      by blast
+    then show ?thesis
+      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}\<close> assms(2) assms(3))
+  qed 
+
+  have "io_targets PM (initial M2, initial M1) (vs') = {(s2, s1)}" 
+    using productF_path_io_targets_reverse[OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs')\<close> \<open>s1 \<in> io_targets M1 (initial M1) (vs')\<close> \<open>vs' \<in> L M2\<close> \<open>vs' \<in> L M1\<close> ]
+  proof -
+    have "\<forall>c f. c \<noteq> initial (f::('a, 'b, 'c) FSM) \<or> c \<in> nodes f"
+      by blast
+    then show ?thesis
+      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs') = {(s2, s1)}\<close> assms(2) assms(3))
+  qed
+  have "io_targets PM (initial PM) (vs') = {(s2, s1)}"
+    by (metis (no_types) \<open>io_targets PM (initial M2, initial M1) vs' = {(s2, s1)}\<close> \<open>productF M2 M1 FAIL PM\<close> productF_simps(4))
+   
+
+  have "sequence_to_failure M1 M2 (vs@xs)" 
+    using assms(1) by auto
+
+  have "xs = xs' @ (drop (length xs') xs)"
+    by (metis (no_types) \<open>prefix xs' xs\<close> append_eq_conv_conj prefixE) 
+  then have "io_targets PM (initial M2, initial M1) (vs @ xs' @ (drop (length xs') xs)) = {FAIL}"
+    by (metis \<open>productF M2 M1 FAIL PM\<close> \<open>sequence_to_failure M1 M2 (vs @ xs)\<close> assms(2) assms(3) productF_simps(4) stf_reaches_FAIL_ob)
+  then have "io_targets PM (initial M2, initial M1) ((vs @ xs') @ (drop (length xs') xs)) = {FAIL}"    
+    by auto
+  have "io_targets PM (s2, s1) (drop (length xs') xs) = {FAIL}" 
+    using observable_io_targets_split[OF \<open>observable PM\<close> \<open>io_targets PM (initial M2, initial M1) ((vs @ xs') @ (drop (length xs') xs)) = {FAIL}\<close> \<open>io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}\<close>] by assumption
+
+  have "io_targets PM (initial PM) (vs' @ (drop (length xs') xs)) = {FAIL}" 
+    using observable_io_targets_append[OF \<open>observable PM\<close> \<open>io_targets PM (initial PM) (vs') = {(s2, s1)}\<close> \<open>io_targets PM (s2, s1) (drop (length xs') xs) = {FAIL}\<close>] by assumption
+
+  have "sequence_to_failure M1 M2 (vs' @ (drop (length xs') xs))"   
+    using stf_alt_def[OF \<open>io_targets PM (initial PM) (vs' @ (drop (length xs') xs)) = {FAIL}\<close> assms(2,3)] assms(5) by blast
+
+  have "length (drop (length xs') xs) < length xs"
+    by (metis (no_types) \<open>xs = xs' @ drop (length xs') xs\<close> \<open>xs' \<noteq> []\<close> length_append length_greater_0_conv less_add_same_cancel2)   
+
+  have "vs' \<in> language_state_in M1 (initial M1) V" 
+  proof -
+    have "V'' \<in> N (vs@xs) M1 V" 
+      using assms(5) by auto
+    then have "V'' \<in> Perm V M1" 
+      unfolding N.simps by blast
+
+    then obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)"
+      unfolding Perm.simps by blast
+    then obtain v where "v \<in> V" "vs' = f v" 
+      using \<open>vs' \<in> V''\<close> by auto
+    then have "vs' \<in> language_state_for_input M1 (initial M1) v" 
+      using f_def by auto
+    
+    have "language_state_for_input M1 (initial M1) v = language_state_in M1 (initial M1) {v}"
+      by auto
+    moreover have "{v} \<subseteq> V" 
+      using \<open>v \<in> V\<close> by blast   
+    ultimately have "language_state_for_input M1 (initial M1) v \<subseteq> language_state_in M1 (initial M1) V"
+      unfolding language_state_in.simps language_state_for_input.simps by blast
+    then show ?thesis
+      using\<open>vs' \<in> language_state_for_input M1 (initial M1) v\<close> by blast
+  qed
+  
+  have "\<not> minimal_sequence_to_failure_extending V M1 M2 vs xs" 
+    using \<open>vs' \<in> language_state_in M1 (initial M1) V\<close>
+          \<open>sequence_to_failure M1 M2 (vs' @ (drop (length xs') xs))\<close>
+          \<open>length (drop (length xs') xs) < length xs\<close>
+    using minimal_sequence_to_failure_extending.elims(2) by blast 
+  then show "False" 
+    using assms(1) by linarith
+qed
+
+
+
+
+
+
+
+
     
 
 (* lemma 7.3.1 *)
