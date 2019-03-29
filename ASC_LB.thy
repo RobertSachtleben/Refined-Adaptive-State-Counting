@@ -592,9 +592,14 @@ fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \
 
 (* Rep_pre *)
 fun Rep_Pre :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "Rep_Pre M2 M1 vs xs = (\<exists> xs1 xs2 . prefix xs1 xs2 \<and> prefix xs2 xs \<and> xs1 \<noteq> xs2 
+    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs1) = {s2} \<and> io_targets M2 (initial M2) (vs @ xs2) = {s2})
+    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs1) = {s1} \<and> io_targets M1 (initial M1) (vs @ xs2) = {s1}))"
+(*
   "Rep_Pre M2 M1 vs xs = (\<exists> xs1 xs2 . xs1 \<noteq> [] \<and> prefix xs1 xs \<and> prefix xs2 xs \<and> xs1 \<noteq> xs2 
     \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs1) = {s2} \<and> io_targets M2 (initial M2) (vs @ xs2) = {s2})
     \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs1) = {s1} \<and> io_targets M1 (initial M1) (vs @ xs2) = {s1}))"
+*)
 
 
 
@@ -704,16 +709,34 @@ proof (rule ccontr)
   then have tgt_2_2 : "io_targets M2 (initial M2) (vs @ ?xs2) = {fst ?st}" by (meson \<open>io_targets M2 (initial M2) vs = {q2}\<close> assms(4) observable_io_targets_append)
 
   have "?xs1 \<noteq> []" using \<open>0 < length xs\<close> by auto  
-  moreover have "prefix ?xs1 xs" using take_is_prefix by blast 
-  moreover have "prefix ?xs2 xs" using take_is_prefix by blast
-  moreover have "?xs1 \<noteq> ?xs2"
+  have "prefix ?xs1 xs" using take_is_prefix by blast 
+  have "prefix ?xs2 xs" using take_is_prefix by blast
+  have "?xs1 \<noteq> ?xs2"
   proof -
     have f1: "\<forall>n na. \<not> n < na \<or> Suc n \<le> na" by presburger
     have f2: "Suc i1 \<le> length xs" using index_def by force
     have "Suc i2 \<le> length xs" using f1 by (metis index_def length_take map_snd_zip_take min_less_iff_conj states_alt_def)
     then show ?thesis using f2 by (metis (no_types) index_def length_take min.absorb2 nat.simps(1))
   qed 
-  ultimately have "Rep_Pre M2 M1 vs xs" using tgt_1_1 tgt_1_2 tgt_2_1 tgt_2_2 by (meson Rep_Pre.elims(3)) 
+  have "Rep_Pre M2 M1 vs xs"
+  proof (cases "length ?xs1 < length ?xs2")
+    case True
+    then have "prefix ?xs1 ?xs2"
+      by (meson \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) xs\<close> leD prefix_length_le prefix_same_cases) 
+    show ?thesis
+      by (meson Rep_Pre.elims(3) \<open>prefix (take (Suc i1) xs) (take (Suc i2) xs)\<close> \<open>prefix (take (Suc i2) xs) xs\<close> \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> tgt_1_1 tgt_1_2 tgt_2_1 tgt_2_2) 
+  next
+    case False
+    moreover have "length ?xs1 \<noteq> length ?xs2"
+      by (metis (no_types) \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> append_eq_conv_conj append_take_drop_id) 
+    ultimately have "length ?xs2 < length ?xs1" 
+      by auto
+    then have "prefix ?xs2 ?xs1"
+      using \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) xs\<close> less_imp_le_nat prefix_length_prefix by blast 
+    show ?thesis
+      by (metis Rep_Pre.elims(3) \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) (take (Suc i1) xs)\<close> \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> tgt_1_1 tgt_1_2 tgt_2_1 tgt_2_2) 
+  qed
+    
   then show "False" using assms(1) by simp
 qed
 

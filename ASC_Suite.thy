@@ -1544,7 +1544,6 @@ lemma TS_non_containment_causes_final :
   assumes "vs@xs \<notin> TS M2 M1 T \<Omega> V m i" 
   and     "mcp (vs@xs) V vs"
   and     "set xs \<subseteq> inputs M2"
-  and     "0 < i"
   and     "final_iteration M2 M1 T \<Omega> V m i"
   and     "OFSM M2"
 shows "(\<exists> xr j . xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 T \<Omega> V m j)"
@@ -1553,12 +1552,19 @@ proof -
   let ?C = "\<lambda> n . C M2 M1 T \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 T \<Omega> V m n"
 
+  have "{} \<noteq> V" 
+    using assms(2) by fastforce 
+  then have "?TS 0 \<noteq> ?TS (Suc 0)"
+    by simp 
+  then have "0 < i"
+    using assms(4) by auto 
+
   have ncc1 : "(\<exists>xr j. xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T \<Omega> V m j) \<or>
           (\<exists>xc. xc \<noteq> xs \<and> prefix xc xs \<and> vs @ xc \<in> C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i)" 
-    using TS_non_containment_causes(1)[OF assms(1-4)] by assumption
+    using TS_non_containment_causes(1)[OF assms(1-3) \<open>0 < i\<close>] by assumption
   have ncc2 : "\<not> ((\<exists>xr j. xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 T \<Omega> V m j) \<and>
         (\<exists>xc. xc \<noteq> xs \<and> prefix xc xs \<and> vs @ xc \<in> C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i))"
-    using TS_non_containment_causes(2)[OF assms(1-4)] by assumption
+    using TS_non_containment_causes(2)[OF assms(1-3) \<open>0 < i\<close>] by assumption
     
   from ncc1 show ?thesis
   proof 
@@ -1593,7 +1599,7 @@ proof -
       *)
 
       have "?TS (Suc i) = ?TS i" 
-        using assms(5) by auto
+        using assms(4) by auto
 
       have "vs@xc@[x] \<notin> ?C (Suc i)" 
       proof
@@ -1602,7 +1608,7 @@ proof -
           by (metis (no_types, lifting) C.simps(3) DiffE \<open>Suc (length xc) = i\<close>) 
         then have "?TS i \<noteq> ?TS (Suc i)"
           using C_subset \<open>vs @ xc @ [x] \<in> C M2 M1 T \<Omega> V m (Suc i)\<close> by blast
-        then show "False" using assms(5) 
+        then show "False" using assms(4) 
           by auto
       qed
       moreover have "?C (Suc i) = append_set (?C i - ?RM i) (inputs M2) - ?TS i"
@@ -1612,9 +1618,9 @@ proof -
 
 
       have "vs @ xc @ [x] \<notin> ?TS (Suc i)"
-        by (metis Suc_n_not_le_n TS_index(1) \<open>Suc (length xc) = i\<close> \<open>prefix (vs @ xc @ [x]) (vs @ xs)\<close> assms(2) assms(5) length_append_singleton mcp_prefix_of_suffix same_prefix_prefix) 
+        by (metis Suc_n_not_le_n TS_index(1) \<open>Suc (length xc) = i\<close> \<open>prefix (vs @ xc @ [x]) (vs @ xs)\<close> assms(2) assms(4) length_append_singleton mcp_prefix_of_suffix same_prefix_prefix) 
       then have "vs @ xc @ [x] \<notin> ?TS i"
-        by (simp add: assms(5)) 
+        by (simp add: assms(4)) 
 
       have "vs @ xc @ [x] \<notin> append_set (?C i - ?RM i) (inputs M2)"
         using \<open>vs @ xc @ [x] \<notin> TS M2 M1 T \<Omega> V m i\<close> \<open>vs @ xc @ [x] \<notin> append_set (C M2 M1 T \<Omega> V m i - RM M2 M1 T \<Omega> V m i) (inputs M2) - TS M2 M1 T \<Omega> V m i\<close> by blast  
