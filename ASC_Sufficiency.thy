@@ -2,6 +2,8 @@ theory ASC_Sufficiency
   imports ASC_Suite
 begin
 
+(* variations on preconditions *)
+(* TODO: rework by extracting V'' *)
 abbreviation
   "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xs \<equiv> (
       productF M2 M1 FAIL PM
@@ -24,6 +26,30 @@ proof -
   show "productF M2 M1 FAIL PM" using assms(1) by blast
   show "is_det_state_cover M2 V" using assms(1) by blast
   show "V'' \<in> N (vs@xs) M1 V" using assms(1) by blast
+  show "applicable_set M2 \<Omega>" using assms(1) by blast
+  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
+  show "\<Omega> \<noteq> {}" using assms(1) by blast
+qed
+
+abbreviation
+  "test_tools_R M2 M1 FAIL PM V \<Omega> \<equiv> (
+      productF M2 M1 FAIL PM
+    \<and> is_det_state_cover M2 V
+    \<and> applicable_set M2 \<Omega>
+    \<and> \<Omega> \<noteq> {}
+   )"
+
+lemma test_tools_props_R[elim] :
+  assumes "test_tools_R M2 M1 FAIL PM V \<Omega>"
+  and     "fault_model M2 M1 m"
+  shows "productF M2 M1 FAIL PM"
+        "is_det_state_cover M2 V"
+        "applicable_set M2 \<Omega>"
+        "applicable_set M1 \<Omega>"
+        "\<Omega> \<noteq> {}"
+proof -
+  show "productF M2 M1 FAIL PM" using assms(1) by blast
+  show "is_det_state_cover M2 V" using assms(1) by blast
   show "applicable_set M2 \<Omega>" using assms(1) by blast
   then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
   show "\<Omega> \<noteq> {}" using assms(1) by blast
@@ -593,23 +619,51 @@ lemma asc_sufficiency :
   assumes "OFSM M1"
   and     "OFSM M2"
   and     "fault_model M2 M1 m"
-  (*and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"*)
-  and     "final_iteration M2 M1 T \<Omega> V m i"
-  and     "is_reduction_on_sets M1 M2 (TS M2 M1 T \<Omega> V m i) \<Omega>"
+  and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
+  and     "final_iteration M2 M1 \<Omega> V m i"
+  and     "io_reduction_on M1 M2 (TS M2 M1 \<Omega> V m i)"
 shows "M1 \<preceq> M2"
 proof (rule ccontr)
+
+  let ?TS = "\<lambda> n . TS M2 M1 \<Omega> V m n"
+  let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
+  let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
+
+
   assume "\<not> M1 \<preceq> M2"
-  obtain xs where "minimal_sequence_to_failure_extending V M1 M2 xs" 
+  obtain vs xs where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
     using \<open>\<not> M1 \<preceq> M2\<close> assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_det_state_cover_ob[of M2 M1 FAIL PM V] by blast 
 
-  then obtain vs where   "vs \<in> language_state_in M1 (initial M1) V" 
-                         "sequence_to_failure M1 M2 (vs @ xs)" 
-                         "\<not> (\<exists> io' . \<exists> w' \<in> language_state_in M1 (initial M1) V . 
-                                          sequence_to_failure M1 M2 (w' @ io') 
-                                          \<and> length io' < length xs)"
+  then have "vs \<in> language_state_in M1 (initial M1) V" 
+            "sequence_to_failure M1 M2 (vs @ xs)" 
+            "\<not> (\<exists> io' . \<exists> w' \<in> language_state_in M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length xs)"
     by auto
 
-  have "mcp xs vs"
+  then have "vs@xs \<in> L M1 - L M2" 
+    by auto
+
+  have "vs@xs \<in> language_state_in M1 (initial M1) {map fst (vs@xs)}"
+    by (metis (full_types) Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> insertI1 language_state_in_map_fst)
+
+  have "vs@xs \<notin> language_state_in M2 (initial M2) {map fst (vs@xs)}"
+    by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_in_in_language_state subsetCE) 
+
+  have "map fst (vs@xs) \<notin> ?TS i"
+  proof -
+    have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P - Pa \<or> ps \<in> P \<and> ps \<notin> Pa"
+      by blast
+    have "\<forall>P Pa ps. \<not> P \<subseteq> Pa \<or> (ps::('a \<times> 'b) list) \<in> Pa \<or> ps \<notin> P"
+      by blast
+    then show ?thesis
+      using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> assms(6) language_state_in_in_language_state language_state_in_map_fst)
+  qed 
+
+  have "map fst vs \<in> V"
+    using \<open>vs \<in> language_state_in M1 (initial M1) V\<close> by auto 
+  
+  
+
+
   
   
 

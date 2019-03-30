@@ -363,6 +363,8 @@ qed
 fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200)
 where "M1 \<preceq> M2 = (language_state M1 (initial M1) \<subseteq> language_state M2 (initial M2))"
 
+
+
 fun fault_model_m :: "('in, 'out, 'state) FSM \<Rightarrow> nat \<Rightarrow> (('in, 'out, 'state) FSM) set" where
 "fault_model_m M1 m = { M2 . 
   well_formed M2 
@@ -698,5 +700,7 @@ qed
 
 
 abbreviation "L M \<equiv> language_state M (initial M)"
+
+abbreviation  "io_reduction_on M1 M2 TS \<equiv> (language_state_in M1 (initial M1) TS \<subseteq> language_state_in M2 (initial M2) TS)" 
 
 end
