@@ -647,7 +647,8 @@ proof (rule ccontr)
 
   have "vs@xs \<notin> language_state_in M2 (initial M2) {map fst (vs@xs)}"
     by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_in_in_language_state subsetCE) 
-
+ 
+ 
   have "map fst (vs@xs) \<notin> ?TS i"
   proof -
     have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P - Pa \<or> ps \<in> P \<and> ps \<notin> Pa"
@@ -661,10 +662,23 @@ proof (rule ccontr)
   have "map fst vs \<in> V"
     using \<open>vs \<in> language_state_in M1 (initial M1) V\<close> by auto 
   
-  
+  let ?stf = "map fst (vs@xs)"
+  let ?stfV = "map fst vs"
+  let ?stfX = "map fst xs"
+  have "?stf = ?stfV @ ?stfX"
+    by simp 
 
+  then have "?stfV @ ?stfX \<notin> ?TS i"
+    using \<open>?stf \<notin> ?TS i\<close> by auto 
 
-  
+  have "mcp (?stfV @ ?stfX) V ?stfV"
+    by (metis \<open>map fst (vs @ xs) = map fst vs @ map fst xs\<close> \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1) assms(2) assms(4) mstfe_mcp)
+
+  have "set (map fst (vs@xs)) \<subseteq> inputs M1" 
+  have "set (map fst xs) \<subseteq> inputs M2"
+
+  obtain xr j where "xr \<noteq> ?stfX" "prefix xr ?stfX" "j \<le> i" "?stfV@xr \<in> RM M2 M1 \<Omega> V m j"
+    using TS_non_containment_causes_final[OF \<open>?stfV @ ?stfX \<notin> ?TS i\<close> ]
   
 
 
