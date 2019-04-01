@@ -582,12 +582,13 @@ fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \
     (\<forall> vs' \<in> V'' . (prefix vs' (vs @ xs) \<longrightarrow> length vs' \<le> length vs))      \<comment>\<open>(1.)\<close>
     \<and> (is_reduction_on_sets M1 M2 T \<Omega>)                                     \<comment>\<open>(2.) and (3.)\<close>
     \<and> (finite T)                                                           \<comment>\<open>addition to 2. to enable practical application\<close>
-    \<and> V \<subseteq> T \<and> (\<forall> xs' . prefix xs' xs \<longrightarrow> map fst (vs @ xs') \<in> T)           \<comment>\<open>(4.)\<close>
+    \<and> V \<subseteq> T \<and> (\<forall> xs' . (prefix xs' xs \<and> xs' \<noteq> xs) \<longrightarrow> map fst (vs @ xs') \<in> T)           \<comment>\<open>(4.) (modified)\<close>
+    \<and> (vs @ xs) \<in> L M2 \<inter> L M1                                              \<comment>\<open>addition (4.), as (4.) here only considers proper prefixes of (vs@xs), since any sequence for which the LB is to be calculated is not yet contained in T\<close>
     \<and> S \<subseteq> nodes M2                                                         \<comment>\<open>(addition, not strictly necessary as RP for any state not in (nodes M2) is empty)\<close>
     \<and> (\<forall> s1 \<in> S . \<forall> s2 \<in> S . s1 \<noteq> s2                                       \<comment>\<open>(5.)\<close>
-        \<longrightarrow> (\<forall> seq1 \<in> RP M2 s1 vs xs V'' . \<forall> seq2 \<in> RP M2 s2 vs xs V'' . 
-               \<forall> t1 \<in> io_targets M1 (initial M1) seq1 . \<forall> t2 \<in> io_targets M1 (initial M1) seq2 .  
-                 r_dist_set M1 \<Omega> t1 t2)))"
+        \<longrightarrow> (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
+               \<forall> io2 \<in> RP M2 s2 vs xs V'' .
+                 B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> )))"
 
 
 (* Rep_pre *)
@@ -1221,14 +1222,34 @@ proof -
       "t \<in> io_targets M1 (initial M1) io2" by blast
 
     
-    have "(\<forall> s1 \<in> S . \<forall> s2 \<in> S . s1 \<noteq> s2                                      
-            \<longrightarrow> (\<forall> seq1 \<in> RP M2 s1 vs xs V'' . \<forall> seq2 \<in> RP M2 s2 vs xs V'' . 
-               \<forall> t1 \<in> io_targets M1 (initial M1) seq1 . \<forall> t2 \<in> io_targets M1 (initial M1) seq2 .  
-                 r_dist_set M1 \<Omega> t1 t2))" using assms(14) by simp
-    then have dist_prop : "\<forall> t1 \<in> io_targets M1 (initial M1) io1 . \<forall> t2 \<in> io_targets M1 (initial M1) io2 .  
-                 r_dist_set M1 \<Omega> t1 t2" using assms(16,17,15) shared_elem_def(1,2) by blast
-    then have "io_targets M1 (initial M1) io1 \<inter> io_targets M1 (initial M1) io2 = {}" using assms(18-19) r_dist_set_dist_disjoint[of M1 \<Omega> "io_targets M1 (initial M1) io1" "io_targets M1 (initial M1) io2"] by simp
+    have dist_prop: "(\<forall> s1 \<in> S . \<forall> s2 \<in> S . s1 \<noteq> s2                                      
+            \<longrightarrow> (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
+                       \<forall> io2 \<in> RP M2 s2 vs xs V'' .
+                         B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))" using assms(14) by simp
+    (*then have dist_prop : "\<forall> t1 \<in> io_targets M1 (initial M1) io1 . \<forall> t2 \<in> io_targets M1 (initial M1) io2 .  
+                 r_dist_set M1 \<Omega> t1 t2" using assms(16,17,15) shared_elem_def(1,2) by blast*)
+    
+    have "io_targets M1 (initial M1) io1 \<inter> io_targets M1 (initial M1) io2 = {}" 
+    proof (rule ccontr) 
+      assume "io_targets M1 (initial M1) io1 \<inter> io_targets M1 (initial M1) io2 \<noteq> {}"
+      then have "io_targets M1 (initial M1) io1 \<noteq> {}" "io_targets M1 (initial M1) io2 \<noteq> {}"
+        by blast+
+      
+      then obtain s1 s2 where "s1 \<in> io_targets M1 (initial M1) io1" "s2 \<in> io_targets M1 (initial M1) io2"
+        by blast
 
+      then have "io_targets M1 (initial M1) io1 = {s1}" "io_targets M1 (initial M1) io2 = {s2}"
+        by (meson assms(2) observable_io_target_is_singleton)+
+
+      then have "s1 = s2" 
+        using \<open>io_targets M1 (initial M1) io1 \<inter> io_targets M1 (initial M1) io2 \<noteq> {}\<close>
+        by auto 
+
+      then have "B M1 io1 \<Omega> = B M1 io2 \<Omega>"
+        using \<open>io_targets M1 (initial M1) io1 = {s1}\<close> \<open>io_targets M1 (initial M1) io2 = {s2}\<close> by auto 
+      then show "False"
+        using assms(15-17) dist_prop shared_elem_def(1,2) by blast 
+    qed
     then show "False" using shared_elem_def(3,4) by blast 
   qed
 
@@ -1523,7 +1544,8 @@ lemma LB_count_helper_vs_xs :
   assumes "Prereq M2 M1 vs xs T S \<Omega> V V''"
   and     "vs @ xs \<in> L M1"
 shows "(vs @ xs) \<in> L M2 \<inter> L M1"
-proof -
+  using assms(1) by auto
+(*proof - (* proof for non-proper-prefix version of Prereq *)
   have "map fst (vs @ xs) \<in> T" using assms by simp
   moreover have "is_reduction_on_sets M1 M2 T \<Omega>" using assms by simp
   ultimately have "is_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>" unfolding is_reduction_on_sets.simps by blast
@@ -1533,7 +1555,7 @@ proof -
   then have "vs @ xs \<in> L M2" by auto 
 
   then show ?thesis using assms(2) by simp
-qed
+qed*)
   
   
 (* Lemma 5.4.11 *)
