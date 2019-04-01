@@ -269,6 +269,7 @@ abbreviation append_sets :: "'a list set \<Rightarrow> 'a list set \<Rightarrow>
    C  = currently considered sequences
    RM = sequences to remove
         \<rightarrow> has been modified to also allow early removal of observed fail traces
+        \<rightarrow> has been modified to use " \<union> V" in LB as the value of T 0 used here is {} instead of V
 *)
 fun TS :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set" 
 and C  :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
@@ -294,7 +295,7 @@ where
                     (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                        \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                          B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m n) S1 \<Omega> V'' ))))}" |
+                \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m n \<union> V) S1 \<Omega> V'' ))))}" |
   "C M2 M1 \<Omega> V m (Suc n) = (append_set ((C M2 M1 \<Omega> V m n) - (RM M2 M1 \<Omega> V m n)) (inputs M2)) - (TS M2 M1 \<Omega> V m n)" |
   "TS M2 M1 \<Omega> V m (Suc n) = (TS M2 M1 \<Omega> V m n) \<union> (C M2 M1 \<Omega> V m (Suc n))" 
     
@@ -1336,7 +1337,7 @@ proof
                                         (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-            \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m))) S1 \<Omega> V'' ))))}"
+            \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V'' ))))}"
       using RM.simps(2)[of M2 M1 \<Omega> V m "Suc (m*m)"] by assumption
       
     have "(\<not> (language_state_in M1 (initial M1) {seq} \<subseteq> language_state_in M2 (initial M2) {seq}))
@@ -1352,7 +1353,7 @@ proof
                         (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                    \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m))) S1 \<Omega> V'' ))))"
+                    \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V'' ))))"
       proof (cases "(\<not> (language_state_in M1 (initial M1) {seq} \<subseteq> language_state_in M2 (initial M2) {seq}))")
         case True
         then show ?thesis using RM_def by blast
@@ -1370,7 +1371,7 @@ proof
                         (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                    \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m))) S1 \<Omega> V'' ))))"
+                    \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V'' ))))"
         proof 
           fix io assume "io\<in>language_state_in M1 (initial M1) {seq}"
           then have "io \<in> L M1" 
@@ -1433,7 +1434,7 @@ proof
           obtain q where "q \<in> nodes M2" "m < card (R M2 q vs xs)" 
             using state_repetition_via_long_sequence[OF assms(2) \<open>card (nodes M2) \<le> m\<close>  \<open>Suc (m * m) \<le> length xs\<close> \<open>vs@xs \<in> L M2\<close>] by blast
 
-          have "m < LB M2 M1 vs xs (?TS (Suc (m * m))) {q} \<Omega> V''" 
+          have "m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) {q} \<Omega> V''" 
           proof -
             have "card (R M2 q vs xs) \<le> card (RP M2 q vs xs V'')" 
               using RP_union_card_is_suffix_length(1)[OF assms(2) \<open>vs@xs \<in> L M2\<close> \<open>is_det_state_cover M2 V\<close> \<open>V'' \<in> Perm V M1\<close>] by auto
@@ -1441,7 +1442,7 @@ proof
               using \<open>m < card (R M2 q vs xs)\<close> by linarith
             then have "m < (sum (\<lambda> s . card (RP M2 s vs xs V'')) {q})" 
               by auto
-            moreover have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) {q}) \<le> LB M2 M1 vs xs (?TS (Suc (m * m))) {q} \<Omega> V''"
+            moreover have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) {q}) \<le> LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) {q} \<Omega> V''"
               by auto
             ultimately show ?thesis 
               by linarith 
@@ -1457,7 +1458,7 @@ proof
                         \<forall>s2\<in>S1.
                            s1 \<noteq> s2 \<longrightarrow>
                            (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                    m < LB M2 M1 vs xs (?TS (Suc (m * m))) S1 \<Omega> V''"
+                    m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V''"
           proof -
             
             have "io = vs@xs"
@@ -1487,7 +1488,7 @@ proof
                           (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                              \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                                B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                      \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m))) {q} \<Omega> V'' " using \<open>m < LB M2 M1 vs xs (?TS (Suc (m * m))) {q} \<Omega> V''\<close> 
+                      \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) {q} \<Omega> V'' " using \<open>m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) {q} \<Omega> V''\<close> 
               by linarith 
 
             show ?thesis using \<open>V''\<in>N io M1 V\<close> RM_body
@@ -1510,7 +1511,7 @@ proof
                                        \<forall>s2\<in>S1.
                                           s1 \<noteq> s2 \<longrightarrow>
                                           (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                                   m < LB M2 M1 vs xs (?TS (Suc (m * m))) S1 \<Omega> V'')}" 
+                                   m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V'')}" 
         using \<open>seq \<in> ?C ?i\<close> by blast
 
 
@@ -1648,5 +1649,32 @@ proof -
     qed
   qed
 qed
+
+
+(* variation of corollary 5.5.10 that shows that the removed prefix is not in RM 0 *)
+lemma TS_non_containment_causes_final_suc :
+  assumes "vs@xs \<notin> TS M2 M1 \<Omega> V m i" 
+  and     "mcp (vs@xs) V vs"
+  and     "set xs \<subseteq> inputs M2"
+  and     "final_iteration M2 M1 \<Omega> V m i"
+  and     "OFSM M2"
+obtains xr j
+where "xr \<noteq> xs" "prefix xr xs" "Suc j \<le> i" "vs@xr \<in> RM M2 M1 \<Omega> V m (Suc j)"
+proof -
+  obtain xr j where "xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 \<Omega> V m j"
+    using TS_non_containment_causes_final[OF assms] by blast
+  moreover have "RM M2 M1 \<Omega> V m 0 = {}"
+    by auto
+  ultimately have "j \<noteq> 0"
+    by (metis empty_iff) 
+  then obtain jp where "j = Suc jp"
+    using not0_implies_Suc by blast 
+  then have "xr \<noteq> xs \<and> prefix xr xs \<and> Suc jp \<le> i \<and> vs@xr \<in> RM M2 M1 \<Omega> V m (Suc jp)"
+    using \<open>xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 \<Omega> V m j\<close>
+    by blast 
+  then show ?thesis 
+    using that by blast
+qed
+    
 
 end

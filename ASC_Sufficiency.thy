@@ -608,11 +608,116 @@ qed
 
 
 
+lemma language_state_inputs :
+  assumes "well_formed M"
+  and     "io \<in> language_state M q"
+shows "set (map fst io) \<subseteq> inputs M"
+proof -
+  obtain tr where "path M (io || tr) q" "length tr = length io" 
+    using assms(2) by auto
+  show ?thesis 
+    by (metis (no_types) \<open>\<And>thesis. (\<And>tr. \<lbrakk>path M (io || tr) q; length tr = length io\<rbrakk> \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> assms(1) map_fst_zip path_input_containment)
+qed 
 
 
+lemma io_reduction_on_subset :
+  assumes "io_reduction_on M1 M2 T"
+  and     "T' \<subseteq> T"
+shows "io_reduction_on M1 M2 T'"
+proof (rule ccontr)
+  assume "\<not> io_reduction_on M1 M2 T'"
+  then obtain xs' where "xs' \<in> T'" "\<not> language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}"
+  proof -
+    have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"
+      by blast
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    then have f2: "\<forall>P Pa. pps Pa P \<in> P \<and> pps Pa P \<notin> Pa \<or> P \<subseteq> Pa"
+      by (meson subsetI)
+    have f3: "\<forall>ps f c A. (ps::('a \<times> 'b) list) \<notin> language_state_in f (c::'c) A \<or> map fst ps \<in> A"
+      by (meson language_state_in_map_fst_contained)
+    then have "language_state_in M1 (initial M1) T' \<subseteq> language_state_in M1 (initial M1) T"
+      using f2 by (meson assms(2) language_state_in_in_language_state language_state_in_map_fst set_rev_mp)
+    then show ?thesis
+      using f3 f2 f1 by (meson \<open>\<not> io_reduction_on M1 M2 T'\<close> assms(1) language_state_in_in_language_state language_state_in_map_fst)
+  qed 
+  then have "xs' \<in> T" 
+    using assms(2) by blast
 
+  have "\<not> io_reduction_on M1 M2 T"
+  proof -
+    have f1: "\<forall>as. as \<notin> T' \<or> as \<in> T"
+      using assms(2) by auto
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    then have "\<forall>P Pa. (\<not> P \<subseteq> Pa \<or> (\<forall>ps. ps \<notin> P \<or> ps \<in> Pa)) \<and> (P \<subseteq> Pa \<or> pps Pa P \<in> P \<and> pps Pa P \<notin> Pa)"
+      by blast
+    then show ?thesis
+      using f1 by (meson \<open>\<not> io_reduction_on M1 M2 T'\<close> language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained)
+  qed 
 
+  then show "False" 
+    using assms(1) by auto
+qed
     
+lemma io_reduction_from_atc_reduction :
+  assumes "is_reduction_on_sets M1 M2 T \<Omega>"
+  and     "finite T"
+  shows "io_reduction_on M1 M2 T" 
+using assms(2,1) proof (induction T)
+  case empty
+  then show ?case by auto
+next
+  case (insert t T)
+  then have "is_reduction_on M1 M2 t \<Omega>"
+    by auto
+  then have "language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) {t}"
+    using is_reduction_on.simps by blast
+
+  have "language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) T" 
+    using insert.IH
+  proof -
+    have "is_reduction_on_sets M1 M2 T \<Omega>"
+      by (meson contra_subsetD insert.prems is_reduction_on_sets.simps subset_insertI)
+    then show ?thesis
+      using insert.IH by blast
+  qed
+  then have "language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) (insert t T)"
+    by (meson insert_iff language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained subsetCE subsetI) 
+  moreover have "language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) (insert t T)"
+    using \<open>language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) {t}\<close>
+    by (smt insertI1 language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained singletonD subsetCE subsetI) 
+  ultimately show ?case
+  proof -
+    have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"
+      by blast
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    moreover
+    { assume "pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) {t}"
+      moreover
+      { assume "map fst (pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T))) \<notin> {t}"
+        then have "map fst (pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T))) \<noteq> t"
+          by blast
+        then have "pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<in> language_state_in M2 (initial M2) (insert t T)"
+          using f1 by (meson \<open>language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) (insert t T)\<close> insertE language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained) }
+      ultimately have "io_reduction_on M1 M2 (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<in> language_state_in M2 (initial M2) (insert t T)"
+        using f1 by (meson language_state_in_in_language_state language_state_in_map_fst) }
+      ultimately show ?thesis
+        using f1 by (meson \<open>language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) (insert t T)\<close> subsetI)
+  qed 
+qed
+    
+lemma is_reduction_on_subset :
+  assumes "is_reduction_on_sets M1 M2 T \<Omega>"
+  and     "T' \<subseteq> T"
+shows "is_reduction_on_sets M1 M2 T' \<Omega>"
+  using assms unfolding is_reduction_on_sets.simps by blast
+
+
 
 (* lemma 7.3.1 *)
 lemma asc_sufficiency :
@@ -621,7 +726,8 @@ lemma asc_sufficiency :
   and     "fault_model M2 M1 m"
   and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"
-  and     "io_reduction_on M1 M2 (TS M2 M1 \<Omega> V m i)"
+  (*and     "io_reduction_on M1 M2 (TS M2 M1 \<Omega> V m i)"*)
+  and     "is_reduction_on_sets M1 M2 (TS M2 M1 \<Omega> V m i) \<Omega>"
 shows "M1 \<preceq> M2"
 proof (rule ccontr)
 
@@ -647,8 +753,14 @@ proof (rule ccontr)
 
   have "vs@xs \<notin> language_state_in M2 (initial M2) {map fst (vs@xs)}"
     by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_in_in_language_state subsetCE) 
- 
- 
+
+  have "finite V" 
+    using det_state_cover_finite assms(4,2) by auto
+  then have "finite (?TS i)"
+    using TS_finite[of V M2] assms(2) by auto
+  then have "io_reduction_on M1 M2 (?TS i)" 
+    using io_reduction_from_atc_reduction[OF assms(6)] by auto
+
   have "map fst (vs@xs) \<notin> ?TS i"
   proof -
     have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P - Pa \<or> ps \<in> P \<and> ps \<notin> Pa"
@@ -656,7 +768,7 @@ proof (rule ccontr)
     have "\<forall>P Pa ps. \<not> P \<subseteq> Pa \<or> (ps::('a \<times> 'b) list) \<in> Pa \<or> ps \<notin> P"
       by blast
     then show ?thesis
-      using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> assms(6) language_state_in_in_language_state language_state_in_map_fst)
+      using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> \<open>io_reduction_on M1 M2 (?TS i)\<close> language_state_in_in_language_state language_state_in_map_fst)
   qed 
 
   have "map fst vs \<in> V"
@@ -674,12 +786,229 @@ proof (rule ccontr)
   have "mcp (?stfV @ ?stfX) V ?stfV"
     by (metis \<open>map fst (vs @ xs) = map fst vs @ map fst xs\<close> \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1) assms(2) assms(4) mstfe_mcp)
 
-  have "set (map fst (vs@xs)) \<subseteq> inputs M1" 
-  have "set (map fst xs) \<subseteq> inputs M2"
+  have "set ?stf \<subseteq> inputs M1"
+    by (meson DiffD1 \<open>vs @ xs \<in> L M1 - L M2\<close> assms(1) language_state_inputs) 
+  then have "set ?stf \<subseteq> inputs M2"
+    using assms(3) by blast 
+  moreover have "set ?stf = set ?stfV \<union> set ?stfX"
+    by simp 
+  ultimately have "set ?stfX \<subseteq> inputs M2"
+    by blast 
 
-  obtain xr j where "xr \<noteq> ?stfX" "prefix xr ?stfX" "j \<le> i" "?stfV@xr \<in> RM M2 M1 \<Omega> V m j"
-    using TS_non_containment_causes_final[OF \<open>?stfV @ ?stfX \<notin> ?TS i\<close> ]
+
+  obtain xr j where "xr \<noteq> ?stfX" "prefix xr ?stfX" "Suc j \<le> i" "?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)"
+    using TS_non_containment_causes_final_suc[OF \<open>?stfV @ ?stfX \<notin> ?TS i\<close> \<open>mcp (?stfV @ ?stfX) V ?stfV\<close> \<open>set ?stfX \<subseteq> inputs M2\<close> assms(5,2)] by blast
+
   
+  let ?yr = "take (length xr) (map snd xs)"
+  have "length ?yr = length xr"
+    using \<open>prefix xr (map fst xs)\<close> prefix_length_le by fastforce 
+  have "(xr || ?yr) = take (length xr) xs"
+    by (metis (no_types, hide_lams) \<open>prefix xr (map fst xs)\<close> append_eq_conv_conj prefixE take_zip zip_map_fst_snd) 
+
+  have "prefix (vs@(xr || ?yr)) (vs@xs)"
+    by (simp add: \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> take_is_prefix)
+
+  have "xr = take (length xr) (map fst xs)"
+    by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> map_fst_zip take_map) 
+
+  have "vs@(xr || ?yr) \<in> L M1"
+    by (metis DiffD1 \<open>prefix (vs @ (xr || take (length xr) (map snd xs))) (vs @ xs)\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_prefix prefixE) 
+
+  then have "vs@(xr || ?yr) \<in> language_state_in M1 (initial M1) {?stfV @ xr}"
+    by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> insertI1 language_state_in_map_fst map_append map_fst_zip) 
+
+  have "length xr < length xs"
+    by (metis \<open>xr = take (length xr) (map fst xs)\<close> \<open>xr \<noteq> map fst xs\<close> not_le_imp_less take_all take_map)
+
+
+
+  from \<open>?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)\<close> have "?stfV@xr \<in> {xs' \<in> C M2 M1 \<Omega> V m (Suc j) .
+      (\<not> (language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}))
+      \<or> (\<forall> io \<in> language_state_in M1 (initial M1) {xs'} .
+          (\<exists> V'' \<in> N io M1 V .  
+            (\<exists> S1 . 
+              (\<exists> vs xs .
+                io = (vs@xs)
+                \<and> mcp (vs@xs) V'' vs
+                \<and> S1 \<subseteq> nodes M2
+                \<and> (\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 .
+                  s1 \<noteq> s2 \<longrightarrow> 
+                    (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
+                       \<forall> io2 \<in> RP M2 s2 vs xs V'' .
+                         B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
+                \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' ))))}" 
+    unfolding RM.simps by blast
+
+  moreover have "\<forall> xs' \<in> ?C (Suc j) . language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}"
+  proof 
+    fix xs' assume "xs' \<in> ?C (Suc j)"
+    from \<open>Suc j \<le> i\<close> have "?C (Suc j) \<subseteq> ?TS i"
+      using C_subset TS_subset by blast 
+    then have "{xs'} \<subseteq> ?TS i" 
+      using \<open>xs' \<in> ?C (Suc j)\<close> by blast
+    show "language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}" 
+      using io_reduction_on_subset[OF \<open>io_reduction_on M1 M2 (?TS i)\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] by assumption
+  qed
+
+  ultimately have "(\<forall> io \<in> language_state_in M1 (initial M1) {?stfV@xr} .
+          (\<exists> V'' \<in> N io M1 V .  
+            (\<exists> S1 . 
+              (\<exists> vs xs .
+                io = (vs@xs)
+                \<and> mcp (vs@xs) V'' vs
+                \<and> S1 \<subseteq> nodes M2
+                \<and> (\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 .
+                  s1 \<noteq> s2 \<longrightarrow> 
+                    (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
+                       \<forall> io2 \<in> RP M2 s2 vs xs V'' .
+                         B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
+                \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' ))))"
+    by blast 
+
+
+  
+    
+
+  then have "
+          (\<exists> V'' \<in> N (vs@(xr || ?yr)) M1 V .  
+            (\<exists> S1 . 
+              (\<exists> vs' xs' .
+                vs@(xr || ?yr) = (vs'@xs')
+                \<and> mcp (vs'@xs') V'' vs'
+                \<and> S1 \<subseteq> nodes M2
+                \<and> (\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 .
+                  s1 \<noteq> s2 \<longrightarrow> 
+                    (\<forall> io1 \<in> RP M2 s1 vs' xs' V'' .
+                       \<forall> io2 \<in> RP M2 s2 vs' xs' V'' .
+                         B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
+                \<and> m < LB M2 M1 vs' xs' (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' )))"
+    using \<open>vs@(xr || ?yr) \<in> language_state_in M1 (initial M1) {?stfV @ xr}\<close>
+    by blast 
+
+  then obtain V'' S1 vs' xs' where RM_impl :  
+                                   "V'' \<in> N (vs@(xr || ?yr)) M1 V"
+                                   "vs@(xr || ?yr) = (vs'@xs')"
+                                   "mcp (vs'@xs') V'' vs'"
+                                   "S1 \<subseteq> nodes M2"
+                                   "(\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 .
+                                     s1 \<noteq> s2 \<longrightarrow> 
+                                        (\<forall> io1 \<in> RP M2 s1 vs' xs' V'' .
+                                           \<forall> io2 \<in> RP M2 s2 vs' xs' V'' .
+                                             B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))"
+                                   " m < LB M2 M1 vs' xs' (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V''"
+    by blast
+
+ 
+  have "?stfV = mcp' (map fst (vs @ (xr || take (length xr) (map snd xs)))) V"
+    by (metis (full_types) \<open>length (take (length xr) (map snd xs)) = length xr\<close> \<open>mcp (map fst vs @ map fst xs) V (map fst vs)\<close> \<open>prefix xr (map fst xs)\<close> map_append map_fst_zip mcp'_intro mcp_prefix_of_suffix) 
+
+  have "is_det_state_cover M2 V"
+    using assms(4) by blast 
+  moreover have "well_formed M2" 
+    using assms(2) by auto
+  moreover have "finite V" 
+    using det_state_cover_finite assms(4,2) by auto
+  ultimately have "vs \<in> V''"  
+       "vs = mcp' (vs @ (xr || take (length xr) (map snd xs))) V''"
+    using N_mcp_prefix[OF \<open>?stfV = mcp' (map fst (vs @ (xr || take (length xr) (map snd xs)))) V\<close> \<open>V'' \<in> N (vs@(xr || ?yr)) M1 V\<close>, of M2] by simp+
+  
+  have "vs' = vs"
+    by (metis (no_types) \<open>mcp (vs' @ xs') V'' vs'\<close> \<open>vs = mcp' (vs @ (xr || take (length xr) (map snd xs))) V''\<close> \<open>vs @ (xr || take (length xr) (map snd xs)) = vs' @ xs'\<close> mcp'_intro)
+   
+  then have "xs' = (xr || ?yr)"
+    using \<open>vs @ (xr || take (length xr) (map snd xs)) = vs' @ xs'\<close> by blast  
+
+
+  have "(\<forall>vs'a\<in>V''. prefix vs'a (vs' @ xs') \<longrightarrow> length vs'a \<le> length vs')"
+    using \<open>mcp (vs' @ xs') V'' vs'\<close> by auto
+
+  moreover have "is_reduction_on_sets M1 M2 (?TS j) \<Omega>"   
+  proof -
+    have "j < i" 
+      using \<open>Suc j \<le> i\<close> by auto
+    then have "?TS j \<subseteq> ?TS i" 
+      by (simp add: TS_subset) 
+    then show ?thesis 
+      using is_reduction_on_subset[OF assms(6), of "?TS j"] by auto
+  qed
+
+  moreover have "finite (?TS j \<union> V)"
+  proof -
+    have "finite (?TS j)"
+      using TS_finite[OF \<open>finite V\<close>, of M2 M1 \<Omega> m j] assms(2) by auto 
+    then show ?thesis 
+      using \<open>finite V\<close> by blast
+  qed
+
+  moreover have "V \<subseteq> ?TS j \<union> V" 
+    by blast
+
+  moreover have "(\<forall>xs'a. prefix xs'a xs' \<longrightarrow> map fst (vs' @ xs'a) \<in> TS M2 M1 \<Omega> V m j \<union> V)"
+    sorry
+
+  moreover have "\<forall> s1 \<in> S1 . \<forall> s2 \<in> S1 . s1 \<noteq> s2                                      
+                \<longrightarrow> (\<forall> seq1 \<in> RP M2 s1 vs' xs' V'' . \<forall> seq2 \<in> RP M2 s2 vs' xs' V'' . 
+                      \<forall> t1 \<in> io_targets M1 (initial M1) seq1 . \<forall> t2 \<in> io_targets M1 (initial M1) seq2 .  
+                        r_dist_set M1 \<Omega> t1 t2)" 
+  proof 
+    fix s1 assume "s1 \<in> S1"
+    show "\<forall>s2\<in>S1.
+             s1 \<noteq> s2 \<longrightarrow>
+             (\<forall>seq1\<in>RP M2 s1 vs' xs' V''.
+                 \<forall>seq2\<in>RP M2 s2 vs' xs' V''.
+                    \<forall>t1\<in>io_targets M1 (initial M1) seq1.
+                       \<forall>t2\<in>io_targets M1 (initial M1) seq2. r_dist_set M1 \<Omega> t1 t2)"
+    proof 
+      fix s2 assume "s2 \<in> S1"
+      show "s1 \<noteq> s2 \<longrightarrow>
+          (\<forall>seq1\<in>RP M2 s1 vs' xs' V''.
+              \<forall>seq2\<in>RP M2 s2 vs' xs' V''.
+                 \<forall>t1\<in>io_targets M1 (initial M1) seq1.
+                    \<forall>t2\<in>io_targets M1 (initial M1) seq2. r_dist_set M1 \<Omega> t1 t2)"
+      proof 
+        assume "s1 \<noteq> s2"
+        show "\<forall>seq1\<in>RP M2 s1 vs' xs' V''.
+               \<forall>seq2\<in>RP M2 s2 vs' xs' V''.
+                  \<forall>t1\<in>io_targets M1 (initial M1) seq1.
+                     \<forall>t2\<in>io_targets M1 (initial M1) seq2. r_dist_set M1 \<Omega> t1 t2"
+        proof
+          fix seq1 assume "seq1 \<in> RP M2 s1 vs' xs' V''"
+          show "\<forall>seq2\<in>RP M2 s2 vs' xs' V''.
+                  \<forall>t1\<in>io_targets M1 (initial M1) seq1.
+                     \<forall>t2\<in>io_targets M1 (initial M1) seq2. r_dist_set M1 \<Omega> t1 t2"
+          proof
+            fix seq2 assume "seq2 \<in> RP M2 s2 vs' xs' V''"
+
+            have "B M1 seq1 \<Omega> \<noteq> B M1 seq2 \<Omega>" 
+              using RM_impl(5) \<open>s1 \<in> S1\<close> \<open>s2 \<in> S1\<close> \<open>s1 \<noteq> s2\<close> \<open>seq1 \<in> RP M2 s1 vs' xs' V''\<close> \<open>seq2 \<in> RP M2 s2 vs' xs' V''\<close> by blast
+
+            then show "\<forall>t1\<in>io_targets M1 (initial M1) seq1. 
+                    \<forall>t2\<in>io_targets M1 (initial M1) seq2. r_dist_set M1 \<Omega> t1 t2"
+              unfolding B.simps r_dist_set.simps r_dist.simps
+
+            have "seq1 \<in> L M1"
+            obtain t1 where "io_targets M1 (initial M1) seq1 = {t1}" 
+
+            show "\<forall>t1\<in>io_targets M1 (initial M1) seq1. 
+                    \<forall>t2\<in>io_targets M1 (initial M1) seq2. r_dist_set M1 \<Omega> t1 t2"
+            proof
+              fix t1 assume "t1 \<in> io_targets M1 (initial M1) seq1"
+              show "\<forall>t2\<in>io_targets M1 (initial M1) seq2. r_dist_set M1 \<Omega> t1 t2"
+              proof 
+                fix t2 assume "t2 \<in> io_targets M1 (initial M1) seq2"
+
+                have "True" using RM_impl(5)
+
+                show "r_dist_set M1 \<Omega> t1 t2" 
+
+
+  ultimately have "Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''"
+    using RM_impl(4,5) unfolding Prereq.simps 
+    
+  
+
+
 
 
 

@@ -358,6 +358,17 @@ proof -
   then show ?thesis using card_f by auto
 qed
 
+lemma det_state_cover_finite :
+  assumes "is_det_state_cover M V"
+  and     "finite (nodes M)"
+shows "finite V"
+proof -
+  have "d_reachable M (initial M) \<subseteq> nodes M"
+    by auto 
+  show "finite V" using det_state_cover_card[OF assms]
+    by (metis \<open>d_reachable M (initial M) \<subseteq> nodes M\<close> assms(1) assms(2) finite_imageI infinite_super is_det_state_cover.simps)    
+qed
+
 
 
 fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200)
