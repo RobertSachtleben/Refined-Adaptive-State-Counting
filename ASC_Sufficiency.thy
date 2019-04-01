@@ -1076,4 +1076,31 @@ proof (rule ccontr)
     using \<open>m < LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V''\<close> by linarith
 qed
 
+
+
+
+(* lemma 7.3.1 - reverse *)
+lemma asc_soundness :
+  assumes     "M1 \<preceq> M2"
+  and         "OFSM M1"
+  and         "OFSM M2"
+shows "is_reduction_on_sets M1 M2 T \<Omega>"
+  using is_reduction_on_sets_reduction[OF assms(1)] assms(2,3) by blast
+
+
+
+(* Theorem 7.3.2 *)
+lemma asc_main_theorem :
+  assumes "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_model M2 M1 m"
+  and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
+  and     "final_iteration M2 M1 \<Omega> V m i"
+shows     "M1 \<preceq> M2 \<longleftrightarrow> is_reduction_on_sets M1 M2 (TS M2 M1 \<Omega> V m i) \<Omega>"
+by (metis asc_sufficiency assms(1-5) is_reduction_on_sets_reduction)
+
+
+
+
+
 end
