@@ -466,6 +466,34 @@ lemma is_reduction_on_sets_reduction[intro] :
 shows "is_reduction_on_sets M1 M2 TS \<Omega>"
   using assms is_reduction_on_reduction by (metis is_reduction_on_sets.elims(3)) 
 
+lemma is_reduction_on_sets_via_language_state_in : 
+  assumes "is_reduction_on_sets M1 M2 TS \<Omega>"
+  shows "(\<Union>io\<in>language_state_in M1 (initial M1) TS. append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>)"
+proof -
+  have "\<forall> iseq \<in> TS . (language_state_in M1 (initial M1) {iseq} \<subseteq> language_state_in M2 (initial M2) {iseq} 
+                        \<and> (\<forall> io \<in> language_state_in M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))" 
+    using assms by auto
+  then have "\<forall> iseq \<in> TS . (\<Union>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) {iseq}. append_io_B M2 io \<Omega>)"
+    by blast
+  moreover have "\<forall> iseq \<in> TS . (\<Union>io\<in>language_state_in M2 (initial M2) {iseq}. append_io_B M2 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>)"
+    unfolding language_state_in.simps by blast
+  ultimately have elem_subset : "\<forall> iseq \<in> TS . (\<Union>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>)" 
+    by blast
+  
+  show ?thesis
+  proof 
+    fix x assume "x \<in> (\<Union>io\<in>language_state_in M1 (initial M1) TS. append_io_B M1 io \<Omega>)"
+    then obtain io where "io \<in> language_state_in M1 (initial M1) TS" "x \<in> append_io_B M1 io \<Omega>"
+      by blast
+    then obtain iseq where "iseq \<in> TS" "io\<in>language_state_in M1 (initial M1) {iseq}"
+      unfolding language_state_in.simps by blast
+    have "x \<in> (\<Union>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>)"
+      using \<open>io \<in> language_state_in M1 (initial M1) {iseq}\<close> \<open>x \<in> append_io_B M1 io \<Omega>\<close> by blast
 
+    then show "x \<in> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>)"
+      using \<open>iseq \<in> TS\<close> elem_subset by blast
+  qed
+qed
+      
 
 end
