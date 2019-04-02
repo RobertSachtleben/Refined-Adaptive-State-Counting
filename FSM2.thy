@@ -370,6 +370,23 @@ proof -
 qed
 
 
+lemma det_state_cover_initial :
+  assumes "is_det_state_cover M V"
+  shows   "[] \<in> V"
+proof -
+  have "d_reached_by M (initial M) [] (initial M) [] []"
+    by (simp add: FSM.nil)
+  then have "d_reaches M (initial M) [] (initial M)" 
+    by auto
+  
+  have "initial M \<in> d_reachable M (initial M)"
+    by (metis (no_types) \<open>d_reaches M (initial M) [] (initial M)\<close> d_reachable.simps mem_Collect_eq)
+
+  then show ?thesis
+    by (metis (no_types, lifting) assms image_iff is_det_state_cover.elims(2) is_det_state_cover_ass.simps) 
+qed
+    
+
 
 fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200)
 where "M1 \<preceq> M2 = (language_state M1 (initial M1) \<subseteq> language_state M2 (initial M2))"
