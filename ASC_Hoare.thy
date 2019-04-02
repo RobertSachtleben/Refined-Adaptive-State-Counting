@@ -1555,7 +1555,7 @@ next
   
 
 
-  have "tsN = TS M2 M1 \<Omega> V m iter \<or> \<not> obsI \<subseteq> obs"
+  show "M1 \<preceq> M2 = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega> "
   proof (cases "cN = {}")
     case True
     then have "C M2 M1 \<Omega> V m iter = {}"
@@ -1599,31 +1599,28 @@ next
       using \<open>iter = Suc (Suc k')\<close> by presburger
     ultimately have "TS M2 M1 \<Omega> V m iter = TS M2 M1 \<Omega> V m (iter - 1)"
       by auto 
-    then show ?thesis 
+    then have "tsN = TS M2 M1 \<Omega> V m iter"
       using \<open>tsN = TS M2 M1 \<Omega> V m (iter-1)\<close> by simp
-  next
-    case False
-    then show ?thesis 
-      using \<open>cN = {} \<or> \<not> obsI \<subseteq> obs\<close> by auto
-  qed
-
-  
-  show "M1 \<preceq> M2 = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega> "
-  proof (cases "tsN = TS M2 M1 \<Omega> V m iter")
-    case True
-    then  have "TS M2 M1 \<Omega> V m iter = TS M2 M1 \<Omega> V m (iter - 1)" 
+    
+    then  have "TS M2 M1 \<Omega> V m iter = TS M2 M1 \<Omega> V m (iter - 1)"
       using \<open>tsN = TS M2 M1 \<Omega> V m (iter - 1)\<close> by auto
     then have "final_iteration M2 M1 \<Omega> V m (iter-1)" 
       using \<open>0 < iter\<close> by auto
     
-    show ?thesis 
+    have "M1 \<preceq> M2 = is_reduction_on_sets M1 M2 tsN \<Omega>" 
       using asc_main_theorem[OF \<open>OFSM M1\<close> \<open>OFSM M2\<close> \<open>fault_model M2 M1 m\<close> \<open>test_tools_R M2 M1 FAIL PM V \<Omega>\<close> \<open>final_iteration M2 M1 \<Omega> V m (iter-1)\<close>]
       using \<open>tsN = TS M2 M1 \<Omega> V m (iter - 1)\<close>
       by blast
+    moreover have "tsN \<union> cN = tsN"
+      using \<open>cN = {}\<close> by blast
+    ultimately show ?thesis 
+      by presburger
+      
   next
     case False
+
     then have "\<not> obsI \<subseteq> obs"
-      using \<open>tsN = TS M2 M1 \<Omega> V m iter \<or> \<not> obsI \<subseteq> obs\<close> by auto
+      using \<open>cN = {} \<or> \<not> obsI \<subseteq> obs\<close> by auto
 
     then have "\<not> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)"
       using \<open>obs = (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)\<close>
@@ -1656,8 +1653,9 @@ next
     
     show ?thesis 
       using f2 f1 by simp
-  qed
 
+  qed
+qed
 
 
 
