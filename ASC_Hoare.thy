@@ -9,143 +9,104 @@ lemma language_state_in_union :
   shows "language_state_in M q T1 \<union> language_state_in M q T2 = language_state_in M q (T1 \<union> T2)"
   unfolding language_state_in.simps by blast
 
-
-lemma is_reduction_on_sets_via_language_state_in_reverse : 
-  assumes "(L\<^sub>i\<^sub>n M1 T \<union> (\<Union>io\<in>language_state_in M1 (initial M1) T. append_io_B M1 io \<Omega>)) \<subseteq> (L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>language_state_in M2 (initial M2) T. append_io_B M2 io \<Omega>))"
-  and  "  OFSM M1"
-  and    "OFSM M2"
+lemma is_reduction_on_sets_from_obs :
+  assumes "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
+  and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)" 
 shows "is_reduction_on_sets M1 M2 T \<Omega>"
-  
-proof (rule ccontr)
-  assume "\<not> is_reduction_on_sets M1 M2 T \<Omega>"
-  then obtain iseq where "iseq \<in> T" 
-                         "\<not> L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<or>
-                          \<not>(\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
-    unfolding is_reduction_on_sets.simps is_reduction_on.simps by blast
-  
-  have "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
-  proof 
-    fix x assume "x \<in> L\<^sub>i\<^sub>n M1 T"
-    then have "map fst x \<in> T"
-      by auto 
-
-    have "x \<in> L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)"
-      using assms \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> by blast
-    show "x \<in> L\<^sub>i\<^sub>n M2 T"
-    proof (cases "x \<in> L\<^sub>i\<^sub>n M2 T")
-      case True
-      then show ?thesis by simp
-    next
-      case False
-      then have "x \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)" 
-        using \<open>x \<in> L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)\<close> by blast
-      then obtain io where "io\<in>L\<^sub>i\<^sub>n M2 T" "x \<in> append_io_B M2 io \<Omega>"
-        by blast
-      then have "x \<in> L M2"
-        using append_io_B_in_language by blast
-      then show ?thesis
-        using \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> by auto
-    qed
-  qed
-  have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}" 
-    by (meson \<open>L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T\<close> \<open>iseq \<in> T\<close> empty_subsetI insert_subset io_reduction_on_subset)
-
-  then obtain io where "io\<in>L\<^sub>i\<^sub>n M1 {iseq}" "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>" 
-    using \<open>\<not> L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<or>
-                          \<not>(\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)\<close> 
-    
-
-
+  unfolding is_reduction_on_sets.simps is_reduction_on.simps
 proof 
   fix iseq assume "iseq \<in> T"
-
-  have "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
-  proof 
-    fix x assume "x \<in> L\<^sub>i\<^sub>n M1 T"
-    then have "map fst x \<in> T"
-      by auto 
-
-    have "x \<in> L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)"
-      using assms \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> by blast
-    show "x \<in> L\<^sub>i\<^sub>n M2 T"
-    proof (cases "x \<in> L\<^sub>i\<^sub>n M2 T")
-      case True
-      then show ?thesis by simp
-    next
-      case False
-      then have "x \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)" 
-        using \<open>x \<in> L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)\<close> by blast
-      then obtain io where "io\<in>L\<^sub>i\<^sub>n M2 T" "x \<in> append_io_B M2 io \<Omega>"
-        by blast
-      then have "x \<in> L M2"
-        using append_io_B_in_language by blast
-      then show ?thesis
-        using \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> by auto
-    qed
-  qed
-  have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}" 
-    by (meson \<open>L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T\<close> \<open>iseq \<in> T\<close> empty_subsetI insert_subset io_reduction_on_subset)
-
-  have "\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
-  proof 
+  have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}"
+    by (metis \<open>iseq \<in> T\<close> assms(1) bot.extremum insert_mono io_reduction_on_subset mk_disjoint_insert)
+  moreover have "\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
+  proof
     fix io assume "io \<in> L\<^sub>i\<^sub>n M1 {iseq}"
     then have "io \<in> L\<^sub>i\<^sub>n M2 {iseq}"
-      using \<open>L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}\<close> by blast
-    show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
-    proof 
+      using calculation by blast 
+    show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega> "
+    proof
       fix x assume "x \<in> append_io_B M1 io \<Omega>"
-      show "x \<in> append_io_B M2 io \<Omega> "
-      proof (rule ccontr)
-        assume "x \<notin> append_io_B M2 io \<Omega>"
-        then have "\<forall> res \<in> B M2 io \<Omega> . x \<noteq> io@res" 
-          unfolding append_io_B.simps by blast
 
+      have "io \<in> L\<^sub>i\<^sub>n M1 T"
+        using \<open>io \<in> L\<^sub>i\<^sub>n M1 {iseq}\<close> \<open>iseq \<in> T\<close> by auto 
+      moreover have "(io,x) \<in> {io} \<times> append_io_B M1 io \<Omega>"
+        using \<open>x \<in> append_io_B M1 io \<Omega>\<close> by blast 
+      ultimately have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)" 
+        by blast
 
-
-
-
-      
-      have "append_io_B M1 io \<Omega> \<subseteq> (\<Union>io \<in> L\<^sub>i\<^sub>n M1 T. append_io_B M1 io \<Omega>)"
-      proof -
-        have "\<forall>P f ps. (f (ps::('a \<times> 'b) list)::('a \<times> 'b) list set) \<subseteq> UNION P f \<or> ps \<notin> P"
-          by blast
-        then show ?thesis
-          by (metis UN_I \<open>io \<in> L\<^sub>i\<^sub>n M1 {iseq}\<close> \<open>iseq \<in> T\<close> language_state_for_input_alt_def language_state_in_alt_def)
-      qed 
-
-      have "x \<in> L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)"
-        by (metis (no_types, lifting) UnCI \<open>append_io_B M1 io \<Omega> \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. append_io_B M1 io \<Omega>)\<close> \<open>x \<in> append_io_B M1 io \<Omega>\<close> assms subset_eq)
-      
-
-
-
-      
-    then have "append_io_B M1 io \<Omega> \<subseteq> L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)" 
-      using assms  by blast
-
-    show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
-    proof (cases "append_io_B M1 io \<Omega> \<inter>  L\<^sub>i\<^sub>n M2 T = {}")
-      case True
-      then have "append_io_B M1 io \<Omega> \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)"
-        using \<open>append_io_B M1 io \<Omega> \<subseteq> L\<^sub>i\<^sub>n M2 T \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. append_io_B M2 io \<Omega>)\<close> by blast
-      then show ?thesis sorry
-    next
-      case False
-      
-      then show ?thesis sorry
-        
+      then have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+        using assms(2) by blast
+      then have "(io,x) \<in> {io} \<times> append_io_B M2 io \<Omega>"
+        by blast 
+      then show "x \<in> append_io_B M2 io \<Omega>"
+        by blast
     qed
-    
-    
+  qed
+  ultimately show "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<and>
+       (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)" by linarith
+qed
 
 
-lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI iter return
+lemma is_reduction_on_sets_to_obs :   
+  assumes "is_reduction_on_sets M1 M2 T \<Omega>"
+shows "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
+  and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+proof 
+  fix x assume "x \<in> L\<^sub>i\<^sub>n M1 T"
+  show "x \<in> L\<^sub>i\<^sub>n M2 T"
+    using assms unfolding is_reduction_on_sets.simps is_reduction_on.simps
+  proof -
+    assume a1: "\<forall>iseq\<in>T. L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
+    have f2: "x \<in> UNION T (language_state_for_input M1 (initial M1))"
+      by (metis (no_types) \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_in_alt_def)
+    obtain aas :: "'a list set \<Rightarrow> ('a list \<Rightarrow> ('a \<times> 'b) list set) \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'a list" where
+      "\<forall>x0 x1 x2. (\<exists>v3. v3 \<in> x0 \<and> x2 \<in> x1 v3) = (aas x0 x1 x2 \<in> x0 \<and> x2 \<in> x1 (aas x0 x1 x2))"
+      by moura
+    then have "\<forall>ps f A. (ps \<notin> UNION A f \<or> aas A f ps \<in> A \<and> ps \<in> f (aas A f ps)) \<and> (ps \<in> UNION A f \<or> (\<forall>as. as \<notin> A \<or> ps \<notin> f as))"
+      by blast
+    then show ?thesis
+      using f2 a1 by (metis (no_types) contra_subsetD language_state_for_input_alt_def language_state_in_alt_def)
+  qed
+next  
+  show "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"   
+  proof 
+    fix iox assume "iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)"
+    then obtain io x where "iox = (io,x)" 
+      by blast
+
+    have "io \<in> L\<^sub>i\<^sub>n M1 T"
+      using \<open>iox = (io, x)\<close> \<open>iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)\<close> by blast
+    have "(io,x) \<in> {io} \<times> append_io_B M1 io \<Omega>"
+      using \<open>iox = (io, x)\<close> \<open>iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)\<close> by blast
+    then have "x \<in> append_io_B M1 io \<Omega>" 
+      by blast
+
+    then have "x \<in> append_io_B M2 io \<Omega>"
+      using assms unfolding is_reduction_on_sets.simps is_reduction_on.simps
+      by (metis (no_types, lifting) UN_E \<open>io \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_for_input_alt_def language_state_in_alt_def subsetCE) 
+    then have "(io,x) \<in> {io} \<times> append_io_B M2 io \<Omega>"
+      by blast
+    then have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+      using \<open>io \<in> L\<^sub>i\<^sub>n M1 T\<close> by auto 
+    then show "iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+      using \<open>iox = (io, x)\<close> by auto
+  qed
+qed
+  
+
+
+        
+
+
+lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
   {OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>}
   tsN := {};
   cN  := V;
   rmN := {};
-  obs := L\<^sub>i\<^sub>n M2 cN \<union> \<Union> (image (\<lambda> io . append_io_B M2 io \<Omega>) (language_state_in M2 (initial M2) cN));
-  obsI := L\<^sub>i\<^sub>n M1 cN \<union> \<Union> (image (\<lambda> io . append_io_B M1 io \<Omega>) (language_state_in M1 (initial M1) cN));
+  obs := L\<^sub>i\<^sub>n M2 cN;
+  obsI := L\<^sub>i\<^sub>n M1 cN;
+  obs\<^sub>\<Omega> := \<Union> (image (\<lambda> io . {io} \<times> append_io_B M2 io \<Omega>) (L\<^sub>i\<^sub>n M2 cN));
+  obsI\<^sub>\<Omega> := \<Union> (image (\<lambda> io . {io} \<times> append_io_B M1 io \<Omega>) (L\<^sub>i\<^sub>n M1 cN));
   iter := 1;
   WHILE (cN \<noteq> {} \<and> obsI \<subseteq> obs)
   INV {
@@ -153,14 +114,16 @@ lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI iter return
     \<and> tsN = TS M2 M1 \<Omega> V m (iter-1)
     \<and> cN = C M2 M1 \<Omega> V m iter
     \<and> rmN = RM M2 M1 \<Omega> V m (iter-1)
-    \<and> obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> \<Union> (image (\<lambda> io . append_io_B M2 io \<Omega>) (language_state_in M2 (initial M2) (tsN \<union> cN)))
-    \<and> obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> \<Union> (image (\<lambda> io . append_io_B M1 io \<Omega>) (language_state_in M1 (initial M1) (tsN \<union> cN)))
+    \<and> obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)
+    \<and> obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)
+    \<and> obs\<^sub>\<Omega> = \<Union> (image (\<lambda> io . {io} \<times> append_io_B M2 io \<Omega>) (L\<^sub>i\<^sub>n M2 (tsN \<union> cN)))
+    \<and> obsI\<^sub>\<Omega> = \<Union> (image (\<lambda> io . {io} \<times> append_io_B M1 io \<Omega>) (L\<^sub>i\<^sub>n M1 (tsN \<union> cN)))
     \<and> OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>
   }
   DO 
     iter := iter + 1;
     rmN := {xs' \<in> cN .
-      (\<not> (language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}))
+      (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
       \<or> (\<forall> io \<in> language_state_in M1 (initial M1) {xs'} .
           (\<exists> V'' \<in> N io M1 V .  
             (\<exists> S1 . 
@@ -176,13 +139,14 @@ lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI iter return
                 \<and> m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'' ))))};
     tsN := tsN \<union> cN;
     cN := append_set (cN - rmN) (inputs M2) - tsN;
-    obs := obs \<union> L\<^sub>i\<^sub>n M2 cN \<union> \<Union> (image (\<lambda> io . append_io_B M2 io \<Omega>) (language_state_in M2 (initial M2) cN));
-    obsI := obsI \<union> L\<^sub>i\<^sub>n M1 cN \<union> \<Union> (image (\<lambda> io . append_io_B M1 io \<Omega>) (language_state_in M1 (initial M1) cN))
+    obs := obs \<union> L\<^sub>i\<^sub>n M2 cN;
+    obsI := obsI \<union> L\<^sub>i\<^sub>n M1 cN;
+    obs\<^sub>\<Omega> := obs\<^sub>\<Omega> \<union> \<Union> (image (\<lambda> io . {io} \<times> append_io_B M2 io \<Omega>) (L\<^sub>i\<^sub>n M2 cN));
+    obsI\<^sub>\<Omega> := obsI\<^sub>\<Omega> \<union> \<Union> (image (\<lambda> io . {io} \<times> append_io_B M1 io \<Omega>) (L\<^sub>i\<^sub>n M1 cN))
   OD;
-  return := (obsI \<subseteq> obs)
+  isReduction := ((obsI \<subseteq> obs) \<and> (obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>))
   {
-    (*M1 \<preceq> M2 \<longleftrightarrow> is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>*)
-    return = M1 \<preceq> M2    
+    isReduction = M1 \<preceq> M2   \<comment>\<open>variable isReduction is used only as a return value, it is true if and only if M1 is a reduction of M2\<close> 
   }"  
 
   apply vcg 
@@ -191,32 +155,34 @@ proof -
   have "{} = TS M2 M1 \<Omega> V m (1-1)"
        "V = C M2 M1 \<Omega> V m 1"
        "{} = RM M2 M1 \<Omega> V m (1-1)" 
-        "L\<^sub>i\<^sub>n M2 V \<union> (\<Union>io\<in>language_state_in M2 (initial M2) V. append_io_B M2 io \<Omega>) =
-            L\<^sub>i\<^sub>n M2 ({} \<union> V) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) ({} \<union> V). append_io_B M2 io \<Omega>)"
-        "L\<^sub>i\<^sub>n M1 V \<union> (\<Union>io\<in>language_state_in M1 (initial M1) V. append_io_B M1 io \<Omega>) =
-            L\<^sub>i\<^sub>n M1 ({} \<union> V) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) ({} \<union> V). append_io_B M1 io \<Omega>)"
+       "L\<^sub>i\<^sub>n M2 V = L\<^sub>i\<^sub>n M2 ({} \<union> V)"
+       "L\<^sub>i\<^sub>n M1 V = L\<^sub>i\<^sub>n M1 ({} \<union> V)"
+        "(\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> append_io_B M2 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> append_io_B M2 io \<Omega>)"
+        "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> append_io_B M1 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> append_io_B M1 io \<Omega>)"
     using precond by auto
   moreover have "OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega> "
     using precond by assumption
-  ultimately show "0 < (1::nat) \<and> 
+  ultimately show "0 < (1::nat) \<and>
                    {} = TS M2 M1 \<Omega> V m (1 - 1) \<and>
                    V = C M2 M1 \<Omega> V m 1 \<and>
                    {} = RM M2 M1 \<Omega> V m (1 - 1) \<and>
-                   L\<^sub>i\<^sub>n M2 V \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. append_io_B M2 io \<Omega>) =
-                   L\<^sub>i\<^sub>n M2 ({} \<union> V) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). append_io_B M2 io \<Omega>) \<and>
-                   L\<^sub>i\<^sub>n M1 V \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. append_io_B M1 io \<Omega>) =
-                   L\<^sub>i\<^sub>n M1 ({} \<union> V) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). append_io_B M1 io \<Omega>) \<and>
-                   OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>" by blast
+                   L\<^sub>i\<^sub>n M2 V = L\<^sub>i\<^sub>n M2 ({} \<union> V) \<and>
+                   L\<^sub>i\<^sub>n M1 V = L\<^sub>i\<^sub>n M1 ({} \<union> V) \<and>
+                   (\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> append_io_B M2 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> append_io_B M2 io \<Omega>) \<and>
+                   (\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> append_io_B M1 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> append_io_B M1 io \<Omega>) \<and>
+                   OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>" by linarith+
 next 
-  fix tsN cN rmN obs obsI iter
+  fix tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
   assume precond : "(0 < iter \<and>
-        tsN = TS M2 M1 \<Omega> V m (iter - 1) \<and>
-        cN = C M2 M1 \<Omega> V m iter \<and>
-        rmN = RM M2 M1 \<Omega> V m (iter - 1) \<and>
-        obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>) \<and>
-        obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>) \<and>
-        OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
-       cN \<noteq> {} \<and> obsI \<subseteq> obs"
+                      tsN = TS M2 M1 \<Omega> V m (iter - 1) \<and>
+                      cN = C M2 M1 \<Omega> V m iter \<and>
+                      rmN = RM M2 M1 \<Omega> V m (iter - 1) \<and>
+                      obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<and>
+                      obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<and>
+                      obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
+                      obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
+                      OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
+                    cN \<noteq> {} \<and> obsI \<subseteq> obs"
   then have "0 < iter"
             "OFSM M1" 
             "OFSM M2"
@@ -227,8 +193,10 @@ next
             "tsN = TS M2 M1 \<Omega> V m (iter-1)"
             "cN = C M2 M1 \<Omega> V m iter"
             "rmN = RM M2 M1 \<Omega> V m (iter-1)"
-            "obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)"
-            "obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>)"
+            "obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
+            "obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)"
+            "obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)"
+            "obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)"
     by linarith+
 
 
@@ -421,7 +389,8 @@ next
     ultimately show ?thesis
       by presburger 
   qed
-      
+
+
   have obs_calc : "obs \<union>
        L\<^sub>i\<^sub>n M2
         (append_set
@@ -441,27 +410,7 @@ next
                                  \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                       m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
           (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M2 io \<Omega>) =
+         (tsN \<union> cN)) =
        L\<^sub>i\<^sub>n M2
         (tsN \<union> cN \<union>
          (append_set
@@ -481,196 +430,12 @@ next
                                   \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                        m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
            (inputs M2) -
-          (tsN \<union> cN))) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
-              (tsN \<union> cN \<union>
-               (append_set
-                 (cN -
-                  {xs' \<in> cN.
-                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                       \<exists>V''\<in>N io M1 V.
-                          \<exists>S1 vs xs.
-                             io = vs @ xs \<and>
-                             mcp (vs @ xs) V'' vs \<and>
-                             S1 \<subseteq> nodes M2 \<and>
-                             (\<forall>s1\<in>S1.
-                                 \<forall>s2\<in>S1.
-                                    s1 \<noteq> s2 \<longrightarrow>
-                                    (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                        \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                 (inputs M2) -
-                (tsN \<union> cN))).
-           append_io_B M2 io \<Omega>)"      
-  proof - 
-    have "obs \<union>
-       L\<^sub>i\<^sub>n M2
-        (append_set
-          (cN -
-           {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                \<exists>V''\<in>N io M1 V.
-                   \<exists>S1 vs xs.
-                      io = vs @ xs \<and>
-                      mcp (vs @ xs) V'' vs \<and>
-                      S1 \<subseteq> nodes M2 \<and>
-                      (\<forall>s1\<in>S1.
-                          \<forall>s2\<in>S1.
-                             s1 \<noteq> s2 \<longrightarrow>
-                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-          (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M2 io \<Omega>) =
-       L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>) \<union>
-       L\<^sub>i\<^sub>n M2
-        (append_set
-          (cN -
-           {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                \<exists>V''\<in>N io M1 V.
-                   \<exists>S1 vs xs.
-                      io = vs @ xs \<and>
-                      mcp (vs @ xs) V'' vs \<and>
-                      S1 \<subseteq> nodes M2 \<and>
-                      (\<forall>s1\<in>S1.
-                          \<forall>s2\<in>S1.
-                             s1 \<noteq> s2 \<longrightarrow>
-                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-          (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M2 io \<Omega>)"
-      using \<open>obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)\<close>
+          (tsN \<union> cN)))"
+  proof -
+    have "\<And>A. L\<^sub>i\<^sub>n M2 (tsN \<union> cN \<union> A) = obs \<union> L\<^sub>i\<^sub>n M2 A"
+      by (metis (no_types) language_state_in_union precond)
+    then show ?thesis
       by blast
-
-    moreover have "L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>) \<union>
-       L\<^sub>i\<^sub>n M2
-        (append_set
-          (cN -
-           {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                \<exists>V''\<in>N io M1 V.
-                   \<exists>S1 vs xs.
-                      io = vs @ xs \<and>
-                      mcp (vs @ xs) V'' vs \<and>
-                      S1 \<subseteq> nodes M2 \<and>
-                      (\<forall>s1\<in>S1.
-                          \<forall>s2\<in>S1.
-                             s1 \<noteq> s2 \<longrightarrow>
-                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-          (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M2 io \<Omega>) = 
-                L\<^sub>i\<^sub>n M2
-        (tsN \<union> cN \<union>
-         (append_set
-           (cN -
-            {xs' \<in> cN.
-             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                 \<exists>V''\<in>N io M1 V.
-                    \<exists>S1 vs xs.
-                       io = vs @ xs \<and>
-                       mcp (vs @ xs) V'' vs \<and>
-                       S1 \<subseteq> nodes M2 \<and>
-                       (\<forall>s1\<in>S1.
-                           \<forall>s2\<in>S1.
-                              s1 \<noteq> s2 \<longrightarrow>
-                              (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                  \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                       m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-           (inputs M2) -
-          (tsN \<union> cN))) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
-              (tsN \<union> cN \<union>
-               (append_set
-                 (cN -
-                  {xs' \<in> cN.
-                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                       \<exists>V''\<in>N io M1 V.
-                          \<exists>S1 vs xs.
-                             io = vs @ xs \<and>
-                             mcp (vs @ xs) V'' vs \<and>
-                             S1 \<subseteq> nodes M2 \<and>
-                             (\<forall>s1\<in>S1.
-                                 \<forall>s2\<in>S1.
-                                    s1 \<noteq> s2 \<longrightarrow>
-                                    (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                        \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                 (inputs M2) -
-                (tsN \<union> cN))).
-           append_io_B M2 io \<Omega>)"
-      using language_state_in_union[of M2 "initial M2" "tsN \<union> cN"] by blast
-    
-    ultimately show ?thesis by presburger
   qed
 
 
@@ -693,27 +458,7 @@ next
                                  \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                       m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
           (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M1
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M1 io \<Omega>) =
+         (tsN \<union> cN)) =
        L\<^sub>i\<^sub>n M1
         (tsN \<union> cN \<union>
          (append_set
@@ -733,132 +478,59 @@ next
                                   \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                        m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
            (inputs M2) -
-          (tsN \<union> cN))) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M1
-              (tsN \<union> cN \<union>
-               (append_set
-                 (cN -
-                  {xs' \<in> cN.
-                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                       \<exists>V''\<in>N io M1 V.
-                          \<exists>S1 vs xs.
-                             io = vs @ xs \<and>
-                             mcp (vs @ xs) V'' vs \<and>
-                             S1 \<subseteq> nodes M2 \<and>
-                             (\<forall>s1\<in>S1.
-                                 \<forall>s2\<in>S1.
-                                    s1 \<noteq> s2 \<longrightarrow>
-                                    (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                        \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                 (inputs M2) -
-                (tsN \<union> cN))).
-           append_io_B M1 io \<Omega>)"      
-  proof - 
-    have "obsI \<union>
-       L\<^sub>i\<^sub>n M1
-        (append_set
-          (cN -
-           {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                \<exists>V''\<in>N io M1 V.
-                   \<exists>S1 vs xs.
-                      io = vs @ xs \<and>
-                      mcp (vs @ xs) V'' vs \<and>
-                      S1 \<subseteq> nodes M2 \<and>
-                      (\<forall>s1\<in>S1.
-                          \<forall>s2\<in>S1.
-                             s1 \<noteq> s2 \<longrightarrow>
-                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-          (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M1
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M1 io \<Omega>) =
-       L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>) \<union>
-       L\<^sub>i\<^sub>n M1
-        (append_set
-          (cN -
-           {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                \<exists>V''\<in>N io M1 V.
-                   \<exists>S1 vs xs.
-                      io = vs @ xs \<and>
-                      mcp (vs @ xs) V'' vs \<and>
-                      S1 \<subseteq> nodes M2 \<and>
-                      (\<forall>s1\<in>S1.
-                          \<forall>s2\<in>S1.
-                             s1 \<noteq> s2 \<longrightarrow>
-                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-          (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M1
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M1 io \<Omega>)"
-      using \<open>obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>)\<close>
+          (tsN \<union> cN)))"
+  proof -
+    have "\<And>A. L\<^sub>i\<^sub>n M1 (tsN \<union> cN \<union> A) = obsI \<union> L\<^sub>i\<^sub>n M1 A"
+      by (metis (no_types) language_state_in_union precond)
+    then show ?thesis
       by blast
+  qed
 
-    moreover have "L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>) \<union>
-       L\<^sub>i\<^sub>n M1
-        (append_set
-          (cN -
-           {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                \<exists>V''\<in>N io M1 V.
-                   \<exists>S1 vs xs.
-                      io = vs @ xs \<and>
-                      mcp (vs @ xs) V'' vs \<and>
-                      S1 \<subseteq> nodes M2 \<and>
-                      (\<forall>s1\<in>S1.
-                          \<forall>s2\<in>S1.
-                             s1 \<noteq> s2 \<longrightarrow>
-                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-          (inputs M2) -
-         (tsN \<union> cN)) \<union>
+  have obs\<^sub>\<Omega>_calc : "obs\<^sub>\<Omega> \<union>
+       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
+              (append_set
+                (cN -
+                 {xs' \<in> cN.
+                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
+                      \<exists>V''\<in>N io M1 V.
+                         \<exists>S1 vs xs.
+                            io = vs @ xs \<and>
+                            mcp (vs @ xs) V'' vs \<and>
+                            S1 \<subseteq> nodes M2 \<and>
+                            (\<forall>s1\<in>S1.
+                                \<forall>s2\<in>S1.
+                                   s1 \<noteq> s2 \<longrightarrow>
+                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
+                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
+                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
+                (inputs M2) -
+               (tsN \<union> cN)).
+           {io} \<times> append_io_B M2 io \<Omega>) =
+       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
+              (tsN \<union> cN \<union>
+               (append_set
+                 (cN -
+                  {xs' \<in> cN.
+                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
+                       \<exists>V''\<in>N io M1 V.
+                          \<exists>S1 vs xs.
+                             io = vs @ xs \<and>
+                             mcp (vs @ xs) V'' vs \<and>
+                             S1 \<subseteq> nodes M2 \<and>
+                             (\<forall>s1\<in>S1.
+                                 \<forall>s2\<in>S1.
+                                    s1 \<noteq> s2 \<longrightarrow>
+                                    (\<forall>io1\<in>RP M2 s1 vs xs V''.
+                                        \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
+                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
+                 (inputs M2) -
+                (tsN \<union> cN))).
+           {io} \<times> append_io_B M2 io \<Omega>)"
+    using \<open>obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> obs_calc by blast
+
+  have obsI\<^sub>\<Omega>_calc : "obsI\<^sub>\<Omega> \<union>
        (\<Union>io\<in>L\<^sub>i\<^sub>n M1
               (append_set
                 (cN -
@@ -878,27 +550,7 @@ next
                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                 (inputs M2) -
                (tsN \<union> cN)).
-           append_io_B M1 io \<Omega>) = 
-                L\<^sub>i\<^sub>n M1
-        (tsN \<union> cN \<union>
-         (append_set
-           (cN -
-            {xs' \<in> cN.
-             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                 \<exists>V''\<in>N io M1 V.
-                    \<exists>S1 vs xs.
-                       io = vs @ xs \<and>
-                       mcp (vs @ xs) V'' vs \<and>
-                       S1 \<subseteq> nodes M2 \<and>
-                       (\<forall>s1\<in>S1.
-                           \<forall>s2\<in>S1.
-                              s1 \<noteq> s2 \<longrightarrow>
-                              (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                  \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                       m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-           (inputs M2) -
-          (tsN \<union> cN))) \<union>
+           {io} \<times> append_io_B M1 io \<Omega>) =
        (\<Union>io\<in>L\<^sub>i\<^sub>n M1
               (tsN \<union> cN \<union>
                (append_set
@@ -919,11 +571,21 @@ next
                              m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                  (inputs M2) -
                 (tsN \<union> cN))).
-           append_io_B M1 io \<Omega>)"
-      using language_state_in_union[of M1 "initial M1" "tsN \<union> cN"] by blast
-    
-    ultimately show ?thesis by presburger
-  qed
+           {io} \<times> append_io_B M1 io \<Omega>)"
+    using \<open>obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)\<close> \<open>obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)\<close> obsI_calc by blast
+
+
+
+
+
+
+
+
+
+
+
+
+  
 
 
 
@@ -942,6 +604,8 @@ next
        rmN_calc'
        obs_calc
        obsI_calc
+       obs\<^sub>\<Omega>_calc
+       obsI\<^sub>\<Omega>_calc
        \<open>OFSM M1\<close>
        \<open>OFSM M2\<close>
        \<open>fault_model M2 M1 m\<close>
@@ -1000,27 +664,7 @@ next
                                  \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                       m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
           (inputs M2) -
-         (tsN \<union> cN)) \<union>
-       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
-              (append_set
-                (cN -
-                 {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                      \<exists>V''\<in>N io M1 V.
-                         \<exists>S1 vs xs.
-                            io = vs @ xs \<and>
-                            mcp (vs @ xs) V'' vs \<and>
-                            S1 \<subseteq> nodes M2 \<and>
-                            (\<forall>s1\<in>S1.
-                                \<forall>s2\<in>S1.
-                                   s1 \<noteq> s2 \<longrightarrow>
-                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-                (inputs M2) -
-               (tsN \<union> cN)).
-           append_io_B M2 io \<Omega>) =
+         (tsN \<union> cN)) =
        L\<^sub>i\<^sub>n M2
         (tsN \<union> cN \<union>
          (append_set
@@ -1040,7 +684,68 @@ next
                                   \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                        m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
            (inputs M2) -
-          (tsN \<union> cN))) \<union>
+          (tsN \<union> cN))) \<and>
+       obsI \<union>
+       L\<^sub>i\<^sub>n M1
+        (append_set
+          (cN -
+           {xs' \<in> cN.
+            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
+                \<exists>V''\<in>N io M1 V.
+                   \<exists>S1 vs xs.
+                      io = vs @ xs \<and>
+                      mcp (vs @ xs) V'' vs \<and>
+                      S1 \<subseteq> nodes M2 \<and>
+                      (\<forall>s1\<in>S1.
+                          \<forall>s2\<in>S1.
+                             s1 \<noteq> s2 \<longrightarrow>
+                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
+                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
+                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
+          (inputs M2) -
+         (tsN \<union> cN)) =
+       L\<^sub>i\<^sub>n M1
+        (tsN \<union> cN \<union>
+         (append_set
+           (cN -
+            {xs' \<in> cN.
+             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
+                 \<exists>V''\<in>N io M1 V.
+                    \<exists>S1 vs xs.
+                       io = vs @ xs \<and>
+                       mcp (vs @ xs) V'' vs \<and>
+                       S1 \<subseteq> nodes M2 \<and>
+                       (\<forall>s1\<in>S1.
+                           \<forall>s2\<in>S1.
+                              s1 \<noteq> s2 \<longrightarrow>
+                              (\<forall>io1\<in>RP M2 s1 vs xs V''.
+                                  \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
+                       m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
+           (inputs M2) -
+          (tsN \<union> cN))) \<and>
+       obs\<^sub>\<Omega> \<union>
+       (\<Union>io\<in>L\<^sub>i\<^sub>n M2
+              (append_set
+                (cN -
+                 {xs' \<in> cN.
+                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                  (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
+                      \<exists>V''\<in>N io M1 V.
+                         \<exists>S1 vs xs.
+                            io = vs @ xs \<and>
+                            mcp (vs @ xs) V'' vs \<and>
+                            S1 \<subseteq> nodes M2 \<and>
+                            (\<forall>s1\<in>S1.
+                                \<forall>s2\<in>S1.
+                                   s1 \<noteq> s2 \<longrightarrow>
+                                   (\<forall>io1\<in>RP M2 s1 vs xs V''.
+                                       \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
+                            m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
+                (inputs M2) -
+               (tsN \<union> cN)).
+           {io} \<times> append_io_B M2 io \<Omega>) =
        (\<Union>io\<in>L\<^sub>i\<^sub>n M2
               (tsN \<union> cN \<union>
                (append_set
@@ -1061,27 +766,8 @@ next
                              m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                  (inputs M2) -
                 (tsN \<union> cN))).
-           append_io_B M2 io \<Omega>) \<and>
-       obsI \<union>
-       L\<^sub>i\<^sub>n M1
-        (append_set
-          (cN -
-           {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                \<exists>V''\<in>N io M1 V.
-                   \<exists>S1 vs xs.
-                      io = vs @ xs \<and>
-                      mcp (vs @ xs) V'' vs \<and>
-                      S1 \<subseteq> nodes M2 \<and>
-                      (\<forall>s1\<in>S1.
-                          \<forall>s2\<in>S1.
-                             s1 \<noteq> s2 \<longrightarrow>
-                             (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                 \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                      m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-          (inputs M2) -
-         (tsN \<union> cN)) \<union>
+           {io} \<times> append_io_B M2 io \<Omega>) \<and>
+       obsI\<^sub>\<Omega> \<union>
        (\<Union>io\<in>L\<^sub>i\<^sub>n M1
               (append_set
                 (cN -
@@ -1101,27 +787,7 @@ next
                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                 (inputs M2) -
                (tsN \<union> cN)).
-           append_io_B M1 io \<Omega>) =
-       L\<^sub>i\<^sub>n M1
-        (tsN \<union> cN \<union>
-         (append_set
-           (cN -
-            {xs' \<in> cN.
-             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
-             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
-                 \<exists>V''\<in>N io M1 V.
-                    \<exists>S1 vs xs.
-                       io = vs @ xs \<and>
-                       mcp (vs @ xs) V'' vs \<and>
-                       S1 \<subseteq> nodes M2 \<and>
-                       (\<forall>s1\<in>S1.
-                           \<forall>s2\<in>S1.
-                              s1 \<noteq> s2 \<longrightarrow>
-                              (\<forall>io1\<in>RP M2 s1 vs xs V''.
-                                  \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                       m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
-           (inputs M2) -
-          (tsN \<union> cN))) \<union>
+           {io} \<times> append_io_B M1 io \<Omega>) =
        (\<Union>io\<in>L\<^sub>i\<^sub>n M1
               (tsN \<union> cN \<union>
                (append_set
@@ -1142,19 +808,21 @@ next
                              m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                  (inputs M2) -
                 (tsN \<union> cN))).
-           append_io_B M1 io \<Omega>) \<and>
+           {io} \<times> append_io_B M1 io \<Omega>) \<and>
        OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
     by linarith
 next
-  fix tsN cN rmN obs obsI iter return
+  fix tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
   assume precond : "(0 < iter \<and>
-        tsN = TS M2 M1 \<Omega> V m (iter - 1) \<and>
-        cN = C M2 M1 \<Omega> V m iter \<and>
-        rmN = RM M2 M1 \<Omega> V m (iter - 1) \<and>
-        obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>) \<and>
-        obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>) \<and>
-        OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
-       \<not> (cN \<noteq> {} \<and> obsI \<subseteq> obs)"
+                    tsN = TS M2 M1 \<Omega> V m (iter - 1) \<and>
+                    cN = C M2 M1 \<Omega> V m iter \<and>
+                    rmN = RM M2 M1 \<Omega> V m (iter - 1) \<and>
+                    obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<and>
+                    obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<and>
+                    obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
+                    obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
+                    OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
+                   \<not> (cN \<noteq> {} \<and> obsI \<subseteq> obs)"
   then have "0 < iter"
             "OFSM M1" 
             "OFSM M2"
@@ -1164,14 +832,15 @@ next
             "tsN = TS M2 M1 \<Omega> V m (iter-1)"
             "cN = C M2 M1 \<Omega> V m iter"
             "rmN = RM M2 M1 \<Omega> V m (iter-1)"
-            "obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)"
-            "obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>)"
+            "obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
+            "obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)"
+            "obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)"
+            "obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)"
     by linarith+
 
   
 
-  (*have "M1 \<preceq> M2 = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega> "*)
-  show "(obsI \<subseteq> obs) = M1 \<preceq> M2"
+  show "(obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>) = M1 \<preceq> M2"
   proof (cases "cN = {}")
     case True
     then have "C M2 M1 \<Omega> V m iter = {}"
@@ -1232,91 +901,35 @@ next
     ultimately have "M1 \<preceq> M2 = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
       by presburger
 
+    have "obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
+      by (simp add: \<open>obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)\<close>)
 
+    have "obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)"
+      by (simp add: \<open>obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)\<close> \<open>obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close>)
+    
 
-    have "(L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>)) \<subseteq> ( L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)) = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
-    proof 
-      show "L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). append_io_B M1 io \<Omega>)
-            \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). append_io_B M2 io \<Omega>) \<Longrightarrow>
-            is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
-      proof -
-        assume assm : "L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). append_io_B M1 io \<Omega>)
-            \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). append_io_B M2 io \<Omega>)"
-        have "L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)" 
-        proof 
-          fix x assume "x \<in> L\<^sub>i\<^sub>n M1 (tsN \<union> cN)"
-          then have "map fst x \<in> tsN \<union> cN"
-            by auto 
-
-          have "x \<in> L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). append_io_B M2 io \<Omega>)"
-            using assm \<open>x \<in> L\<^sub>i\<^sub>n M1 (tsN \<union> cN)\<close> by blast
-          show "x \<in> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
-          proof (cases "x \<in> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)")
-            case True
-            then show ?thesis by simp
-          next
-            case False
-            then have "x \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). append_io_B M2 io \<Omega>)" 
-              using \<open>x \<in> L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). append_io_B M2 io \<Omega>)\<close> by blast
-            then obtain io where "io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN)" "x \<in> append_io_B M2 io \<Omega>"
-              by blast
-            then have "x \<in> L M2"
-              using append_io_B_in_language by blast
-            then show ?thesis
-              by (meson \<open>map fst x \<in> tsN \<union> cN\<close> language_state_in_map_fst)
-          qed
-        qed
-
-        have "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). append_io_B M2 io \<Omega>)" 
-
-        show ?thesis
-          unfolding is_reduction_on_sets.simps is_reduction_on.simps 
-        proof 
-          fix iseq assume "iseq \<in> tsN \<union> cN"
-          have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}"
-            by (meson \<open>L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>iseq \<in> tsN \<union> cN\<close> empty_subsetI insert_subset io_reduction_on_subset) 
-          moreover have "(\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"      
- 
-   
-unfolding is_reduction_on_sets.simps is_reduction_on.simps
-    have "obsI \<subseteq> obs = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
-      sorry
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-      
-  next
+    have "(obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>) = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
+    proof
+      assume "obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>"
+      show "is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
+        using is_reduction_on_sets_from_obs[of M1 "tsN \<union> cN" M2 \<Omega>]
+        using \<open>obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>\<close> \<open>obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> by linarith
+    next
+      assume "is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
+      show "obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>" 
+        using is_reduction_on_sets_to_obs[of M1 M2 \<open>tsN \<union> cN\<close> \<Omega>]
+        using \<open>is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>\<close> \<open>obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> by blast 
+    qed
+    then show ?thesis 
+      using \<open>M1 \<preceq> M2 = is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>\<close> by linarith
+next
     case False
 
     then have "\<not> obsI \<subseteq> obs"
       using \<open>cN = {} \<or> \<not> obsI \<subseteq> obs\<close> by auto
 
-    then have no_red : "\<not> ((L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>)) \<subseteq> (L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)))"
-      using \<open>obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>)\<close>
-      using \<open>obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>)\<close>
-      by blast
-
-    have "\<not> is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>" 
-    proof  
-      assume "is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
-      have "(L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M1 (initial M1) (tsN \<union> cN). append_io_B M1 io \<Omega>)) \<subseteq> (L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<union> (\<Union>io\<in>language_state_in M2 (initial M2) (tsN \<union> cN). append_io_B M2 io \<Omega>))"
-        using is_reduction_on_sets_via_language_state_in[OF \<open>is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>\<close>]
-        by assumption
-      
-      then show "False"  
-        using no_red by blast
-    qed
+    have "\<not> is_reduction_on_sets M1 M2 (tsN \<union> cN) \<Omega>"
+      by (metis (no_types, lifting) False is_reduction_on_sets_to_obs(1) precond) 
   
     have "\<not> M1 \<preceq> M2"
     proof 
