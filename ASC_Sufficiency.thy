@@ -622,11 +622,11 @@ qed
 
 
 lemma io_reduction_on_subset :
-  assumes "io_reduction_on M1 M2 T"
+  assumes "io_reduction_on M1 T M2"
   and     "T' \<subseteq> T"
-shows "io_reduction_on M1 M2 T'"
+shows "io_reduction_on M1 T' M2"
 proof (rule ccontr)
-  assume "\<not> io_reduction_on M1 M2 T'"
+  assume "\<not> io_reduction_on M1 T' M2"
   then obtain xs' where "xs' \<in> T'" "\<not> language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}"
   proof -
     have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"
@@ -641,12 +641,12 @@ proof (rule ccontr)
     then have "language_state_in M1 (initial M1) T' \<subseteq> language_state_in M1 (initial M1) T"
       using f2 by (meson assms(2) language_state_in_in_language_state language_state_in_map_fst set_rev_mp)
     then show ?thesis
-      using f3 f2 f1 by (meson \<open>\<not> io_reduction_on M1 M2 T'\<close> assms(1) language_state_in_in_language_state language_state_in_map_fst)
+      using f3 f2 f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> assms(1) language_state_in_in_language_state language_state_in_map_fst)
   qed 
   then have "xs' \<in> T" 
     using assms(2) by blast
 
-  have "\<not> io_reduction_on M1 M2 T"
+  have "\<not> io_reduction_on M1 T M2"
   proof -
     have f1: "\<forall>as. as \<notin> T' \<or> as \<in> T"
       using assms(2) by auto
@@ -656,7 +656,7 @@ proof (rule ccontr)
     then have "\<forall>P Pa. (\<not> P \<subseteq> Pa \<or> (\<forall>ps. ps \<notin> P \<or> ps \<in> Pa)) \<and> (P \<subseteq> Pa \<or> pps Pa P \<in> P \<and> pps Pa P \<notin> Pa)"
       by blast
     then show ?thesis
-      using f1 by (meson \<open>\<not> io_reduction_on M1 M2 T'\<close> language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained)
+      using f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained)
   qed 
 
   then show "False" 
@@ -666,7 +666,7 @@ qed
 lemma io_reduction_from_atc_reduction :
   assumes "is_reduction_on_sets M1 M2 T \<Omega>"
   and     "finite T"
-  shows "io_reduction_on M1 M2 T" 
+  shows "io_reduction_on M1 T M2" 
 using assms(2,1) proof (induction T)
   case empty
   then show ?case by auto
@@ -705,7 +705,7 @@ next
           by blast
         then have "pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<in> language_state_in M2 (initial M2) (insert t T)"
           using f1 by (meson \<open>language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) (insert t T)\<close> insertE language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained) }
-      ultimately have "io_reduction_on M1 M2 (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<in> language_state_in M2 (initial M2) (insert t T)"
+      ultimately have "io_reduction_on M1 (insert t T) M2 \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<in> language_state_in M2 (initial M2) (insert t T)"
         using f1 by (meson language_state_in_in_language_state language_state_in_map_fst) }
       ultimately show ?thesis
         using f1 by (meson \<open>language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) (insert t T)\<close> subsetI)
@@ -758,7 +758,7 @@ proof (rule ccontr)
     using det_state_cover_finite assms(4,2) by auto
   then have "finite (?TS i)"
     using TS_finite[of V M2] assms(2) by auto
-  then have "io_reduction_on M1 M2 (?TS i)" 
+  then have "io_reduction_on M1 (?TS i) M2" 
     using io_reduction_from_atc_reduction[OF assms(6)] by auto
 
   have "map fst (vs@xs) \<notin> ?TS i"
@@ -768,7 +768,7 @@ proof (rule ccontr)
     have "\<forall>P Pa ps. \<not> P \<subseteq> Pa \<or> (ps::('a \<times> 'b) list) \<in> Pa \<or> ps \<notin> P"
       by blast
     then show ?thesis
-      using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> \<open>io_reduction_on M1 M2 (?TS i)\<close> language_state_in_in_language_state language_state_in_map_fst)
+      using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> \<open>io_reduction_on M1 (?TS i) M2\<close> language_state_in_in_language_state language_state_in_map_fst)
   qed 
 
   have "map fst vs \<in> V"
@@ -848,7 +848,7 @@ proof (rule ccontr)
     then have "{xs'} \<subseteq> ?TS i" 
       using \<open>xs' \<in> ?C (Suc j)\<close> by blast
     show "language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}" 
-      using io_reduction_on_subset[OF \<open>io_reduction_on M1 M2 (?TS i)\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] by assumption
+      using io_reduction_on_subset[OF \<open>io_reduction_on M1 (?TS i) M2\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] by assumption
   qed
 
   ultimately have "(\<forall> io \<in> language_state_in M1 (initial M1) {?stfV@xr} .
@@ -1027,7 +1027,8 @@ proof (rule ccontr)
 
   
   moreover have "vs' @ xs' \<in> L M2 \<inter> L M1"
-    by (metis (no_types, lifting) Int_iff RM_impl(2) \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). io_reduction_on M1 M2 {xs'}\<close> \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> language_state_in M1 (initial M1) {map fst vs @ xr}\<close> language_state_in_in_language_state set_rev_mp)
+    by (metis (no_types, lifting) IntI RM_impl(2) \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}\<close> \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L\<^sub>i\<^sub>n M1 {map fst vs @ xr}\<close> language_state_in_in_language_state subsetCE)
+    
         
   
   ultimately have "Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''"

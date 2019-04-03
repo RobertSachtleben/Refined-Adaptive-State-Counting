@@ -28,14 +28,18 @@ abbreviation successors :: "('in, 'out, 'state, 'more) FSM_scheme \<Rightarrow> 
 lemma states_alt_def: "states r p = map snd r" by (induct r arbitrary: p) (auto)
 lemma trace_alt_def: "trace r p = smap snd r" by (coinduction arbitrary: r p) (auto)
 
-definition language_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list set" where
+definition language_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list set" ("LS") where
   "language_state M q \<equiv> {map fst r |r . path M r q}"
 
-lemma language_state_alt_def : "language_state M q = { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
+notation (latex output)
+  language_state ("(L\<^bsub>_\<^esub> _)")
+  
+
+lemma language_state_alt_def : "LS M q = { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
 proof -
-  have "language_state M q \<subseteq> { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
+  have "LS M q \<subseteq> { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
   proof 
-    fix xr assume xr_assm : "xr \<in> language_state M q"
+    fix xr assume xr_assm : "xr \<in> LS M q"
     then obtain r where r_def : "map fst r = xr" "path M r q" unfolding language_state_def by auto
     then obtain xs ys where xr_split : "xr = xs || ys" "length xs = length ys" "length xs = length xr"
       by (metis length_map zip_map_fst_snd) 
@@ -52,12 +56,12 @@ proof -
     qed 
     then show "xr \<in> { io | io tr . path M  (io || tr) q \<and> length io = length tr }" using xr_split by metis
   qed
-  moreover have "{ io | io tr . path M  (io || tr) q \<and> length io = length tr } \<subseteq> language_state M q" 
+  moreover have "{ io | io tr . path M  (io || tr) q \<and> length io = length tr } \<subseteq> LS M q" 
   proof 
     fix xs assume xs_assm : "xs \<in> { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
     then obtain ys where ys_def : "path M (xs || ys) q" "length xs = length ys" by auto
     then have "xs = map fst (xs || ys)" by auto
-    then show "xs \<in> language_state M q" using ys_def unfolding language_state_def by blast 
+    then show "xs \<in> LS M q" using ys_def unfolding language_state_def by blast 
   qed
   ultimately show ?thesis by auto
 qed
@@ -65,17 +69,17 @@ qed
 
 lemma language_state[intro]:
   assumes "path M (w || r) q" "length w = length r"
-  shows "w \<in> language_state M q"
+  shows "w \<in> LS M q"
   using assms unfolding language_state_def by force
 
 lemma language_state_elim[elim]:
-  assumes "w \<in> language_state M q"
+  assumes "w \<in> LS M q"
   obtains r
   where "path M (w || r) q" "length w = length r"
   using assms unfolding language_state_def by (force iff: split_zip_ex)
 
 lemma language_state_split:
-  assumes "w1 @ w2 \<in> language_state M q"
+  assumes "w1 @ w2 \<in> LS M q"
   obtains tr1 tr2
   where "path M (w1 || tr1) q" "length w1 = length tr1"
         "path M (w2 || tr2) (target (w1 || tr1) q)" "length w2 = length tr2"
@@ -99,11 +103,12 @@ proof -
 qed
 
 lemma language_state_prefix :
-  assumes "w1 @ w2 \<in> language_state M q"
-shows "w1 \<in> language_state M q"
+  assumes "w1 @ w2 \<in> LS M q"
+shows "w1 \<in> LS M q"
   using assms by (meson language_state language_state_split) 
 
 
+(* Product construction without additional fail state *)
 
 definition product :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow>
   ('in, 'out, 'state1 \<times>'state2) FSM" where
@@ -131,7 +136,7 @@ lemma product_path[iff]:
   shows "path (product A B) (w || r\<^sub>1 || r\<^sub>2) (p\<^sub>1, p\<^sub>2) \<longleftrightarrow> path A (w || r\<^sub>1) p\<^sub>1 \<and> path B (w || r\<^sub>2) p\<^sub>2"
   using assms by (induct arbitrary: p\<^sub>1 p\<^sub>2 rule: list_induct3) (auto)
 
-lemma product_language_state[simp]: "language_state (product A B) (q1,q2) = language_state A q1 \<inter> language_state B q2"
+lemma product_language_state[simp]: "LS (product A B) (q1,q2) = LS A q1 \<inter> LS B q2"
   by (fastforce iff: split_zip)
 
 
@@ -157,7 +162,7 @@ fun well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
 
 
 lemma observable_path_unique[simp] :
-  assumes "io \<in> language_state M q"
+  assumes "io \<in> LS M q"
   and     "observable M"
   and     "path M (io || tr1) q" "length io = length tr1"
   and     "path M (io || tr2) q" "length io = length tr2"
@@ -192,7 +197,7 @@ qed
 
 lemma observable_path_unique_ex[elim] : 
   assumes "observable M"
-  and     "io \<in> language_state M q"
+  and     "io \<in> LS M q"
 obtains tr 
 where "{ t . path M (io || t) q \<and> length io = length t } = { tr }" 
 proof -
@@ -210,7 +215,7 @@ fun io_targets :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('
 
 lemma io_targets_observable_singleton_ex :
   assumes "observable M"
-  and     "io \<in> language_state M q1"
+  and     "io \<in> LS M q1"
 shows "\<exists> q2 . io_targets M q1 io = { q2 }"
 proof -
   obtain tr where tr_def : "{ t . path M (io || t) q1 \<and> length io = length t } = { tr }" using assms observable_path_unique_ex by (metis (mono_tags, lifting)) 
@@ -220,7 +225,7 @@ qed
 
 lemma io_targets_observable_singleton_ob :
   assumes "observable M"
-  and     "io \<in> language_state M q1"
+  and     "io \<in> LS M q1"
 obtains q2 
   where "io_targets M q1 io = { q2 }"
 proof -
@@ -263,9 +268,6 @@ abbreviation  "d_reached_by M p xs q tr ys \<equiv> ((length xs = length ys \<an
 
 fun d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> 'state \<Rightarrow> bool" where
   "d_reaches M p xs q = (\<exists> tr ys . d_reached_by M p xs q tr ys)"
-(*  "d_reaches M p xs q = ((\<exists> ys tr . length xs = length ys \<and> length xs = length tr \<and> (path M ((xs || ys) || tr) p) \<and> target ((xs || ys) || tr) p = q)
-                            \<and> (\<forall> ys2 tr2 .  (length xs = length ys2 \<and> length xs = length tr2 \<and> path M ((xs || ys2) || tr2) p) \<longrightarrow> target ((xs || ys2) || tr2) p = q))"
-*)
 lemma d_reaches_unique[elim] : 
   assumes "d_reaches M p xs q1"
   and    "d_reaches M p xs q2"
@@ -389,29 +391,19 @@ qed
 
 
 fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200)
-where "M1 \<preceq> M2 = (language_state M1 (initial M1) \<subseteq> language_state M2 (initial M2))"
+where "M1 \<preceq> M2 = (LS M1 (initial M1) \<subseteq> LS M2 (initial M2))"
 
 
-
-fun fault_model_m :: "('in, 'out, 'state) FSM \<Rightarrow> nat \<Rightarrow> (('in, 'out, 'state) FSM) set" where
-"fault_model_m M1 m = { M2 . 
-  well_formed M2 
-  \<and> inputs M1 = inputs M2 
-  \<and> outputs M1 = outputs M2
-  \<and> card (nodes M1) \<ge> m 
-  \<and> card (nodes M2) \<le> m 
-  \<and> observable M2 
-  \<and> completely_specified M2 }"
 
 
 
 lemma language_state_inclusion_next : 
-  assumes "language_state M1 q1 \<subseteq> language_state M2 q2"
+  assumes "LS M1 q1 \<subseteq> LS M2 q2"
   and     "observable M1"
   and     "observable M2"
   and     "io_targets M1 q1 io = { q1t }"
   and     "io_targets M2 q2 io = { q2t }"
-shows "language_state M1 q1t \<subseteq> language_state M2 q2t"
+shows "LS M1 q1t \<subseteq> LS M2 q2t"
 using assms proof (induction io arbitrary: q1 q2)
   case Nil
   then show ?case by auto
@@ -439,7 +431,7 @@ next
      "length io_tl = length tr_tl" using Cons tr_def tr_split unfolding io_targets.simps by auto
   ultimately have tgt1 : "io_targets M1 q1x io_tl = { q1t }" using Cons.prems tr_def unfolding io_targets.simps  by auto
 
-  have "io_hd # io_tl \<in> language_state M2 q2" using Cons using tr_def(2) tr_def(3) by blast 
+  have "io_hd # io_tl \<in> LS M2 q2" using Cons using tr_def(2) tr_def(3) by blast 
   then obtain tr2 where tr2_def : 
      "target (io_hd # io_tl || tr2) q2 = q2t"
      "path M2 (io_hd # io_tl || tr2) q2" 
@@ -457,7 +449,7 @@ next
   
   have "{t. path M2 (io_tl || t) q2x \<and> length io_tl = length t} = {tr2_tl}"
   proof -
-    have "io_tl \<in> language_state M2 q2x"
+    have "io_tl \<in> LS M2 q2x"
       using \<open>tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}\<close> by blast
     then show ?thesis
       using \<open>tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}\<close> assms(3) by fastforce
@@ -468,19 +460,19 @@ next
      "length io_tl = length tr2_tl" using Cons tr2_def tr2_split unfolding io_targets.simps by auto
   ultimately have tgt2 : "io_targets M2 q2x io_tl = { q2t }" using Cons.prems tr_def unfolding io_targets.simps  by auto
 
-  have "language_state M1 q1x \<subseteq> language_state M2 q2x" 
+  have "LS M1 q1x \<subseteq> LS M2 q2x" 
   proof 
-    fix ioX assume ioX_assm : "ioX \<in> language_state M1 q1x"
+    fix ioX assume ioX_assm : "ioX \<in> LS M1 q1x"
     then obtain tr1X where tr1X_def : "path M1 (ioX || tr1X) q1x" "length tr1X = length ioX" by auto
     moreover have "path M1 [(io_hd,q1x)] q1" using tr_def tr_split Cons by auto
     ultimately have "path M1 ((io_hd#ioX)|| (q1x#tr1X)) q1" "length (io_hd#ioX) = length (q1x#tr1X)" using tr1X_def by auto
-    then have "io_hd # ioX \<in> language_state M1 q1" by (metis language_state)
-    then have "io_hd # ioX \<in> language_state M2 q2" using Cons.prems by auto
+    then have "io_hd # ioX \<in> LS M1 q1" by (metis language_state)
+    then have "io_hd # ioX \<in> LS M2 q2" using Cons.prems by auto
     then obtain q2x' tr2X where tr2X_def : "path M2 (io_hd # ioX || q2x' # tr2X) q2" "length tr2X = length ioX" by (metis language_state_elim length_Suc_conv) 
 
     have "path M2 ([io_hd] || [q2x]) q2" using tr2_def(2) tr2_split by auto 
     moreover have "path M2 ([io_hd] || [q2x']) q2" using tr2X_def(1) by auto 
-    moreover have "[io_hd] \<in> language_state M2 q2" using tr2X_def unfolding language_state_def
+    moreover have "[io_hd] \<in> LS M2 q2" using tr2X_def unfolding language_state_def
     proof -
       have "\<exists>ps. [io_hd] = map fst ps \<and> path M2 ps q2"
         by (metis (no_types) calculation(2) list.size(3) list.size(4) map_fst_zip)
@@ -489,38 +481,45 @@ next
     qed
     ultimately have "q2x = q2x'" using observable_path_unique Cons.prems by (metis length_Cons list.inject list.size(3)) 
 
-    then show  "ioX \<in> language_state M2 q2x" using tr2X_def(1) tr2X_def(2) by auto 
+    then show  "ioX \<in> LS M2 q2x" using tr2X_def(1) tr2X_def(2) by auto 
   qed
 
   then show ?thesis using Cons.prems tgt1 tgt2 Cons.IH by auto
 qed
 
 
-fun language_state_for_input :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in \<times> 'out) list set" where
-  "language_state_for_input M q xs = {(xs || ys) | ys . (length xs = length ys \<and> (xs || ys) \<in> language_state M q)}"
 
-fun language_state_in :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" where
-  "language_state_in M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> language_state M q)}"
+
+
+fun language_state_for_input :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in \<times> 'out) list set" where
+  "language_state_for_input M q xs = {(xs || ys) | ys . (length xs = length ys \<and> (xs || ys) \<in> LS M q)}"
+
+fun language_state_in  :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" ("(LS\<^sub>i\<^sub>n _ _ _)" [1000,1000,1000]) where
+  "language_state_in  M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> LS M q)}"
+
+lemma language_state_for_input_alt_def :
+  "language_state_for_input M q xs = LS\<^sub>i\<^sub>n M q {xs}"
+  unfolding language_state_for_input.simps language_state_in.simps by blast
 
 lemma language_state_in_alt_def :
-  "language_state_in M q ISeqs = \<Union> (image (language_state_for_input M q) ISeqs)"
+  "LS\<^sub>i\<^sub>n M q ISeqs = \<Union> (image (language_state_for_input M q) ISeqs)"
 proof 
-  show "language_state_in M q ISeqs \<subseteq> UNION ISeqs (language_state_for_input M q)" 
+  show "LS\<^sub>i\<^sub>n M q ISeqs \<subseteq> UNION ISeqs (language_state_for_input M q)" 
   proof 
-    fix x assume "x \<in> language_state_in M q ISeqs"
+    fix x assume "x \<in> LS\<^sub>i\<^sub>n M q ISeqs"
     then show "x \<in> UNION ISeqs (language_state_for_input M q)" by auto 
   qed
-  show "UNION ISeqs (language_state_for_input M q) \<subseteq> language_state_in M q ISeqs"
+  show "UNION ISeqs (language_state_for_input M q) \<subseteq> LS\<^sub>i\<^sub>n M q ISeqs"
   proof
     fix x assume x_assm : "x \<in> UNION ISeqs (language_state_for_input M q)"
-    then show "x \<in> language_state_in M q ISeqs" by auto
+    then show "x \<in> LS\<^sub>i\<^sub>n M q ISeqs" by auto
   qed
 qed
 
 lemma language_state_in_nonempty :
   assumes "set xs \<subseteq> inputs M"
   and     "completely_specified M"
-shows "language_state_in M q {xs} \<noteq> {}"
+shows "LS\<^sub>i\<^sub>n M q {xs} \<noteq> {}"
 using assms proof (induction xs arbitrary: q)
   case Nil
   then show ?case by auto
@@ -530,16 +529,16 @@ next
   then obtain y q' where x_step : "q' \<in> succ M (x,y) q" using Cons(3) unfolding completely_specified.simps by blast
   then have "path M ([(x,y)] || [q']) q \<and> length [q] = length [(x,y)]" by auto
              
-  have "language_state_in M q' {xs} \<noteq> {}" using Cons.prems Cons.IH by auto
-  then obtain ys where "length xs = length ys \<and> (xs || ys) \<in> language_state M q'" by auto
+  have "LS\<^sub>i\<^sub>n M q' {xs} \<noteq> {}" using Cons.prems Cons.IH by auto
+  then obtain ys where "length xs = length ys \<and> (xs || ys) \<in> LS M q'" by auto
   then obtain tr where "path M ((xs || ys) || tr) q' \<and> length tr = length (xs || ys)" by auto
 
   then have "path M ([(x,y)] @ (xs || ys) || [q'] @ tr) q \<and> length ([q'] @ tr) = length ([(x,y)] @ (xs || ys))" by (simp add: FSM.path.intros(2) x_step)
   then have "path M ((x#xs || y#ys) || [q'] @ tr) q \<and> length ([q'] @ tr) = length (x#xs || y#ys)" by auto
-  then have "(x#xs || y#ys) \<in> language_state M q" by (metis language_state) 
+  then have "(x#xs || y#ys) \<in> LS M q" by (metis language_state) 
   moreover have "x#xs \<in> {x#xs}" by simp
-  moreover have "length (x#xs) = length (y#ys)" by (simp add: \<open>length xs = length ys \<and> xs || ys \<in> language_state M q'\<close>) 
-  ultimately have "(x#xs || y#ys) \<in> language_state_in M q {x # xs}" unfolding language_state_in.simps by blast
+  moreover have "length (x#xs) = length (y#ys)" by (simp add: \<open>length xs = length ys \<and> xs || ys \<in> LS M q'\<close>) 
+  ultimately have "(x#xs || y#ys) \<in> LS\<^sub>i\<^sub>n M q {x # xs}" unfolding language_state_in.simps by blast
   then show ?case by blast
 qed
 
@@ -563,7 +562,7 @@ qed
 
 lemma language_state_in_empty : 
   assumes "[] \<in> V"
-  shows "[] \<in> language_state_in M q V"
+  shows "[] \<in> LS\<^sub>i\<^sub>n M q V"
 proof -
   have "[] \<in> language_state_for_input M q []" by auto
   then show ?thesis using language_state_in_alt_def by (metis UN_I assms) 
@@ -599,7 +598,7 @@ lemma observable_io_targets_split :
   and "io_targets M q1 vs = {q2}"
 shows "io_targets M q2 xs = {q3}"
 proof -
-  have "vs @ xs \<in> language_state M q1" using assms(2) by force 
+  have "vs @ xs \<in> LS M q1" using assms(2) by force 
   then obtain trV trX where tr_def : 
         "path M (vs || trV) q1" "length vs = length trV"
         "path M (xs || trX) (target (vs || trV) q1)" "length xs = length trX" using language_state_split[of vs xs M q1] by auto
@@ -615,7 +614,7 @@ proof -
     then have "length (vs @ xs) = length (trV @ trX)"
       by simp
     then show ?thesis
-      using f1 by (metis FSM.path_append \<open>vs @ xs \<in> language_state M q1\<close> assms(1) observable_path_unique tr_def(1) tr_def(2) tr_def(3) zip_append)
+      using f1 by (metis FSM.path_append \<open>vs @ xs \<in> LS M q1\<close> assms(1) observable_path_unique tr_def(1) tr_def(2) tr_def(3) zip_append)
   qed 
   then have "target ((vs || trV) @ (xs || trX)) q1 = q3" using tr_def by simp 
   then have "target (xs || trX) q2 = q3" using tgt_V by auto
@@ -719,16 +718,23 @@ lemma observable_io_target_is_singleton[simp] :
   and     "p \<in> io_targets M q io"
 shows "io_targets M q io = {p}" 
 proof -
-  have "io \<in> language_state M q" using assms(2) by auto
+  have "io \<in> LS M q" using assms(2) by auto
   then obtain p' where "io_targets M q io = {p'}" using assms(1) by (meson io_targets_observable_singleton_ex) 
   then show ?thesis using assms(2) by simp
 qed
 
 
 
+(* language of an FSM defined by language of its initial state *)
+abbreviation "L M \<equiv> LS M (initial M)"
+abbreviation "L\<^sub>i\<^sub>n M TS \<equiv> LS\<^sub>i\<^sub>n M (initial M) TS"
 
-abbreviation "L M \<equiv> language_state M (initial M)"
 
-abbreviation  "io_reduction_on M1 M2 TS \<equiv> (language_state_in M1 (initial M1) TS \<subseteq> language_state_in M2 (initial M2) TS)" 
+abbreviation  "io_reduction_on M1 TS M2 \<equiv> (LS\<^sub>i\<^sub>n M1 (initial M1) TS \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) TS)" 
+notation 
+  io_reduction_on ("(_ \<preceq>\<lbrakk>_\<rbrakk> _)" )
+notation  (latex output)
+  io_reduction_on ("(_ \<preceq>\<^bsub>_\<^esub> _)" [1000,0,0] 61)
+
 
 end

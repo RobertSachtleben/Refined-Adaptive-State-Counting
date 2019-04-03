@@ -372,10 +372,11 @@ next
     by (metis (no_types, lifting) singletonD) 
 
 
-  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using language_state_inclusion_next[of M1 q1 M2 q2 "[(x,y)]" q1x q2x] tgt1 tgt2 Node.prems fault_model_m.simps  by auto
+  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using language_state_inclusion_next[of M1 q1 M2 q2 "[(x,y)]" q1x q2x] tgt1 tgt2 Node.prems by auto
   moreover have "q1x \<in> nodes M1" using q1x_def(1) Node.prems(2) by (metis insertI1 io_targets_nodes tgt1)
   moreover have "q2x \<in> nodes M2" using q2x_def(1) Node.prems(3) by (metis insertI1 io_targets_nodes tgt2)
-  ultimately have "q2x \<in> succ M2 (x,y) q2 \<and> atc_reaction M2 q2x (f y) io_tl" using Node.IH[of "f y" q1x q2x io_tl] Node.prems fault_model_m.simps q2x_def q1x_def(2) by blast 
+  ultimately have "q2x \<in> succ M2 (x,y) q2 \<and> atc_reaction M2 q2x (f y) io_tl" using Node.IH[of "f y" q1x q2x io_tl] ob1 ob2 q1x_def(2) q2x_def by blast 
+ 
 
   then show "atc_reaction M2 q2 (Node x f) io" using io_split y_def by blast 
 qed
