@@ -1,9 +1,9 @@
 theory FSM
 imports
-  "Transition_Systems_and_Automata/Basic/Sequence_Zip"
-  "Transition_Systems_and_Automata/Transition_Systems/Transition_System"
-  "Transition_Systems_and_Automata/Transition_Systems/Transition_System_Extra"
-  "Transition_Systems_and_Automata/Transition_Systems/Transition_System_Construction"
+  "Transition_Systems_and_Automata.Sequence_Zip"
+  "Transition_Systems_and_Automata.Transition_System"
+  "Transition_Systems_and_Automata.Transition_System_Extra"
+  "Transition_Systems_and_Automata.Transition_System_Construction"
 begin 
 
 record ('in, 'out, 'state) FSM =
