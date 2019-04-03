@@ -1,5 +1,5 @@
-theory ATC4
-imports FSM2
+theory ATC
+imports FSM
 begin
 
 datatype ('in, 'out) ATC = Leaf | Node 'in "'out \<Rightarrow> ('in, 'out) ATC"

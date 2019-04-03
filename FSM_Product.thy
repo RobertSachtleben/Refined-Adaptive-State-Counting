@@ -1,5 +1,5 @@
 theory FSM_Product
-imports FSM2
+imports FSM
 begin
 
 

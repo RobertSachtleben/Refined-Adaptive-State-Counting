@@ -1,4 +1,4 @@
-theory FSM2
+theory FSM
 imports
   "Transition_Systems_and_Automata/Basic/Sequence_Zip"
   "Transition_Systems_and_Automata/Transition_Systems/Transition_System"

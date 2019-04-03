@@ -1,5 +1,5 @@
 theory ASC_LB
-imports ATC4 FSM2 FSM_Product
+imports ATC FSM FSM_Product
 begin 
 
 (* Proposition 5.4.2 *)
