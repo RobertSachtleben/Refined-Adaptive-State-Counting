@@ -912,10 +912,11 @@ proof -
           ultimately show "False" using \<open>k < length xs\<close>
             by simp 
         qed
-
-        ultimately show "vs @ take (Suc k) xs \<in> ?C (Suc (Suc k)) - ?RM (Suc (Suc k))"
-          using C.simps(3)
-          by (smt C_extension_options DiffI Suc.prems \<open>\<nexists>xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 \<Omega> V m j\<close> \<open>k < length xs\<close> \<open>last (take (Suc k) xs) \<in> inputs M2\<close> \<open>vs @ take k xs \<in> C M2 M1 \<Omega> V m (Suc k)\<close> \<open>vs @ take k xs \<notin> RM M2 M1 \<Omega> V m (Suc k)\<close> assms(2) last_snoc mcp_prefix_of_suffix take_Suc_conv_app_nth take_is_prefix zero_less_Suc) 
+        
+        
+        show "vs @ take (Suc k) xs \<in> ?C (Suc (Suc k)) - ?RM (Suc (Suc k))" using C.simps(3)[of M2 M1 \<Omega> V m k]
+          by (metis (no_types, lifting) DiffI Suc.prems \<open>\<nexists>xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 \<Omega> V m j\<close> \<open>vs @ take (Suc k) xs \<notin> TS M2 M1 \<Omega> V m (Suc k)\<close> calculation take_is_prefix) 
+         
       qed
     qed
 
@@ -1074,7 +1075,23 @@ proof
       have "vs@(take (length xr) xs) \<notin> ?C j - ?RM j"
         by (metis \<open>prefix xr xs\<close> \<open>vs @ xr \<notin> C M2 M1 \<Omega> V m j - RM M2 M1 \<Omega> V m j\<close> append_eq_conv_conj prefix_def) 
       show ?thesis
-        by (smt C_immediate_prefix_containment C_index RM_subset Suc_neq_Zero \<open>prefix xr xs\<close> \<open>vs @ take (length xr) xs \<notin> C M2 M1 \<Omega> V m j - RM M2 M1 \<Omega> V m j\<close> \<open>vs @ xr \<in> RM M2 M1 \<Omega> V m j\<close> assms(1) butlast_take diff_Suc_1 list.size(3) mcp_prefix_of_suffix nat_le_linear subsetCE take_all take_is_prefix)  
+      proof (cases j)
+        case 0
+        then show ?thesis
+          using RM.simps(1) \<open>vs @ xr \<in> RM M2 M1 \<Omega> V m j\<close> by blast
+      next
+        case (Suc j')
+        then have "?C (Suc j) \<subseteq> append_set (?C j - ?RM j) (inputs M2)"
+          using C.simps(3) Suc by blast
+        obtain x where "vs@(take (Suc (length xr)) xs) = vs@(take (length xr) xs) @ [x]"
+          by (metis \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> append_eq_conv_conj not_le prefix_def take_Suc_conv_app_nth take_all) 
+        have "vs@(take (length xr) xs) @ [x] \<notin> append_set (?C j - ?RM j) (inputs M2)"
+          using \<open>vs@(take (length xr) xs) \<notin> ?C j - ?RM j\<close> by simp
+        then have "vs@(take (length xr) xs) @ [x] \<notin> ?C (Suc j)"
+          using \<open>?C (Suc j) \<subseteq> append_set (?C j - ?RM j) (inputs M2)\<close> by blast
+        then show ?thesis 
+          using \<open>vs@(take (Suc (length xr)) xs) = vs@(take (length xr) xs) @ [x]\<close> by auto
+      qed
     qed
     
     have "prefix (take (Suc (length xr)) xs) xs"

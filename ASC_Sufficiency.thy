@@ -688,8 +688,22 @@ next
   then have "language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) (insert t T)"
     by (meson insert_iff language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained subsetCE subsetI) 
   moreover have "language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) (insert t T)"
-    using \<open>language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) {t}\<close>
-    by (smt insertI1 language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained singletonD subsetCE subsetI) 
+  proof -
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    then have "\<forall>P Pa. pps Pa P \<in> P \<and> pps Pa P \<notin> Pa \<or> P \<subseteq> Pa"
+      by blast
+    moreover
+    { assume "map fst (pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t})) \<notin> insert t T"
+      then have "pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t}) \<notin> L\<^sub>i\<^sub>n M1 {t} \<or> pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t}) \<in> L\<^sub>i\<^sub>n M2 (insert t T)"
+        by (metis (no_types) insertI1 language_state_in_map_fst_contained singletonD) }
+    ultimately show ?thesis
+      by (meson \<open>L\<^sub>i\<^sub>n M1 {t} \<subseteq> L\<^sub>i\<^sub>n M2 {t}\<close> language_state_in_in_language_state language_state_in_map_fst set_rev_mp)
+  qed
+    
+    
+     
   ultimately show ?case
   proof -
     have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"

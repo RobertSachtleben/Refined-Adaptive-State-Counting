@@ -190,14 +190,27 @@ proof -
      qed
   
     ultimately obtain io1 io2 where rep_ios_def : "io1 \<in> (R M2 s vs xs) \<and> io2 \<in> (R M2 s vs xs) \<and> length io1 < length io2 \<and> io_targets PM (initial PM) io1 \<inter> io_targets PM (initial PM) io2 \<noteq> {}" by (metis inf_sup_aci(1) linorder_neqE_nat)
-    then obtain rep where rep_state : "io_targets PM (initial PM) io1 = {(s,rep)} \<and> io_targets PM (initial PM) io2 = {(s,rep)}" using singletons by (smt SigmaE disjoint_iff_not_equal singletonD state_components)   
-
+    
+    obtain rep where "(s,rep) \<in> io_targets PM (initial PM) io1 \<inter> io_targets PM (initial PM) io2"
+    proof -
+      assume a1: "\<And>rep. (s, rep) \<in> io_targets PM (initial PM) io1 \<inter> io_targets PM (initial PM) io2 \<Longrightarrow> thesis"
+      have "\<exists>f. Sigma {s} f \<inter> (io_targets PM (initial PM) io1 \<inter> io_targets PM (initial PM) io2) \<noteq> {}"
+        by (metis (no_types) inf.left_idem rep_ios_def state_components)
+      then show ?thesis
+        using a1 by blast
+    qed
+    then have rep_state : "io_targets PM (initial PM) io1 = {(s,rep)} \<and> io_targets PM (initial PM) io2 = {(s,rep)}"
+      by (metis Int_iff rep_ios_def singletonD singletons)
+    
     obtain io1X io2X where rep_ios_split : "io1 = vs @ io1X \<and> prefix io1X xs \<and> io2 = vs @ io2X \<and> prefix io2X xs" using rep_ios_def by auto
     then have "length io1 > length vs" using rep_ios_def by auto
 
     (* path from init to (q2,q1) *)
 
-    have "vs \<in> L PM" using assms by auto
+    have "vs@xs \<in> L PM"
+      by (metis (no_types) assms(1) assms(4) assms(5) assms(7) inf_commute productF_language)
+    then have "vs \<in> L PM"
+      by (meson language_state_prefix) 
     then obtain trV where trV_def : "{ tr . path PM (vs || tr) (initial PM) \<and> length vs = length tr } = { trV }" using observable_path_unique_ex[of PM vs "initial PM"] assms(2) assms(3) assms(7) observable_productF by blast
     let ?qv = "target (vs || trV) (initial PM)"
     

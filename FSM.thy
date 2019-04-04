@@ -423,8 +423,15 @@ next
   qed 
   then obtain q1x tr_tl where tr_split : "tr = q1x # tr_tl" by (metis Suc_length_conv)
 
-  then have "{t. path M1 (io_tl || t) q1x \<and> length io_tl = length t} = {tr_tl}" using observable_path_unique tr_def Cons.prems(2)
-    by (smt Collect_cong FSM.path_cons_elim language_state length_Cons nat.simps(1) singleton_conv snd_conv zip_Cons_Cons)    
+  then have "path M1 (io_hd # io_tl || q1x # tr_tl) q1" "length (io_hd # io_tl) = length (q1x # tr_tl)"
+    using tr_def by blast+ 
+  then have "path M1 (io_tl || tr_tl) q1x" "length io_tl = length tr_tl" 
+    by auto
+  then have "io_tl \<in> LS M1 q1x"
+    by auto 
+  have "{t. path M1 (io_tl || t) q1x \<and> length io_tl = length t} = {tr_tl}"
+    using observable_path_unique[OF \<open>io_tl \<in> LS M1 q1x\<close> Cons.prems(2) \<open>path M1 (io_tl || tr_tl) q1x\<close> \<open>length io_tl = length tr_tl\<close>]
+    using \<open>io_tl \<in> LS M1 q1x\<close> by fastforce 
   moreover have 
      "target (io_tl || tr_tl) q1x = q1t"
      "path M1 (io_tl || tr_tl) q1x" 
