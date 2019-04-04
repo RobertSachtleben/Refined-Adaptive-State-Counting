@@ -127,7 +127,8 @@ lemma OFMS_from_rel :
 
 
 
-(* proof that examples are OFSMs exist *)
+
+(* example FSMs and properties  *)
 
 abbreviation "M\<^sub>S_rel :: (nat\<times>(nat\<times>nat)\<times>nat) set \<equiv> {(0,(0,0),1), (0,(0,1),1), (1,(0,2),1)}"
 abbreviation "M\<^sub>S :: (nat,nat,nat) FSM \<equiv> from_rel M\<^sub>S_rel 0"
@@ -135,7 +136,7 @@ abbreviation "M\<^sub>S :: (nat,nat,nat) FSM \<equiv> from_rel M\<^sub>S_rel 0"
 abbreviation "M\<^sub>I_rel :: (nat\<times>(nat\<times>nat)\<times>nat) set \<equiv> {(0,(0,0),1), (0,(0,1),1), (1,(0,2),0)}"
 abbreviation "M\<^sub>I :: (nat,nat,nat) FSM \<equiv> from_rel M\<^sub>I_rel 0"
 
-lemma OFSMs_nodes :
+lemma example_nodes :
   "nodes M\<^sub>S = {0,1}" "nodes M\<^sub>I = {0,1}"
 proof -
   have "0 \<in> nodes M\<^sub>S" by auto
@@ -165,7 +166,7 @@ qed
     
   
 
-lemma OFSMs_example :
+lemma example_OFSM :
   "OFSM M\<^sub>S" "OFSM M\<^sub>I"
 proof -
   have "well_formed_rel M\<^sub>S_rel" 
@@ -219,47 +220,23 @@ qed
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-(* proofs that the precondition of the refined adaptive state counting algorithm are not vacuous *)
-
-lemma OFSM_not_vacuous : 
-  "\<exists> M :: (nat,nat,nat) FSM . OFSM M"
-  using OFSMs_example(1) by blast
-
-lemma fault_model_not_vacuous :
-  "\<exists> (M2::(nat,nat,nat) FSM) (M1::(nat,nat,nat) FSM) m . fault_model M2 M1 m"
+lemma example_fault_model : "fault_model M\<^sub>S M\<^sub>I 2"
 proof -
   have "inputs M\<^sub>S = inputs M\<^sub>I"
     by auto
   moreover have "card (nodes M\<^sub>S) \<le> 2"
-    using OFSMs_nodes(1) by auto
+    using example_nodes(1) by auto
   moreover have "card (nodes M\<^sub>I) \<le> 2"
-    using OFSMs_nodes(2) by auto
-  ultimately have "fault_model M\<^sub>S M\<^sub>I 2" 
+    using example_nodes(2) by auto
+  ultimately show "fault_model M\<^sub>S M\<^sub>I 2" 
     by auto
-  then show ?thesis 
-    by blast
 qed
 
-
-
-
-
-abbreviation "PM\<^sub>I :: (nat, nat, nat \<times>nat) FSM \<equiv> \<lparr>
+abbreviation "FAIL\<^sub>I :: (nat\<times>nat) \<equiv> (3,3)"
+abbreviation "PM\<^sub>I :: (nat, nat, nat\<times>nat) FSM \<equiv> \<lparr>
             succ = (\<lambda> a (p1,p2) . (if (p1 \<in> nodes M\<^sub>S \<and> p2 \<in> nodes M\<^sub>I \<and> (fst a \<in> inputs M\<^sub>S) \<and> (snd a \<in> outputs M\<^sub>S \<union> outputs M\<^sub>I))
                                     then (if (succ M\<^sub>S a p1 = {} \<and> succ M\<^sub>I a p2 \<noteq> {})
-                                      then {(3,3)} 
+                                      then {FAIL\<^sub>I} 
                                       else (succ M\<^sub>S a p1 \<times> succ M\<^sub>I a p2))
                                     else {})),
             inputs = inputs M\<^sub>S,
@@ -267,21 +244,23 @@ abbreviation "PM\<^sub>I :: (nat, nat, nat \<times>nat) FSM \<equiv> \<lparr>
             initial = (initial M\<^sub>S, initial M\<^sub>I)
           \<rparr>" 
 
-lemma "productF M\<^sub>S M\<^sub>I (3,3) PM\<^sub>I"
+lemma example_productF : "productF M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I"
 proof -
   have "inputs M\<^sub>S = inputs M\<^sub>I" 
     by auto
-  moreover have "fst (3,3) \<notin> nodes M\<^sub>S"
-    using OFSMs_nodes(1) by auto
-  moreover have "snd (3,3) \<notin> nodes M\<^sub>I"
-    using OFSMs_nodes(2) by auto
+  moreover have "fst FAIL\<^sub>I \<notin> nodes M\<^sub>S"
+    using example_nodes(1) by auto
+  moreover have "snd FAIL\<^sub>I \<notin> nodes M\<^sub>I"
+    using example_nodes(2) by auto
   ultimately show ?thesis 
     unfolding productF.simps by blast
 qed
 
-abbreviation "V\<^sub>I \<equiv> {[],[0]}"
 
-lemma "is_det_state_cover M\<^sub>S V\<^sub>I" 
+
+abbreviation "V\<^sub>I :: nat list set \<equiv> {[],[0]}"
+
+lemma example_det_state_cover : "is_det_state_cover M\<^sub>S V\<^sub>I" 
 proof -
   have "d_reaches M\<^sub>S (initial M\<^sub>S) [] (initial M\<^sub>S)" 
     by auto
@@ -340,7 +319,7 @@ proof -
       by blast
   qed
   ultimately have "d_reachable M\<^sub>S (initial M\<^sub>S) = {0,1}" 
-    using OFSMs_nodes(1) by blast
+    using example_nodes(1) by blast
 
 
 
@@ -359,7 +338,7 @@ proof -
       then have "s \<in> nodes M\<^sub>S"
         by blast 
       then have "s = 0 \<or> s = 1" 
-        using OFSMs_nodes(1) by blast
+        using example_nodes(1) by blast
       then show "d_reaches M\<^sub>S (initial M\<^sub>S) (?f s) s"
       proof
         assume "s = 0"
@@ -381,23 +360,98 @@ proof -
 qed
 
 
-(*
-test_tools_R M2 M1 FAIL PM V \<Omega> \<equiv> (
-      productF M2 M1 FAIL PM
-    \<and> is_det_state_cover M2 V
-    \<and> applicable_set M2 \<Omega>
-    \<and> \<Omega> \<noteq> {}
-   )"
-*)
+
+abbreviation "\<Omega>\<^sub>I::(nat,nat) ATC set \<equiv> { Node 0 (\<lambda> y . Leaf) }"
+
+lemma "applicable_set M\<^sub>S \<Omega>\<^sub>I"
+  by auto
+
+
+lemma example_test_tools_R : "test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
+  using example_productF example_det_state_cover by auto  
+
+
+
+
+
+
+(* proofs that the precondition of the refined adaptive state counting algorithm are not vacuous *)
+
+lemma OFSM_not_vacuous : 
+  "\<exists> M :: (nat,nat,nat) FSM . OFSM M"
+  using example_OFSM(1) by blast
+
+
+lemma fault_model_not_vacuous :
+  "\<exists> (M2::(nat,nat,nat) FSM) (M1::(nat,nat,nat) FSM) m . fault_model M2 M1 m"
+  using example_fault_model by blast
+
 
 lemma test_tools_R_not_vacuous :
-  "\<exists> M2 M1 FAIL PM V \<Omega> . test_tools_R M2 M1 FAIL PM V \<Omega>"
+  "\<exists> (M2::(nat,nat,nat) FSM) 
+     (M1::(nat,nat,nat) FSM) 
+     (FAIL::(nat\<times>nat))
+     (PM::(nat,nat,nat\<times>nat) FSM)
+     (V::(nat list set)) 
+     (\<Omega>::(nat,nat) ATC set) . test_tools_R M2 M1 FAIL PM V \<Omega>"
 proof -
-  obtain FAIL PM where "productF M\<^sub>S M\<^sub>I FAIL PM" 
+  show ?thesis
+  proof
+    show "\<exists> (M1::(nat,nat,nat) FSM) FAIL PM V \<Omega> . test_tools_R M\<^sub>S M1 FAIL PM V \<Omega>"
+    proof 
+      show "\<exists> FAIL PM V \<Omega>. test_tools_R M\<^sub>S M\<^sub>I FAIL PM V \<Omega>"
+        using example_test_tools_R by blast
+    qed
+  qed
+qed
 
 
 lemma precondition_not_vacuous :
-  shows "\<exists> M1 M2 m FAIL PM V \<Omega> . OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
-proof
+  shows "\<exists> (M2::(nat,nat,nat) FSM) 
+           (M1::(nat,nat,nat) FSM) 
+           (FAIL::(nat\<times>nat))
+           (PM::(nat,nat,nat\<times>nat) FSM)
+           (V::(nat list set)) 
+           (\<Omega>::(nat,nat) ATC set)
+           (m :: nat) . OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
+proof 
+  show "\<exists>(M1::(nat,nat,nat) FSM)
+         (FAIL::(nat\<times>nat))
+         (PM::(nat,nat,nat\<times>nat) FSM)
+         (V::(nat list set)) 
+         (\<Omega>::(nat,nat) ATC set)
+         (m :: nat) . OFSM M1 \<and> OFSM M\<^sub>S \<and> fault_model M\<^sub>S M1 m \<and> test_tools_R M\<^sub>S M1 FAIL PM V \<Omega>"
+  
+  proof
+    show "\<exists>(FAIL::(nat\<times>nat))
+           (PM::(nat,nat,nat\<times>nat) FSM)
+           (V::(nat list set)) 
+           (\<Omega>::(nat,nat) ATC set)
+           (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_model M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL PM V \<Omega>"
+    proof 
+      show "\<exists>(PM::(nat,nat,nat\<times>nat) FSM)
+             (V::(nat list set)) 
+             (\<Omega>::(nat,nat) ATC set)
+             (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_model M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM V \<Omega>"
+      proof
+        show "\<exists>(V::(nat list set)) 
+               (\<Omega>::(nat,nat) ATC set)
+               (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_model M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V \<Omega>"
+        proof
+          show "\<exists>(\<Omega>::(nat,nat) ATC set)
+                 (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_model M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>"
+          proof 
+            show "\<exists>(m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_model M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
+            proof
+              show "OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_model M\<^sub>S M\<^sub>I 2 \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
+                using example_OFSM(2,1) example_fault_model example_test_tools_R by linarith
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
 
 end
