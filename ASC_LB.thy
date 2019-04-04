@@ -1769,7 +1769,8 @@ proof -
         using assms by auto
     
       then have "language_state_in M1 (initial M1) {vs} \<noteq> {}" 
-        using assms(2) language_state_in_nonempty by metis
+        using assms(2) language_state_in_nonempty
+        by (metis FSM.nodes.initial) 
       then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"
         by auto
       then obtain vs' where "vs' \<in> language_state_for_input M1 (initial M1) vs" 

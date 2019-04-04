@@ -145,6 +145,7 @@ fun r_dist_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<R
 lemma applicable_nonempty :
   assumes "applicable M t"
   and     "completely_specified M"
+  and     "q1 \<in> nodes M"
   shows "IO M q1 t \<noteq> {}"
 using assms proof (induction t arbitrary: q1)
   case Leaf
@@ -154,7 +155,9 @@ next
   then have "x \<in> inputs M" by auto
   then obtain y q2  where x_appl : "q2 \<in> succ M (x, y) q1" using Node unfolding completely_specified.simps by blast
   then have "applicable M (f y)" using applicable_subtest Node by metis
-  then have "IO M q2 (f y) \<noteq> {}" using Node by auto
+  moreover have "q2 \<in> nodes M" 
+    using Node(4) \<open>q2 \<in> succ M (x, y) q1\<close> FSM.nodes.intros(2)[of q1 M "((x,y),q2)"] by auto
+  ultimately have "IO M q2 (f y) \<noteq> {}" using Node by auto
   then show ?case unfolding IO.simps using x_appl by blast  
 qed
 
@@ -162,6 +165,7 @@ lemma r_dist_dist :
   assumes "applicable M t"
   and     "completely_specified M"
   and     "r_dist M t q1 q2"
+  and     "q1 \<in> nodes M"
 shows   "q1 \<noteq> q2"
 proof (rule ccontr)
   assume "\<not>(q1 \<noteq> q2)" 
@@ -175,6 +179,7 @@ lemma r_dist_set_dist :
   assumes "applicable_set M \<Omega>"
   and     "completely_specified M"
   and     "r_dist_set M \<Omega> q1 q2"
+  and     "q1 \<in> nodes M"
 shows   "q1 \<noteq> q2"
 using assms r_dist_dist by (metis applicable_set.elims(2) r_dist_set.elims(2))  
 
@@ -182,8 +187,9 @@ lemma r_dist_set_dist_disjoint :
   assumes "applicable_set M \<Omega>"
   and     "completely_specified M"
   and     "\<forall> t1 \<in> T1 . \<forall> t2 \<in> T2 . r_dist_set M \<Omega> t1 t2"
+  and     "T1 \<subseteq> nodes M"
 shows "T1 \<inter> T2 = {}"
-  by (meson Int_emptyI assms(1) assms(2) assms(3) r_dist_set_dist)
+  by (metis assms disjoint_iff_not_equal r_dist_set_dist subsetCE)
   
 
 
@@ -205,6 +211,7 @@ lemma atc_rdist_dist[intro] :
   and     red1  : "atc_reduction M2 t1 M1 s1 \<Omega>"
   and     red2  : "atc_reduction M2 t2 M1 s2 \<Omega>"
   and     rdist : "r_dist_set M1 \<Omega> s1 s2"
+  and             "t1 \<in> nodes M2"
   shows "r_dist_set M2 \<Omega> t1 t2"
 proof -
   obtain td where td_def : "td \<in> \<Omega> \<and> r_dist M1 td s1 s2" using rdist by auto
@@ -214,7 +221,7 @@ proof -
   ultimately have no_inter : "IO M2 t1 td \<inter> IO M2 t2 td = {}" by blast
   
   then have "td \<noteq> Leaf" by auto
-  then have "IO M2 t1 td \<noteq> {}" by (meson ap2 applicable_nonempty applicable_set.elims(2) cs2 td_def) 
+  then have "IO M2 t1 td \<noteq> {}" by (meson ap2 applicable_nonempty applicable_set.elims(2) cs2 td_def assms(8)) 
   then have "IO M2 t1 td \<noteq> IO M2 t2 td" using no_inter by auto 
   then show ?thesis using no_inter td_def by auto 
 qed
@@ -327,6 +334,8 @@ proof -
   obtain t where "t \<in> \<Omega>" using assms(4) by blast
   then have "applicable M t" using assms(1) by simp
   moreover obtain tr where "path M (io || tr) (initial M) \<and> length tr = length io" using assms(3) by auto
+  moreover have "target (io || tr) (initial M) \<in> nodes M"
+    using calculation(2) by blast
   ultimately have "IO M (target (io || tr) (initial M)) t \<noteq> {}" using assms(2) applicable_nonempty by simp
   then obtain io' where "io' \<in> IO M (target (io || tr) (initial M)) t" by blast
   then have "io' \<in> IO_set M (target (io || tr) (initial M)) \<Omega>" using \<open>t \<in> \<Omega>\<close> unfolding IO_set.simps by blast

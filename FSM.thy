@@ -151,7 +151,7 @@ fun observable :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
   "observable M = (\<forall> t . \<forall> s1 . ((succ M) t s1 = {}) \<or> (\<exists> s2 . (succ M) t s1 = {s2}))"
 
 fun completely_specified :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
-  "completely_specified M = (\<forall> s1 . \<forall> x \<in> inputs M . \<exists> y \<in> outputs M . \<exists> s2 . s2 \<in> (succ M) (x,y) s1)"
+  "completely_specified M = (\<forall> s1 \<in> nodes M . \<forall> x \<in> inputs M . \<exists> y \<in> outputs M . \<exists> s2 . s2 \<in> (succ M) (x,y) s1)"
 
 fun well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
   "well_formed M =
@@ -526,6 +526,7 @@ qed
 lemma language_state_in_nonempty :
   assumes "set xs \<subseteq> inputs M"
   and     "completely_specified M"
+  and     "q \<in> nodes M"
 shows "LS\<^sub>i\<^sub>n M q {xs} \<noteq> {}"
 using assms proof (induction xs arbitrary: q)
   case Nil
@@ -533,10 +534,11 @@ using assms proof (induction xs arbitrary: q)
 next
   case (Cons x xs)
   then have "x \<in> inputs M" by simp
-  then obtain y q' where x_step : "q' \<in> succ M (x,y) q" using Cons(3) unfolding completely_specified.simps by blast
-  then have "path M ([(x,y)] || [q']) q \<and> length [q] = length [(x,y)]" by auto
-             
-  have "LS\<^sub>i\<^sub>n M q' {xs} \<noteq> {}" using Cons.prems Cons.IH by auto
+  then obtain y q' where x_step : "q' \<in> succ M (x,y) q" using Cons(3,4) unfolding completely_specified.simps by blast
+  then have "path M ([(x,y)] || [q']) q \<and> length [q] = length [(x,y)]" "target ([(x,y)] || [q']) q = q'" by auto
+  then have "q' \<in> nodes M" 
+    using Cons(4) by (metis FSM.nodes_target)            
+  then have "LS\<^sub>i\<^sub>n M q' {xs} \<noteq> {}" using Cons.prems Cons.IH by auto
   then obtain ys where "length xs = length ys \<and> (xs || ys) \<in> LS M q'" by auto
   then obtain tr where "path M ((xs || ys) || tr) q' \<and> length tr = length (xs || ys)" by auto
 

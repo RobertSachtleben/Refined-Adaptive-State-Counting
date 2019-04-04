@@ -173,7 +173,7 @@ proof -
     using assms by auto
 
   then have "language_state_in M1 (initial M1) {ioV} \<noteq> {}" 
-    using assms(2) language_state_in_nonempty by metis
+    using assms(2) language_state_in_nonempty by (metis FSM.nodes.initial) 
 
 
   have "prefix ioV (map fst io)"
