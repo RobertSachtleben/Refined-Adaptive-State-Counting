@@ -326,12 +326,15 @@ proof
     fix tx assume "tx \<in> append_set (append_sets T (lists_of_length X n)) X"
     then obtain tx' x where "tx = tx' @ [x]" "tx' \<in> append_sets T (lists_of_length X n)" "x \<in> X" by blast
     then obtain tx'' x' where "tx''@x' = tx'" "tx'' \<in> T" "length x' = n" "set x' \<subseteq> X" by blast
-    then have "tx''@x'@[x] = tx" "tx'' \<in> T" "length (x'@[x]) = Suc n" "set (x'@[x]) \<subseteq> X" 
-      apply (simp add: \<open>tx = tx' @ [x]\<close>)
-      apply (meson \<open>tx'' \<in> T\<close>)
-      apply (simp add: \<open>length x' = n\<close>)+
+    then have "tx''@x'@[x] = tx"  
+      by (simp add: \<open>tx = tx' @ [x]\<close>)
+    moreover have "tx'' \<in> T"
+      by (meson \<open>tx'' \<in> T\<close>)
+    moreover have "length (x'@[x]) = Suc n"
+      by (simp add: \<open>length x' = n\<close>)
+    moreover have "set (x'@[x]) \<subseteq> X" 
       by (simp add: \<open>set x' \<subseteq> X\<close> \<open>x \<in> X\<close>)
-    then show "tx \<in> append_sets T (lists_of_length X (Suc n))" by blast
+    ultimately show "tx \<in> append_sets T (lists_of_length X (Suc n))" by blast
   qed
 qed
 

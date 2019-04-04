@@ -148,9 +148,7 @@ lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI obs\<^sub>\
   {
     isReduction = M1 \<preceq> M2   \<comment>\<open>variable isReduction is used only as a return value, it is true if and only if M1 is a reduction of M2\<close> 
   }"  
-
-  apply vcg 
-proof -
+proof (vcg)
   assume precond : "OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
   have "{} = TS M2 M1 \<Omega> V m (1-1)"
        "V = C M2 M1 \<Omega> V m 1"
