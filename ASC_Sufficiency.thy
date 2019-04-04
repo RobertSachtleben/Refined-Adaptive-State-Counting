@@ -10,7 +10,6 @@ abbreviation
     \<and> is_det_state_cover M2 V
     \<and> V'' \<in> N (vs@xs) M1 V
     \<and> applicable_set M2 \<Omega>
-    \<and> \<Omega> \<noteq> {}
    )"
 
 lemma test_tools_props_N[elim] :
@@ -21,22 +20,19 @@ lemma test_tools_props_N[elim] :
         "V'' \<in> N (vs@xs) M1 V"
         "applicable_set M2 \<Omega>"
         "applicable_set M1 \<Omega>"
-        "\<Omega> \<noteq> {}"
 proof -
   show "productF M2 M1 FAIL PM" using assms(1) by blast
   show "is_det_state_cover M2 V" using assms(1) by blast
   show "V'' \<in> N (vs@xs) M1 V" using assms(1) by blast
   show "applicable_set M2 \<Omega>" using assms(1) by blast
   then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
-  show "\<Omega> \<noteq> {}" using assms(1) by blast
 qed
 
 abbreviation
   "test_tools_R M2 M1 FAIL PM V \<Omega> \<equiv> (
       productF M2 M1 FAIL PM
     \<and> is_det_state_cover M2 V
-    \<and> applicable_set M2 \<Omega>
-    \<and> \<Omega> \<noteq> {}
+    \<and> applicable_set M2 \<Omega>    
    )"
 
 lemma test_tools_props_R[elim] :
@@ -46,13 +42,11 @@ lemma test_tools_props_R[elim] :
         "is_det_state_cover M2 V"
         "applicable_set M2 \<Omega>"
         "applicable_set M1 \<Omega>"
-        "\<Omega> \<noteq> {}"
 proof -
   show "productF M2 M1 FAIL PM" using assms(1) by blast
   show "is_det_state_cover M2 V" using assms(1) by blast
   show "applicable_set M2 \<Omega>" using assms(1) by blast
   then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
-  show "\<Omega> \<noteq> {}" using assms(1) by blast
 qed
 
 (* helper properties concerning minimal sequences to failures *)

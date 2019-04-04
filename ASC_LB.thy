@@ -921,7 +921,6 @@ abbreviation
     \<and> is_det_state_cover M2 V
     \<and> V'' \<in> Perm V M1
     \<and> applicable_set M2 \<Omega>
-    \<and> \<Omega> \<noteq> {}
    )"
 
 lemma test_tools_props[elim] :
@@ -932,14 +931,12 @@ lemma test_tools_props[elim] :
         "V'' \<in> Perm V M1"
         "applicable_set M2 \<Omega>"
         "applicable_set M1 \<Omega>"
-        "\<Omega> \<noteq> {}"
 proof -
   show "productF M2 M1 FAIL PM" using assms(1) by blast
   show "is_det_state_cover M2 V" using assms(1) by blast
   show "V'' \<in> Perm V M1" using assms(1) by blast
   show "applicable_set M2 \<Omega>" using assms(1) by blast
   then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
-  show "\<Omega> \<noteq> {}" using assms(1) by blast
 qed
 
 
