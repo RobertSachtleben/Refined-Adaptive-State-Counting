@@ -1205,7 +1205,7 @@ next
 
   have R_update : "\<And> q . R M2 q io (xs@[x]) = (if (q \<in> io_targets M2 (initial M2) (io @ xs @ [x])) 
                                     then insert (io@xs@[x]) (R M2 q io xs)   
-                                    else R M2 q io xs)" by (auto; presburger)
+                                    else R M2 q io xs)" by auto
 
   obtain q where "io_targets M2 (initial M2) (io @ xs @ [x]) = {q}"
     by (meson assms(1) io_targets_observable_singleton_ex snoc.prems(2)) 
