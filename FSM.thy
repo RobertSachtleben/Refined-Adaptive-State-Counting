@@ -36,6 +36,9 @@ global_interpretation FSM : transition_system_initial
   defines path = FSM.path and run = FSM.run and reachable = FSM.reachable and nodes = FSM.nodes
   by this
 
+abbreviation "size_FSM M \<equiv> card (nodes M)" 
+notation 
+  size_FSM ("(|_|)")
 
 subsection {* Language *}
 

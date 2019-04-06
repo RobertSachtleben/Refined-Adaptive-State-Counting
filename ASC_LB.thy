@@ -899,12 +899,11 @@ qed
 
 
 (* helper functions to shorten assumptions *)
-abbreviation "fault_model M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M2) \<le> m \<and> card (nodes M1) \<le> m )"
+abbreviation "fault_model M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
 
 lemma fault_model_props[elim!] :
   assumes "fault_model M2 M1 m"
   shows "inputs M2 = inputs M1"
-        "card (nodes M2) \<le> m"
         "card (nodes M1) \<le> m"using assms by auto
 
 abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"

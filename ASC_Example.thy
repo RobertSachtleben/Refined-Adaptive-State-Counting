@@ -224,8 +224,6 @@ lemma example_fault_model : "fault_model M\<^sub>S M\<^sub>I 2"
 proof -
   have "inputs M\<^sub>S = inputs M\<^sub>I"
     by auto
-  moreover have "card (nodes M\<^sub>S) \<le> 2"
-    using example_nodes(1) by auto
   moreover have "card (nodes M\<^sub>I) \<le> 2"
     using example_nodes(2) by auto
   ultimately show "fault_model M\<^sub>S M\<^sub>I 2" 
