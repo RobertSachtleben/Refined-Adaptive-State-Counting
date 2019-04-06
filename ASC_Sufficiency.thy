@@ -14,7 +14,7 @@ abbreviation
 
 lemma test_tools_props_N[elim] :
   assumes "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xs"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   shows "productF M2 M1 FAIL PM"
         "is_det_state_cover M2 V"
         "V'' \<in> N (vs@xs) M1 V"
@@ -25,7 +25,7 @@ proof -
   show "is_det_state_cover M2 V" using assms(1) by blast
   show "V'' \<in> N (vs@xs) M1 V" using assms(1) by blast
   show "applicable_set M2 \<Omega>" using assms(1) by blast
-  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
+  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
 qed
 
 abbreviation
@@ -37,7 +37,7 @@ abbreviation
 
 lemma test_tools_props_R[elim] :
   assumes "test_tools_R M2 M1 FAIL PM V \<Omega>"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   shows "productF M2 M1 FAIL PM"
         "is_det_state_cover M2 V"
         "applicable_set M2 \<Omega>"
@@ -46,7 +46,7 @@ proof -
   show "productF M2 M1 FAIL PM" using assms(1) by blast
   show "is_det_state_cover M2 V" using assms(1) by blast
   show "applicable_set M2 \<Omega>" using assms(1) by blast
-  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_model_props(1)[OF assms(2)] by simp
+  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
 qed
 
 (* helper properties concerning minimal sequences to failures *)
@@ -300,7 +300,7 @@ lemma mstfe_distinct_Rep_Pre :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   and     "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xs'"
   and     "prefix xs' xs"
   shows "\<not> Rep_Pre M2 M1 vs xs'"
@@ -454,7 +454,7 @@ lemma mstfe_distinct_Rep_Cov :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   and     "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xsR"
   and     "prefix xsR xs"
 shows "\<not> Rep_Cov M2 M1 V'' vs xsR"
@@ -732,7 +732,7 @@ shows "is_reduction_on_sets M1 M2 T' \<Omega>"
 lemma asc_sufficiency :
   assumes "OFSM M1"
   and     "OFSM M2"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"
   and     "is_reduction_on_sets M1 M2 (TS M2 M1 \<Omega> V m i) \<Omega>"
@@ -941,7 +941,7 @@ proof (rule ccontr)
 
 
 
-  (* show the the prerequisites (Prereq) for LB are met by construction *)
+  (* show that the prerequisites (Prereq) for LB are met by construction *)
 
   have "(\<forall>vs'a\<in>V''. prefix vs'a (vs' @ xs') \<longrightarrow> length vs'a \<le> length vs')"
     using \<open>mcp (vs' @ xs') V'' vs'\<close> by auto
@@ -1072,7 +1072,7 @@ proof (rule ccontr)
     using \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L M1\<close> \<open>vs' = vs\<close> \<open>xs' = xr || take (length xr) (map snd xs)\<close> by blast 
   
 
-  (* prove the impossiblility to remove the prefix of the minimal sequence to a failure
+  (* prove the impossiblility of removing the prefix of the minimal sequence to a failure
      by demonstrating that this would require M1 to have more than m states *)
   
   have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> card (nodes M1)"
@@ -1102,7 +1102,7 @@ shows "is_reduction_on_sets M1 M2 T \<Omega>"
 lemma asc_main_theorem :
   assumes "OFSM M1"
   and     "OFSM M2"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"
 shows     "M1 \<preceq> M2 \<longleftrightarrow> is_reduction_on_sets M1 M2 (TS M2 M1 \<Omega> V m i) \<Omega>"

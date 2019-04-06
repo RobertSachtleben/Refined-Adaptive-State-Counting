@@ -126,7 +126,7 @@ lemma N_nonempty :
   assumes "is_det_state_cover M2 V"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   and     "io \<in> L M1"
 shows "N io M1 V \<noteq> {}"
 proof -
@@ -1324,7 +1324,7 @@ abbreviation "final_iteration M2 M1 \<Omega> V m i \<equiv> TS M2 M1 \<Omega> V 
 lemma final_iteration_ex :
   assumes "OFSM M1"
   and     "OFSM M2"
-  and     "fault_model M2 M1 m"
+  and     "fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"
   shows "final_iteration M2 M1 \<Omega> V m (Suc (Suc ((card (nodes M2)) * m)))"
 proof -

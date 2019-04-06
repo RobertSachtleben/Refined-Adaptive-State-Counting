@@ -98,8 +98,8 @@ qed
         
 
 
-lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
-  {OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>}
+lemma refined_adaptive_state_counting_correctness: "VARS tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
+  {OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>}
   tsN := {};
   cN  := V;
   rmN := {};
@@ -118,7 +118,7 @@ lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI obs\<^sub>\
     \<and> obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)
     \<and> obs\<^sub>\<Omega> = \<Union> (image (\<lambda> io . {io} \<times> append_io_B M2 io \<Omega>) (L\<^sub>i\<^sub>n M2 (tsN \<union> cN)))
     \<and> obsI\<^sub>\<Omega> = \<Union> (image (\<lambda> io . {io} \<times> append_io_B M1 io \<Omega>) (L\<^sub>i\<^sub>n M1 (tsN \<union> cN)))
-    \<and> OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>
+    \<and> OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>
   }
   DO 
     iter := iter + 1;
@@ -149,7 +149,7 @@ lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI obs\<^sub>\
     isReduction = M1 \<preceq> M2   \<comment>\<open>variable isReduction is used only as a return value, it is true if and only if M1 is a reduction of M2\<close> 
   }"  
 proof (vcg)
-  assume precond : "OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
+  assume precond : "OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
   have "{} = TS M2 M1 \<Omega> V m (1-1)"
        "V = C M2 M1 \<Omega> V m 1"
        "{} = RM M2 M1 \<Omega> V m (1-1)" 
@@ -158,7 +158,7 @@ proof (vcg)
         "(\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> append_io_B M2 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> append_io_B M2 io \<Omega>)"
         "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> append_io_B M1 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> append_io_B M1 io \<Omega>)"
     using precond by auto
-  moreover have "OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega> "
+  moreover have "OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega> "
     using precond by assumption
   ultimately show "0 < (1::nat) \<and>
                    {} = TS M2 M1 \<Omega> V m (1 - 1) \<and>
@@ -168,7 +168,7 @@ proof (vcg)
                    L\<^sub>i\<^sub>n M1 V = L\<^sub>i\<^sub>n M1 ({} \<union> V) \<and>
                    (\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> append_io_B M2 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> append_io_B M2 io \<Omega>) \<and>
                    (\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> append_io_B M1 io \<Omega>) = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> append_io_B M1 io \<Omega>) \<and>
-                   OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>" by linarith+
+                   OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>" by linarith+
 next 
   fix tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
   assume precond : "(0 < iter \<and>
@@ -179,12 +179,12 @@ next
                       obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<and>
                       obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
                       obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
-                      OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
+                      OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
                     cN \<noteq> {} \<and> obsI \<subseteq> obs"
   then have "0 < iter"
             "OFSM M1" 
             "OFSM M2"
-            "fault_model M2 M1 m"
+            "fault_domain M2 M1 m"
             "test_tools_R M2 M1 FAIL PM V \<Omega>"
             "cN \<noteq> {}"
             "obsI \<subseteq> obs"
@@ -606,7 +606,7 @@ next
        obsI\<^sub>\<Omega>_calc
        \<open>OFSM M1\<close>
        \<open>OFSM M2\<close>
-       \<open>fault_model M2 M1 m\<close>
+       \<open>fault_domain M2 M1 m\<close>
        \<open>test_tools_R M2 M1 FAIL PM V \<Omega>\<close>
   show "0 < iter + 1 \<and>
        tsN \<union> cN = TS M2 M1 \<Omega> V m (iter + 1 - 1) \<and>
@@ -807,7 +807,7 @@ next
                  (inputs M2) -
                 (tsN \<union> cN))).
            {io} \<times> append_io_B M1 io \<Omega>) \<and>
-       OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
+       OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
     by linarith
 next
   fix tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
@@ -819,12 +819,12 @@ next
                     obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<and>
                     obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
                     obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
-                    OFSM M1 \<and> OFSM M2 \<and> fault_model M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
+                    OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>) \<and>
                    \<not> (cN \<noteq> {} \<and> obsI \<subseteq> obs)"
   then have "0 < iter"
             "OFSM M1" 
             "OFSM M2"
-            "fault_model M2 M1 m"
+            "fault_domain M2 M1 m"
             "test_tools_R M2 M1 FAIL PM V \<Omega>"
             "cN = {} \<or> \<not> obsI \<subseteq> obs"
             "tsN = TS M2 M1 \<Omega> V m (iter-1)"
@@ -891,7 +891,7 @@ next
       using \<open>0 < iter\<close> by auto
     
     have "M1 \<preceq> M2 = is_reduction_on_sets M1 M2 tsN \<Omega>" 
-      using asc_main_theorem[OF \<open>OFSM M1\<close> \<open>OFSM M2\<close> \<open>fault_model M2 M1 m\<close> \<open>test_tools_R M2 M1 FAIL PM V \<Omega>\<close> \<open>final_iteration M2 M1 \<Omega> V m (iter-1)\<close>]
+      using asc_main_theorem[OF \<open>OFSM M1\<close> \<open>OFSM M2\<close> \<open>fault_domain M2 M1 m\<close> \<open>test_tools_R M2 M1 FAIL PM V \<Omega>\<close> \<open>final_iteration M2 M1 \<Omega> V m (iter-1)\<close>]
       using \<open>tsN = TS M2 M1 \<Omega> V m (iter - 1)\<close>
       by blast
     moreover have "tsN \<union> cN = tsN"
