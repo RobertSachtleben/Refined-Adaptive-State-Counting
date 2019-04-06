@@ -26,7 +26,6 @@ line/.style = {draw, -latex'}
 \onslide<+-> {
         \node [Definition,FSM, anchor=north]                            (FSMs)          {FSMs $M,M'$};
         \node [Definition,FSM, right=1cm of FSMs]                            (V)          {det. SC\footnotemark $V$};
-        \node [Definition,FSM, right=1cm of V]                            (SizeAssm)          {$|M'| \leq m$};
 }
  
 \onslide<+->{
@@ -35,6 +34,7 @@ line/.style = {draw, -latex'}
         \path [line] (V)         --                              (mFV_ex);   
 }
 \onslide<+->{
+        \node [Definition,ASC_LB, right=1cm of V]                            (SizeAssm)          {$|M'| \leq m$};
         \node [Definition,ASC_LB, right=1cm of SizeAssm]                            (LB)          {fun $LB$};
 }
 \onslide<+->{
