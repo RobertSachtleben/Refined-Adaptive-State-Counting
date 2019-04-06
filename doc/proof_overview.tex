@@ -10,7 +10,7 @@
 \tikzset{
 Lemma/.style={rectangle, draw, rounded corners} , 
 Definition/.style={chamfered rectangle, draw} , 
-File/.style={rectangle,draw,text width=7em},
+File/.style={rectangle,draw,text width=7.5em},
 FSM/.style={fill=blue!20},
 FSM_Product/.style={fill=cyan!20},
 ASC_LB/.style={fill=orange!20},
@@ -51,11 +51,11 @@ line/.style = {draw, -latex'}
         \node [Definition,ASC_Suite, right=2cm of LB.east, anchor=west]                            (TS)          {test suite $TS$};
 }
 \onslide<+->{
-        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east]                            (elemTS)          {$in\footnotemark(xs) \not\in TS \longrightarrow LB(xs) > m$};
+        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east,label={[align=left,shift={(1.5,-1.5)}]\tiny{(or a prefix $xs'$ of $xs$ fails s.t.} \\[-0.6em] \tiny{ $in(xs') \in TS$)}}]                            (elemTS)          {$in\footnotemark(xs) \not\in TS \longrightarrow LB(xs) > m$};
         \path [line] (TS)         --                              (elemTS);   
 }
 \onslide<+->{
-        \node [Lemma,ASC_Suite, below=1cm of elemTS.north]                            (elemTSmin)          {$in(xs) \not\in TS \longrightarrow \neg minimal(xs)$};
+        \node [Lemma,ASC_Suite, below=1cm of elemTS.north,label={[align=left,shift={(1.5,-1.5)}]\tiny{(or a prefix $xs'$ of $xs$ fails s.t.} \\[-0.6em] \tiny{ $in(xs') \in TS$)}}]                                                       (elemTSmin)          {$in(xs) \not\in TS \longrightarrow \neg minimal(xs)$};
         \path [line] (elemTS)         --                              (elemTSmin);   
         \path [line] (minBySize)         --                              (elemTSmin);   
 }
@@ -96,7 +96,7 @@ line/.style = {draw, -latex'}
         \node [FSM_Product,File, below=1cm of FSM_File.north]                        (FSM_Product_File)         {FSM\_Product};
 }
 \onslide<3->{
-        \node [ASC_LB,File, below=1cm of FSM_Product_File.north]                        (ASC_LB_File)         {ASC\_LB};
+        \node [ASC_LB,File, below=1cm of FSM_Product_File.north]                        (ASC_LB_File)         {ASC\_LB (\& ATC)};
 }
 \onslide<6->{
         \node [ASC_Suite,File, below=1cm of ASC_LB_File.north]                        (ASC_Suite_File)         {ASC\_Suite};
