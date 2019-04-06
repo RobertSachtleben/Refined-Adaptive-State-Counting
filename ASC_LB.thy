@@ -1496,9 +1496,9 @@ proof -
   ultimately show ?thesis by linarith
 qed
 
-lemma language_state_in_in_language_state :
-  "language_state_in M q T \<subseteq> language_state M q"
-  unfolding language_state_in.simps language_state_def
+lemma language_state_for_inputs_in_language_state :
+  "LS\<^sub>i\<^sub>n M q T \<subseteq> language_state M q"
+  unfolding language_state_for_inputs.simps language_state_def
   by blast 
 
 
@@ -1508,9 +1508,9 @@ lemma LB_count_helper_D_states :
 obtains q
 where "q \<in> nodes M \<and> RS = IO_set M q \<Omega>" 
 proof -
-  have "RS \<in> image (\<lambda> io . B M io \<Omega>) (language_state_in M (initial M) T)" using assms by simp
-  then obtain io where "RS = B M io \<Omega>" "io \<in> language_state_in M (initial M) T" by blast
-  then have "io \<in> language_state M (initial M)" using language_state_in_in_language_state[of M "initial M" T] by blast
+  have "RS \<in> image (\<lambda> io . B M io \<Omega>) (LS\<^sub>i\<^sub>n M (initial M) T)" using assms by simp
+  then obtain io where "RS = B M io \<Omega>" "io \<in> LS\<^sub>i\<^sub>n M (initial M) T" by blast
+  then have "io \<in> language_state M (initial M)" using language_state_for_inputs_in_language_state[of M "initial M" T] by blast
   then obtain q where "{q} = io_targets M (initial M) io" by (metis assms(1) io_targets_observable_singleton_ob) 
   then have "B M io \<Omega> = \<Union> (image (\<lambda> s . IO_set M s \<Omega>)) {q}" by simp
   then have "B M io \<Omega> = IO_set M q \<Omega>" by simp
@@ -1538,15 +1538,15 @@ proof
   ultimately show "False" by simp
 qed
   
-lemma language_state_in_map_fst :
+lemma language_state_for_inputs_map_fst :
   assumes "io \<in> language_state M q"
   and     "map fst io \<in> T"
-shows "io \<in> language_state_in M q T"
+shows "io \<in> LS\<^sub>i\<^sub>n M q T"
 proof -
   let ?xs = "map fst io"
   let ?ys = "map snd io"
   have "?xs \<in> T \<and> length ?xs = length ?ys \<and> ?xs || ?ys \<in> language_state M q" using assms(2,1) by auto
-  then have "?xs || ?ys \<in> language_state_in M q T" unfolding language_state_in.simps by blast 
+  then have "?xs || ?ys \<in> LS\<^sub>i\<^sub>n M q T" unfolding language_state_for_inputs.simps by blast 
   then show ?thesis by simp
 qed 
 
@@ -1560,8 +1560,8 @@ shows "(vs @ xs) \<in> L M2 \<inter> L M1"
   moreover have "is_reduction_on_sets M1 M2 T \<Omega>" using assms by simp
   ultimately have "is_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>" unfolding is_reduction_on_sets.simps by blast
 
-  have "vs @ xs \<in> language_state_in M1 (initial M1) {map fst (vs @ xs)}" using assms(2) language_state_in_map_fst[of "vs@xs" M1 "initial M1" "{map fst (vs@xs)}"] by simp
-  then have "vs @ xs \<in> language_state_in M2 (initial M2) {map fst (vs @ xs)}" using \<open>is_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>\<close> by auto
+  have "vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}" using assms(2) language_state_for_inputs_map_fst[of "vs@xs" M1 "initial M1" "{map fst (vs@xs)}"] by simp
+  then have "vs @ xs \<in> LS\<^sub>i\<^sub>n M2 (initial M2) {map fst (vs @ xs)}" using \<open>is_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>\<close> by auto
   then have "vs @ xs \<in> L M2" by auto 
 
   then show ?thesis using assms(2) by simp
@@ -1765,8 +1765,8 @@ proof -
       then have "set vs \<subseteq> inputs M1" 
         using assms by auto
     
-      then have "language_state_in M1 (initial M1) {vs} \<noteq> {}" 
-        using assms(2) language_state_in_nonempty
+      then have "LS\<^sub>i\<^sub>n M1 (initial M1) {vs} \<noteq> {}" 
+        using assms(2) language_state_for_inputs_nonempty
         by (metis FSM.nodes.initial) 
       then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"
         by auto

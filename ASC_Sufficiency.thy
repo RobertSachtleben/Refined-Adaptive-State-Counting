@@ -50,13 +50,13 @@ proof -
 qed
 
 (* helper properties concerning minimal sequences to failures *)
-lemma language_state_in_map_fst_contained :
-  assumes "vs \<in> language_state_in M q V"
+lemma language_state_for_inputs_map_fst_contained :
+  assumes "vs \<in> LS\<^sub>i\<^sub>n M q V"
 shows "map fst vs \<in> V" 
 proof -
   have "(map fst vs) || (map snd vs) = vs" 
     by auto
-  then have "(map fst vs) || (map snd vs) \<in> language_state_in M q V" 
+  then have "(map fst vs) || (map snd vs) \<in> LS\<^sub>i\<^sub>n M q V" 
     using assms by auto
   then show ?thesis by auto
 qed
@@ -66,10 +66,10 @@ lemma mstfe_prefix_input_in_V :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   shows "(map fst vs) \<in> V"
 proof -
-  have "vs \<in> language_state_in M1 (initial M1) V" 
+  have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
     using assms by auto
   then show ?thesis 
-    using language_state_in_map_fst_contained by auto
+    using language_state_for_inputs_map_fst_contained by auto
 qed
     
     
@@ -101,10 +101,10 @@ proof (rule ccontr)
 
   have "vs@xs \<in> L M1 - L M2" 
     using assms(4) unfolding minimal_sequence_to_failure_extending.simps sequence_to_failure.simps by blast
-  then have "vs@xs \<in> language_state_in M1 (initial M1) {map fst (vs@xs)}"
-    by (meson DiffE insertI1 language_state_in_map_fst) 
-  have "vs@xs \<in> language_state_in M1 (initial M1) {v'@x'}"
-    using \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>vs @ xs \<in> language_state_in M1 (initial M1) {map fst (vs @ xs)}\<close> by presburger
+  then have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs@xs)}"
+    by (meson DiffE insertI1 language_state_for_inputs_map_fst) 
+  have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {v'@x'}"
+    using \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}\<close> by presburger
    
   let ?vs' = "take (length v') (vs@xs)"
   let ?xs' = "drop (length v') (vs@xs)"
@@ -112,8 +112,8 @@ proof (rule ccontr)
   have "vs@xs = ?vs'@?xs'"
     by (metis append_take_drop_id) 
 
-  have "?vs' \<in> language_state_in M1 (initial M1) V"
-    by (metis (no_types) DiffE \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>v' \<in> V\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> append_eq_conv_conj append_take_drop_id language_state_in_map_fst language_state_prefix take_map) 
+  have "?vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V"
+    by (metis (no_types) DiffE \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>v' \<in> V\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> append_eq_conv_conj append_take_drop_id language_state_for_inputs_map_fst language_state_prefix take_map) 
     
   have "sequence_to_failure M1 M2 (?vs' @ ?xs')"
     by (metis (full_types) \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> assms(4) minimal_sequence_to_failure_extending.simps) 
@@ -122,7 +122,7 @@ proof (rule ccontr)
     using \<open>length (map fst vs) < length v'\<close> \<open>prefix v' (map fst (vs @ xs))\<close> \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> prefix_length_le by fastforce 
   
   show "False"
-    by (meson \<open>length (drop (length v') (vs @ xs)) < length xs\<close> \<open>sequence_to_failure M1 M2 (take (length v') (vs @ xs) @ drop (length v') (vs @ xs))\<close> \<open>take (length v') (vs @ xs) \<in> language_state_in M1 (initial M1) V\<close> assms(4) minimal_sequence_to_failure_extending.elims(2)) 
+    by (meson \<open>length (drop (length v') (vs @ xs)) < length xs\<close> \<open>sequence_to_failure M1 M2 (take (length v') (vs @ xs) @ drop (length v') (vs @ xs))\<close> \<open>take (length v') (vs @ xs) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close> assms(4) minimal_sequence_to_failure_extending.elims(2)) 
 
 qed
 
@@ -436,7 +436,7 @@ proof
     using \<open>length xs1 < length xs2\<close> \<open>length xs1 < length xs\<close> by auto
 
 
-  have "vs \<in> language_state_in M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ xs1@(drop (length xs2) xs)) \<and> length (xs1@(drop (length xs2) xs)) < length xs"
+  have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ xs1@(drop (length xs2) xs)) \<and> length (xs1@(drop (length xs2) xs)) < length xs"
     using \<open>length (xs1 @ drop (length xs2) xs) < length xs\<close> \<open>sequence_to_failure M1 M2 (vs @ xs1 @ drop (length xs2) xs)\<close> assms(1) minimal_sequence_to_failure_extending.simps by blast
   
   then have "\<not> minimal_sequence_to_failure_extending V M1 M2 vs xs"
@@ -567,7 +567,7 @@ proof
   have "length (drop (length xs') xs) < length xs"
     by (metis (no_types) \<open>xs = xs' @ drop (length xs') xs\<close> \<open>xs' \<noteq> []\<close> length_append length_greater_0_conv less_add_same_cancel2)   
 
-  have "vs' \<in> language_state_in M1 (initial M1) V" 
+  have "vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
   proof -
     have "V'' \<in> N (vs@xsR) M1 V" 
       using assms(5) by auto
@@ -581,18 +581,18 @@ proof
     then have "vs' \<in> language_state_for_input M1 (initial M1) v" 
       using f_def by auto
     
-    have "language_state_for_input M1 (initial M1) v = language_state_in M1 (initial M1) {v}"
+    have "language_state_for_input M1 (initial M1) v = LS\<^sub>i\<^sub>n M1 (initial M1) {v}"
       by auto
     moreover have "{v} \<subseteq> V" 
       using \<open>v \<in> V\<close> by blast   
-    ultimately have "language_state_for_input M1 (initial M1) v \<subseteq> language_state_in M1 (initial M1) V"
-      unfolding language_state_in.simps language_state_for_input.simps by blast
+    ultimately have "language_state_for_input M1 (initial M1) v \<subseteq> LS\<^sub>i\<^sub>n M1 (initial M1) V"
+      unfolding language_state_for_inputs.simps language_state_for_input.simps by blast
     then show ?thesis
       using\<open>vs' \<in> language_state_for_input M1 (initial M1) v\<close> by blast
   qed
   
   have "\<not> minimal_sequence_to_failure_extending V M1 M2 vs xs" 
-    using \<open>vs' \<in> language_state_in M1 (initial M1) V\<close>
+    using \<open>vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close>
           \<open>sequence_to_failure M1 M2 (vs' @ (drop (length xs') xs))\<close>
           \<open>length (drop (length xs') xs) < length xs\<close>
     using minimal_sequence_to_failure_extending.elims(2) by blast 
@@ -603,7 +603,7 @@ qed
 
 
 
-lemma language_state_inputs :
+lemma language_state_for_inputsputs :
   assumes "well_formed M"
   and     "io \<in> language_state M q"
 shows "set (map fst io) \<subseteq> inputs M"
@@ -621,7 +621,7 @@ lemma io_reduction_on_subset :
 shows "io_reduction_on M1 T' M2"
 proof (rule ccontr)
   assume "\<not> io_reduction_on M1 T' M2"
-  then obtain xs' where "xs' \<in> T'" "\<not> language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}"
+  then obtain xs' where "xs' \<in> T'" "\<not> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}"
   proof -
     have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"
       by blast
@@ -630,12 +630,12 @@ proof (rule ccontr)
       by moura
     then have f2: "\<forall>P Pa. pps Pa P \<in> P \<and> pps Pa P \<notin> Pa \<or> P \<subseteq> Pa"
       by (meson subsetI)
-    have f3: "\<forall>ps f c A. (ps::('a \<times> 'b) list) \<notin> language_state_in f (c::'c) A \<or> map fst ps \<in> A"
-      by (meson language_state_in_map_fst_contained)
-    then have "language_state_in M1 (initial M1) T' \<subseteq> language_state_in M1 (initial M1) T"
-      using f2 by (meson assms(2) language_state_in_in_language_state language_state_in_map_fst set_rev_mp)
+    have f3: "\<forall>ps f c A. (ps::('a \<times> 'b) list) \<notin> LS\<^sub>i\<^sub>n f (c::'c) A \<or> map fst ps \<in> A"
+      by (meson language_state_for_inputs_map_fst_contained)
+    then have "LS\<^sub>i\<^sub>n M1 (initial M1) T' \<subseteq> LS\<^sub>i\<^sub>n M1 (initial M1) T"
+      using f2 by (meson assms(2) language_state_for_inputs_in_language_state language_state_for_inputs_map_fst set_rev_mp)
     then show ?thesis
-      using f3 f2 f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> assms(1) language_state_in_in_language_state language_state_in_map_fst)
+      using f3 f2 f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> assms(1) language_state_for_inputs_in_language_state language_state_for_inputs_map_fst)
   qed 
   then have "xs' \<in> T" 
     using assms(2) by blast
@@ -650,7 +650,7 @@ proof (rule ccontr)
     then have "\<forall>P Pa. (\<not> P \<subseteq> Pa \<or> (\<forall>ps. ps \<notin> P \<or> ps \<in> Pa)) \<and> (P \<subseteq> Pa \<or> pps Pa P \<in> P \<and> pps Pa P \<notin> Pa)"
       by blast
     then show ?thesis
-      using f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained)
+      using f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> language_state_for_inputs_in_language_state language_state_for_inputs_map_fst language_state_for_inputs_map_fst_contained)
   qed 
 
   then show "False" 
@@ -668,10 +668,10 @@ next
   case (insert t T)
   then have "is_reduction_on M1 M2 t \<Omega>"
     by auto
-  then have "language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) {t}"
+  then have "LS\<^sub>i\<^sub>n M1 (initial M1) {t} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {t}"
     using is_reduction_on.simps by blast
 
-  have "language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) T" 
+  have "LS\<^sub>i\<^sub>n M1 (initial M1) T \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) T" 
     using insert.IH
   proof -
     have "is_reduction_on_sets M1 M2 T \<Omega>"
@@ -679,9 +679,9 @@ next
     then show ?thesis
       using insert.IH by blast
   qed
-  then have "language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) (insert t T)"
-    by (meson insert_iff language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained subsetCE subsetI) 
-  moreover have "language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) (insert t T)"
+  then have "LS\<^sub>i\<^sub>n M1 (initial M1) T \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
+    by (meson insert_iff language_state_for_inputs_in_language_state language_state_for_inputs_map_fst language_state_for_inputs_map_fst_contained subsetCE subsetI) 
+  moreover have "LS\<^sub>i\<^sub>n M1 (initial M1) {t} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
   proof -
     obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
       "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
@@ -691,9 +691,9 @@ next
     moreover
     { assume "map fst (pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t})) \<notin> insert t T"
       then have "pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t}) \<notin> L\<^sub>i\<^sub>n M1 {t} \<or> pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t}) \<in> L\<^sub>i\<^sub>n M2 (insert t T)"
-        by (metis (no_types) insertI1 language_state_in_map_fst_contained singletonD) }
+        by (metis (no_types) insertI1 language_state_for_inputs_map_fst_contained singletonD) }
     ultimately show ?thesis
-      by (meson \<open>L\<^sub>i\<^sub>n M1 {t} \<subseteq> L\<^sub>i\<^sub>n M2 {t}\<close> language_state_in_in_language_state language_state_in_map_fst set_rev_mp)
+      by (meson \<open>L\<^sub>i\<^sub>n M1 {t} \<subseteq> L\<^sub>i\<^sub>n M2 {t}\<close> language_state_for_inputs_in_language_state language_state_for_inputs_map_fst set_rev_mp)
   qed
     
     
@@ -706,17 +706,17 @@ next
       "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
       by moura
     moreover
-    { assume "pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) {t}"
+    { assume "pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<notin> LS\<^sub>i\<^sub>n M1 (initial M1) {t}"
       moreover
-      { assume "map fst (pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T))) \<notin> {t}"
-        then have "map fst (pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T))) \<noteq> t"
+      { assume "map fst (pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T))) \<notin> {t}"
+        then have "map fst (pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T))) \<noteq> t"
           by blast
-        then have "pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<in> language_state_in M2 (initial M2) (insert t T)"
-          using f1 by (meson \<open>language_state_in M1 (initial M1) T \<subseteq> language_state_in M2 (initial M2) (insert t T)\<close> insertE language_state_in_in_language_state language_state_in_map_fst language_state_in_map_fst_contained) }
-      ultimately have "io_reduction_on M1 (insert t T) M2 \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<notin> language_state_in M1 (initial M1) (insert t T) \<or> pps (language_state_in M2 (initial M2) (insert t T)) (language_state_in M1 (initial M1) (insert t T)) \<in> language_state_in M2 (initial M2) (insert t T)"
-        using f1 by (meson language_state_in_in_language_state language_state_in_map_fst) }
+        then have "pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<notin> LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T) \<or> pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<in> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
+          using f1 by (meson \<open>LS\<^sub>i\<^sub>n M1 (initial M1) T \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)\<close> insertE language_state_for_inputs_in_language_state language_state_for_inputs_map_fst language_state_for_inputs_map_fst_contained) }
+      ultimately have "io_reduction_on M1 (insert t T) M2 \<or> pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<notin> LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T) \<or> pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<in> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
+        using f1 by (meson language_state_for_inputs_in_language_state language_state_for_inputs_map_fst) }
       ultimately show ?thesis
-        using f1 by (meson \<open>language_state_in M1 (initial M1) {t} \<subseteq> language_state_in M2 (initial M2) (insert t T)\<close> subsetI)
+        using f1 by (meson \<open>LS\<^sub>i\<^sub>n M1 (initial M1) {t} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)\<close> subsetI)
   qed 
 qed
     
@@ -748,19 +748,19 @@ proof (rule ccontr)
   obtain vs xs where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
     using \<open>\<not> M1 \<preceq> M2\<close> assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_det_state_cover_ob[of M2 M1 FAIL PM V] by blast 
 
-  then have "vs \<in> language_state_in M1 (initial M1) V" 
+  then have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
             "sequence_to_failure M1 M2 (vs @ xs)" 
-            "\<not> (\<exists> io' . \<exists> w' \<in> language_state_in M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length xs)"
+            "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length xs)"
     by auto
 
   then have "vs@xs \<in> L M1 - L M2" 
     by auto
 
-  have "vs@xs \<in> language_state_in M1 (initial M1) {map fst (vs@xs)}"
-    by (metis (full_types) Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> insertI1 language_state_in_map_fst)
+  have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs@xs)}"
+    by (metis (full_types) Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> insertI1 language_state_for_inputs_map_fst)
 
-  have "vs@xs \<notin> language_state_in M2 (initial M2) {map fst (vs@xs)}"
-    by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_in_in_language_state subsetCE) 
+  have "vs@xs \<notin> LS\<^sub>i\<^sub>n M2 (initial M2) {map fst (vs@xs)}"
+    by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_for_inputs_in_language_state subsetCE) 
 
   have "finite V" 
     using det_state_cover_finite assms(4,2) by auto
@@ -776,11 +776,11 @@ proof (rule ccontr)
     have "\<forall>P Pa ps. \<not> P \<subseteq> Pa \<or> (ps::('a \<times> 'b) list) \<in> Pa \<or> ps \<notin> P"
       by blast
     then show ?thesis
-      using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> \<open>io_reduction_on M1 (?TS i) M2\<close> language_state_in_in_language_state language_state_in_map_fst)
+      using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> \<open>io_reduction_on M1 (?TS i) M2\<close> language_state_for_inputs_in_language_state language_state_for_inputs_map_fst)
   qed 
 
   have "map fst vs \<in> V"
-    using \<open>vs \<in> language_state_in M1 (initial M1) V\<close> by auto 
+    using \<open>vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close> by auto 
   
   let ?stf = "map fst (vs@xs)"
   let ?stfV = "map fst vs"
@@ -795,7 +795,7 @@ proof (rule ccontr)
     by (metis \<open>map fst (vs @ xs) = map fst vs @ map fst xs\<close> \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1) assms(2) assms(4) mstfe_mcp)
 
   have "set ?stf \<subseteq> inputs M1"
-    by (meson DiffD1 \<open>vs @ xs \<in> L M1 - L M2\<close> assms(1) language_state_inputs) 
+    by (meson DiffD1 \<open>vs @ xs \<in> L M1 - L M2\<close> assms(1) language_state_for_inputsputs) 
   then have "set ?stf \<subseteq> inputs M2"
     using assms(3) by blast 
   moreover have "set ?stf = set ?stfV \<union> set ?stfX"
@@ -823,8 +823,8 @@ proof (rule ccontr)
   have "vs@(xr || ?yr) \<in> L M1"
     by (metis DiffD1 \<open>prefix (vs @ (xr || take (length xr) (map snd xs))) (vs @ xs)\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_prefix prefixE) 
 
-  then have "vs@(xr || ?yr) \<in> language_state_in M1 (initial M1) {?stfV @ xr}"
-    by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> insertI1 language_state_in_map_fst map_append map_fst_zip) 
+  then have "vs@(xr || ?yr) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV @ xr}"
+    by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> insertI1 language_state_for_inputs_map_fst map_append map_fst_zip) 
 
   have "length xr < length xs"
     by (metis \<open>xr = take (length xr) (map fst xs)\<close> \<open>xr \<noteq> map fst xs\<close> not_le_imp_less take_all take_map)
@@ -832,8 +832,8 @@ proof (rule ccontr)
 
 
   from \<open>?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)\<close> have "?stfV@xr \<in> {xs' \<in> C M2 M1 \<Omega> V m (Suc j) .
-      (\<not> (language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}))
-      \<or> (\<forall> io \<in> language_state_in M1 (initial M1) {xs'} .
+      (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
+      \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
           (\<exists> V'' \<in> N io M1 V .  
             (\<exists> S1 . 
               (\<exists> vs xs .
@@ -848,18 +848,18 @@ proof (rule ccontr)
                 \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' ))))}" 
     unfolding RM.simps by blast
 
-  moreover have "\<forall> xs' \<in> ?C (Suc j) . language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}"
+  moreover have "\<forall> xs' \<in> ?C (Suc j) . LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}"
   proof 
     fix xs' assume "xs' \<in> ?C (Suc j)"
     from \<open>Suc j \<le> i\<close> have "?C (Suc j) \<subseteq> ?TS i"
       using C_subset TS_subset by blast 
     then have "{xs'} \<subseteq> ?TS i" 
       using \<open>xs' \<in> ?C (Suc j)\<close> by blast
-    show "language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}" 
+    show "LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}" 
       using io_reduction_on_subset[OF \<open>io_reduction_on M1 (?TS i) M2\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] by assumption
   qed
 
-  ultimately have "(\<forall> io \<in> language_state_in M1 (initial M1) {?stfV@xr} .
+  ultimately have "(\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV@xr} .
           (\<exists> V'' \<in> N io M1 V .  
             (\<exists> S1 . 
               (\<exists> vs xs .
@@ -887,7 +887,7 @@ proof (rule ccontr)
                        \<forall> io2 \<in> RP M2 s2 vs' xs' V'' .
                          B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                 \<and> m < LB M2 M1 vs' xs' (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' )))"
-    using \<open>vs@(xr || ?yr) \<in> language_state_in M1 (initial M1) {?stfV @ xr}\<close>
+    using \<open>vs@(xr || ?yr) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV @ xr}\<close>
     by blast 
 
   then obtain V'' S1 vs' xs' where RM_impl :  
@@ -1035,7 +1035,7 @@ proof (rule ccontr)
 
   
   moreover have "vs' @ xs' \<in> L M2 \<inter> L M1"
-    by (metis (no_types, lifting) IntI RM_impl(2) \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}\<close> \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L\<^sub>i\<^sub>n M1 {map fst vs @ xr}\<close> language_state_in_in_language_state subsetCE)
+    by (metis (no_types, lifting) IntI RM_impl(2) \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}\<close> \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L\<^sub>i\<^sub>n M1 {map fst vs @ xr}\<close> language_state_for_inputs_in_language_state subsetCE)
     
         
   

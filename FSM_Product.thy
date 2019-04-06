@@ -1267,8 +1267,8 @@ qed
 
 fun minimal_sequence_to_failure_extending :: "'in list set \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
   "minimal_sequence_to_failure_extending V M1 M2 v' io = (
-   v' \<in> language_state_in M1 (initial M1) V \<and> sequence_to_failure M1 M2 (v' @ io) 
-              \<and> \<not> (\<exists> io' . \<exists> w' \<in> language_state_in M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length io))"
+   v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (v' @ io) 
+              \<and> \<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length io))"
 
 lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
   assumes "productF M2 M1 FAIL PM"
@@ -1280,22 +1280,22 @@ lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
 obtains vs io
 where "minimal_sequence_to_failure_extending V M1 M2 vs io" 
 proof -
-  let ?seqs = "{seq . \<exists> v' \<in> language_state_in M1 (initial M1) V .sequence_to_failure M1 M2 (v' @ seq)}"
+  let ?seqs = "{seq . \<exists> v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V .sequence_to_failure M1 M2 (v' @ seq)}"
   obtain seq where "sequence_to_failure M1 M2 seq" using assms sequence_to_failure_ob by blast
   then have "sequence_to_failure M1 M2 ([] @ seq)" by simp
-  moreover have "[] \<in> language_state_in M1 (initial M1) V" using assms det_state_cover_empty language_state_in_empty by metis
+  moreover have "[] \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" using assms det_state_cover_empty language_state_for_inputs_empty by metis
   ultimately have "seq \<in> ?seqs" using assms(5) by blast
   then have seqs_nonempty : "?seqs \<noteq> {}" by auto
 
   let ?minSeq = "arg_min length (\<lambda> io . io \<in> ?seqs)"
   have minSeq_def : "?minSeq \<in> ?seqs \<and> (\<forall> seq' \<in> ?seqs . length  ?minSeq \<le> length seq')" 
     using seqs_nonempty by (meson all_not_in_conv arg_min_nat_lemma) 
-  then obtain vs where "vs \<in> language_state_in M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ ?minSeq)"
+  then obtain vs where "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ ?minSeq)"
     by blast
-  moreover have "\<not> (\<exists> io' . \<exists> w' \<in> language_state_in M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
+  moreover have "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
   proof (rule ccontr)
-    assume "\<not> (\<nexists>io'. \<exists>w'\<in>language_state_in M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
-    then obtain seq' where seq'_def : "\<exists>w' \<in> language_state_in M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ seq') \<and> length seq' < length ?minSeq" by auto
+    assume "\<not> (\<nexists>io'. \<exists>w'\<in>LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
+    then obtain seq' where seq'_def : "\<exists>w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ seq') \<and> length seq' < length ?minSeq" by auto
     then have "seq' \<in> ?seqs \<and> length seq' < length ?minSeq " by auto
     then show "False" using minSeq_def using leD by blast  
   qed

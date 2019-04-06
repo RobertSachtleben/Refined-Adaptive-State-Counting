@@ -262,7 +262,7 @@ lemma IO_set_in_language :
 
 
 fun D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in * 'out) list set set" where
-  "D M \<Omega> ISeqs = image (\<lambda> io . B M io \<Omega>) (language_state_in M (initial M) ISeqs)"
+  "D M \<Omega> ISeqs = image (\<lambda> io . B M io \<Omega>) (LS\<^sub>i\<^sub>n M (initial M) ISeqs)"
 
 
 
@@ -293,8 +293,8 @@ fun append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Ri
 "append_io_B M io \<Omega> = { io@res | res . res \<in> B M io \<Omega> }"
 
 fun is_reduction_on :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-"is_reduction_on M1 M2 iseq \<Omega> = (language_state_in M1 (initial M1) {iseq} \<subseteq> language_state_in M2 (initial M2) {iseq} 
-  \<and> (\<forall> io \<in> language_state_in M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))"
+"is_reduction_on M1 M2 iseq \<Omega> = (LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq} 
+  \<and> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))"
 
 fun is_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
 "is_reduction_on_sets M1 M2 TS \<Omega> = (\<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>)"
@@ -410,7 +410,7 @@ next
     by (metis (no_types, lifting) singletonD) 
 
 
-  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using language_state_inclusion_next[of M1 q1 M2 q2 "[(x,y)]" q1x q2x] tgt1 tgt2 Node.prems by auto
+  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using language_state_inclusion_of_state_reached_by_same_sequence[of M1 q1 M2 q2 "[(x,y)]" q1x q2x] tgt1 tgt2 Node.prems by auto
   moreover have "q1x \<in> nodes M1" using q1x_def(1) Node.prems(2) by (metis insertI1 io_targets_nodes tgt1)
   moreover have "q2x \<in> nodes M2" using q2x_def(1) Node.prems(3) by (metis insertI1 io_targets_nodes tgt2)
   ultimately have "q2x \<in> succ M2 (x,y) q2 \<and> atc_reaction M2 q2x (f y) io_tl" using Node.IH[of "f y" q1x q2x io_tl] ob1 ob2 q1x_def(2) q2x_def by blast 
@@ -463,7 +463,7 @@ proof
   then have q2x_ob : "io_targets M2 (initial M2) io = {q2x}" using tr2_def assms
     by (metis io_targets_observable_singleton_ex language_state singleton_iff) 
 
-  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using q1x_ob assms unfolding io_reduction.simps by (simp add: language_state_inclusion_next) 
+  then have "language_state M1 q1x \<subseteq> language_state M2 q2x" using q1x_ob assms unfolding io_reduction.simps by (simp add: language_state_inclusion_of_state_reached_by_same_sequence) 
   then have "IO_set M1 q1x \<Omega> \<subseteq> IO_set M2 q2x \<Omega>" using assms IO_set_reduction by (metis FSM.nodes.initial io_targets_nodes q1x_def q2x_def) 
   moreover have "B M1 io \<Omega> = IO_set M1 q1x \<Omega>" using q1x_ob by auto
   moreover have "B M2 io \<Omega> = IO_set M2 q2x \<Omega>" using q2x_ob by auto
@@ -492,9 +492,9 @@ lemma is_reduction_on_reduction[intro] :
   and     ob2 : "observable M2"
 shows "is_reduction_on M1 M2 iseq \<Omega>"
 unfolding is_reduction_on.simps proof 
-  show "language_state_in M1 (initial M1) {iseq} \<subseteq> language_state_in M2 (initial M2) {iseq}" using red by auto 
+  show "LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq}" using red by auto 
 next
-  show "\<forall>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>" using  append_io_B_reduction assms by blast
+  show "\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>" using  append_io_B_reduction assms by blast
 qed
     
 
@@ -505,18 +505,18 @@ lemma is_reduction_on_sets_reduction[intro] :
 shows "is_reduction_on_sets M1 M2 TS \<Omega>"
   using assms is_reduction_on_reduction by (metis is_reduction_on_sets.elims(3)) 
 
-lemma is_reduction_on_sets_via_language_state_in : 
+lemma is_reduction_on_sets_via_LS\<^sub>i\<^sub>n : 
   assumes "is_reduction_on_sets M1 M2 TS \<Omega>"
-  shows "(L\<^sub>i\<^sub>n M1 TS \<union> (\<Union>io\<in>language_state_in M1 (initial M1) TS. append_io_B M1 io \<Omega>)) \<subseteq> (L\<^sub>i\<^sub>n M2 TS \<union> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>))"
+  shows "(L\<^sub>i\<^sub>n M1 TS \<union> (\<Union>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) TS. append_io_B M1 io \<Omega>)) \<subseteq> (L\<^sub>i\<^sub>n M2 TS \<union> (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) TS. append_io_B M2 io \<Omega>))"
 proof -
-  have "\<forall> iseq \<in> TS . (language_state_in M1 (initial M1) {iseq} \<subseteq> language_state_in M2 (initial M2) {iseq} 
-                        \<and> (\<forall> io \<in> language_state_in M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))" 
+  have "\<forall> iseq \<in> TS . (LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq} 
+                        \<and> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))" 
     using assms by auto
-  then have "\<forall> iseq \<in> TS . (\<Union>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) {iseq}. append_io_B M2 io \<Omega>)"
+  then have "\<forall> iseq \<in> TS . (\<Union>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) {iseq}. append_io_B M2 io \<Omega>)"
     by blast
-  moreover have "\<forall> iseq \<in> TS . (\<Union>io\<in>language_state_in M2 (initial M2) {iseq}. append_io_B M2 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>)"
-    unfolding language_state_in.simps by blast
-  ultimately have elem_subset : "\<forall> iseq \<in> TS . (\<Union>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>)" 
+  moreover have "\<forall> iseq \<in> TS . (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) {iseq}. append_io_B M2 io \<Omega>) \<subseteq> (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) TS. append_io_B M2 io \<Omega>)"
+    unfolding language_state_for_inputs.simps by blast
+  ultimately have elem_subset : "\<forall> iseq \<in> TS . (\<Union>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) TS. append_io_B M2 io \<Omega>)" 
     by blast
   
   show ?thesis
@@ -526,26 +526,26 @@ proof -
     proof (cases "x \<in> L\<^sub>i\<^sub>n M1 TS")
       case True
       then obtain iseq where "iseq \<in> TS" "x\<in> L\<^sub>i\<^sub>n M1 {iseq}"
-        unfolding language_state_in.simps by blast 
+        unfolding language_state_for_inputs.simps by blast 
       then have "is_reduction_on M1 M2 iseq \<Omega>" 
         using assms by auto
       then have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}" 
         by auto
       then have "x \<in> L\<^sub>i\<^sub>n M2 TS"
-        by (metis (no_types, lifting) UN_I \<open>\<And>thesis. (\<And>iseq. \<lbrakk>iseq \<in> TS; x \<in> L\<^sub>i\<^sub>n M1 {iseq}\<rbrakk> \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> \<open>\<forall>iseq\<in>TS. L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)\<close> language_state_for_input_alt_def language_state_in_alt_def set_rev_mp) 
+        by (metis (no_types, lifting) UN_I \<open>\<And>thesis. (\<And>iseq. \<lbrakk>iseq \<in> TS; x \<in> L\<^sub>i\<^sub>n M1 {iseq}\<rbrakk> \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> \<open>\<forall>iseq\<in>TS. L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)\<close> language_state_for_input_alt_def language_state_for_inputs_alt_def set_rev_mp) 
       then show ?thesis 
         by blast
     next
       case False
       then have "x \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 TS. append_io_B M1 io \<Omega>)"
         using \<open>x \<in> L\<^sub>i\<^sub>n M1 TS \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 TS. append_io_B M1 io \<Omega>)\<close> by blast
-      then obtain io where "io \<in> language_state_in M1 (initial M1) TS" "x \<in> append_io_B M1 io \<Omega>"
+      then obtain io where "io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) TS" "x \<in> append_io_B M1 io \<Omega>"
         by blast
-      then obtain iseq where "iseq \<in> TS" "io\<in>language_state_in M1 (initial M1) {iseq}"
-        unfolding language_state_in.simps by blast
-      have "x \<in> (\<Union>io\<in>language_state_in M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>)"
-        using \<open>io \<in> language_state_in M1 (initial M1) {iseq}\<close> \<open>x \<in> append_io_B M1 io \<Omega>\<close> by blast
-      then have "x \<in> (\<Union>io\<in>language_state_in M2 (initial M2) TS. append_io_B M2 io \<Omega>)"
+      then obtain iseq where "iseq \<in> TS" "io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {iseq}"
+        unfolding language_state_for_inputs.simps by blast
+      have "x \<in> (\<Union>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {iseq}. append_io_B M1 io \<Omega>)"
+        using \<open>io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {iseq}\<close> \<open>x \<in> append_io_B M1 io \<Omega>\<close> by blast
+      then have "x \<in> (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) TS. append_io_B M2 io \<Omega>)"
         using \<open>iseq \<in> TS\<close> elem_subset by blast
       then show ?thesis 
         by blast

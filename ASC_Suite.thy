@@ -172,8 +172,8 @@ proof -
   then have "set ioV \<subseteq> inputs M1" 
     using assms by auto
 
-  then have "language_state_in M1 (initial M1) {ioV} \<noteq> {}" 
-    using assms(2) language_state_in_nonempty by (metis FSM.nodes.initial) 
+  then have "LS\<^sub>i\<^sub>n M1 (initial M1) {ioV} \<noteq> {}" 
+    using assms(2) language_state_for_inputs_nonempty by (metis FSM.nodes.initial) 
 
 
   have "prefix ioV (map fst io)"
@@ -282,8 +282,8 @@ where
   "C M2 M1 \<Omega> V m (Suc 0) = V" |
   "RM M2 M1 \<Omega> V m (Suc n) = 
     {xs' \<in> C M2 M1 \<Omega> V m (Suc n) .
-      (\<not> (language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}))
-      \<or> (\<forall> io \<in> language_state_in M1 (initial M1) {xs'} .
+      (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
+      \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
           (\<exists> V'' \<in> N io M1 V .  
             (\<exists> S1 . 
               (\<exists> vs xs .
@@ -1344,8 +1344,8 @@ proof
       then have "length xs = Suc (m * m)" by auto
   
       have RM_def : "?RM ?i =  {xs' \<in> C M2 M1 \<Omega> V m ?i .
-                          (\<not> (language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'}))
-                          \<or> (\<forall> io \<in> language_state_in M1 (initial M1) {xs'} .
+                          (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
+                          \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
                               (\<exists> V'' \<in> N io M1 V .  
                                 (\<exists> S1 . 
                                   (\<exists> vs xs .
@@ -1360,8 +1360,8 @@ proof
             \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V'' ))))}"
       using RM.simps(2)[of M2 M1 \<Omega> V m "Suc (m*m)"] by assumption
       
-    have "(\<not> (language_state_in M1 (initial M1) {seq} \<subseteq> language_state_in M2 (initial M2) {seq}))
-          \<or> (\<forall> io \<in> language_state_in M1 (initial M1) {seq} .
+    have "(\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {seq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {seq}))
+          \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {seq} .
               (\<exists> V'' \<in> N io M1 V .  
                 (\<exists> S1 . 
                   (\<exists> vs xs .
@@ -1374,12 +1374,12 @@ proof
                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                     \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V'' ))))"
-      proof (cases "(\<not> (language_state_in M1 (initial M1) {seq} \<subseteq> language_state_in M2 (initial M2) {seq}))")
+      proof (cases "(\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {seq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {seq}))")
         case True
         then show ?thesis using RM_def by blast
       next
         case False
-        have "(\<forall> io \<in> language_state_in M1 (initial M1) {seq} .
+        have "(\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {seq} .
               (\<exists> V'' \<in> N io M1 V .  
                 (\<exists> S1 . 
                   (\<exists> vs xs .
@@ -1393,7 +1393,7 @@ proof
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                     \<and> m < LB M2 M1 vs xs (?TS (Suc (m * m)) \<union> V) S1 \<Omega> V'' ))))"
         proof 
-          fix io assume "io\<in>language_state_in M1 (initial M1) {seq}"
+          fix io assume "io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {seq}"
           then have "io \<in> L M1" 
             by auto
           moreover have "is_det_state_cover M2 V" 
@@ -1402,7 +1402,7 @@ proof
             using N_nonempty[OF _ assms(1-3), of V io] by blast
 
           have "io \<in> L M2" 
-            using \<open>io\<in>language_state_in M1 (initial M1) {seq}\<close> False by auto
+            using \<open>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {seq}\<close> False by auto
 
           
   
@@ -1423,7 +1423,7 @@ proof
             using \<open>io \<in> L M1\<close> \<open>io \<in> L M2\<close> by auto
 
           have "io \<in> L M1" "map fst io \<in> {seq}"
-            using \<open>io\<in>language_state_in M1 (initial M1) {seq}\<close> by auto
+            using \<open>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {seq}\<close> by auto
           then have "map fst io = seq" 
             by auto
           then have "map fst io \<in> ?C ?i" 
@@ -1520,8 +1520,8 @@ proof
       qed
 
       then have "seq \<in> {xs' \<in> C M2 M1 \<Omega> V m (Suc (Suc (m * m))).
-                         \<not> language_state_in M1 (initial M1) {xs'} \<subseteq> language_state_in M2 (initial M2) {xs'} \<or>
-                         (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+                         \<not> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'} \<or>
+                         (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
                              \<exists>V''\<in>N io M1 V.
                                 \<exists>S1 vs xs.
                                    io = vs @ xs \<and>

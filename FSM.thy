@@ -6,17 +6,43 @@ imports
   "Transition_Systems_and_Automata.Transition_System_Construction"
 begin 
 
+section {* Finite state machines *}
+
+text \<open>
+We formalise finite state machines as a 4-tuples, omitting the explicit formulation of the state 
+set,as it can easily be calculated from the successor function.
+This definition does not require the successor function to be restricted to the input or output 
+alphabet, which is later expressed by the property well_formed, together with the finiteness of
+the state set.
+\<close>
+
 record ('in, 'out, 'state) FSM =
   succ :: "('in \<times> 'out) \<Rightarrow> 'state \<Rightarrow> 'state set"
   inputs :: "'in set"
   outputs :: "'out set"
   initial :: "'state"
 
+
+
+subsection {* FSMs as transition systems *}
+
+text \<open>
+We interpret FSMs as transition systems with a singleton initial state set.
+\<close>
+
 global_interpretation FSM : transition_system_initial
 "\<lambda> a p. snd a" "\<lambda> a p. snd a \<in> succ A (fst a) p" "\<lambda> p. p = initial A"
   for A
   defines path = FSM.path and run = FSM.run and reachable = FSM.reachable and nodes = FSM.nodes
   by this
+
+
+subsection {* Language *}
+
+text \<open>
+The following definitions establish basic notions for FSMs similarly to those of nondeterministic
+finite automata as defined in Transition_Systems_and_Automata.Automata.NFA.
+\<close>
 
 abbreviation "target \<equiv> FSM.target"
 abbreviation "states \<equiv> FSM.states"
@@ -25,14 +51,19 @@ abbreviation "trace \<equiv> FSM.trace"
 abbreviation successors :: "('in, 'out, 'state, 'more) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 'state set" where
     "successors \<equiv> FSM.successors TYPE('in) TYPE('out) TYPE('more)"
 
-lemma states_alt_def: "states r p = map snd r" by (induct r arbitrary: p) (auto)
-lemma trace_alt_def: "trace r p = smap snd r" by (coinduction arbitrary: r p) (auto)
+lemma states_alt_def: "states r p = map snd r" 
+  by (induct r arbitrary: p) (auto)
+lemma trace_alt_def: "trace r p = smap snd r" 
+  by (coinduction arbitrary: r p) (auto)
+
 
 definition language_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list set" ("LS") where
   "language_state M q \<equiv> {map fst r |r . path M r q}"
 
-notation (latex output)
-  language_state ("(L\<^bsub>_\<^esub> _)")
+text \<open>
+The language of an FSM is the language of its initial state.
+\<close>
+abbreviation "L M \<equiv> LS M (initial M)"
   
 
 lemma language_state_alt_def : "LS M q = { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
@@ -40,30 +71,36 @@ proof -
   have "LS M q \<subseteq> { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
   proof 
     fix xr assume xr_assm : "xr \<in> LS M q"
-    then obtain r where r_def : "map fst r = xr" "path M r q" unfolding language_state_def by auto
+    then obtain r where r_def : "map fst r = xr" "path M r q" 
+      unfolding language_state_def by auto
     then obtain xs ys where xr_split : "xr = xs || ys" "length xs = length ys" "length xs = length xr"
       by (metis length_map zip_map_fst_snd) 
-    then have "(xs || ys) \<in> { io | io tr . path M  (io || tr) q \<and> length io = length tr }" using xr_assm r_def
+    then have "(xs || ys) \<in> { io | io tr . path M  (io || tr) q \<and> length io = length tr }" 
     proof -
     have f1: "xs || ys = map fst r"
       by (simp add: r_def(1) xr_split(1))
       then have f2: "path M ((xs || ys) || take (min (length (xs || ys)) (length (map snd r))) (map snd r)) q"
         by (simp add: r_def(2))
       have "length (xs || ys) = length (take (min (length (xs || ys)) (length (map snd r))) (map snd r))"
-    using f1 by force
+        using f1 by force
       then show ?thesis
         using f2 by blast
     qed 
-    then show "xr \<in> { io | io tr . path M  (io || tr) q \<and> length io = length tr }" using xr_split by metis
+    then show "xr \<in> { io | io tr . path M  (io || tr) q \<and> length io = length tr }" 
+      using xr_split by metis
   qed
   moreover have "{ io | io tr . path M  (io || tr) q \<and> length io = length tr } \<subseteq> LS M q" 
   proof 
     fix xs assume xs_assm : "xs \<in> { io | io tr . path M  (io || tr) q \<and> length io = length tr }"
-    then obtain ys where ys_def : "path M (xs || ys) q" "length xs = length ys" by auto
-    then have "xs = map fst (xs || ys)" by auto
-    then show "xs \<in> LS M q" using ys_def unfolding language_state_def by blast 
+    then obtain ys where ys_def : "path M (xs || ys) q" "length xs = length ys" 
+      by auto
+    then have "xs = map fst (xs || ys)" 
+      by auto
+    then show "xs \<in> LS M q" using ys_def unfolding language_state_def 
+      by blast 
   qed
-  ultimately show ?thesis by auto
+  ultimately show ?thesis 
+    by auto
 qed
   
 
@@ -88,13 +125,14 @@ proof -
     using assms by blast 
   let ?tr1 = "take (length w1) tr"
   let ?tr2 = "drop (length w1) tr"
-  have tr_split : "?tr1 @ ?tr2 = tr" by auto
+  have tr_split : "?tr1 @ ?tr2 = tr" 
+    by auto
   then show ?thesis
   proof -
-  have f1: "length w1 + length w2 = length tr"
-    using tr_def(2) by auto
+    have f1: "length w1 + length w2 = length tr"
+      using tr_def(2) by auto
     then have f2: "length w2 = length tr - length w1" 
-    by presburger
+      by presburger
     then have "length w1 = length (take (length w1) tr)"
       using f1 by (metis (no_types) tr_split diff_add_inverse2 length_append length_drop)
     then show ?thesis
@@ -108,7 +146,11 @@ shows "w1 \<in> LS M q"
   using assms by (meson language_state language_state_split) 
 
 
-(* Product construction without additional fail state *)
+subsection {* Product machine for language intersection *}
+
+text \<open>
+The following describes the classical creation of a product machine from two FSMs.
+\<close>
 
 definition product :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow>
   ('in, 'out, 'state1 \<times>'state2) FSM" where
@@ -142,6 +184,14 @@ lemma product_language_state[simp]: "LS (product A B) (q1,q2) = LS A q1 \<inter>
 
 
 
+subsection {* Required properties *}
+
+text \<open>
+FSMs used by the adaptive state counting algorithm are required to satisfy certain properties which
+are introduced in here.
+Most notably, the observability property (see observable) implies the uniqueness of certain paths 
+and hence allows for several stronger reformulations of previous results.
+\<close>
 
 
 fun finite_FSM :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
@@ -174,16 +224,20 @@ proof (rule ccontr)
   show "False"
   using assms tr_assm proof (induction io arbitrary: q tr1 tr2)
     case Nil
-    then show ?case using Nil by simp
+    then show ?case using Nil 
+      by simp
   next
     case (Cons io_hd io_tl)
     then obtain tr1_hd tr1_tl tr2_hd tr2_tl where tr_split : "tr1 = tr1_hd # tr1_tl \<and> tr2 = tr2_hd # tr2_tl"
       by (metis length_0_conv neq_Nil_conv)
 
-    have p1: "path M ([io_hd] || [tr1_hd]) q"   using Cons.prems tr_split by auto
-    have p2: "path M ([io_hd] || [tr2_hd]) q"   using Cons.prems tr_split by auto
-    have tr_hd_eq : "tr1_hd = tr2_hd"           using Cons.prems unfolding observable.simps
-     proof -
+    have p1: "path M ([io_hd] || [tr1_hd]) q"   
+      using Cons.prems tr_split by auto
+    have p2: "path M ([io_hd] || [tr2_hd]) q"   
+      using Cons.prems tr_split by auto
+    have tr_hd_eq : "tr1_hd = tr2_hd"           
+      using Cons.prems unfolding observable.simps
+    proof -
       assume "\<forall>t s1. succ M t s1 = {} \<or> (\<exists>s2. succ M t s1 = {s2})"
       then show ?thesis
         by (metis (no_types) p1 p2 FSM.path_cons_elim empty_iff prod.sel(1) prod.sel(2) singletonD zip_Cons_Cons)
@@ -201,14 +255,25 @@ lemma observable_path_unique_ex[elim] :
 obtains tr 
 where "{ t . path M (io || t) q \<and> length io = length t } = { tr }" 
 proof -
-  obtain tr where tr_def : "path M (io || tr) q" "length io = length tr" using assms by auto
-  then have "{ t . path M (io || t) q \<and> length io = length t } \<noteq> {}" by blast
+  obtain tr where tr_def : "path M (io || tr) q" "length io = length tr" 
+    using assms by auto
+  then have "{ t . path M (io || t) q \<and> length io = length t } \<noteq> {}" 
+    by blast
   moreover have "\<forall> t \<in> { t . path M (io || t) q \<and> length io = length t } . t = tr" 
     using assms tr_def by auto  
-  ultimately show ?thesis using that by moura
+  ultimately show ?thesis 
+    using that by moura
 qed
 
 
+
+subsection {* States reached by a given IO-sequence *}
+
+text \<open>
+The function io_targets collects all states of an FSM reached from a given state by a given 
+IO-sequence.
+Notably, for any observable FSM, this set contains at most one state.
+\<close>
 
 fun io_targets :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'state set" where
   "io_targets M q io = { target (io || tr) q | tr . path M (io || tr) q \<and> length io = length tr }"
@@ -218,9 +283,12 @@ lemma io_targets_observable_singleton_ex :
   and     "io \<in> LS M q1"
 shows "\<exists> q2 . io_targets M q1 io = { q2 }"
 proof -
-  obtain tr where tr_def : "{ t . path M (io || t) q1 \<and> length io = length t } = { tr }" using assms observable_path_unique_ex by (metis (mono_tags, lifting)) 
-  then have "io_targets M q1 io = { target (io || tr) q1 }" by fastforce 
-  then show ?thesis by blast 
+  obtain tr where tr_def : "{ t . path M (io || t) q1 \<and> length io = length t } = { tr }" 
+    using assms observable_path_unique_ex by (metis (mono_tags, lifting)) 
+  then have "io_targets M q1 io = { target (io || tr) q1 }" 
+    by fastforce 
+  then show ?thesis 
+    by blast 
 qed
 
 lemma io_targets_observable_singleton_ob :
@@ -229,8 +297,10 @@ lemma io_targets_observable_singleton_ob :
 obtains q2 
   where "io_targets M q1 io = { q2 }"
 proof -
-  obtain tr where tr_def : "{ t . path M (io || t) q1 \<and> length io = length t } = { tr }" using assms observable_path_unique_ex by (metis (mono_tags, lifting)) 
-  then have "io_targets M q1 io = { target (io || tr) q1 }" by fastforce 
+  obtain tr where tr_def : "{ t . path M (io || t) q1 \<and> length io = length t } = { tr }" 
+    using assms observable_path_unique_ex by (metis (mono_tags, lifting)) 
+  then have "io_targets M q1 io = { target (io || tr) q1 }" 
+    by fastforce 
   then show ?thesis using that by blast 
 qed
 
@@ -252,6 +322,77 @@ lemma io_targets_nodes :
 shows "q2 \<in> nodes M"
   using assms by auto
 
+
+lemma observable_io_targets_split :
+  assumes "observable M"
+  and "io_targets M q1 (vs @ xs) = {q3}"
+  and "io_targets M q1 vs = {q2}"
+shows "io_targets M q2 xs = {q3}"
+proof -
+  have "vs @ xs \<in> LS M q1" using assms(2) by force 
+  then obtain trV trX where tr_def : 
+        "path M (vs || trV) q1" "length vs = length trV"
+        "path M (xs || trX) (target (vs || trV) q1)" "length xs = length trX" using language_state_split[of vs xs M q1] by auto
+  then have tgt_V : "target (vs || trV) q1 = q2" using assms(3) by auto
+  then have path_X : "path M (xs || trX) q2 \<and> length xs = length trX" using tr_def by auto
+
+  have tgt_all :  "target (vs @ xs || trV @ trX) q1 = q3"
+  proof -
+    have f1: "\<exists>cs. q3 = target (vs @ xs || cs) q1 \<and> path M (vs @ xs || cs) q1 \<and> length (vs @ xs) = length cs"
+      using assms(2) by auto
+    have "length (vs @ xs) = length trV + length trX"
+      by (simp add: tr_def(2) tr_def(4))
+    then have "length (vs @ xs) = length (trV @ trX)"
+      by simp
+    then show ?thesis
+      using f1 by (metis FSM.path_append \<open>vs @ xs \<in> LS M q1\<close> assms(1) observable_path_unique tr_def(1) tr_def(2) tr_def(3) zip_append)
+  qed 
+  then have "target ((vs || trV) @ (xs || trX)) q1 = q3" using tr_def by simp 
+  then have "target (xs || trX) q2 = q3" using tgt_V by auto
+  then have "q3 \<in> io_targets M q2 xs" using path_X by auto
+  then show ?thesis by (metis (no_types) \<open>observable M\<close> path_X insert_absorb io_targets_observable_singleton_ex language_state singleton_insert_inj_eq')
+qed 
+
+
+
+lemma observable_io_target_unique_target :
+  assumes "observable M"
+  and     "io_targets M q1 io = {q2}"
+  and     "path M (io || tr) q1"
+  and     "length io = length tr"
+shows "target (io || tr) q1 = q2"
+  using assms by auto
+  
+lemma target_in_states : 
+  assumes "length io = length tr"
+  and     "length io > 0"
+  shows "last (states (io || tr) q) = target (io || tr) q"
+proof -
+  have "0 < length tr"
+    using assms(1) assms(2) by presburger
+  then show ?thesis
+    by (simp add: FSM.target_alt_def assms(1) states_alt_def)
+qed 
+
+lemma target_alt_def :
+  assumes "length io = length tr"
+  shows "length io = 0 \<Longrightarrow> target (io || tr) q = q"
+        "length io > 0 \<Longrightarrow> target (io || tr) q = last tr"
+proof -
+  show "length io = 0 \<Longrightarrow> target (io || tr) q = q" by simp
+  show "length io > 0 \<Longrightarrow> target (io || tr) q = last tr" 
+    by (metis assms last_ConsR length_greater_0_conv map_snd_zip scan_last states_alt_def) 
+qed
+
+lemma obs_target_is_io_targets :
+  assumes "observable M"
+  and     "path M (io || tr) q"
+  and     "length io = length tr"
+shows "io_targets M q io = {target (io || tr) q}"
+  by (metis assms(1) assms(2) assms(3) io_targets_observable_singleton_ex language_state observable_io_target_unique_target)
+
+
+
 lemma io_target_target :
   assumes "io_targets M q1 io = {q2}"
   and     "path M (io || tr) q1"
@@ -263,11 +404,109 @@ proof -
 qed 
 
 
+lemma index_last_take :
+  assumes "i < length xs"
+  shows "xs ! i = last (take (Suc i) xs)"
+  by (simp add: assms take_Suc_conv_app_nth) 
+
+lemma path_last_io_target :
+  assumes "path M (xs || tr) q" 
+  and     "length xs = length tr"
+  and     "length xs > 0"
+shows "last tr \<in> io_targets M q xs" 
+proof -
+  have "last tr = target (xs || tr) q"
+    by (metis assms(2) assms(3) map_snd_zip states_alt_def target_in_states)
+  then show ?thesis using assms(1) assms(2) by auto
+qed
+
+
+lemma path_prefix_io_targets :
+  assumes "path M (xs || tr) q" 
+  and     "length xs = length tr"
+  and     "length xs > 0"
+shows "last (take (Suc i) tr) \<in> io_targets M q (take (Suc i) xs)" 
+proof -
+  have "path M (take (Suc i) xs || take (Suc i) tr) q" by (metis (no_types) FSM.path_append_elim append_take_drop_id assms(1) take_zip) 
+  then show ?thesis using assms(2) assms(3) path_last_io_target by fastforce  
+qed
+
+
+lemma states_index_io_target :
+  assumes "i < length xs"
+  and     "path M (xs || tr) q" 
+  and     "length xs = length tr"
+  and     "length xs > 0"
+shows "(states (xs || tr) q) ! i \<in> io_targets M q (take (Suc i) xs)"
+proof -
+  have "(states (xs || tr) q) ! i = last (take (Suc i) (states (xs || tr) q))" by (metis assms(1) assms(3) map_snd_zip states_alt_def index_last_take) 
+  then have "(states (xs || tr) q) ! i = last (states (take (Suc i) xs || take (Suc i) tr) q)"by (simp add: take_zip) 
+  then have "(states (xs || tr) q) ! i = last (take (Suc i) tr)" by (simp add: assms(3) states_alt_def) 
+  moreover have "last (take (Suc i) tr) \<in> io_targets M q (take (Suc i) xs)" by (meson assms(2) assms(3) assms(4) path_prefix_io_targets) 
+  ultimately show ?thesis by simp
+qed
+
+
+lemma observable_io_targets_append :
+  assumes "observable M"
+  and "io_targets M q1 vs = {q2}"
+  and "io_targets M q2 xs = {q3}"
+shows "io_targets M q1 (vs@xs) = {q3}"
+proof -
+  obtain trV where "path M (vs || trV) q1 \<and> length trV = length vs \<and> target (vs || trV) q1 = q2" by (metis assms(2) io_targets_elim singletonI) 
+  moreover obtain trX where "path M (xs || trX) q2 \<and> length trX = length xs \<and> target (xs || trX) q2 = q3" by (metis assms(3) io_targets_elim singletonI)
+  ultimately have "path M (vs @ xs || trV @ trX) q1 \<and> length (trV @ trX) = length (vs @ xs) \<and> target (vs @ xs || trV @ trX) q1 = q3" by auto
+  then show ?thesis by (metis assms(1) obs_target_is_io_targets) 
+qed
+
+
+lemma observable_io_target_is_singleton[simp] :
+  assumes "observable M"
+  and     "p \<in> io_targets M q io"
+shows "io_targets M q io = {p}" 
+proof -
+  have "io \<in> LS M q" using assms(2) by auto
+  then obtain p' where "io_targets M q io = {p'}" using assms(1) by (meson io_targets_observable_singleton_ex) 
+  then show ?thesis using assms(2) by simp
+qed
+
+
+lemma observable_path_prefix :
+  assumes "observable M"
+  and     "path M (io || tr) q"
+  and     "length io = length tr"
+  and     "path M (ioP || trP) q"
+  and     "length ioP = length trP"
+  and     "prefix ioP io" 
+shows "trP = take (length ioP) tr"
+proof -
+  have ioP_def : "ioP = take (length ioP) io" using assms(6) by (metis append_eq_conv_conj prefixE) 
+  then have "take (length ioP) (io || tr) = take (length ioP) io || take (length ioP) tr" using take_zip by blast 
+  moreover have "path M (take (length ioP) (io || tr)) q" using assms by (metis FSM.path_append_elim append_take_drop_id)
+  ultimately have "path M (take (length ioP) io || take (length ioP) tr) q \<and> length (take (length ioP) io) = length (take (length ioP) tr)" using assms(3) by auto
+  then have "path M (ioP || take (length ioP) tr) q \<and> length ioP = length (take (length ioP) tr)" using assms(3) using ioP_def by auto
+  then show ?thesis by (meson assms(1) assms(4) assms(5) language_state observable_path_unique)
+qed
+
+
+
+subsection {* D-reachability *}
+
+text \<open>
+A state of some FSM is d-reached by some input sequence if any sequence in the language of the FSM
+with this input sequence reaches that state. That state is then called d-reachable. 
+\<close>
+
 abbreviation  "d_reached_by M p xs q tr ys \<equiv> ((length xs = length ys \<and> length xs = length tr \<and> (path M ((xs || ys) || tr) p) \<and> target ((xs || ys) || tr) p = q) 
                             \<and> (\<forall> ys2 tr2 .  (length xs = length ys2 \<and> length xs = length tr2 \<and> path M ((xs || ys2) || tr2) p) \<longrightarrow> target ((xs || ys2) || tr2) p = q))"  
 
 fun d_reaches :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> 'state \<Rightarrow> bool" where
   "d_reaches M p xs q = (\<exists> tr ys . d_reached_by M p xs q tr ys)"
+
+fun d_reachable :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'state set" where
+  "d_reachable M p = { q . (\<exists> xs . d_reaches M p xs q) }"
+
+
 lemma d_reaches_unique[elim] : 
   assumes "d_reaches M p xs q1"
   and    "d_reaches M p xs q2"
@@ -288,20 +527,28 @@ lemma d_reaches_io_target :
 shows "io_targets M p (xs || ys) \<subseteq> {q}"
 proof 
   fix q' assume "q' \<in> io_targets M p (xs || ys)"
-  then obtain trQ where "path M ((xs || ys) || trQ) p \<and> length (xs || ys) = length trQ" by auto
-  moreover obtain trD ysD where "d_reached_by M p xs q trD ysD" using assms(1) by auto
-  ultimately have "target ((xs || ys) || trQ) p = q" by (simp add: assms(2))
-  then show "q' \<in> {q}" using \<open>d_reached_by M p xs q trD ysD\<close> \<open>q' \<in> io_targets M p (xs || ys)\<close> assms(2) by auto
+  then obtain trQ where "path M ((xs || ys) || trQ) p \<and> length (xs || ys) = length trQ" 
+    by auto
+  moreover obtain trD ysD where "d_reached_by M p xs q trD ysD" using assms(1) 
+    by auto
+  ultimately have "target ((xs || ys) || trQ) p = q" 
+    by (simp add: assms(2))
+  then show "q' \<in> {q}" 
+    using \<open>d_reached_by M p xs q trD ysD\<close> \<open>q' \<in> io_targets M p (xs || ys)\<close> assms(2) by auto
 qed
-   
-
-
-
-fun d_reachable :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'state set" where
-  "d_reachable M p = { q . (\<exists> xs . d_reaches M p xs q) }"
-
+  
 lemma d_reachable_reachable : "d_reachable M p \<subseteq> reachable M p" 
 unfolding d_reaches.simps d_reachable.simps by blast
+
+
+subsection {* Deterministic state cover *}
+
+text \<open>
+The deterministic state cover of some FSM is a minimal set of input sequences such that every
+d-reachable state of the FSM is d-reached by a sequence in the set and the set contains the
+empty sequence (which d-reaches the initial state). 
+\<close>
+
 
 fun is_det_state_cover_ass :: "('in, 'out, 'state) FSM \<Rightarrow> ('state \<Rightarrow> 'in list) \<Rightarrow> bool" where
   "is_det_state_cover_ass M f = (f (initial M) = [] \<and> (\<forall> s \<in> d_reachable M (initial M) . d_reaches M (initial M) (f s) s))"
@@ -383,176 +630,9 @@ proof -
   
   have "initial M \<in> d_reachable M (initial M)"
     by (metis (no_types) \<open>d_reaches M (initial M) [] (initial M)\<close> d_reachable.simps mem_Collect_eq)
-
   then show ?thesis
     by (metis (no_types, lifting) assms image_iff is_det_state_cover.elims(2) is_det_state_cover_ass.simps) 
 qed
-    
-
-
-fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200)
-where "M1 \<preceq> M2 = (LS M1 (initial M1) \<subseteq> LS M2 (initial M2))"
-
-
-
-
-
-lemma language_state_inclusion_next : 
-  assumes "LS M1 q1 \<subseteq> LS M2 q2"
-  and     "observable M1"
-  and     "observable M2"
-  and     "io_targets M1 q1 io = { q1t }"
-  and     "io_targets M2 q2 io = { q2t }"
-shows "LS M1 q1t \<subseteq> LS M2 q2t"
-using assms proof (induction io arbitrary: q1 q2)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons io_hd io_tl)
-  then obtain x y where hs_split : "io_hd = (x,y)"  by (meson surj_pair)
-  then obtain tr where tr_def : 
-     "target (io_hd # io_tl || tr) q1 = q1t"
-     "path M1 (io_hd # io_tl || tr) q1" 
-     "length (io_hd # io_tl) = length tr" using Cons unfolding io_targets.simps
-  proof -
-    assume a1: "{target (io_hd # io_tl || tr) q1 |tr. path M1 (io_hd # io_tl || tr) q1 \<and> length (io_hd # io_tl) = length tr} = {q1t}"
-    assume a2: "\<And>tr. \<lbrakk>target (io_hd # io_tl || tr) q1 = q1t; path M1 (io_hd # io_tl || tr) q1; length (io_hd # io_tl) = length tr\<rbrakk> \<Longrightarrow> thesis"
-    have "\<exists>cs. q1t = target (io_hd # io_tl || cs) q1 \<and> path M1 (io_hd # io_tl || cs) q1 \<and> length (io_hd # io_tl) = length cs"
-      using a1 by blast
-    then show ?thesis using a2 by blast
-  qed 
-  then obtain q1x tr_tl where tr_split : "tr = q1x # tr_tl" by (metis Suc_length_conv)
-
-  then have "path M1 (io_hd # io_tl || q1x # tr_tl) q1" "length (io_hd # io_tl) = length (q1x # tr_tl)"
-    using tr_def by blast+ 
-  then have "path M1 (io_tl || tr_tl) q1x" "length io_tl = length tr_tl" 
-    by auto
-  then have "io_tl \<in> LS M1 q1x"
-    by auto 
-  have "{t. path M1 (io_tl || t) q1x \<and> length io_tl = length t} = {tr_tl}"
-    using observable_path_unique[OF \<open>io_tl \<in> LS M1 q1x\<close> Cons.prems(2) \<open>path M1 (io_tl || tr_tl) q1x\<close> \<open>length io_tl = length tr_tl\<close>]
-    using \<open>io_tl \<in> LS M1 q1x\<close> by fastforce 
-  moreover have 
-     "target (io_tl || tr_tl) q1x = q1t"
-     "path M1 (io_tl || tr_tl) q1x" 
-     "length io_tl = length tr_tl" using Cons tr_def tr_split unfolding io_targets.simps by auto
-  ultimately have tgt1 : "io_targets M1 q1x io_tl = { q1t }" using Cons.prems tr_def unfolding io_targets.simps  by auto
-
-  have "io_hd # io_tl \<in> LS M2 q2" using Cons using tr_def(2) tr_def(3) by blast 
-  then obtain tr2 where tr2_def : 
-     "target (io_hd # io_tl || tr2) q2 = q2t"
-     "path M2 (io_hd # io_tl || tr2) q2" 
-     "length (io_hd # io_tl) = length tr2" using Cons unfolding io_targets.simps language_state_def
-  proof -
-    assume "{target (io_hd # io_tl || tr) q1 |tr. path M1 (io_hd # io_tl || tr) q1 \<and> length (io_hd # io_tl) = length tr} = {q1t}"
-    assume a1: "{target (io_hd # io_tl || tr) q2 |tr. path M2 (io_hd # io_tl || tr) q2 \<and> length (io_hd # io_tl) = length tr} = {q2t}"
-    assume a2: "\<And>tr2. \<lbrakk>target (io_hd # io_tl || tr2) q2 = q2t; path M2 (io_hd # io_tl || tr2) q2; length (io_hd # io_tl) = length tr2\<rbrakk> \<Longrightarrow> thesis"
-    have "\<exists>ds. q2t = target (io_hd # io_tl || ds) q2 \<and> path M2 (io_hd # io_tl || ds) q2 \<and> length (io_hd # io_tl) = length ds"
-      using a1 by blast
-    then show ?thesis using a2 by blast
-  qed 
-  then obtain q2x tr2_tl where tr2_split : "tr2 = q2x # tr2_tl" by (metis Suc_length_conv)
-  then have "tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}" using tr2_def(2) tr2_def(3) by auto 
-  
-  have "{t. path M2 (io_tl || t) q2x \<and> length io_tl = length t} = {tr2_tl}"
-  proof -
-    have "io_tl \<in> LS M2 q2x"
-      using \<open>tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}\<close> by blast
-    then show ?thesis
-      using \<open>tr2_tl \<in> {t. path M2 (io_tl || t) q2x \<and> length io_tl = length t}\<close> assms(3) by fastforce
-  qed
-  moreover have 
-     "target (io_tl || tr2_tl) q2x = q2t"
-     "path M2 (io_tl || tr2_tl) q2x" 
-     "length io_tl = length tr2_tl" using Cons tr2_def tr2_split unfolding io_targets.simps by auto
-  ultimately have tgt2 : "io_targets M2 q2x io_tl = { q2t }" using Cons.prems tr_def unfolding io_targets.simps  by auto
-
-  have "LS M1 q1x \<subseteq> LS M2 q2x" 
-  proof 
-    fix ioX assume ioX_assm : "ioX \<in> LS M1 q1x"
-    then obtain tr1X where tr1X_def : "path M1 (ioX || tr1X) q1x" "length tr1X = length ioX" by auto
-    moreover have "path M1 [(io_hd,q1x)] q1" using tr_def tr_split Cons by auto
-    ultimately have "path M1 ((io_hd#ioX)|| (q1x#tr1X)) q1" "length (io_hd#ioX) = length (q1x#tr1X)" using tr1X_def by auto
-    then have "io_hd # ioX \<in> LS M1 q1" by (metis language_state)
-    then have "io_hd # ioX \<in> LS M2 q2" using Cons.prems by auto
-    then obtain q2x' tr2X where tr2X_def : "path M2 (io_hd # ioX || q2x' # tr2X) q2" "length tr2X = length ioX" by (metis language_state_elim length_Suc_conv) 
-
-    have "path M2 ([io_hd] || [q2x]) q2" using tr2_def(2) tr2_split by auto 
-    moreover have "path M2 ([io_hd] || [q2x']) q2" using tr2X_def(1) by auto 
-    moreover have "[io_hd] \<in> LS M2 q2" using tr2X_def unfolding language_state_def
-    proof -
-      have "\<exists>ps. [io_hd] = map fst ps \<and> path M2 ps q2"
-        by (metis (no_types) calculation(2) list.size(3) list.size(4) map_fst_zip)
-      then show "[io_hd] \<in> {map fst ps |ps. path M2 ps q2}"
-        by blast
-    qed
-    ultimately have "q2x = q2x'" using observable_path_unique Cons.prems by (metis length_Cons list.inject list.size(3)) 
-
-    then show  "ioX \<in> LS M2 q2x" using tr2X_def(1) tr2X_def(2) by auto 
-  qed
-
-  then show ?thesis using Cons.prems tgt1 tgt2 Cons.IH by auto
-qed
-
-
-
-
-
-fun language_state_for_input :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in \<times> 'out) list set" where
-  "language_state_for_input M q xs = {(xs || ys) | ys . (length xs = length ys \<and> (xs || ys) \<in> LS M q)}"
-
-fun language_state_in  :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" ("(LS\<^sub>i\<^sub>n _ _ _)" [1000,1000,1000]) where
-  "language_state_in  M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> LS M q)}"
-
-lemma language_state_for_input_alt_def :
-  "language_state_for_input M q xs = LS\<^sub>i\<^sub>n M q {xs}"
-  unfolding language_state_for_input.simps language_state_in.simps by blast
-
-lemma language_state_in_alt_def :
-  "LS\<^sub>i\<^sub>n M q ISeqs = \<Union> (image (language_state_for_input M q) ISeqs)"
-proof 
-  show "LS\<^sub>i\<^sub>n M q ISeqs \<subseteq> UNION ISeqs (language_state_for_input M q)" 
-  proof 
-    fix x assume "x \<in> LS\<^sub>i\<^sub>n M q ISeqs"
-    then show "x \<in> UNION ISeqs (language_state_for_input M q)" by auto 
-  qed
-  show "UNION ISeqs (language_state_for_input M q) \<subseteq> LS\<^sub>i\<^sub>n M q ISeqs"
-  proof
-    fix x assume x_assm : "x \<in> UNION ISeqs (language_state_for_input M q)"
-    then show "x \<in> LS\<^sub>i\<^sub>n M q ISeqs" by auto
-  qed
-qed
-
-lemma language_state_in_nonempty :
-  assumes "set xs \<subseteq> inputs M"
-  and     "completely_specified M"
-  and     "q \<in> nodes M"
-shows "LS\<^sub>i\<^sub>n M q {xs} \<noteq> {}"
-using assms proof (induction xs arbitrary: q)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons x xs)
-  then have "x \<in> inputs M" by simp
-  then obtain y q' where x_step : "q' \<in> succ M (x,y) q" using Cons(3,4) unfolding completely_specified.simps by blast
-  then have "path M ([(x,y)] || [q']) q \<and> length [q] = length [(x,y)]" "target ([(x,y)] || [q']) q = q'" by auto
-  then have "q' \<in> nodes M" 
-    using Cons(4) by (metis FSM.nodes_target)            
-  then have "LS\<^sub>i\<^sub>n M q' {xs} \<noteq> {}" using Cons.prems Cons.IH by auto
-  then obtain ys where "length xs = length ys \<and> (xs || ys) \<in> LS M q'" by auto
-  then obtain tr where "path M ((xs || ys) || tr) q' \<and> length tr = length (xs || ys)" by auto
-
-  then have "path M ([(x,y)] @ (xs || ys) || [q'] @ tr) q \<and> length ([q'] @ tr) = length ([(x,y)] @ (xs || ys))" by (simp add: FSM.path.intros(2) x_step)
-  then have "path M ((x#xs || y#ys) || [q'] @ tr) q \<and> length ([q'] @ tr) = length (x#xs || y#ys)" by auto
-  then have "(x#xs || y#ys) \<in> LS M q" by (metis language_state) 
-  moreover have "x#xs \<in> {x#xs}" by simp
-  moreover have "length (x#xs) = length (y#ys)" by (simp add: \<open>length xs = length ys \<and> xs || ys \<in> LS M q'\<close>) 
-  ultimately have "(x#xs || y#ys) \<in> LS\<^sub>i\<^sub>n M q {x # xs}" unfolding language_state_in.simps by blast
-  then show ?case by blast
-qed
-
-
-
 
 lemma det_state_cover_empty : 
   assumes "is_det_state_cover M V"
@@ -569,12 +649,123 @@ proof -
   ultimately show ?thesis by auto
 qed
 
-lemma language_state_in_empty : 
+
+
+
+subsection {* IO reduction *}
+
+text \<open>
+An FSM is a reduction of another, if its language is a subset of the language of the latter FSM.
+\<close>
+
+
+fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200) where 
+  "M1 \<preceq> M2 = (LS M1 (initial M1) \<subseteq> LS M2 (initial M2))"
+
+
+lemma language_state_inclusion_of_state_reached_by_same_sequence : 
+  assumes "LS M1 q1 \<subseteq> LS M2 q2"
+  and     "observable M1"
+  and     "observable M2"
+  and     "io_targets M1 q1 io = { q1t }"
+  and     "io_targets M2 q2 io = { q2t }"
+shows "LS M1 q1t \<subseteq> LS M2 q2t"
+proof 
+  fix x assume "x \<in> LS M1 q1t" 
+  obtain q1x where "io_targets M1 q1t x = {q1x}"
+    by (meson \<open>x \<in> LS M1 q1t\<close> assms(2) io_targets_observable_singleton_ex) 
+  have "io \<in> LS M1 q1" 
+    using assms(4) by auto
+  have "io@x \<in> LS M1 q1" 
+    using observable_io_targets_append[OF assms(2) \<open>io_targets M1 q1 io = { q1t }\<close> \<open>io_targets M1 q1t x = {q1x}\<close>]
+    by (metis io_targets_elim language_state singletonI) 
+  then have "io@x \<in> LS M2 q2" 
+    using assms(1) by blast
+  then obtain q2x where "io_targets M2 q2 (io@x) = {q2x}"
+    by (meson assms(3) io_targets_observable_singleton_ex)
+  show "x \<in> LS M2 q2t"
+    using observable_io_targets_split[OF assms(3) \<open>io_targets M2 q2 (io @ x) = {q2x}\<close> assms(5)] by auto
+qed
+
+
+
+
+subsection {* Language subsets for input sequences *}
+
+text \<open>
+The following definitions describe restrictions of languages to only those IO-sequences that 
+exhibit a certain input sequence or whose input sequence is contained in a given set of
+input sequences.
+This allows to define the notion that some FSM is a reduction of another over a given set of
+input sequences, but not necessarily over the entire language of the latter FSM.
+\<close>
+
+fun language_state_for_input :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list \<Rightarrow> ('in \<times> 'out) list set" where
+  "language_state_for_input M q xs = {(xs || ys) | ys . (length xs = length ys \<and> (xs || ys) \<in> LS M q)}"
+
+fun language_state_for_inputs  :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set" ("(LS\<^sub>i\<^sub>n _ _ _)" [1000,1000,1000]) where
+  "language_state_for_inputs  M q ISeqs = {(xs || ys) | xs ys . (xs \<in> ISeqs \<and> length xs = length ys \<and> (xs || ys) \<in> LS M q)}"
+
+abbreviation "L\<^sub>i\<^sub>n M TS \<equiv> LS\<^sub>i\<^sub>n M (initial M) TS"
+
+abbreviation  "io_reduction_on M1 TS M2 \<equiv> (LS\<^sub>i\<^sub>n M1 (initial M1) TS \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) TS)" 
+notation 
+  io_reduction_on ("(_ \<preceq>\<lbrakk>_\<rbrakk> _)" )
+notation  (latex output)
+  io_reduction_on ("(_ \<preceq>\<^bsub>_\<^esub> _)" [1000,0,0] 61)
+
+
+lemma language_state_for_input_alt_def :
+  "language_state_for_input M q xs = LS\<^sub>i\<^sub>n M q {xs}"
+  unfolding language_state_for_input.simps language_state_for_inputs.simps by blast
+
+lemma language_state_for_inputs_alt_def :
+  "LS\<^sub>i\<^sub>n M q ISeqs = \<Union> (image (language_state_for_input M q) ISeqs)" 
+  by auto
+
+lemma language_state_for_inputs_nonempty :
+  assumes "set xs \<subseteq> inputs M"
+  and     "completely_specified M"
+  and     "q \<in> nodes M"
+shows "LS\<^sub>i\<^sub>n M q {xs} \<noteq> {}"
+using assms proof (induction xs arbitrary: q)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then have "x \<in> inputs M" 
+    by simp
+  then obtain y q' where x_step : "q' \<in> succ M (x,y) q" 
+    using Cons(3,4) unfolding completely_specified.simps by blast
+  then have "path M ([(x,y)] || [q']) q \<and> length [q] = length [(x,y)]" "target ([(x,y)] || [q']) q = q'" 
+    by auto
+  then have "q' \<in> nodes M" 
+    using Cons(4) by (metis FSM.nodes_target)            
+  then have "LS\<^sub>i\<^sub>n M q' {xs} \<noteq> {}" 
+    using Cons.prems Cons.IH by auto
+  then obtain ys where "length xs = length ys \<and> (xs || ys) \<in> LS M q'" 
+    by auto
+  then obtain tr where "path M ((xs || ys) || tr) q' \<and> length tr = length (xs || ys)" 
+    by auto
+  then have "path M ([(x,y)] @ (xs || ys) || [q'] @ tr) q \<and> length ([q'] @ tr) = length ([(x,y)] @ (xs || ys))" 
+    by (simp add: FSM.path.intros(2) x_step)
+  then have "path M ((x#xs || y#ys) || [q'] @ tr) q \<and> length ([q'] @ tr) = length (x#xs || y#ys)" 
+    by auto
+  then have "(x#xs || y#ys) \<in> LS M q" 
+    by (metis language_state)
+  moreover have "length (x#xs) = length (y#ys)" 
+    by (simp add: \<open>length xs = length ys \<and> xs || ys \<in> LS M q'\<close>) 
+  ultimately have "(x#xs || y#ys) \<in> LS\<^sub>i\<^sub>n M q {x # xs}" 
+    unfolding language_state_for_inputs.simps by blast
+  then show ?case by blast
+qed
+
+lemma language_state_for_inputs_empty : 
   assumes "[] \<in> V"
   shows "[] \<in> LS\<^sub>i\<^sub>n M q V"
 proof -
   have "[] \<in> language_state_for_input M q []" by auto
-  then show ?thesis using language_state_in_alt_def by (metis UN_I assms) 
+  then show ?thesis using language_state_for_inputs_alt_def by (metis UN_I assms) 
 qed
 
 lemma language_state_for_input_empty[simp] : 
@@ -583,167 +774,25 @@ by auto
 
 
 
-lemma observable_path_prefix :
-  assumes "observable M"
-  and     "path M (io || tr) q"
-  and     "length io = length tr"
-  and     "path M (ioP || trP) q"
-  and     "length ioP = length trP"
-  and     "prefix ioP io" 
-shows "trP = take (length ioP) tr"
-proof -
-  have ioP_def : "ioP = take (length ioP) io" using assms(6) by (metis append_eq_conv_conj prefixE) 
-  then have "take (length ioP) (io || tr) = take (length ioP) io || take (length ioP) tr" using take_zip by blast 
-  moreover have "path M (take (length ioP) (io || tr)) q" using assms by (metis FSM.path_append_elim append_take_drop_id)
-  ultimately have "path M (take (length ioP) io || take (length ioP) tr) q \<and> length (take (length ioP) io) = length (take (length ioP) tr)" using assms(3) by auto
-  then have "path M (ioP || take (length ioP) tr) q \<and> length ioP = length (take (length ioP) tr)" using assms(3) using ioP_def by auto
-  then show ?thesis by (meson assms(1) assms(4) assms(5) language_state observable_path_unique)
-qed
-
-
-lemma observable_io_targets_split :
-  assumes "observable M"
-  and "io_targets M q1 (vs @ xs) = {q3}"
-  and "io_targets M q1 vs = {q2}"
-shows "io_targets M q2 xs = {q3}"
-proof -
-  have "vs @ xs \<in> LS M q1" using assms(2) by force 
-  then obtain trV trX where tr_def : 
-        "path M (vs || trV) q1" "length vs = length trV"
-        "path M (xs || trX) (target (vs || trV) q1)" "length xs = length trX" using language_state_split[of vs xs M q1] by auto
-  then have tgt_V : "target (vs || trV) q1 = q2" using assms(3) by auto
-  then have path_X : "path M (xs || trX) q2 \<and> length xs = length trX" using tr_def by auto
-
-  have tgt_all :  "target (vs @ xs || trV @ trX) q1 = q3"
-  proof -
-    have f1: "\<exists>cs. q3 = target (vs @ xs || cs) q1 \<and> path M (vs @ xs || cs) q1 \<and> length (vs @ xs) = length cs"
-      using assms(2) by auto
-    have "length (vs @ xs) = length trV + length trX"
-      by (simp add: tr_def(2) tr_def(4))
-    then have "length (vs @ xs) = length (trV @ trX)"
-      by simp
-    then show ?thesis
-      using f1 by (metis FSM.path_append \<open>vs @ xs \<in> LS M q1\<close> assms(1) observable_path_unique tr_def(1) tr_def(2) tr_def(3) zip_append)
-  qed 
-  then have "target ((vs || trV) @ (xs || trX)) q1 = q3" using tr_def by simp 
-  then have "target (xs || trX) q2 = q3" using tgt_V by auto
-  then have "q3 \<in> io_targets M q2 xs" using path_X by auto
-  then show ?thesis by (metis (no_types) \<open>observable M\<close> path_X insert_absorb io_targets_observable_singleton_ex language_state singleton_insert_inj_eq')
-qed 
 
 
 
-lemma observable_io_target_unique_target :
-  assumes "observable M"
-  and     "io_targets M q1 io = {q2}"
-  and     "path M (io || tr) q1"
-  and     "length io = length tr"
-shows "target (io || tr) q1 = q2"
-  using assms by auto
-  
-lemma target_in_states : 
-  assumes "length io = length tr"
-  and     "length io > 0"
-  shows "last (states (io || tr) q) = target (io || tr) q"
-proof -
-  have "0 < length tr"
-    using assms(1) assms(2) by presburger
-  then show ?thesis
-    by (simp add: FSM.target_alt_def assms(1) states_alt_def)
-qed 
-
-lemma target_alt_def :
-  assumes "length io = length tr"
-  shows "length io = 0 \<Longrightarrow> target (io || tr) q = q"
-        "length io > 0 \<Longrightarrow> target (io || tr) q = last tr"
-proof -
-  show "length io = 0 \<Longrightarrow> target (io || tr) q = q" by simp
-  show "length io > 0 \<Longrightarrow> target (io || tr) q = last tr" 
-    by (metis assms last_ConsR length_greater_0_conv map_snd_zip scan_last states_alt_def) 
-qed
-
-lemma obs_target_is_io_targets :
-  assumes "observable M"
-  and     "path M (io || tr) q"
-  and     "length io = length tr"
-shows "io_targets M q io = {target (io || tr) q}"
-  by (metis assms(1) assms(2) assms(3) io_targets_observable_singleton_ex language_state observable_io_target_unique_target)
-
-
-lemma observable_io_targets_append :
-  assumes "observable M"
-  and "io_targets M q1 vs = {q2}"
-  and "io_targets M q2 xs = {q3}"
-shows "io_targets M q1 (vs@xs) = {q3}"
-proof -
-  obtain trV where "path M (vs || trV) q1 \<and> length trV = length vs \<and> target (vs || trV) q1 = q2" by (metis assms(2) io_targets_elim singletonI) 
-  moreover obtain trX where "path M (xs || trX) q2 \<and> length trX = length xs \<and> target (xs || trX) q2 = q3" by (metis assms(3) io_targets_elim singletonI)
-  ultimately have "path M (vs @ xs || trV @ trX) q1 \<and> length (trV @ trX) = length (vs @ xs) \<and> target (vs @ xs || trV @ trX) q1 = q3" by auto
-  then show ?thesis by (metis assms(1) obs_target_is_io_targets) 
-qed
-
-lemma index_last_take :
-  assumes "i < length xs"
-  shows "xs ! i = last (take (Suc i) xs)"
-  by (simp add: assms take_Suc_conv_app_nth) 
-
-lemma path_last_io_target :
-  assumes "path M (xs || tr) q" 
-  and     "length xs = length tr"
-  and     "length xs > 0"
-shows "last tr \<in> io_targets M q xs" 
-proof -
-  have "last tr = target (xs || tr) q"
-    by (metis assms(2) assms(3) map_snd_zip states_alt_def target_in_states)
-  then show ?thesis using assms(1) assms(2) by auto
-qed
-
-lemma path_prefix_io_targets :
-  assumes "path M (xs || tr) q" 
-  and     "length xs = length tr"
-  and     "length xs > 0"
-shows "last (take (Suc i) tr) \<in> io_targets M q (take (Suc i) xs)" 
-proof -
-  have "path M (take (Suc i) xs || take (Suc i) tr) q" by (metis (no_types) FSM.path_append_elim append_take_drop_id assms(1) take_zip) 
-  then show ?thesis using assms(2) assms(3) path_last_io_target by fastforce  
-qed
-
-lemma states_index_io_target :
-  assumes "i < length xs"
-  and     "path M (xs || tr) q" 
-  and     "length xs = length tr"
-  and     "length xs > 0"
-shows "(states (xs || tr) q) ! i \<in> io_targets M q (take (Suc i) xs)"
-proof -
-  have "(states (xs || tr) q) ! i = last (take (Suc i) (states (xs || tr) q))" by (metis assms(1) assms(3) map_snd_zip states_alt_def index_last_take) 
-  then have "(states (xs || tr) q) ! i = last (states (take (Suc i) xs || take (Suc i) tr) q)"by (simp add: take_zip) 
-  then have "(states (xs || tr) q) ! i = last (take (Suc i) tr)" by (simp add: assms(3) states_alt_def) 
-  moreover have "last (take (Suc i) tr) \<in> io_targets M q (take (Suc i) xs)" by (meson assms(2) assms(3) assms(4) path_prefix_io_targets) 
-  ultimately show ?thesis by simp
-qed
-  
-lemma observable_io_target_is_singleton[simp] :
-  assumes "observable M"
-  and     "p \<in> io_targets M q io"
-shows "io_targets M q io = {p}" 
-proof -
-  have "io \<in> LS M q" using assms(2) by auto
-  then obtain p' where "io_targets M q io = {p'}" using assms(1) by (meson io_targets_observable_singleton_ex) 
-  then show ?thesis using assms(2) by simp
-qed
 
 
 
-(* language of an FSM defined by language of its initial state *)
-abbreviation "L M \<equiv> LS M (initial M)"
-abbreviation "L\<^sub>i\<^sub>n M TS \<equiv> LS\<^sub>i\<^sub>n M (initial M) TS"
 
 
-abbreviation  "io_reduction_on M1 TS M2 \<equiv> (LS\<^sub>i\<^sub>n M1 (initial M1) TS \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) TS)" 
-notation 
-  io_reduction_on ("(_ \<preceq>\<lbrakk>_\<rbrakk> _)" )
-notation  (latex output)
-  io_reduction_on ("(_ \<preceq>\<^bsub>_\<^esub> _)" [1000,0,0] 61)
+
+
+
+
+
+
+
+
+
+
+
 
 
 end
