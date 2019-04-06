@@ -5,9 +5,9 @@ begin
 
 
 
-lemma language_state_in_union : 
-  shows "language_state_in M q T1 \<union> language_state_in M q T2 = language_state_in M q (T1 \<union> T2)"
-  unfolding language_state_in.simps by blast
+lemma language_state_for_inputs_union : 
+  shows "LS\<^sub>i\<^sub>n M q T1 \<union> LS\<^sub>i\<^sub>n M q T2 = LS\<^sub>i\<^sub>n M q (T1 \<union> T2)"
+  unfolding language_state_for_inputs.simps by blast
 
 lemma is_reduction_on_sets_from_obs :
   assumes "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
@@ -58,14 +58,14 @@ proof
   proof -
     assume a1: "\<forall>iseq\<in>T. L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
     have f2: "x \<in> UNION T (language_state_for_input M1 (initial M1))"
-      by (metis (no_types) \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_in_alt_def)
+      by (metis (no_types) \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_for_inputs_alt_def)
     obtain aas :: "'a list set \<Rightarrow> ('a list \<Rightarrow> ('a \<times> 'b) list set) \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'a list" where
       "\<forall>x0 x1 x2. (\<exists>v3. v3 \<in> x0 \<and> x2 \<in> x1 v3) = (aas x0 x1 x2 \<in> x0 \<and> x2 \<in> x1 (aas x0 x1 x2))"
       by moura
     then have "\<forall>ps f A. (ps \<notin> UNION A f \<or> aas A f ps \<in> A \<and> ps \<in> f (aas A f ps)) \<and> (ps \<in> UNION A f \<or> (\<forall>as. as \<notin> A \<or> ps \<notin> f as))"
       by blast
     then show ?thesis
-      using f2 a1 by (metis (no_types) contra_subsetD language_state_for_input_alt_def language_state_in_alt_def)
+      using f2 a1 by (metis (no_types) contra_subsetD language_state_for_input_alt_def language_state_for_inputs_alt_def)
   qed
 next  
   show "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"   
@@ -83,7 +83,7 @@ next
 
     then have "x \<in> append_io_B M2 io \<Omega>"
       using assms unfolding is_reduction_on_sets.simps is_reduction_on.simps
-      by (metis (no_types, lifting) UN_E \<open>io \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_for_input_alt_def language_state_in_alt_def subsetCE) 
+      by (metis (no_types, lifting) UN_E \<open>io \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_for_input_alt_def language_state_for_inputs_alt_def subsetCE) 
     then have "(io,x) \<in> {io} \<times> append_io_B M2 io \<Omega>"
       by blast
     then have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
@@ -124,7 +124,7 @@ lemma performRefinedAdaptiveStateCounting: "VARS tsN cN rmN obs obsI obs\<^sub>\
     iter := iter + 1;
     rmN := {xs' \<in> cN .
       (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
-      \<or> (\<forall> io \<in> language_state_in M1 (initial M1) {xs'} .
+      \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
           (\<exists> V'' \<in> N io M1 V .  
             (\<exists> S1 . 
               (\<exists> vs xs .
@@ -211,7 +211,7 @@ next
   
   have rmN_calc[simp] : "{xs' \<in> cN.
         \<not> io_reduction_on M1 {xs'} M2 \<or>
-        (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+        (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
             \<exists>V''\<in>N io M1 V.
                \<exists>S1 vs xs.
                   io = vs @ xs \<and>
@@ -228,7 +228,7 @@ next
 
     have "{xs' \<in> cN.
           \<not> io_reduction_on M1 {xs'} M2 \<or>
-          (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+          (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
                     io = vs @ xs \<and>
@@ -241,7 +241,7 @@ next
                     m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')} =
           {xs' \<in> C M2 M1 \<Omega> V m (Suc k).
           \<not> io_reduction_on M1 {xs'} M2 \<or>
-          (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+          (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
                     io = vs @ xs \<and>
@@ -256,7 +256,7 @@ next
     
     moreover have "{xs' \<in> C M2 M1 \<Omega> V m (Suc k).
                     \<not> io_reduction_on M1 {xs'} M2 \<or>
-                    (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+                    (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
                         \<exists>V''\<in>N io M1 V.
                            \<exists>S1 vs xs.
                               io = vs @ xs \<and>
@@ -271,7 +271,7 @@ next
       using RM.simps(2)[of M2 M1 \<Omega> V m k] by blast
     ultimately have "{xs' \<in> cN.
                       \<not> io_reduction_on M1 {xs'} M2 \<or>
-                      (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+                      (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
                           \<exists>V''\<in>N io M1 V.
                              \<exists>S1 vs xs.
                                 io = vs @ xs \<and>
@@ -290,7 +290,7 @@ next
   moreover have "RM M2 M1 \<Omega> V m iter = RM M2 M1 \<Omega> V m (iter + 1 - 1)" by simp
   ultimately have rmN_calc' : "{xs' \<in> cN.
         \<not> io_reduction_on M1 {xs'} M2 \<or>
-        (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+        (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
             \<exists>V''\<in>N io M1 V.
                \<exists>S1 vs xs.
                   io = vs @ xs \<and>
@@ -325,7 +325,7 @@ next
         (cN -
          {xs' \<in> cN.
           \<not> io_reduction_on M1 {xs'} M2 \<or>
-          (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+          (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
                     io = vs @ xs \<and>
@@ -345,7 +345,7 @@ next
           (cN -
            {xs' \<in> cN.
             \<not> io_reduction_on M1 {xs'} M2 \<or>
-            (\<forall>io\<in>language_state_in M1 (initial M1) {xs'}.
+            (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
                 \<exists>V''\<in>N io M1 V.
                    \<exists>S1 vs xs.
                       io = vs @ xs \<and>
@@ -431,7 +431,7 @@ next
           (tsN \<union> cN)))"
   proof -
     have "\<And>A. L\<^sub>i\<^sub>n M2 (tsN \<union> cN \<union> A) = obs \<union> L\<^sub>i\<^sub>n M2 A"
-      by (metis (no_types) language_state_in_union precond)
+      by (metis (no_types) language_state_for_inputs_union precond)
     then show ?thesis
       by blast
   qed
@@ -479,7 +479,7 @@ next
           (tsN \<union> cN)))"
   proof -
     have "\<And>A. L\<^sub>i\<^sub>n M1 (tsN \<union> cN \<union> A) = obsI \<union> L\<^sub>i\<^sub>n M1 A"
-      by (metis (no_types) language_state_in_union precond)
+      by (metis (no_types) language_state_for_inputs_union precond)
     then show ?thesis
       by blast
   qed
