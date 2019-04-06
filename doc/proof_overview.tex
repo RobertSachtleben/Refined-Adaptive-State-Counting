@@ -4,6 +4,7 @@
 \usetikzlibrary{shapes.geometric,positioning,arrows,shapes.misc}
 
 \begin{document}
+\beamertemplatenavigationsymbolsempty
 
 \begin{frame}{Overview of the correctness proof}
 \tikzset{
@@ -50,11 +51,11 @@ line/.style = {draw, -latex'}
         \node [Definition,ASC_Suite, right=2cm of LB.east, anchor=west]                            (TS)          {test suite $TS$};
 }
 \onslide<+->{
-        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east]                            (elemTS)          {$LB(xs) \leq m \longrightarrow in\footnotemark(xs) \in TS$};
+        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east]                            (elemTS)          {$in\footnotemark(xs) \not\in TS \longrightarrow LB(xs) > m$};
         \path [line] (TS)         --                              (elemTS);   
 }
 \onslide<+->{
-        \node [Lemma,ASC_Suite, below=1cm of elemTS.north]                            (elemTSmin)          {$minimal(xs) \longrightarrow in(xs) \in TS$};
+        \node [Lemma,ASC_Suite, below=1cm of elemTS.north]                            (elemTSmin)          {$in(xs) \not\in TS \longrightarrow \neg minimal(xs)$};
         \path [line] (elemTS)         --                              (elemTSmin);   
         \path [line] (minBySize)         --                              (elemTSmin);   
 }
