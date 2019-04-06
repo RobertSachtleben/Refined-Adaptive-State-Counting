@@ -1,0 +1,119 @@
+
+\documentclass[aspectratio=169]{beamer}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,positioning,arrows,shapes.misc}
+
+\begin{document}
+
+\begin{frame}{Overview of the correctness proof}
+\tikzset{
+Lemma/.style={rectangle, draw, rounded corners} , 
+Definition/.style={chamfered rectangle, draw} , 
+File/.style={rectangle,draw,text width=7em},
+FSM/.style={fill=blue!20},
+FSM_Product/.style={fill=cyan!20},
+ASC_LB/.style={fill=orange!20},
+ASC_Suite/.style={fill=lime!20},
+ASC_Sufficiency/.style={fill=lightgray!20},
+ASC_Hoare/.style={fill=magenta!20},
+line/.style = {draw, -latex'}
+}
+
+\begin{figure}
+\begin{tikzpicture}[node distance = 1cm, auto, every node/.style={scale=0.55, text badly centered, minimum height=2em}]
+
+\onslide<+-> {
+        \node [Definition,FSM, anchor=north]                            (FSMs)          {FSMs $M,M'$};
+        \node [Definition,FSM, right=1cm of FSMs]                            (V)          {det. SC\footnotemark $V$};
+        \node [Definition,FSM, right=1cm of V]                            (SizeAssm)          {$|M'| \leq m$};
+}
+ 
+\onslide<+->{
+        \node [Lemma,FSM_Product, below=1 cm of FSMs.west, anchor=west]                        (mFV_ex)         {$\neg M' \preceq M \longrightarrow \exists xs . mFV\footnotemark(xs)$};
+        \path [line] (FSMs)         --                              (mFV_ex); 
+        \path [line] (V)         --                              (mFV_ex);   
+}
+\onslide<+->{
+        \node [Definition,ASC_LB, right=1cm of SizeAssm]                            (LB)          {fun $LB$};
+}
+\onslide<+->{
+        \node [Lemma,ASC_LB, below=1cm of LB.north]                            (minLB)          {$minimal(xs) \longrightarrow |M'| \geq LB (xs)$};
+        \path [line] (LB)         --                              (minLB);   
+}
+\onslide<+->{
+        \node [Lemma,ASC_LB, below=2cm of SizeAssm.north]                            (minBySize)          {$LB (xs) > m \longrightarrow \neg minimal(xs)$};
+        \path [line] (minLB)         --                              (minBySize);   
+        \path [line] (SizeAssm)         --                              (minBySize);   
+}
+
+\onslide<+->{
+        \node [Definition,ASC_Suite, right=2cm of LB.east, anchor=west]                            (TS)          {test suite $TS$};
+}
+\onslide<+->{
+        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east]                            (elemTS)          {$LB(xs) \leq m \longrightarrow in\footnotemark(xs) \in TS$};
+        \path [line] (TS)         --                              (elemTS);   
+}
+\onslide<+->{
+        \node [Lemma,ASC_Suite, below=1cm of elemTS.north]                            (elemTSmin)          {$minimal(xs) \longrightarrow in(xs) \in TS$};
+        \path [line] (elemTS)         --                              (elemTSmin);   
+        \path [line] (minBySize)         --                              (elemTSmin);   
+}
+
+
+\onslide<+->{
+        \node [Lemma,ASC_Sufficiency, below=2cm of mFV_ex.west, anchor=west]                            (9)          {$\neg M' \preceq M \longrightarrow \exists xs . mFV(xs) \wedge in(xs) \in TS$};
+        \path [line] (mFV_ex) -- (9);   
+        \path [line] (elemTSmin) -- (9); 
+}
+
+\onslide<+->{
+        \node [Lemma,ASC_Sufficiency, below=1cm of 9.north]                            (10)          {$\neg M' \preceq M \longleftrightarrow \neg M' \preceq_{TS} M$};
+        \path [line] (9) -- (10);
+}
+\onslide<+->{
+        \node [Definition,ASC_Hoare, below=2cm of elemTS.east, anchor=east]                            (11)          {algorithm \texttt{refinedAdaptiveStateCounting}};
+}
+\onslide<+->{
+        \node [Lemma,ASC_Hoare, below=1cm of 11.north]                            (12)          {algorithm applies $TS$ until failure};
+        \path [line] (11) -- (12);
+}
+\onslide<+->{
+        \node [Lemma,ASC_Hoare, below=1cm of 10.west, anchor = west]                            (13)          {algorithm returns \texttt{true} if and only if $M' \preceq M$};
+        \path [line] (10) -- (13);
+        \path [line] (12) -- (13);
+}
+
+
+\end{tikzpicture}
+\hspace{0.2cm}
+\vrule{}
+\hspace{0.2cm}
+\begin{tikzpicture}[node distance = 1cm, auto, every node/.style={scale=0.55, text badly centered, minimum height=2em}]
+        % Step 1
+        \node [FSM,File]                            (FSM_File)          {FSM};
+\onslide<2->{
+        \node [FSM_Product,File, below=1cm of FSM_File.north]                        (FSM_Product_File)         {FSM\_Product};
+}
+\onslide<3->{
+        \node [ASC_LB,File, below=1cm of FSM_Product_File.north]                        (ASC_LB_File)         {ASC\_LB};
+}
+\onslide<6->{
+        \node [ASC_Suite,File, below=1cm of ASC_LB_File.north]                        (ASC_Suite_File)         {ASC\_Suite};
+}
+\onslide<9->{
+        \node [ASC_Sufficiency,File, below=1cm of ASC_Suite_File.north]                        (ASC_Sufficiency_File)         {ASC\_Sufficiency};
+}
+\onslide<11->{
+        \node [ASC_Hoare,File, below=1cm of ASC_Sufficiency_File.north]                        (ASC_Hoare_File)         {ASC\_Hoare};
+}
+
+\end{tikzpicture}
+\end{figure}
+
+\footnotetext[1]<1->{det. SC = deterministic state cover of $M$}
+\footnotetext[2]<2->{mFV = minimal sequence to failure extending $V$}
+\footnotetext[3]<7->{in = input portion}
+\end{frame}
+
+
+\end{document}
