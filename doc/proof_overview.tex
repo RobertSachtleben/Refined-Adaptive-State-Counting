@@ -11,11 +11,13 @@
 	File/.style={rectangle,draw,text width=7.5em},
 	FSM/.style={fill=blue!20},
 	FSM_Product/.style={fill=yellow!20},
+	ATC/.style={fill=cyan!20},
 	ASC_LB/.style={fill=orange!20},
 	ASC_Suite/.style={fill=lime!20},
 	ASC_Sufficiency/.style={fill=lightgray!20},
 	ASC_Hoare/.style={fill=magenta!20},
-	line/.style = {draw, -latex'}
+	line/.style = {lightgray,draw, -latex'},
+	lineNew/.style = {red,draw, -latex'}
 }
 
 
@@ -30,41 +32,53 @@
 
 \onslide<+-> {
         \node [Definition,FSM, anchor=north]                            (FSMs)          {FSMs $M,M'$  \\ {\tiny \texttt{record FSM}}};
-        \node [Definition,FSM, right=1cm of FSMs]                            (V)          {det. SC\footnotemark $V$ \\ {\tiny \texttt{is\_det\_state\_cover}}};
+        \node [Definition,FSM, right=0.8cm of FSMs]                            (V)          {$detSC(V)$ \\ {\tiny \texttt{is\_det\_state\_cover}}};
 }
  
 \onslide<+->{
-        \node [Lemma,FSM_Product, below=1 cm of FSMs.west, anchor=west]                        (mFV_ex)         {$\neg M' \preceq M \longrightarrow \exists xs . mFV\footnotemark(xs)$ \\ {\tiny \texttt{minimal\_sequence\_to\_failure\_extending\_det\_state\_cover\_ob}} };
+        \node [Lemma,FSM_Product, below=1 cm of FSMs.west, anchor=west]                        (mFV_ex)         {$\neg M' \preceq M \longrightarrow \exists xs . mFV(xs)$ \\ {\tiny \texttt{minimal\_sequence\_to\_failure\_extending\_det\_state\_cover\_ob}} };
         \path [line] (FSMs)         --                              (mFV_ex); 
         \path [line] (V)         --                              (mFV_ex);   
 }
 \onslide<+->{
-        \node [Definition,ASC_LB, right=1cm of V]                            (SizeAssm)          {$|M'| \leq m$ \\ {\tiny \texttt{fault\_domain}}};
-        \node [Definition,diagonal fill={cyan!10}{orange!20}, right=1cm of SizeAssm]                            (LB)          {fun $LB$ \\ {\tiny \texttt{fun LB}}};
+        \node [Definition,ATC, right=0.8cm of V]                            (ATC)          {ATCs \\ {\tiny \texttt{datatype ATC}}};
 }
 \onslide<+->{
-        \node [Lemma,diagonal fill={cyan!10}{orange!20}, below=1cm of LB.north]                            (minLB)          {$minimal(xs) \longrightarrow |M'| \geq LB (xs)$ \\ {\tiny \texttt{LB\_count}}};
+        \node [Definition,ASC_LB, right=0.8cm of ATC]                            (LB)          {fun $LB$ \\ {\tiny \texttt{fun LB}}};
+        \node [Definition,ASC_LB, right=0.8cm of LB]                            (SizeAssm)          {$|M'| \leq m$ \\ {\tiny \texttt{fault\_domain}}};
+}
+\onslide<+->{
+        \node [Lemma,diagonal fill={cyan!10}{orange!20},right =0.5cm of mFV_ex]                            (minLB)          {$noRep(xs) \longrightarrow |M'| \geq LB (xs)$ \\ {\tiny \texttt{LB\_count}}};
         \path [line] (LB)         --                              (minLB);   
+        \path [line] (ATC)         --                              (minLB);  
 }
 \onslide<+->{
-        \node [Definition,ASC_Suite, right=1cm of LB.east, anchor=west]                            (TS)          {test suite $TS$ \\ {\tiny \textit{fun TS, final\_iteration\_ex}}};
+        \node [Definition,ASC_Suite, right=0.5cm of SizeAssm.east, anchor=west]                            (TS)          {test suite $TS$ \\ {\tiny \textit{fun TS, final\_iteration\_ex}}};
 }
 \onslide<+->{
-        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east,label={[align=left,shift={(1.5,-1.85)}]\tiny{(or a prefix $xs'$ of $xs$ fails s.t.} \\[-0.6em] \tiny{ $in(xs') \in TS$)}}]                            (elemTS)          {$in\footnotemark(xs) \not\in TS \longrightarrow LB(xs) > m$ \\ {\tiny \texttt{TS\_non\_containment\_causes\_final}}};
+%        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east,label={[align=left,shift={(3.5,-0.3)}]*}]                            (elemTS)          {$in(xs) \not\in TS \longrightarrow LB(xs) > m \vee M'\not\preceq_{TS}M$ \\ {\tiny \texttt{TS\_non\_containment\_causes\_final}}};
+        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east]                            (elemTS)          {$in(xs) \not\in TS \longrightarrow LB(xs) > m \vee M'\not\preceq_{TS}M$ \\ {\tiny \texttt{TS\_non\_containment\_causes\_final}}};
         \path [line] (TS)         --                              (elemTS);   
 }
+
+
 \onslide<+->{
-        \node [Lemma,ASC_Suite, below=1cm of elemTS.east, anchor=east]                                                       (elemTSmin)          {$mFV(xs) \longrightarrow xs \in TS$ \\ {\tiny mainly via \textit{mstfe\_distinct\_Rep\_Pre} and \textit{mstfe\_distinct\_Rep\_Cov}, completed within \texttt{asc\_sufficiency} }};
-        \path [line] (elemTS)         --                              (elemTSmin);   
-        \path [line] (minLB)         edge[bend right=15]                              (elemTSmin);   
-        \path [line] (SizeAssm)      edge[bend right]                                (elemTSmin);
+        \node [Lemma,ASC_Sufficiency, below=2cm of V.west, anchor=west]                            (noRep)          {$mFV(xs) \longrightarrow noRep(xs)$\\ {\tiny \textit{mstfe\_distinct\_Rep\_Pre}, \textit{mstfe\_distinct\_Rep\_Cov}}};
+        \path [line] (mFV_ex) -- (noRep); 
 }
 
+\onslide<+->{
+        \node [Lemma,ASC_Sufficiency, below=1cm of elemTS.east, anchor=east]                                                       (elemTSmin)          {$M'\preceq_{TS}M \longrightarrow \exists xs . mFV(xs) \wedge in(xs) \notin TS \longrightarrow |M'| > m$ \\ {\tiny proof idea of \texttt{asc\_sufficiency}}};
+        \path [line] (elemTS)         --                              (elemTSmin);   
+        \path [line] (minLB)         edge[bend right=20]                              (elemTSmin);   
+        \path [line] (noRep)     --                                (elemTSmin);
+}
 
 \onslide<+->{
-        \node [Lemma,ASC_Sufficiency, below=2cm of mFV_ex.west, anchor=west]                            (9)          {$\neg M' \preceq M \longrightarrow \exists xs . mFV(xs) \wedge in(xs) \in TS$ \\ {\tiny proof idea of \texttt{asc\_sufficiency}}};
+        \node [Lemma,ASC_Sufficiency, below=3cm of mFV_ex.west, anchor=west]                            (9)          {$M'\preceq_{TS}M \longrightarrow M' \preceq M$ \\ {\tiny \texttt{asc\_sufficiency}}};
         \path [line] (mFV_ex) -- (9);   
-        \path [line] (elemTSmin) -- (9); 
+        \path [line] (elemTSmin)  edge[bend left=7]  (9); 
+        \path [line] (SizeAssm)      edge[bend left=18]                                (9);
 }
 
 \onslide<+->{
@@ -78,10 +92,45 @@
         \node [Lemma,ASC_Hoare, below=1cm of 11.east, anchor=east]                            (12)          {algorithm applies $TS$ until failure \\ {\tiny loop invariant of \texttt{refined\_adaptive\_state\_counting\_correctness}}};
         \path [line] (11) -- (12);
 }
-\onslide<+->{
+\onslide<14-15>{
         \node [Lemma,ASC_Hoare, below=1cm of 10.west, anchor = west]                            (13)          {algorithm returns \texttt{true} if and only if $M' \preceq M$ \\ {\tiny post-condition of  \texttt{refined\_adaptive\_state\_counting\_correctness}}};
         \path [line] (10) -- (13);
         \path [line] (12) -- (13);
+}
+
+\only<2>{
+        \path [lineNew] (FSMs) --                             (mFV_ex); 
+        \path [lineNew] (V)         --                              (mFV_ex);   
+}
+\only<5>{
+        \path [lineNew] (LB)         --                              (minLB);   
+        \path [lineNew] (ATC)         --                              (minLB);  
+}
+\only<7>{
+        \path [lineNew] (TS)         --                              (elemTS);   
+}
+\only<8>{
+        \path [lineNew] (mFV_ex) -- (noRep); 
+}
+\only<9>{
+        \path [lineNew] (elemTS)         --                              (elemTSmin);   
+        \path [lineNew] (minLB)         edge[bend right=20]                              (elemTSmin);   
+        \path [lineNew] (noRep)     --                                (elemTSmin);
+}
+\only<10>{
+        \path [lineNew] (mFV_ex) -- (9);   
+        \path [lineNew] (elemTSmin)  edge[bend left=7]  (9); 
+        \path [lineNew] (SizeAssm)      edge[bend left=18]                                (9);
+}
+\only<11>{
+        \path [lineNew] (9) -- (10);
+}
+\only<13>{
+        \path [lineNew] (11) -- (12);
+}
+\only<14>{
+        \path [lineNew] (10) -- (13);
+        \path [lineNew] (12) -- (13);
 }
 
 
@@ -96,24 +145,39 @@
         \node [FSM_Product,File, below=1cm of FSM_File.north]                        (FSM_Product_File)         {FSM\_Product};
 }
 \onslide<3->{
-        \node [diagonal fill={cyan!10}{orange!20},File, below=1cm of FSM_Product_File.north]                        (ASC_LB_File)         {ASC\_LB / ATC};
+        \node [ATC,File, below=1cm of FSM_Product_File.north]                        (ATC_File)         {ATC};
 }
-\onslide<5->{
+\onslide<4->{
+        \node [ASC_LB,File, below=1cm of ATC_File.north]                        (ASC_LB_File)         {ASC\_LB};
+}
+\onslide<6->{
         \node [ASC_Suite,File, below=1cm of ASC_LB_File.north]                        (ASC_Suite_File)         {ASC\_Suite};
 }
 \onslide<8->{
         \node [ASC_Sufficiency,File, below=1cm of ASC_Suite_File.north]                        (ASC_Sufficiency_File)         {ASC\_Sufficiency};
 }
-\onslide<10->{
+\onslide<12->{
         \node [ASC_Hoare,File, below=1cm of ASC_Sufficiency_File.north]                        (ASC_Hoare_File)         {ASC\_Hoare};
 }
 
 \end{tikzpicture}
 \end{figure}
 
-\footnotetext[1]<1->{det. SC = deterministic state cover of $M$}
-\footnotetext[2]<2->{mFV = minimal sequence to failure extending $V$}
-\footnotetext[3]<6->{in = input portion}
+\hrule{}
+
+\centering
+    \scalebox{0.5}{\parbox{.9\textwidth}{%
+    \begin{align*}
+    \only<1>{detSC(V) &= \text{$V$ is a deterministic state cover of $M$}  \\}
+    \onslide<2->{detSC(V) &= \text{$V$ is a deterministic state cover of $M$} & mFV(xs) &= \text{$xs$ is a minimal sequence to failure extending $V$}\\}
+    \only<5-6>{noRep(xs) &= \text{$xs$ does not visit any state of the product machine of $M$ and $M'$ twice}\\}
+    \onslide<7->{noRep(xs) &= \text{$xs$ does not repeat any state of the product machine of $M$ and $M'$} \qquad & in(xs) &= \text{input portion of $xs$}}
+    \end{align*}
+    }}
+
+%\footnotetext[1]<1->{det. SC = deterministic state cover of $M$}
+%\footnotetext[2]<2->{mFV = minimal sequence to failure extending $V$}
+%\footnotetext[3]<6->{in = input portion}
 \end{frame}
 
 
