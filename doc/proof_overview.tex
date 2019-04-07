@@ -17,7 +17,8 @@
 	ASC_Sufficiency/.style={fill=lightgray!20},
 	ASC_Hoare/.style={fill=magenta!20},
 	line/.style = {lightgray,draw, -latex'},
-	lineNew/.style = {red,draw, -latex'}
+	lineNew/.style = {red, thick, draw, -latex'},
+           New/.style = {red, thick, text=black}
 }
 
 
@@ -48,12 +49,12 @@
         \node [Definition,ASC_LB, right=0.8cm of LB]                            (SizeAssm)          {$|M'| \leq m$ \\ {\tiny \texttt{fault\_domain}}};
 }
 \onslide<+->{
-        \node [Lemma,diagonal fill={cyan!10}{orange!20},right =0.5cm of mFV_ex]                            (minLB)          {$noRep(xs) \longrightarrow |M'| \geq LB (xs)$ \\ {\tiny \texttt{LB\_count}}};
+        \node [Lemma,diagonal fill={orange!20}{yellow!20},right =0.5cm of mFV_ex]                            (minLB)          {$noRep(xs) \longrightarrow |M'| \geq LB (xs)$ \\ {\tiny \texttt{LB\_count}}};
         \path [line] (LB)         --                              (minLB);   
         \path [line] (ATC)         --                              (minLB);  
 }
 \onslide<+->{
-        \node [Definition,ASC_Suite, right=0.5cm of SizeAssm.east, anchor=west]                            (TS)          {test suite $TS$ \\ {\tiny \textit{fun TS, final\_iteration\_ex}}};
+        \node [Definition,ASC_Suite, right=0.8cm of SizeAssm.east, anchor=west]                            (TS)          {test suite $TS$ \\ {\tiny \textit{fun TS, final\_iteration\_ex}}};
 }
 \onslide<+->{
 %        \node [Lemma,ASC_Suite, below=2cm of TS.east, anchor=east,label={[align=left,shift={(3.5,-0.3)}]*}]                            (elemTS)          {$in(xs) \not\in TS \longrightarrow LB(xs) > m \vee M'\not\preceq_{TS}M$ \\ {\tiny \texttt{TS\_non\_containment\_causes\_final}}};
@@ -169,9 +170,9 @@
     \scalebox{0.5}{\parbox{.9\textwidth}{%
     \begin{align*}
     \only<1>{detSC(V) &= \text{$V$ is a deterministic state cover of $M$}  \\}
-    \onslide<2->{detSC(V) &= \text{$V$ is a deterministic state cover of $M$} & mFV(xs) &= \text{$xs$ is a minimal sequence to failure extending $V$}\\}
-    \only<5-6>{noRep(xs) &= \text{$xs$ does not visit any state of the product machine of $M$ and $M'$ twice}\\}
-    \onslide<7->{noRep(xs) &= \text{$xs$ does not repeat any state of the product machine of $M$ and $M'$} \qquad & in(xs) &= \text{input portion of $xs$}}
+    \onslide<2->{detSC(V) &= \text{$V$ is a deterministic state cover of $M$} & mFV(xs) &= \text{$xs$ is a minimal sequence to failure extending $V$} \\}
+    \only<5-6>{noRep(xs) &= \text{$xs$ does not repeat any state of the product machine of $M$ and $M'$} \\ }
+    \onslide<7->{noRep(xs) &= \text{$xs$ does not repeat any state of the product machine of $M$ and $M'$} \qquad & in(xs) &= \text{input portion of $xs$} \\}
     \end{align*}
     }}
 
