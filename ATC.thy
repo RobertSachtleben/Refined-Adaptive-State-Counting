@@ -296,9 +296,13 @@ fun is_reduction_on :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'stat
 "is_reduction_on M1 M2 iseq \<Omega> = (LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq} 
   \<and> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))"
 
-fun is_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-"is_reduction_on_sets M1 M2 TS \<Omega> = (\<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>)"
+fun is_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> bool" where
+"is_reduction_on_sets M1 TS \<Omega> M2 = (\<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>)"
 
+notation 
+  is_reduction_on_sets ("(_ \<preceq>\<lbrakk>_._\<rbrakk> _)" )
+notation  (latex output)
+  is_reduction_on_sets ("(_ \<preceq>\<^bsub>_._\<^esub> _)" [1000,0,0] 61)
 
 lemma append_io_B_in_language :
   "append_io_B M io \<Omega> \<subseteq> L M"
@@ -502,11 +506,11 @@ lemma is_reduction_on_sets_reduction[intro] :
   assumes red : "M1 \<preceq> M2"
   and     ob1 : "observable M1"
   and     ob2 : "observable M2"
-shows "is_reduction_on_sets M1 M2 TS \<Omega>"
+shows "is_reduction_on_sets M1 TS \<Omega> M2"
   using assms is_reduction_on_reduction by (metis is_reduction_on_sets.elims(3)) 
 
 lemma is_reduction_on_sets_via_LS\<^sub>i\<^sub>n : 
-  assumes "is_reduction_on_sets M1 M2 TS \<Omega>"
+  assumes "is_reduction_on_sets M1 TS \<Omega> M2"
   shows "(L\<^sub>i\<^sub>n M1 TS \<union> (\<Union>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) TS. append_io_B M1 io \<Omega>)) \<subseteq> (L\<^sub>i\<^sub>n M2 TS \<union> (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) TS. append_io_B M2 io \<Omega>))"
 proof -
   have "\<forall> iseq \<in> TS . (LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq} 

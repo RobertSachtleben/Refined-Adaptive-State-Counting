@@ -593,7 +593,7 @@ fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rig
 fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> bool" where 
   "Prereq M2 M1 vs xs T S \<Omega> V V'' = (
     (\<forall> vs' \<in> V'' . (prefix vs' (vs @ xs) \<longrightarrow> length vs' \<le> length vs))      \<comment>\<open>(1.)\<close>
-    \<and> (is_reduction_on_sets M1 M2 T \<Omega>)                                     \<comment>\<open>(2.) and (3.)\<close>
+    \<and> (is_reduction_on_sets M1 T \<Omega> M2)                                     \<comment>\<open>(2.) and (3.)\<close>
     \<and> (finite T)                                                           \<comment>\<open>addition to 2. to enable practical application\<close>
     \<and> V \<subseteq> T \<and> (\<forall> xs' . (prefix xs' xs \<and> xs' \<noteq> xs) \<longrightarrow> map fst (vs @ xs') \<in> T)           \<comment>\<open>(4.) (modified)\<close>
     \<and> (vs @ xs) \<in> L M2 \<inter> L M1                                              \<comment>\<open>addition (4.), as (4.) here only considers proper prefixes of (vs@xs), since any sequence for which the LB is to be calculated is not yet contained in T\<close>
