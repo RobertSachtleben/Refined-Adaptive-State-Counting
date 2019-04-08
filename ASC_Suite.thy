@@ -1313,6 +1313,119 @@ proof (rule ccontr)
   ultimately show "False" by simp
 qed
 
+
+
+
+lemma state_repetition_distribution_productF :
+  assumes "OFSM M2" 
+  and     "OFSM M1"
+  and     "(card (nodes M2) * m) \<le> length xs"
+  and     "card (nodes M1) \<le> m"
+  and     "vs@xs \<in> L M2 \<inter> L M1"
+  and     "is_det_state_cover M2 V"
+  and     "V'' \<in> Perm V M1"
+shows "\<exists> q \<in> nodes M2 . card (RP M2 q vs xs V'') > m"
+proof -
+  have "finite (nodes M1)"
+       "finite (nodes M2)"
+    using assms(1,2) by auto
+  then have "card(nodes M2 \<times> nodes M1) = card (nodes M2) * card (nodes M1)"
+    using card_cartesian_product by blast 
+  
+  have "nodes (product M2 M1) \<subseteq> nodes M2 \<times> nodes M1"
+    using product_nodes by auto
+  
+  have "card (nodes (product M2 M1)) \<le> card (nodes M2) * card (nodes M1)"
+    by (metis (no_types) \<open>card (nodes M2 \<times> nodes M1) = |M2| * |M1|\<close> \<open>finite (nodes M1)\<close> \<open>finite (nodes M2)\<close> \<open>nodes (product M2 M1) \<subseteq> nodes M2 \<times> nodes M1\<close> card_mono finite_cartesian_product)
+
+
+  have "(\<forall> q \<in> nodes M2 . card (R M2 q vs xs) = m) \<or> (\<exists> q \<in> nodes M2 . card (R M2 q vs xs) > m)" 
+  proof (rule ccontr)
+    assume "\<not> ((\<forall>q\<in>nodes M2. card (R M2 q vs xs) = m) \<or> (\<exists>q\<in>nodes M2. m < card (R M2 q vs xs)))"
+    
+    then have "\<forall> q \<in> nodes M2 . card (R M2 q vs xs) \<le> m" 
+      by auto
+    moreover obtain q' where "q'\<in>nodes M2" "card (R M2 q' vs xs) < m"
+      using \<open>\<not> ((\<forall>q\<in>nodes M2. card (R M2 q vs xs) = m) \<or> (\<exists>q\<in>nodes M2. m < card (R M2 q vs xs)))\<close> nat_neq_iff by blast
+
+    have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2) = sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2 - {q'}) + sum (\<lambda> q . card (R M2 q vs xs)) {q'}"
+      using \<open>q'\<in>nodes M2\<close>
+      by (meson \<open>finite (nodes M2)\<close> empty_subsetI insert_subset sum.subset_diff) 
+    moreover have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2 - {q'}) \<le>  sum (\<lambda> q . m) (nodes M2 - {q'})"
+      using \<open>\<forall> q \<in> nodes M2 . card (R M2 q vs xs) \<le> m\<close>
+      by (meson sum_mono DiffD1) 
+    moreover have "sum (\<lambda> q . card (R M2 q vs xs)) {q'} < m"
+      using \<open>card (R M2 q' vs xs) < m\<close> by auto
+    ultimately have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2) < sum (\<lambda> q . m) (nodes M2)"
+    proof -
+      have "\<forall>C c f. infinite C \<or> (c::'c) \<notin> C \<or> sum f C = (f c::nat) + sum f (C - {c})"
+        by (meson sum.remove)
+      then have "(\<Sum>c\<in>nodes M2. m) = m + (\<Sum>c\<in>nodes M2 - {q'}. m)"
+        using \<open>finite (nodes M2)\<close> \<open>q' \<in> nodes M2\<close> by blast
+      then show ?thesis
+        using \<open>(\<Sum>q\<in>nodes M2 - {q'}. card (R M2 q vs xs)) \<le> (\<Sum>q\<in>nodes M2 - {q'}. m)\<close> \<open>(\<Sum>q\<in>nodes M2. card (R M2 q vs xs)) = (\<Sum>q\<in>nodes M2 - {q'}. card (R M2 q vs xs)) + (\<Sum>q\<in>{q'}. card (R M2 q vs xs))\<close> \<open>(\<Sum>q\<in>{q'}. card (R M2 q vs xs)) < m\<close> by linarith
+    qed
+      
+      
+    moreover have "sum (\<lambda> q . m) (nodes M2) \<le> card (nodes M2) * m" 
+      using assms(2) by auto 
+    ultimately have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2) < card (nodes M2) * m" 
+      by presburger
+  
+    moreover have "Suc (card (nodes M2)*m) \<le> sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2)" 
+      using R_union_card_is_suffix_length[OF assms(1), of vs xs] assms(5,3)
+      by (metis Int_iff \<open>vs @ xs \<in> L M2 \<Longrightarrow> (\<Sum>q\<in>nodes M2. card (R M2 q vs xs)) = length xs\<close> \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> \<open>|M2| * m \<le> length xs\<close> calculation less_eq_Suc_le not_less_eq_eq)
+   
+    ultimately show "False" by simp
+  qed
+  then show ?thesis
+  proof
+    let ?q = "initial M2"
+    
+    assume "\<forall>q\<in>nodes M2. card (R M2 q vs xs) = m"
+    then have "card (R M2 ?q vs xs) = m" 
+      by auto
+    
+    have "[] \<in> V''"
+      by (meson assms(6) assms(7) perm_empty)
+    then have "[] \<in> RP M2 ?q vs xs V''" 
+      by auto
+    have "[] \<notin> R M2 ?q vs xs"
+      by auto
+    have "card (RP M2 ?q vs xs V'') \<ge> card (R M2 ?q vs xs)"
+      using finite_R[of M2 ?q vs xs] finite_RP[OF assms(6,7),of ?q vs xs] unfolding RP.simps
+      by (simp add: card_mono)  
+    
+    have "card (RP M2 ?q vs xs V'') > card (R M2 ?q vs xs)"
+    proof -
+      have f1: "\<forall>n na. (\<not> (n::nat) \<le> na \<or> n = na) \<or> n < na"
+        by (meson le_neq_trans)
+      have "RP M2 (initial M2) vs xs V'' \<noteq> R M2 (initial M2) vs xs"
+        using \<open>[] \<in> RP M2 (initial M2) vs xs V''\<close> \<open>[] \<notin> R M2 (initial M2) vs xs\<close> by blast
+      then show ?thesis
+        using f1 by (metis (no_types) RP_from_R \<open>card (R M2 (initial M2) vs xs) \<le> card (RP M2 (initial M2) vs xs V'')\<close> assms(6) assms(7) card_insert_disjoint finite_R le_simps(2))
+    qed
+      
+    then show ?thesis 
+      using \<open>card (R M2 ?q vs xs) = m\<close>
+      by blast 
+  next 
+    assume "\<exists>q\<in>nodes M2. m < card (R M2 q vs xs)"
+    then obtain q where "q\<in>nodes M2" "m < card (R M2 q vs xs)"
+      by blast
+    moreover have "card (RP M2 q vs xs V'') \<ge> card (R M2 q vs xs)"
+      using finite_R[of M2 q vs xs] finite_RP[OF assms(6,7),of q vs xs] unfolding RP.simps
+      by (simp add: card_mono) 
+    ultimately have "m < card (RP M2 q vs xs V'')"
+      by simp 
+    
+    show ?thesis 
+      using \<open>q \<in> nodes M2\<close>  \<open>m < card (RP M2 q vs xs V'')\<close> by blast
+  qed
+qed
+
+    
+
                                                   
 abbreviation "final_iteration M2 M1 \<Omega> V m i \<equiv> TS M2 M1 \<Omega> V m i = TS M2 M1 \<Omega> V m (Suc i)"
 
@@ -1320,15 +1433,15 @@ abbreviation "final_iteration M2 M1 \<Omega> V m i \<equiv> TS M2 M1 \<Omega> V 
 
 
 (* lemma 5.5.9, with the maximum length of sequences appended to V in TS strengthened from 
-                m^2+1 to the classical result of |M2|*m+1 *)
+                m^2+1 to the classical and much stronger result of |M2|*m *)
 lemma final_iteration_ex :
   assumes "OFSM M1"
   and     "OFSM M2"
   and     "fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V V'' \<Omega>"
-  shows "final_iteration M2 M1 \<Omega> V m (Suc (Suc ((card (nodes M2)) * m)))"
+  shows "final_iteration M2 M1 \<Omega> V m ((Suc ((card (nodes M2)) * m)))"
 proof -
-  let ?i = "Suc (Suc ((card (nodes M2)) * m))"
+  let ?i = "(Suc ((card (nodes M2)) * m))"
 
   let ?TS = "\<lambda> n . TS M2 M1 \<Omega> V m n"
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
@@ -1359,8 +1472,8 @@ proof -
   
       
       then have "Suc (length xs) = ?i" using C_index
-        using \<open>mcp seq V vs\<close> \<open>seq \<in> C M2 M1 \<Omega> V m (Suc (Suc ((card (nodes M2)) * m)))\<close> by blast
-      then have "length xs = Suc ((card (nodes M2)) * m)" by auto
+        using \<open>mcp seq V vs\<close> \<open>seq \<in> C M2 M1 \<Omega> V m (Suc ((card (nodes M2)) * m))\<close> by blast
+      then have "length xs = ((card (nodes M2)) * m)" by auto
   
       have RM_def : "?RM ?i =  {xs' \<in> C M2 M1 \<Omega> V m ?i .
                           (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
@@ -1376,8 +1489,8 @@ proof -
                                         (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-            \<and> m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'' ))))}"
-      using RM.simps(2)[of M2 M1 \<Omega> V m "Suc ((card (nodes M2))*m)"] by assumption
+            \<and> m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'' ))))}"
+      using RM.simps(2)[of M2 M1 \<Omega> V m "((card (nodes M2))*m)"] by assumption
       
     have "(\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {seq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {seq}))
           \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {seq} .
@@ -1392,7 +1505,7 @@ proof -
                         (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                    \<and> m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'' ))))"
+                    \<and> m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'' ))))"
       proof (cases "(\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {seq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {seq}))")
         case True
         then show ?thesis using RM_def by blast
@@ -1410,7 +1523,7 @@ proof -
                         (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                    \<and> m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'' ))))"
+                    \<and> m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'' ))))"
         proof 
           fix io assume "io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {seq}"
           then have "io \<in> L M1" 
@@ -1466,23 +1579,24 @@ proof -
           then have "Suc (length xs) = ?i" using C_index[OF \<open>(map fst vs) @ (map fst xs) \<in> ?C ?i\<close>] 
             by simp
 
-          then have "Suc ((card (nodes M2)) * m) \<le> length xs" 
+          then have "((card (nodes M2)) * m) \<le> length xs" 
             by simp
 
-          (*have "card (nodes M2) \<le> m" using assms(3) by auto*)
           
-          obtain q where "q \<in> nodes M2" "m < card (R M2 q vs xs)" 
-            using state_repetition_distribution[OF assms(2) \<open>Suc ((card (nodes M2)) * m) \<le> length xs\<close> \<open>vs@xs \<in> L M2\<close>] by blast
 
-          have "m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V''" 
+          have "|M1| \<le> m" 
+            using assms(3) by auto
+          have "vs @ xs \<in> L M2 \<inter> L M1" 
+            using \<open>vs @ xs \<in> L M1\<close> \<open>vs @ xs \<in> L M2\<close> by blast
+          obtain q where "q \<in> nodes M2" "m < card (RP M2 q vs xs V'')"
+            using state_repetition_distribution_productF[OF assms(2,1) \<open>((card (nodes M2)) * m) \<le> length xs\<close> \<open>|M1| \<le> m\<close> \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> \<open>is_det_state_cover M2 V\<close> \<open>V'' \<in> Perm V M1\<close>] by blast          
+
+          have "m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V''" 
           proof -
-            have "card (R M2 q vs xs) \<le> card (RP M2 q vs xs V'')" 
-              using RP_union_card_is_suffix_length(1)[OF assms(2) \<open>vs@xs \<in> L M2\<close> \<open>is_det_state_cover M2 V\<close> \<open>V'' \<in> Perm V M1\<close>] by auto
-            then have "m < card (RP M2 q vs xs V'')" 
-              using \<open>m < card (R M2 q vs xs)\<close> by linarith
-            then have "m < (sum (\<lambda> s . card (RP M2 s vs xs V'')) {q})" 
+            have "m < (sum (\<lambda> s . card (RP M2 s vs xs V'')) {q})" 
+              using \<open>m < card (RP M2 q vs xs V'')\<close>
               by auto
-            moreover have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) {q}) \<le> LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V''"
+            moreover have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) {q}) \<le> LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V''"
               by auto
             ultimately show ?thesis 
               by linarith 
@@ -1498,7 +1612,7 @@ proof -
                         \<forall>s2\<in>S1.
                            s1 \<noteq> s2 \<longrightarrow>
                            (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                    m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V''"
+                    m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V''"
           proof -
             
             have "io = vs@xs"
@@ -1528,7 +1642,7 @@ proof -
                           (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                              \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                                B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                      \<and> m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V'' " using \<open>m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V''\<close> 
+                      \<and> m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V'' " using \<open>m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) {q} \<Omega> V''\<close> 
               by linarith 
 
             show ?thesis using \<open>V''\<in>N io M1 V\<close> RM_body
@@ -1539,7 +1653,7 @@ proof -
         then show ?thesis by metis
       qed
 
-      then have "seq \<in> {xs' \<in> C M2 M1 \<Omega> V m (Suc (Suc ((card (nodes M2)) * m))).
+      then have "seq \<in> {xs' \<in> C M2 M1 \<Omega> V m ((Suc ((card (nodes M2)) * m))).
                          \<not> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'} \<or>
                          (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
                              \<exists>V''\<in>N io M1 V.
@@ -1551,7 +1665,7 @@ proof -
                                        \<forall>s2\<in>S1.
                                           s1 \<noteq> s2 \<longrightarrow>
                                           (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
-                                   m < LB M2 M1 vs xs (?TS (Suc ((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'')}" 
+                                   m < LB M2 M1 vs xs (?TS (((card (nodes M2)) * m)) \<union> V) S1 \<Omega> V'')}" 
         using \<open>seq \<in> ?C ?i\<close> by blast
 
 

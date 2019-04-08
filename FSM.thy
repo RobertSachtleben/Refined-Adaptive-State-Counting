@@ -184,8 +184,36 @@ lemma product_path[iff]:
 lemma product_language_state[simp]: "LS (product A B) (q1,q2) = LS A q1 \<inter> LS B q2"
   by (fastforce iff: split_zip)
 
+lemma product_nodes :
+  "nodes (product A B) \<subseteq> nodes A \<times> nodes B"
+proof 
+  fix q assume "q \<in> nodes (product A B)"
+  then show "q \<in> nodes A \<times> nodes B"
+  proof (induction rule: FSM.nodes.induct)
+    case (initial p)
+    then show ?case by auto
+  next
+    case (execute p a)
+    then have "fst p \<in> nodes A" "snd p \<in> nodes B" 
+      by auto
+    
+    have "snd a \<in> (succ A (fst a) (fst p)) \<times> (succ B (fst a) (snd p))"
+      using execute by auto
+    then have "fst (snd a) \<in> succ A (fst a) (fst p)"
+              "snd (snd a) \<in> succ B (fst a) (snd p)"
+      by auto
 
-
+    have "fst (snd a) \<in> nodes A"
+      using \<open>fst p \<in> nodes A\<close> \<open>fst (snd a) \<in> succ A (fst a) (fst p)\<close>
+      by (metis FSM.nodes.simps fst_conv snd_conv) 
+    moreover have "snd (snd a) \<in> nodes B"
+      using \<open>snd p \<in> nodes B\<close> \<open>snd (snd a) \<in> succ B (fst a) (snd p)\<close>
+      by (metis FSM.nodes.simps fst_conv snd_conv) 
+    ultimately show ?case
+      by (simp add: mem_Times_iff) 
+      
+  qed
+qed
 
 subsection {* Required properties *}
 
