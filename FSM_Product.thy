@@ -785,8 +785,7 @@ qed
 lemma sequence_to_failure_ob :
   assumes "\<not> M1 \<preceq> M2"
   and     "well_formed M1"
-  and     "well_formed M2"
-  and "productF M2 M1 FAIL PM"
+  and     "well_formed M2"  
 obtains io
 where "sequence_to_failure M1 M2 io"
 proof -
@@ -1355,6 +1354,276 @@ proof -
 
   then show ?thesis by (metis prod.collapse tgt_V that)  
 qed
+
+
+
+
+lemma io_targets_succ : 
+  assumes "q2 \<in> io_targets M q1 [xy]"
+  shows "q2 \<in> succ M xy q1"
+proof -
+  obtain tr where tr_def : "target ([xy] || tr) q1 = q2" "path M ([xy] || tr) q1" "length [xy] = length tr"
+    using assms by auto
+
+  have "length tr = Suc 0"
+    using \<open>length [xy] = length tr\<close> by auto
+  then obtain q2' where "tr = [q2']"
+    by (metis Suc_length_conv length_0_conv)
+  then have "target ([xy] || tr) q1 = q2'"
+    by auto
+  then have "q2' = q2"
+    using \<open>target ([xy] || tr) q1 = q2\<close> by simp
+  then have "path M ([xy] || [q2]) q1" 
+    using tr_def(2) \<open>tr = [q2']\<close> by auto
+  then have "path M [(xy,q2)] q1"
+    by auto
+
+  show ?thesis 
+  proof (cases rule: FSM.path.cases[of M "[(xy,q2)]" q1])
+    case nil
+    show ?case 
+      using \<open>path M [(xy,q2)] q1\<close> by simp
+  next
+    case cons 
+    show "snd (xy, q2) \<in> succ M (fst (xy, q2)) q1 \<Longrightarrow> path M [] (snd (xy, q2)) \<Longrightarrow> q2 \<in> succ M xy q1" by auto
+  qed
+qed
   
+
+
+
+
+
+
+lemma sequence_to_failure_length :
+  assumes "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M1"
+  and     "observable M2"
+  and     "\<not> M1 \<preceq> M2"
+  shows "\<exists> xs . sequence_to_failure M1 M2 xs \<and> length xs \<le> |M2| * |M1|"
+proof -
+
+  obtain seq where "sequence_to_failure M1 M2 seq" 
+    using assms sequence_to_failure_ob by blast
+  then have "seq \<noteq> []" 
+    by auto
+
+  let ?bls = "butlast seq"
+  have "?bls \<in> L M1" "?bls \<in> L M2" 
+    using \<open>sequence_to_failure M1 M2 seq\<close> by auto
+
+
+
+
+
+  then obtain tr1b tr2b where 
+    "path M1 (?bls || tr1b) (initial M1)"
+    "length tr1b = length ?bls"
+    "path M2 (?bls || tr2b) (initial M2)"
+    "length ?bls = length tr2b"
+    by fastforce
+  then have "length tr2b = length tr1b" 
+    by auto
+
+  let ?PM = "product M2 M1"
+  have "well_formed ?PM" 
+    using well_formed_product[OF assms(1,2)] by assumption
+  
+  have "path ?PM (?bls || tr2b || tr1b) (initial M2, initial M1)" 
+    using product_path[OF \<open>length ?bls = length tr2b\<close> \<open>length tr2b = length tr1b\<close>, of M2 M1 "initial M2" "initial M1"]
+    using \<open>path M1 (butlast seq || tr1b) (initial M1)\<close> \<open>path M2 (butlast seq || tr2b) (initial M2)\<close> by blast
+
+  let ?q1b = "target (?bls || tr1b) (initial M1)"
+  let ?q2b = "target (?bls || tr2b) (initial M2)"
+
+   
+  have "io_targets M2 (initial M2) ?bls = {?q2b}"
+    by (metis \<open>length (butlast seq) = length tr2b\<close> \<open>path M2 (butlast seq || tr2b) (initial M2)\<close> assms(4) obs_target_is_io_targets)
+  have "io_targets M1 (initial M1) ?bls = {?q1b}"
+    by (metis \<open>length tr1b = length (butlast seq)\<close> \<open>path M1 (butlast seq || tr1b) (initial M1)\<close> assms(3) obs_target_is_io_targets)
+
+
+
+  have "(?q2b, ?q1b) \<in> reachable (product M2 M1) (initial M2, initial M1)"
+  proof -
+    have "target (butlast seq || tr2b || tr1b) (initial M2, initial M1) \<in> reachable (product M2 M1) (initial M2, initial M1)"
+      using \<open>path (product M2 M1) (butlast seq || tr2b || tr1b) (initial M2, initial M1)\<close> by blast
+    then show ?thesis
+      using \<open>length (butlast seq) = length tr2b\<close> \<open>length tr2b = length tr1b\<close> by auto
+  qed
+
+  
+
+  have "(initial M2, initial M1) \<in> nodes (product M2 M1)"
+    by (simp add: FSM.nodes.initial) 
+
+  obtain p where repFreePath : "path (product M2 M1) p (initial M2, initial M1) \<and>
+        target p (initial M2, initial M1) =
+        (?q2b,?q1b)"
+        "distinct ((initial M2, initial M1) # states p (initial M2, initial M1))" 
+    using reaching_path_without_repetition[OF \<open>well_formed ?PM\<close> \<open>(?q2b, ?q1b) \<in> reachable (product M2 M1) (initial M2, initial M1)\<close> \<open>(initial M2, initial M1) \<in> nodes (product M2 M1)\<close>] by blast
+  
+  then have "set (states p (initial M2, initial M1)) \<subseteq> nodes ?PM"
+    by (simp add: FSM.nodes_states \<open>(initial M2, initial M1) \<in> nodes (product M2 M1)\<close>) 
+  moreover have "(initial M2, initial M1) \<notin> set (states p (initial M2, initial M1))" 
+    using \<open>distinct ((initial M2, initial M1) # states p (initial M2, initial M1))\<close> by auto
+  ultimately have "set (states p (initial M2, initial M1)) \<subseteq> nodes ?PM - {(initial M2, initial M1)}"
+    by blast
+  moreover have "finite (nodes ?PM)" 
+    using \<open>well_formed ?PM\<close> by auto
+  ultimately have "card (set (states p (initial M2, initial M1))) < card (nodes ?PM)"
+    by (metis \<open>(initial M2, initial M1) \<in> nodes (product M2 M1)\<close> \<open>(initial M2, initial M1) \<notin> set (states p (initial M2, initial M1))\<close> \<open>set (states p (initial M2, initial M1)) \<subseteq> nodes (product M2 M1)\<close> psubsetI psubset_card_mono)
+
+  moreover have "card (set (states p (initial M2, initial M1))) = length (states p (initial M2, initial M1))"
+    using distinct_card repFreePath(2) by fastforce
+  ultimately have "length (states p (initial M2, initial M1)) < |?PM|"
+    by linarith
+  then have "length p < |?PM|" 
+    by auto
+
+ 
+
+
+  let ?p1 = "map (snd \<circ> snd) p"
+  let ?p2 = "map (fst \<circ> snd) p"
+  let ?pIO = "map fst p"
+
+  have "p = ?pIO || ?p2 || ?p1" 
+    by (metis map_map zip_map_fst_snd)
+
+
+  have "path M2 (?pIO || ?p2) (initial M2)"  
+       "path M1 (?pIO || ?p1) (initial M1)" 
+    using product_path[of ?pIO ?p2 ?p1 M2 M1] 
+    using \<open>p = ?pIO || ?p2 || ?p1\<close> repFreePath(1) by auto
+
+  have "(?q2b, ?q1b) = (target (?pIO || ?p2 || ?p1) (initial M2, initial M1))" 
+    using \<open>p = ?pIO || ?p2 || ?p1\<close> repFreePath(1) by auto
+
+  then have "?q2b = target (?pIO || ?p2) (initial M2)" 
+            "?q1b = target (?pIO || ?p1) (initial M1)" 
+    by auto
+
+  have "io_targets M2 (initial M2) ?pIO = {?q2b}"
+    by (metis \<open>path M2 (map fst p || map (fst \<circ> snd) p) (initial M2)\<close> \<open>target (butlast seq || tr2b) (initial M2) = target (map fst p || map (fst \<circ> snd) p) (initial M2)\<close> assms(4) length_map obs_target_is_io_targets)
+
+  have "io_targets M1 (initial M1) ?pIO = {?q1b}"
+    by (metis \<open>path M1 (map fst p || map (snd \<circ> snd) p) (initial M1)\<close> \<open>target (butlast seq || tr1b) (initial M1) = target (map fst p || map (snd \<circ> snd) p) (initial M1)\<close> assms(3) length_map obs_target_is_io_targets)
+
+    
+  
+  have "seq \<in> L M1" "seq \<notin> L M2"
+    using \<open>sequence_to_failure M1 M2 seq\<close> by auto
+
+  have "io_targets M1 (initial M1) ?bls = {?q1b}"
+    by (metis \<open>length tr1b = length (butlast seq)\<close> \<open>path M1 (butlast seq || tr1b) (initial M1)\<close> assms(3) obs_target_is_io_targets)
+  
+  obtain q1s where "io_targets M1 (initial M1) seq = {q1s}"
+    by (meson \<open>seq \<in> L M1\<close> assms(3) io_targets_observable_singleton_ob)
+  
+
+  moreover have "seq = (butlast seq)@[last seq]"
+    using \<open>seq \<noteq> []\<close> by auto
+  ultimately have "io_targets M1 (initial M1) ((butlast seq)@[last seq]) = {q1s}" 
+    by auto
+  
+
+  have "io_targets M1 ?q1b [last seq] = {q1s}"
+    using observable_io_targets_suffix[OF assms(3) \<open>io_targets M1 (initial M1) ?bls = {?q1b}\<close> \<open>io_targets M1 (initial M1) ((butlast seq)@[last seq]) = {q1s}\<close>] by assumption
+  then obtain tr1s where "q1s = target ([last seq] || tr1s) ?q1b" "path M1 ([last seq] || tr1s) ?q1b" "length [last seq] = length tr1s"
+    by auto
+  have "path M1 ([last seq] || [q1s]) ?q1b"
+    by (metis (no_types) \<open>length [last seq] = length tr1s\<close> \<open>path M1 ([last seq] || tr1s) (target (butlast seq || tr1b) (initial M1))\<close> \<open>q1s = target ([last seq] || tr1s) (target (butlast seq || tr1b) (initial M1))\<close> append_Nil append_butlast_last_id butlast.simps(2) length_butlast length_greater_0_conv not_Cons_self2 target_alt_def(2))
+  then have "q1s \<in> succ M1 (last seq) ?q1b" 
+    by auto
+
+  have "succ M2 (last seq) ?q2b = {}"
+  proof (rule ccontr)
+    assume "succ M2 (last seq) (target (butlast seq || tr2b) (initial M2)) \<noteq> {}"
+    then obtain q2f where "q2f \<in> succ M2 (last seq) ?q2b"
+      by blast
+    then have "target ([last seq] || [q2f]) ?q2b = q2f" "path M2 ([last seq] || [q2f]) ?q2b" "length [q2f] = length [last seq]" 
+      by auto
+    then have "q2f \<in> io_targets M2 ?q2b [last seq]" 
+      by (metis io_target_from_path)
+    then have "io_targets M2 ?q2b [last seq] = {q2f}" 
+      using assms(4) by (meson observable_io_target_is_singleton)
+
+    
+    have "io_targets M2 (initial M2) (butlast seq @ [last seq]) = {q2f}"
+      using observable_io_targets_append[OF assms(4) \<open>io_targets M2 (initial M2) ?bls = {?q2b}\<close> \<open>io_targets M2 ?q2b [last seq] = {q2f}\<close>] by assumption
+    then have "seq \<in> L M2" 
+      using \<open>seq = butlast seq @ [last seq]\<close> by auto
+    then show "False"
+      using \<open>seq \<notin> L M2\<close> by blast 
+  qed
+
+  have "?pIO \<in> L M1" "?pIO \<in> L M2" 
+    using \<open>path M1 (?pIO || ?p1) (initial M1)\<close> \<open>path M2 (?pIO || ?p2) (initial M2)\<close> by auto
+  then have "butlast (?pIO@[last seq]) \<in> L M1 \<inter> L M2"
+    by auto
+
+  have "?pIO@[last seq] \<in> L M1" 
+    using observable_io_targets_append[OF assms(3) \<open>io_targets M1 (initial M1) ?pIO = {?q1b}\<close> \<open>io_targets M1 ?q1b [last seq] = {q1s}\<close>] 
+    by (metis all_not_in_conv insert_not_empty io_targets_elim language_state)
+           
+  moreover have "?pIO@[last seq] \<notin> L M2"
+  proof
+    assume "?pIO@[last seq] \<in> L M2"
+    then obtain q2f where "io_targets M2 (initial M2) (?pIO@[last seq]) = {q2f}"
+      by (meson assms(4) io_targets_observable_singleton_ob)
+      
+    have "io_targets M2 ?q2b [last seq] = {q2f}"
+      using observable_io_targets_split[OF assms(4) \<open>io_targets M2 (initial M2) (?pIO@[last seq]) = {q2f}\<close> \<open>io_targets M2 (initial M2) (map fst p) = {?q2b}\<close>] by assumption
+
+    then have "q2f \<in> succ M2 (last seq) ?q2b" 
+      by (simp add: io_targets_succ)
+    then show "False"
+      using \<open>succ M2 (last seq) ?q2b = {}\<close> by auto
+  qed
+
+  ultimately have "?pIO@[last seq] \<in> L M1 - L M2"
+    by auto
+
+
+  have "sequence_to_failure M1 M2 (?pIO@[last seq])"
+    using \<open>butlast (?pIO@[last seq]) \<in> L M1 \<inter> L M2\<close> \<open>?pIO@[last seq] \<in> L M1 - L M2\<close> by auto
+
+  have "length (?pIO@[last seq]) = Suc (length ?pIO)"
+    by auto
+  then have "length (?pIO@[last seq]) \<le> |?PM|"
+    using \<open>length p < |?PM|\<close> by auto
+
+  
+  have "card (nodes M2 \<times> nodes M1) \<le> |M2| * |M1|"
+    by (simp add: card_cartesian_product)
+  
+  have "finite (nodes M2 \<times> nodes M1)"
+  proof
+    show "finite (nodes M2)" 
+      using assms by auto
+    show "finite (nodes M1)" 
+      using assms by auto
+  qed
+    
+  have "|?PM| \<le> |M2| * |M1|" 
+    by (meson \<open>card (nodes M2 \<times> nodes M1) \<le> |M2| * |M1|\<close> \<open>finite (nodes M2 \<times> nodes M1)\<close> card_mono dual_order.trans product_nodes)
+
+  then have "length (?pIO@[last seq]) \<le> |M2| * |M1|"
+    using \<open>length (?pIO@[last seq]) \<le> |?PM|\<close> by auto
+
+  then have "sequence_to_failure M1 M2 (?pIO@[last seq]) \<and> length (?pIO@[last seq]) \<le> |M2| * |M1|" 
+    using \<open>sequence_to_failure M1 M2 (?pIO@[last seq])\<close> by auto
+  then show ?thesis
+    by blast
+qed
+    
+
+
+
+
+
+
 
 end

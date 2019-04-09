@@ -1556,4 +1556,83 @@ by (metis asc_sufficiency assms(1-5) is_reduction_on_sets_reduction)
 
 
 
+
+
+(* The classical result of testing FSMs for language inclusion :
+     any failure can be observed by a sequence of length at
+     most n*m where n is the number of states of the reference 
+     model (here FSM M2) and m is an upper bound on the number
+     of states of the SUT (here FSM M1)
+*)
+
+lemma classical_suite_soundness :
+  assumes "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_domain M2 M1 m"
+shows     "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> M1 \<preceq>\<lbrakk>{xs . set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<rbrakk> M2" 
+  (is "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2")
+proof 
+  assume "\<not> M1 \<preceq> M2"
+  obtain stf where "sequence_to_failure M1 M2 stf \<and> length stf \<le> |M2| * |M1|"
+    using sequence_to_failure_length[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>] 
+  proof -
+    assume "\<And>stf. sequence_to_failure M1 M2 stf \<and> length stf \<le> |M2| * |M1| \<Longrightarrow> thesis"
+    then show ?thesis
+      using \<open>OFSM M1\<close> \<open>OFSM M2\<close> \<open>\<lbrakk>well_formed M1; well_formed M2; observable M1; observable M2\<rbrakk> \<Longrightarrow> \<exists>xs. sequence_to_failure M1 M2 xs \<and> length xs \<le> |M2| * |M1|\<close> by presburger
+  qed  
+  then have "sequence_to_failure M1 M2 stf" "length stf \<le> |M2| * |M1|"
+    by auto
+
+  then have "stf \<in> L M1"
+    by auto
+  let ?xs = "map fst stf"
+  have "set ?xs \<subseteq> inputs M1"
+    by (meson \<open>stf \<in> L M1\<close> assms(1) language_state_for_inputsputs)
+  then have "set ?xs \<subseteq> inputs M2"
+    using assms(3) by auto
+ 
+  have "length ?xs \<le> |M2| * |M1|"
+    using \<open>length stf \<le> |M2| * |M1|\<close> by auto 
+  have "|M1| \<le> m"
+    using assms(3) by auto
+  have "length ?xs \<le> |M2| * m"
+  proof -
+    show ?thesis
+      by (metis (no_types) \<open>length (map fst stf) \<le> |M2| * |M1|\<close> \<open>|M1| \<le> m\<close> dual_order.trans mult.commute mult_le_mono1)
+  qed 
+
+  have "stf \<in> L\<^sub>i\<^sub>n M1 {?xs}"
+    by (meson \<open>stf \<in> L M1\<close> insertI1 language_state_for_inputs_map_fst)
+  have "?xs \<in> ?TS" 
+    using \<open>set ?xs \<subseteq> inputs M2\<close> \<open>length ?xs \<le> |M2| * m\<close> by blast
+  have "stf \<in> L\<^sub>i\<^sub>n M1 ?TS"
+    by (metis (no_types, lifting) \<open>map fst stf \<in> {xs. set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<close> \<open>stf \<in> L M1\<close> language_state_for_inputs_map_fst) 
+
+  have "stf \<notin> L M2"
+    using \<open>sequence_to_failure M1 M2 stf\<close> by auto
+  then have "stf \<notin> L\<^sub>i\<^sub>n M2 ?TS"
+    by auto 
+    
+
+  show "\<not> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2"
+    using \<open>stf \<in> L\<^sub>i\<^sub>n M1 ?TS\<close> \<open>stf \<notin> L\<^sub>i\<^sub>n M2 ?TS\<close> by blast
+qed
+
+
+lemma classical_suite_completeness :
+  assumes "OFSM M1"
+  and     "OFSM M2"
+  and     "fault_domain M2 M1 m"
+shows     "M1 \<preceq> M2 \<longleftrightarrow> M1 \<preceq>\<lbrakk>{xs . set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<rbrakk> M2" 
+  (is "M1 \<preceq> M2 \<longleftrightarrow> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2")
+proof 
+  show "M1 \<preceq> M2 \<Longrightarrow> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2" 
+    unfolding language_state_for_inputs.simps io_reduction.simps by blast
+  show "M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2 \<Longrightarrow> M1 \<preceq> M2"
+    using classical_suite_soundness[OF assms] by auto
+qed
+
+
+
+
 end

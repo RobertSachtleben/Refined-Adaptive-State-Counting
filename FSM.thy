@@ -215,6 +215,8 @@ proof
   qed
 qed
 
+
+
 subsection {* Required properties *}
 
 text \<open>
@@ -296,7 +298,23 @@ proof -
     using that by moura
 qed
 
+lemma well_formed_product[simp] :
+  assumes "well_formed M1"
+  and     "well_formed M2"
+shows "well_formed (product M2 M1)" (is "well_formed ?PM")
+unfolding well_formed.simps proof
+  have "finite (nodes M1)" "finite (nodes M2)" using assms by auto
+  then have "finite (nodes M2 \<times> nodes M1)" by simp
 
+  moreover have "nodes ?PM \<subseteq> nodes M2 \<times> nodes M1" using product_nodes assms by blast
+  ultimately show "finite_FSM ?PM" using infinite_subset assms by auto  
+next
+  have "inputs ?PM = inputs M2 \<union> inputs M1" 
+       "outputs ?PM = outputs M2 \<union> outputs M1" 
+    by auto
+  then show "(\<forall>s1 x y. x \<notin> inputs ?PM \<or> y \<notin> outputs ?PM \<longrightarrow> succ ?PM (x, y) s1 = {}) \<and>
+    inputs ?PM \<noteq> {} \<and> outputs ?PM \<noteq> {}" using assms by auto
+qed
 
 subsection {* States reached by a given IO-sequence *}
 
@@ -488,6 +506,58 @@ proof -
   moreover obtain trX where "path M (xs || trX) q2 \<and> length trX = length xs \<and> target (xs || trX) q2 = q3" by (metis assms(3) io_targets_elim singletonI)
   ultimately have "path M (vs @ xs || trV @ trX) q1 \<and> length (trV @ trX) = length (vs @ xs) \<and> target (vs @ xs || trV @ trX) q1 = q3" by auto
   then show ?thesis by (metis assms(1) obs_target_is_io_targets) 
+qed
+
+
+lemma io_path_states_prefix :
+  assumes "observable M"
+  and "path M (io1 || tr1) q"
+  and "length tr1 = length io1"
+  and "path M (io2 || tr2) q"
+  and "length tr2 = length io2"
+  and "prefix io1 io2"
+shows "tr1 = take (length tr1) tr2"
+proof -
+  let ?tr1' = "take (length tr1) tr2"
+  let ?io1' = "take (length tr1) io2"
+  have "path M (?io1' || ?tr1') q"
+    by (metis FSM.path_append_elim append_take_drop_id assms(4) take_zip)
+  have "length ?tr1' = length ?io1'"
+    using assms (5) by auto
+
+  have "?io1' = io1"
+  proof -
+    have "\<forall>ps psa. \<not> prefix (ps::('a \<times> 'b) list) psa \<or> length ps \<le> length psa"
+      using prefix_length_le by blast
+    then have "length (take (length tr1) io2) = length io1"
+      using assms(3) assms(6) min.absorb2 by auto
+    then show ?thesis
+      by (metis assms(6) min.cobounded2 min_def_raw prefix_length_prefix prefix_order.dual_order.antisym take_is_prefix)
+  qed
+
+  show "tr1 = ?tr1'"
+    by (metis \<open>length (take (length tr1) tr2) = length (take (length tr1) io2)\<close> \<open>path M (take (length tr1) io2 || take (length tr1) tr2) q\<close> \<open>take (length tr1) io2 = io1\<close> assms(1) assms(2) assms(3) language_state observable_path_unique)
+qed
+
+  
+
+lemma observable_io_targets_suffix :
+  assumes "observable M"
+  and "io_targets M q1 vs = {q2}"
+  and "io_targets M q1 (vs@xs) = {q3}"
+shows "io_targets M q2 xs = {q3}"
+proof -
+  have "prefix vs (vs@xs)" 
+    by auto
+  
+  obtain trV where "path M (vs || trV) q1 \<and> length trV = length vs \<and> target (vs || trV) q1 = q2" by (metis assms(2) io_targets_elim singletonI)
+  moreover obtain trVX where "path M (vs@xs || trVX) q1 \<and> length trVX = length (vs@xs) \<and> target (vs@xs || trVX) q1 = q3" by (metis assms(3) io_targets_elim singletonI)
+
+  
+  ultimately have "trV = take (length trV) trVX" 
+    using io_path_states_prefix[OF assms(1) _ _ _ _ \<open>prefix vs (vs@xs)\<close>, of trV q1 trVX] by auto
+  show ?thesis 
+    by (meson assms(1) assms(2) assms(3) observable_io_targets_split)
 qed
 
 
@@ -741,7 +811,7 @@ abbreviation "L\<^sub>i\<^sub>n M TS \<equiv> LS\<^sub>i\<^sub>n M (initial M) T
 
 abbreviation  "io_reduction_on M1 TS M2 \<equiv> (LS\<^sub>i\<^sub>n M1 (initial M1) TS \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) TS)" 
 notation 
-  io_reduction_on ("(_ \<preceq>\<lbrakk>_\<rbrakk> _)" )
+  io_reduction_on ("(_ \<preceq>\<lbrakk>_\<rbrakk> _)" [1000,0,0] 61)
 notation  (latex output)
   io_reduction_on ("(_ \<preceq>\<^bsub>_\<^esub> _)" [1000,0,0] 61)
 
