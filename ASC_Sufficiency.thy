@@ -1566,20 +1566,17 @@ by (metis asc_sufficiency assms(1-5) is_reduction_on_sets_reduction)
 *)
 
 lemma classical_suite_soundness :
-  assumes "OFSM M1"
-  and     "OFSM M2"
+  assumes "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M1"
+  and     "observable M2"
   and     "fault_domain M2 M1 m"
 shows     "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> M1 \<preceq>\<lbrakk>{xs . set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<rbrakk> M2" 
   (is "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2")
 proof 
   assume "\<not> M1 \<preceq> M2"
   obtain stf where "sequence_to_failure M1 M2 stf \<and> length stf \<le> |M2| * |M1|"
-    using sequence_to_failure_length[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>] 
-  proof -
-    assume "\<And>stf. sequence_to_failure M1 M2 stf \<and> length stf \<le> |M2| * |M1| \<Longrightarrow> thesis"
-    then show ?thesis
-      using \<open>OFSM M1\<close> \<open>OFSM M2\<close> \<open>\<lbrakk>well_formed M1; well_formed M2; observable M1; observable M2\<rbrakk> \<Longrightarrow> \<exists>xs. sequence_to_failure M1 M2 xs \<and> length xs \<le> |M2| * |M1|\<close> by presburger
-  qed  
+    using sequence_to_failure_length[OF assms(1-4) \<open>\<not> M1 \<preceq> M2\<close>] by blast
   then have "sequence_to_failure M1 M2 stf" "length stf \<le> |M2| * |M1|"
     by auto
 
@@ -1589,12 +1586,12 @@ proof
   have "set ?xs \<subseteq> inputs M1"
     by (meson \<open>stf \<in> L M1\<close> assms(1) language_state_for_inputsputs)
   then have "set ?xs \<subseteq> inputs M2"
-    using assms(3) by auto
+    using assms(5) by auto
  
   have "length ?xs \<le> |M2| * |M1|"
     using \<open>length stf \<le> |M2| * |M1|\<close> by auto 
   have "|M1| \<le> m"
-    using assms(3) by auto
+    using assms(5) by auto
   have "length ?xs \<le> |M2| * m"
   proof -
     show ?thesis
@@ -1620,8 +1617,10 @@ qed
 
 
 lemma classical_suite_completeness :
-  assumes "OFSM M1"
-  and     "OFSM M2"
+  assumes "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M1"
+  and     "observable M2"
   and     "fault_domain M2 M1 m"
 shows     "M1 \<preceq> M2 \<longleftrightarrow> M1 \<preceq>\<lbrakk>{xs . set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<rbrakk> M2" 
   (is "M1 \<preceq> M2 \<longleftrightarrow> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2")
