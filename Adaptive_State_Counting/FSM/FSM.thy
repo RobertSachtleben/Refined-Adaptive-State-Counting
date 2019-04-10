@@ -173,7 +173,9 @@ lemma states_target_index :
 subsection {* Product machine for language intersection *}
 
 text \<open>
-The following describes the classical creation of a product machine from two FSMs.
+The following describes the classical construction of a product machine from two FSMs such that
+the language of the product machine is the intersection of the languages of the FSMs it has been
+created from.
 \<close>
 
 definition product :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow>
