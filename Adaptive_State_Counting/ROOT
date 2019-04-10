@@ -1,0 +1,17 @@
+chapter AFP
+
+session Adaptive_State_Counting (AFP) = "Transition_Systems_and_Automata" +
+  options [document = pdf, document_output = "output"]
+  theories
+    "FSM/FSM"
+    "FSM/FSM_Product"
+    "ATC/ATC"
+    "ASC/ASC_LB"
+    "ASC/ASC_Suite"
+    "ASC/ASC_Sufficiency"
+(*
+    "ASC/ASC_Hoare"
+    "ASC/ASC_Example"
+*)
+  document_files
+    "root.tex"

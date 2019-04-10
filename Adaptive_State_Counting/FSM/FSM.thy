@@ -12,7 +12,7 @@ text \<open>
 We formalise finite state machines as a 4-tuples, omitting the explicit formulation of the state 
 set,as it can easily be calculated from the successor function.
 This definition does not require the successor function to be restricted to the input or output 
-alphabet, which is later expressed by the property well_formed, together with the finiteness of
+alphabet, which is later expressed by the property well\_formed, together with the finiteness of
 the state set.
 \<close>
 
@@ -44,7 +44,7 @@ subsection {* Language *}
 
 text \<open>
 The following definitions establish basic notions for FSMs similarly to those of nondeterministic
-finite automata as defined in Transition_Systems_and_Automata.Automata.NFA.
+finite automata as defined in Transition\_Systems\_and\_Automata.Automata.NFA.
 \<close>
 
 abbreviation "target \<equiv> FSM.target"
@@ -392,7 +392,7 @@ proof -
         case True
         have "\<exists> i1 . target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0"
         proof (rule ccontr)
-          assume "\<nexists>i1. target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0"
+          assume "\<not> (\<exists> i1. target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0)"
           then have "\<not> (\<exists> i1 . (states p q1) ! i1 = q1 \<and> i1 \<le> length (states p q1))" by (metis True in_set_conv_nth less_eq_Suc_le scan_length scan_nth zero_less_Suc)
           then have "q1 \<notin> set (states p q1)" by (meson in_set_conv_nth less_imp_le)  
           then show "False" using True by auto
@@ -538,7 +538,7 @@ qed
 subsection {* States reached by a given IO-sequence *}
 
 text \<open>
-The function io_targets collects all states of an FSM reached from a given state by a given 
+The function io\_targets collects all states of an FSM reached from a given state by a given 
 IO-sequence.
 Notably, for any observable FSM, this set contains at most one state.
 \<close>

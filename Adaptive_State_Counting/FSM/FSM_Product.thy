@@ -730,7 +730,7 @@ qed
 
 
 
-section {* Sequences to failures *}
+subsection {* Sequences to failures *}
 
 text \<open>
 A sequence to a failure for FSMs A and B is a sequence such that any proper prefix of it is 
@@ -1349,7 +1349,7 @@ qed
 
 
 
-section {* Minimal sequence to failure extending *}
+subsection {* Minimal sequence to failure extending *}
 
 text \<open>
 A minimal sequence to a failure extending some some set of IO-sequences is a sequence to a failure
@@ -1386,7 +1386,7 @@ proof -
     by blast
   moreover have "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
   proof (rule ccontr)
-    assume "\<not> (\<nexists>io'. \<exists>w'\<in>LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
+    assume "\<not> (\<not> (\<exists> io'. \<exists>w'\<in>LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq))"
     then obtain seq' where seq'_def : "\<exists>w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ seq') \<and> length seq' < length ?minSeq" by auto
     then have "seq' \<in> ?seqs \<and> length seq' < length ?minSeq " by auto
     then show "False" using minSeq_def using leD by blast  

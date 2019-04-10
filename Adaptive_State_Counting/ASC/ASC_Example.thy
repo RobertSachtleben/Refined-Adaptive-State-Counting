@@ -2,6 +2,10 @@ theory ASC_Example
   imports ASC_Hoare
 begin
 
+
+section {* Example product machines and properties *}
+
+
 (* helper function to more easily create FSMs, only requiring a set of transition-tuples 
    and an initial state instead of, in particular, the explicit successor function *)
 fun from_rel :: "('state \<times> ('in \<times> 'out) \<times> 'state) set \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM" where

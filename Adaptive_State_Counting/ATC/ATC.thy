@@ -1,6 +1,9 @@
 theory ATC
-imports FSM
+imports "../FSM/FSM"
 begin
+
+section {* Adaptive test cases *}
+
 
 datatype ('in, 'out) ATC = Leaf | Node 'in "'out \<Rightarrow> ('in, 'out) ATC"
 

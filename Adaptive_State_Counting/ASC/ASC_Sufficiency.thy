@@ -2,6 +2,8 @@ theory ASC_Sufficiency
   imports ASC_Suite
 begin
 
+section {* Sufficiency of the test suite to test for reduction *}
+
 (* variations on preconditions *)
 (* TODO: rework by extracting V'' *)
 abbreviation

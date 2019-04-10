@@ -1,6 +1,9 @@
 theory ASC_LB
-imports ATC FSM FSM_Product
+imports "../ATC/ATC" "../FSM/FSM_Product"
 begin 
+
+section {* The lower bound function *}
+
 
 (* Proposition 5.4.2 *)
 (* see B_dist, B_dist' in ATC *)

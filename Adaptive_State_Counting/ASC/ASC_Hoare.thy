@@ -2,7 +2,7 @@ theory ASC_Hoare
   imports ASC_Sufficiency "HOL-Hoare.Hoare_Logic" 
 begin
 
-
+section {* Correctness of the Adaptive State Counting Algorithm in Hoare-Logic *}
 
 
 lemma language_state_for_inputs_union : 
