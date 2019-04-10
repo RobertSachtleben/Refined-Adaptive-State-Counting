@@ -2,6 +2,20 @@ theory FSM_Product
 imports FSM
 begin
 
+section {* Product machines with an additional fail state *}
+
+text \<open>
+We extend the product machine for language intersection presented in theory FSM by an additional
+state that is reached only by sequences such that any proper prefix of the sequence is in the
+language intersection, whereas the full sequence is only contained in the language of the machine
+B for which we are interested whether it is a reduction of some machine B.
+
+To allow for free choice of the FAIL state, we define the following property that holds iff AB is
+the product automaton of A and B extended with fail state FAIL.
+\<close>
+
+
+
 
 fun productF :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('state1 \<times> 'state2)  
   \<Rightarrow> ('in, 'out, 'state1 \<times>'state2) FSM \<Rightarrow> bool" where
@@ -34,19 +48,6 @@ lemma productF_simps[simp]:
 
 
 
-lemma succ_nodes :
-  fixes A :: "('a,'b,'c) FSM"
-  and   w :: "('a \<times> 'b)"
-  assumes "q2 \<in> succ A w q1"
-  and     "q1 \<in> nodes A"
-shows "q2 \<in> nodes A"
-proof -
-  obtain x y where "w = (x,y)" by (meson surj_pair)
-  then have "q2 \<in> successors A q1" using assms  by auto
-  then have "q2 \<in> reachable A q1" by blast 
-  then have "q2 \<in> reachable A (initial A)" using assms by blast 
-  then show "q2 \<in> nodes A" by blast
-qed
 
 
 
@@ -505,6 +506,11 @@ qed
   
 
 
+text \<open>
+The following lemma formalizes the property of paths of the product machine as described 
+in the section introduction.
+\<close>
+
 
 lemma productF_path[iff] :
   assumes "length w = length r1" "length r1 = length r2"
@@ -641,12 +647,6 @@ qed
 
 
 
-lemma io_target_from_path :
-  assumes "path M (w || tr) q"
-  and     "length w = length tr"
-shows "target (w || tr) q \<in> io_targets M q w"
-  using assms by auto
-
 
 lemma productF_path_io_targets :
   assumes "productF A B FAIL AB"
@@ -687,6 +687,8 @@ proof -
   show "pB \<in> io_targets B qB w" using path_B targets by auto
 qed
 
+
+
 lemma productF_path_io_targets_reverse :
   assumes "productF A B FAIL AB"
   and     "pA \<in> io_targets A qA w" 
@@ -725,10 +727,28 @@ proof -
     by (meson \<open>(pA, pB) \<in> io_targets AB (qA, qB) w\<close> \<open>observable AB\<close> observable_io_target_is_singleton) 
 qed
 
+
+
+
+section {* Sequences to failures *}
+
+text \<open>
+A sequence to a failure for FSMs A and B is a sequence such that any proper prefix of it is 
+contained in the languages of both A and B, while the sequence itself is contained only in the
+language of A.
+
+That is, if a sequence to a failure for A and B exists, then A is not a reduction of B.
+
+Furthermore, a sequence to a failure for A and B reaches the fail state of any product machine 
+of A and B with added fail state.
+\<close>
+
+
 fun sequence_to_failure :: "('in,'out,'state) FSM \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
   "sequence_to_failure M1 M2 xs = (
     (butlast xs) \<in> (language_state M2 (initial M2) \<inter> language_state M1 (initial M1))
     \<and> xs \<in> (language_state M1 (initial M1) - language_state M2 (initial M2)))"
+
 
 lemma fail_reachable_by_sequence_to_failure :
   assumes "sequence_to_failure M1 M2 io"
@@ -952,213 +972,6 @@ qed
 
 
 
-
-lemma non_distinct_duplicate_indices :
-  assumes "\<not> distinct xs"
-shows "\<exists> i1 i2 . i1 \<noteq> i2 \<and> xs ! i1 = xs ! i2 \<and> i1 \<le> length xs \<and> i2 \<le> length xs"
-  using assms by (meson distinct_conv_nth less_imp_le) 
-
-lemma set_of_succs_finite :
-  assumes "well_formed M"
-  and     "q \<in> nodes M"
-shows "finite (succ M io q)"
-proof (rule ccontr)
-  assume "infinite (succ M io q)"
-  moreover have "succ M io q \<subseteq> nodes M" using assms by (simp add: subsetI succ_nodes) 
-  ultimately have "infinite (nodes M)" using infinite_super by blast 
-  then show "False" using assms by auto
-qed
-
-lemma well_formed_path_io_containment : 
-  assumes "well_formed M"
-  and     "path M p q"
-shows "set (map fst p) \<subseteq> (inputs M \<times> outputs M)"
-using assms proof (induction p arbitrary: q)
-case Nil
-  then show ?case by auto
-next
-  case (Cons a p)
-  have "fst a \<in> (inputs M \<times> outputs M)"
-  proof (rule ccontr)
-    assume "fst a \<notin> inputs M \<times> outputs M"
-    then have "fst (fst a) \<notin> inputs M \<or> snd (fst a) \<notin> outputs M" by (metis SigmaI prod.collapse) 
-    then have "succ M (fst a) q = {}" using Cons by (metis prod.collapse well_formed.elims(2)) 
-    moreover have "(snd a) \<in> succ M (fst a) q" using Cons by auto
-    ultimately show "False" by auto
-  qed
-  moreover have "set (map fst p) \<subseteq> (inputs M \<times> outputs M)" using Cons by blast 
-  ultimately show ?case by auto
-qed
-
-lemma path_state_containment :
-  assumes "path M p q"
-  and     "q \<in> nodes M"
-shows "set (map snd p) \<subseteq> nodes M"
-  using assms by (metis FSM.nodes_states states_alt_def) 
-
-lemma path_input_containment :
-  assumes "well_formed M"
-  and     "path M p q"  
-shows "set (map fst (map fst p)) \<subseteq> inputs M"
-using assms proof (induction p arbitrary: q rule: rev_induct)
-  case Nil
-  then show ?case by auto
-next
-  case (snoc a p)
-  have "set (map fst (p @ [a])) \<subseteq> (inputs M \<times> outputs M)" using well_formed_path_io_containment[OF snoc.prems] by assumption
-  then have "(fst a) \<in> (inputs M \<times> outputs M)" by auto
-  then have "fst (fst a) \<in> inputs M" by auto
-  moreover have "set (map fst (map fst p)) \<subseteq> inputs M" using snoc.IH[OF snoc.prems(1)]
-    using snoc.prems(2) by blast 
-  ultimately show ?case
-    by simp 
-qed
-
-
-
-lemma set_of_paths_finite : 
-  assumes "well_formed M"
-  and     "q1 \<in> nodes M"
-shows "finite { p . path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k }"
-proof -
-
-  let ?trs = "{ tr . set tr \<subseteq> nodes M \<and> length tr \<le> k }"
-  let ?ios = "{ io . set io \<subseteq> inputs M \<times> outputs M \<and> length io \<le> k }"
-  let ?iotrs = "image (\<lambda> (io,tr) . io || tr) (?ios \<times> ?trs)"
-
-  let ?paths = "{ p . path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k }"
-  
-  have "finite (inputs M \<times> outputs M)" using assms by auto
-  then have "finite ?ios" using assms by (simp add: finite_lists_length_le) 
-  moreover have "finite ?trs" using assms by (simp add: finite_lists_length_le)
-  ultimately have "finite ?iotrs" by auto
-
-  moreover have "?paths \<subseteq> ?iotrs" 
-  proof 
-    fix p assume p_assm : "p \<in> { p . path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k }"
-    then obtain io tr where p_split : "p = io || tr \<and> length io = length tr" using that by (metis (no_types) length_map zip_map_fst_snd)
-    then have "io \<in> ?ios" using well_formed_path_io_containment
-    proof -
-      have f1: "path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k"
-        using p_assm by force
-      then have "set io \<subseteq> inputs M \<times> outputs M"
-        by (metis (no_types) assms(1) map_fst_zip p_split well_formed_path_io_containment)
-      then show ?thesis
-        using f1 by (simp add: p_split)
-    qed 
-
-    moreover have "tr \<in> ?trs" using p_split
-    proof -
-      have f1: "path M (io || tr) q1 \<and> target (io || tr) q1 = q2 \<and> length (io || tr) \<le> k" using \<open>p \<in> {p. path M p q1 \<and> target p q1 = q2 \<and> length p \<le> k}\<close> p_split by force
-      then have f2: "length tr \<le> k" by (simp add: p_split)
-      have "set tr \<subseteq> nodes M" using f1 by (metis (no_types) assms(2) length_map p_split path_state_containment zip_eq zip_map_fst_snd)
-      then show ?thesis using f2 by blast
-    qed 
-    ultimately show "p \<in> ?iotrs" using p_split by auto
-  qed
-
-  ultimately show ?thesis using Finite_Set.finite_subset by blast
-qed 
-
-
-
-
-lemma reaching_path_without_repetition :
-  assumes "well_formed M"
-  and     "q2 \<in> reachable M q1"
-  and     "q1 \<in> nodes M"
-shows "\<exists> p . path M p q1 \<and> target p q1 = q2 \<and> distinct (q1 # states p q1)"
-proof -
-  have shorten_nondistinct : "\<forall> p . (path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (q1 # states p q1)) 
-               \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
-  proof 
-    fix p 
-    show "(path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (q1 # states p q1)) 
-               \<longrightarrow> (\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
-    proof 
-      assume assm : "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (q1 # states p q1)"
-      then show "(\<exists>p'. path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length p)"
-      proof (cases "q1 \<in> set (states p q1)")
-        case True
-        have "\<exists> i1 . target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0"
-        proof (rule ccontr)
-          assume "\<nexists>i1. target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0"
-          then have "\<not> (\<exists> i1 . (states p q1) ! i1 = q1 \<and> i1 \<le> length (states p q1))" by (metis True in_set_conv_nth less_eq_Suc_le scan_length scan_nth zero_less_Suc)
-          then have "q1 \<notin> set (states p q1)" by (meson in_set_conv_nth less_imp_le)  
-          then show "False" using True by auto
-        qed
-        then obtain i1 where i1_def : "target (take i1 p) q1 = q1 \<and> i1 \<le> length p \<and> i1 > 0" by auto
-
-        then have "path M (take i1 p) q1" using assm by (metis FSM.path_append_elim append_take_drop_id)  
-        moreover have "path M (drop i1 p) q1" using i1_def by (metis FSM.path_append_elim append_take_drop_id assm) 
-        ultimately have "path M (drop i1 p) q1 \<and> (target (drop i1 p) q1 = q2)" using i1_def by (metis (no_types) append_take_drop_id assm fold_append o_apply)
-        
-        moreover have "length (drop i1 p) < length p" using i1_def by auto
-        ultimately show ?thesis using assms by blast
-      
-     next
-        case False
-        then have assm' : "path M p q1 \<and> target p q1 = q2 \<and> \<not> distinct (states p q1)" using assm by auto
-
-        have "\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p"
-        proof (rule ccontr)
-          assume "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p)"
-          then have "\<not> (\<exists> i1 i2 . i1 \<noteq> i2 \<and> (states p q1) ! i1 = (states p q1) ! i2 \<and> i1 \<le> length (states p q1) \<and> i2 \<le> length (states p q1))"
-            by (metis (no_types, lifting) Suc_leI assm' distinct_conv_nth nat.inject scan_length scan_nth) 
-    
-          then have "distinct (states p q1)" using non_distinct_duplicate_indices by blast 
-          then show "False" using assm' by auto
-        qed
-        then obtain i1 i2 where i_def : "i1 < i2 \<and> target (take i1 p) q1 = target (take i2 p) q1 \<and> i1 \<le> length p \<and> i2 \<le> length p" by (metis nat_neq_iff)
-    
-        then have "path M (take i1 p) q1" using assm by (metis FSM.path_append_elim append_take_drop_id)  
-        moreover have "path M (drop i2 p) (target (take i2 p) q1)" by (metis FSM.path_append_elim append_take_drop_id assm) 
-        ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> (target ((take i1 p) @ (drop i2 p)) q1 = q2)" using i_def assm
-          by (metis FSM.path_append append_take_drop_id fold_append o_apply) 
-    
-        moreover have "length ((take i1 p) @ (drop i2 p)) < length p" using i_def by auto
-    
-        ultimately have "path M ((take i1 p) @ (drop i2 p)) q1 \<and> target ((take i1 p) @ (drop i2 p)) q1 = q2 \<and> length ((take i1 p) @ (drop i2 p)) < length p" by simp
-      
-        then show ?thesis using assms by blast
-      qed
-
-
-      
-    qed
-  qed
-
-
-
-  obtain p where p_def : "path M p q1 \<and> target p q1 = q2" using assms by auto
-
-  let ?paths = "{p' . (path M p' q1 \<and> target p' q1 = q2 \<and> length p' \<le> length p)}"
-  let ?minPath = "arg_min length (\<lambda> io . io \<in> ?paths)" 
-  
-  have "?paths \<noteq> empty" using p_def by auto
-  moreover have "finite ?paths" using assms by (simp add: set_of_paths_finite) 
-  ultimately have minPath_def : "?minPath \<in> ?paths \<and> (\<forall> p' \<in> ?paths . length ?minPath \<le> length p')" by (meson arg_min_nat_lemma equals0I) 
-  
-  moreover have "distinct (q1 # states ?minPath q1)"
-  proof (rule ccontr)
-    assume "\<not> distinct (q1 # states ?minPath q1)"
-    then have "\<exists> p' . path M p' q1 \<and> target p' q1 = q2 \<and> length p' < length ?minPath" using shorten_nondistinct minPath_def by blast 
-    then show "False" using minPath_def using arg_min_nat_le dual_order.strict_trans1 by auto 
-  qed
-
-  ultimately show ?thesis by auto
-qed
-  
-
-
-
-
-lemma states_target_index :
-  assumes "i < length p"
-  shows "(states p q1) ! i = target (take (Suc i) p) q1"
-  using assms by auto 
-
-
 lemma reaching_path_length :
   assumes "productF A B FAIL AB"
   and     "well_formed A"
@@ -1256,56 +1069,6 @@ next
 qed
 
 
-
-
-
-
-
-
-
-
-fun minimal_sequence_to_failure_extending :: "'in list set \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
-  "minimal_sequence_to_failure_extending V M1 M2 v' io = (
-   v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (v' @ io) 
-              \<and> \<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length io))"
-
-lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
-  assumes "productF M2 M1 FAIL PM"
-  and     "well_formed M1"
-  and     "well_formed M2"
-  and     "observable M2"
-  and     "is_det_state_cover M2 V"
-  and     "\<not> M1 \<preceq> M2"
-obtains vs io
-where "minimal_sequence_to_failure_extending V M1 M2 vs io" 
-proof -
-  let ?seqs = "{seq . \<exists> v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V .sequence_to_failure M1 M2 (v' @ seq)}"
-  obtain seq where "sequence_to_failure M1 M2 seq" using assms sequence_to_failure_ob by blast
-  then have "sequence_to_failure M1 M2 ([] @ seq)" by simp
-  moreover have "[] \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" using assms det_state_cover_empty language_state_for_inputs_empty by metis
-  ultimately have "seq \<in> ?seqs" using assms(5) by blast
-  then have seqs_nonempty : "?seqs \<noteq> {}" by auto
-
-  let ?minSeq = "arg_min length (\<lambda> io . io \<in> ?seqs)"
-  have minSeq_def : "?minSeq \<in> ?seqs \<and> (\<forall> seq' \<in> ?seqs . length  ?minSeq \<le> length seq')" 
-    using seqs_nonempty by (meson all_not_in_conv arg_min_nat_lemma) 
-  then obtain vs where "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ ?minSeq)"
-    by blast
-  moreover have "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
-  proof (rule ccontr)
-    assume "\<not> (\<nexists>io'. \<exists>w'\<in>LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
-    then obtain seq' where seq'_def : "\<exists>w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ seq') \<and> length seq' < length ?minSeq" by auto
-    then have "seq' \<in> ?seqs \<and> length seq' < length ?minSeq " by auto
-    then show "False" using minSeq_def using leD by blast  
-  qed
-  ultimately have "minimal_sequence_to_failure_extending V M1 M2 vs ?minSeq" by auto
-  then show ?thesis using that by auto
-qed
-  
-
-
-
-
 lemma productF_language :
   assumes "productF A B FAIL AB"
   and     "well_formed A"
@@ -1357,43 +1120,10 @@ qed
 
 
 
-
-lemma io_targets_succ : 
-  assumes "q2 \<in> io_targets M q1 [xy]"
-  shows "q2 \<in> succ M xy q1"
-proof -
-  obtain tr where tr_def : "target ([xy] || tr) q1 = q2" "path M ([xy] || tr) q1" "length [xy] = length tr"
-    using assms by auto
-
-  have "length tr = Suc 0"
-    using \<open>length [xy] = length tr\<close> by auto
-  then obtain q2' where "tr = [q2']"
-    by (metis Suc_length_conv length_0_conv)
-  then have "target ([xy] || tr) q1 = q2'"
-    by auto
-  then have "q2' = q2"
-    using \<open>target ([xy] || tr) q1 = q2\<close> by simp
-  then have "path M ([xy] || [q2]) q1" 
-    using tr_def(2) \<open>tr = [q2']\<close> by auto
-  then have "path M [(xy,q2)] q1"
-    by auto
-
-  show ?thesis 
-  proof (cases rule: FSM.path.cases[of M "[(xy,q2)]" q1])
-    case nil
-    show ?case 
-      using \<open>path M [(xy,q2)] q1\<close> by simp
-  next
-    case cons 
-    show "snd (xy, q2) \<in> succ M (fst (xy, q2)) q1 \<Longrightarrow> path M [] (snd (xy, q2)) \<Longrightarrow> q2 \<in> succ M xy q1" by auto
-  qed
-qed
-  
-
-
-
-
-
+text \<open>
+The following lemma shows that if M1 is not a reduction of M2, then a minimal sequence to a 
+failure exists that is of length at most |M2| * |M1|. 
+\<close>
 
 lemma sequence_to_failure_length :
   assumes "well_formed M1"
@@ -1412,9 +1142,6 @@ proof -
   let ?bls = "butlast seq"
   have "?bls \<in> L M1" "?bls \<in> L M2" 
     using \<open>sequence_to_failure M1 M2 seq\<close> by auto
-
-
-
 
 
   then obtain tr1b tr2b where 
@@ -1618,6 +1345,74 @@ proof -
   then show ?thesis
     by blast
 qed
+
+
+
+
+section {* Minimal sequence to failure extending *}
+
+text \<open>
+A minimal sequence to a failure extending some some set of IO-sequences is a sequence to a failure
+of minimal length such that a prefix of that sequence is contained in the set.
+\<close>
+
+
+fun minimal_sequence_to_failure_extending :: "'in list set \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "minimal_sequence_to_failure_extending V M1 M2 v' io = (
+   v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (v' @ io) 
+              \<and> \<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length io))"
+
+lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
+  assumes "productF M2 M1 FAIL PM"
+  and     "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M2"
+  and     "is_det_state_cover M2 V"
+  and     "\<not> M1 \<preceq> M2"
+obtains vs io
+where "minimal_sequence_to_failure_extending V M1 M2 vs io" 
+proof -
+  let ?seqs = "{seq . \<exists> v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V .sequence_to_failure M1 M2 (v' @ seq)}"
+  obtain seq where "sequence_to_failure M1 M2 seq" using assms sequence_to_failure_ob by blast
+  then have "sequence_to_failure M1 M2 ([] @ seq)" by simp
+  moreover have "[] \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" using assms det_state_cover_empty language_state_for_inputs_empty by metis
+  ultimately have "seq \<in> ?seqs" using assms(5) by blast
+  then have seqs_nonempty : "?seqs \<noteq> {}" by auto
+
+  let ?minSeq = "arg_min length (\<lambda> io . io \<in> ?seqs)"
+  have minSeq_def : "?minSeq \<in> ?seqs \<and> (\<forall> seq' \<in> ?seqs . length  ?minSeq \<le> length seq')" 
+    using seqs_nonempty by (meson all_not_in_conv arg_min_nat_lemma) 
+  then obtain vs where "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ ?minSeq)"
+    by blast
+  moreover have "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
+  proof (rule ccontr)
+    assume "\<not> (\<nexists>io'. \<exists>w'\<in>LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length ?minSeq)"
+    then obtain seq' where seq'_def : "\<exists>w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ seq') \<and> length seq' < length ?minSeq" by auto
+    then have "seq' \<in> ?seqs \<and> length seq' < length ?minSeq " by auto
+    then show "False" using minSeq_def using leD by blast  
+  qed
+  ultimately have "minimal_sequence_to_failure_extending V M1 M2 vs ?minSeq" by auto
+  then show ?thesis using that by auto
+qed
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
     
 
 
