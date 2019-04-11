@@ -840,7 +840,52 @@ proof -
   then show ?thesis using that by auto  
 qed
 
+lemma sequence_to_failure_succ :
+  assumes "sequence_to_failure M1 M2 io"
+  shows "\<forall> q \<in> io_targets M2 (initial M2) (butlast io) . succ M2 (last io) q = {}"
+proof
+  have "io \<noteq> []"
+    using assms by auto
+  fix q assume "q \<in> io_targets M2 (initial M2) (butlast io)"
+  then obtain tr where "q = target (butlast io || tr) (initial M2)"
+                 and   "path M2 (butlast io || tr) (initial M2)"
+                 and   "length (butlast io) = length tr" 
+    unfolding io_targets.simps by auto
+  
+  show "succ M2 (last io) q = {}"
+  proof (rule ccontr)
+    assume "succ M2 (last io) q \<noteq> {}"
+    then obtain q' where "q' \<in> succ M2 (last io) q"
+      by blast
+    then have "path M2 [(last io, q')] (target (butlast io || tr) (initial M2))" 
+      using \<open>q = target (butlast io || tr) (initial M2)\<close> by auto
 
+    have "path M2 ((butlast io || tr) @ [(last io, q')]) (initial M2)"
+      using \<open>path M2 (butlast io || tr) (initial M2)\<close> 
+            \<open>path M2 [(last io, q')] (target (butlast io || tr) (initial M2))\<close> by auto
+
+    have "butlast io @ [last io] = io"
+      by (meson \<open>io \<noteq> []\<close> append_butlast_last_id)
+
+    have "path M2 (io || (tr@[q'])) (initial M2)"
+    proof -
+      have "path M2 ((butlast io || tr) @ ([last io] || [q'])) (initial M2)"
+        by (simp add: FSM.path_append \<open>path M2 (butlast io || tr) (initial M2)\<close> \<open>path M2 [(last io, q')] (target (butlast io || tr) (initial M2))\<close>)
+      then show ?thesis
+        by (metis (no_types) \<open>butlast io @ [last io] = io\<close> \<open>length (butlast io) = length tr\<close> zip_append)
+    qed
+    
+    have "io \<in> L M2"
+    proof -
+      have "length tr + (0 + Suc 0) = length io"
+        by (metis \<open>butlast io @ [last io] = io\<close> \<open>length (butlast io) = length tr\<close> length_append list.size(3) list.size(4))
+      then show ?thesis
+        using \<open>path M2 (io || tr @ [q']) (initial M2)\<close> by fastforce
+    qed
+    then show "False" 
+      using assms by auto
+  qed
+qed
 
 
 
