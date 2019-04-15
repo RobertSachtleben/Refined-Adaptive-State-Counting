@@ -1151,7 +1151,28 @@ lemma language_state_for_input_empty[simp] :
 by auto
 
 
-
+lemma language_state_for_input_take :
+  assumes "io \<in> language_state_for_input M q xs"
+shows "take n io \<in> language_state_for_input M q (take n xs)" 
+proof -
+  obtain ys where "io = xs || ys" "length xs = length ys" "xs || ys \<in> language_state M q" 
+    using assms by auto
+  then obtain p where "length p = length xs" "path M ((xs || ys) || p) q "
+    by auto 
+  then have "path M (take n ((xs || ys) || p)) q"
+    by (metis FSM.path_append_elim append_take_drop_id) 
+  then have "take n (xs || ys) \<in> language_state M q"
+    by (simp add: \<open>length p = length xs\<close> \<open>length xs = length ys\<close> language_state take_zip)
+  then have "(take n xs) || (take n ys) \<in> language_state M q"
+    by (simp add: take_zip) 
+  
+  have "take n io = (take n xs) || (take n ys)"
+    using \<open>io = xs || ys\<close> take_zip by blast 
+  moreover have "length (take n xs) = length (take n ys)"
+    by (simp add: \<open>length xs = length ys\<close>) 
+  ultimately show ?thesis 
+    using \<open>(take n xs) || (take n ys) \<in> language_state M q\<close> unfolding language_state_for_input.simps by blast
+qed
 
 
 

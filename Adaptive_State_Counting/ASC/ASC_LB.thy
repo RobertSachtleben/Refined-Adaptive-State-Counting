@@ -11,6 +11,264 @@ Function LB calculates a lower bound on the number of states of some FSM in orde
 to not contain certain repetitions.
 \<close>
 
+subsection {* Permutation function Perm *}
+
+text \<open>
+Function Perm calculates all possible reactions of an FSM to a set of inputs sequences such that 
+every set in the calculated set of reactions contains exactly one reaction for each input sequence.
+\<close>
+
+fun Perm :: "'in list set \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> ('in \<times> 'out) list set set" where
+  "Perm V M = {image f V | f . \<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v }"
+
+lemma perm_empty :
+  assumes "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+shows "[] \<in> V''"
+proof -
+  have init_seq : "[] \<in> V" using det_state_cover_empty assms by simp
+  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" using assms by auto
+  then have "f [] = []" using init_seq by (metis language_state_for_input_empty singleton_iff) 
+  then show ?thesis using init_seq f_def by (metis image_eqI) 
+qed
+
+lemma perm_elem_finite :
+  assumes "is_det_state_cover M2 V"
+  and     "well_formed M2"
+  and     "V'' \<in> Perm V M1"
+  shows "finite V''"
+proof -
+  obtain f where "is_det_state_cover_ass M2 f \<and> V = f ` d_reachable M2 (initial M2)" using assms by auto
+  moreover have "finite (d_reachable M2 (initial M2))" 
+  proof -
+    have "finite (nodes M2)" using assms by auto
+    moreover have "nodes M2 = reachable M2 (initial M2)" by auto
+    ultimately have "finite (reachable M2 (initial M2))" by simp
+    moreover have "d_reachable M2 (initial M2) \<subseteq> reachable M2 (initial M2)" by auto
+    ultimately show ?thesis using infinite_super by blast 
+  qed
+  ultimately have "finite V" by auto
+  moreover obtain f'' where "V'' = image f'' V \<and> (\<forall> v \<in> V . f'' v \<in> language_state_for_input M1 (initial M1) v)" using assms(3) by auto 
+  ultimately show ?thesis by simp
+qed
+
+lemma perm_inputs :
+  assumes "V'' \<in> Perm V M"
+  and     "vs \<in> V''"
+shows "map fst vs \<in> V"
+proof -
+  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
+  then obtain v where v_def : "v \<in> V \<and> f v = vs" using assms by auto
+  then have "vs \<in> language_state_for_input M (initial M) v" using f_def by auto
+  then show ?thesis using v_def unfolding language_state_for_input.simps by auto
+qed
+
+lemma perm_inputs_diff :
+  assumes "V'' \<in> Perm V M"
+  and     "vs1 \<in> V''"
+  and     "vs2 \<in> V''"
+  and     "vs1 \<noteq> vs2"
+shows "map fst vs1 \<noteq> map fst vs2"
+proof -
+  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
+  then obtain v1 v2 where v_def : "v1 \<in> V \<and> f v1 = vs1 \<and> v2 \<in> V \<and> f v2 = vs2" using assms by auto
+  then have "vs1 \<in> language_state_for_input M (initial M) v1"
+            "vs2 \<in> language_state_for_input M (initial M) v2" using f_def by auto
+  moreover have "v1 \<noteq> v2" using v_def using assms(4) by blast 
+  ultimately show ?thesis by auto
+qed
+
+lemma perm_language :
+  assumes "V'' \<in> Perm V M"
+  and     "vs \<in> V''"
+shows "vs \<in> L M"
+proof -
+  obtain f where f_def : "image f V = V'' \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms(1) by auto
+  then have "\<exists> v . f v = vs \<and> f v \<in> language_state_for_input M (initial M) v" using assms(2) by blast 
+  then show ?thesis by auto
+qed
+
+
+
+
+subsection {* Helper predicates *}
+
+text \<open>
+The following predicates are used to combine often repeated assumption.
+\<close>
+
+abbreviation "fault_domain M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
+
+lemma fault_domain_props[elim!] :
+  assumes "fault_domain M2 M1 m"
+  shows "inputs M2 = inputs M1"
+        "card (nodes M1) \<le> m"using assms by auto
+
+abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
+
+lemma OFSM_props[elim!] :
+  assumes "OFSM M"
+shows "well_formed M" 
+      "observable M" 
+      "completely_specified M" using assms by auto
+
+abbreviation
+  "test_tools M2 M1 FAIL PM V V'' \<Omega> \<equiv> (
+      productF M2 M1 FAIL PM
+    \<and> is_det_state_cover M2 V
+    \<and> V'' \<in> Perm V M1
+    \<and> applicable_set M2 \<Omega>
+   )"
+
+lemma test_tools_props[elim] :
+  assumes "test_tools M2 M1 FAIL PM V V'' \<Omega>"
+  and     "fault_domain M2 M1 m"
+  shows "productF M2 M1 FAIL PM"
+        "is_det_state_cover M2 V"
+        "V'' \<in> Perm V M1"
+        "applicable_set M2 \<Omega>"
+        "applicable_set M1 \<Omega>"
+proof -
+  show "productF M2 M1 FAIL PM" using assms(1) by blast
+  show "is_det_state_cover M2 V" using assms(1) by blast
+  show "V'' \<in> Perm V M1" using assms(1) by blast
+  show "applicable_set M2 \<Omega>" using assms(1) by blast
+  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
+qed
+
+
+
+
+lemma perm_nonempty : 
+  assumes "is_det_state_cover M2 V"
+  and "OFSM M1"
+  and "OFSM M2"
+  and "inputs M1 = inputs M2"
+shows "Perm V M1 \<noteq> {}"
+proof -
+  have "finite (nodes M2)" using assms(3) by auto
+  moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
+    by auto 
+  ultimately have "finite V" using det_state_cover_card[OF assms(1)]
+    by (metis assms(1) finite_imageI infinite_super is_det_state_cover.elims(2)) 
+  
+  have "[] \<in> V"
+    using assms(1) det_state_cover_empty by blast 
+
+
+  have "\<And> VS . VS \<subseteq> V \<and> VS \<noteq> {} \<Longrightarrow> Perm VS M1 \<noteq> {}"
+  proof -
+    fix VS assume "VS \<subseteq> V \<and> VS \<noteq> {}"
+    then have "finite VS" using \<open>finite V\<close>
+      using infinite_subset by auto 
+    then show "Perm VS M1 \<noteq> {}" 
+      using \<open>VS \<subseteq> V \<and> VS \<noteq> {}\<close> \<open>finite VS\<close>
+    proof (induction VS)
+      case empty
+      then show ?case by auto
+    next
+      case (insert vs F)
+      then have "vs \<in> V" by blast
+      
+      obtain q2 where "d_reaches M2 (initial M2) vs q2" using det_state_cover_d_reachable[OF assms(1) \<open>vs \<in> V\<close>] by blast
+      then obtain vs' vsP where io_path : "length vs = length vs' \<and> length vs = length vsP \<and> (path M2 ((vs || vs') || vsP) (initial M2)) \<and> target ((vs || vs') || vsP) (initial M2) = q2"
+        by auto
+    
+      have "well_formed M2" 
+        using assms by auto
+      
+      have "map fst (map fst ((vs || vs') || vsP)) = vs"
+      proof -
+        have "length (vs || vs') = length vsP" using io_path
+          by simp 
+        then show ?thesis using io_path by auto
+      qed
+      moreover have "set (map fst (map fst ((vs || vs') || vsP))) \<subseteq> inputs M2" using path_input_containment[OF \<open>well_formed M2\<close>, of "(vs || vs') || vsP" "initial M2" ] io_path
+        by linarith
+      ultimately have "set vs \<subseteq> inputs M2" 
+        by presburger
+    
+      then have "set vs \<subseteq> inputs M1" 
+        using assms by auto
+    
+      then have "LS\<^sub>i\<^sub>n M1 (initial M1) {vs} \<noteq> {}" 
+        using assms(2) language_state_for_inputs_nonempty
+        by (metis FSM.nodes.initial) 
+      then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"
+        by auto
+      then obtain vs' where "vs' \<in> language_state_for_input M1 (initial M1) vs" 
+        by blast
+
+      show ?case
+      proof (cases "F = {}")
+        case True
+        moreover obtain f where "f vs = vs'" by moura
+        ultimately have "image f (insert vs F) \<in> Perm (insert vs F) M1"
+          using Perm.simps \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by blast     
+        then show ?thesis by blast
+      next
+        case False
+        then obtain F'' where "F'' \<in> Perm F M1" 
+          using insert.IH insert.hyps(1) insert.prems(1) by blast
+        then obtain f where "F'' = image f F" "(\<forall> v \<in> F . f v \<in> language_state_for_input M1 (initial M1) v)" by auto
+        let ?f = "f(vs := vs')"
+        have "\<forall> v \<in> (insert vs F) . ?f v \<in> language_state_for_input M1 (initial M1) v" 
+        proof 
+          fix v assume "v \<in> insert vs F"
+          then show "?f v \<in> language_state_for_input M1 (initial M1) v"
+          proof (cases "v = vs")
+            case True
+            then show ?thesis
+              using \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by auto 
+          next
+            case False
+            then have "v \<in> F"
+              using \<open>v \<in> insert vs F\<close> by blast
+            then show ?thesis
+              using False \<open>\<forall>v\<in>F. f v \<in> language_state_for_input M1 (initial M1) v\<close> by auto 
+          qed
+        qed
+        then have "image ?f (insert vs F) \<in> Perm (insert vs F) M1"
+          using Perm.simps by blast 
+        then show ?thesis by blast
+      qed
+    qed
+  qed
+
+  then show ?thesis
+    using \<open>[] \<in> V\<close> by blast 
+qed
+  
+
+
+lemma perm_elem :
+  assumes "is_det_state_cover M2 V"
+  and "OFSM M1"
+  and "OFSM M2"
+  and "inputs M1 = inputs M2"
+  and     "vs \<in> V"
+  and     "vs' \<in> language_state_for_input M1 (initial M1) vs"
+obtains V''
+where "V'' \<in> Perm V M1" "vs' \<in> V''"
+proof -
+  obtain V'' where "V'' \<in> Perm V M1" 
+    using perm_nonempty[OF assms(1-4)] by blast
+  then obtain f where "V'' = image f V" "(\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" by auto  
+
+  let ?f = "f(vs := vs')"
+
+  have "\<forall> v \<in> V . ?f v \<in> language_state_for_input M1 (initial M1) v"
+    using \<open>\<forall>v\<in>V. f v \<in> language_state_for_input M1 (initial M1) v\<close> assms(6) by fastforce
+
+  then have "image ?f V \<in> Perm V M1" 
+    by auto
+  moreover have "vs' \<in> image ?f V"
+    by (metis assms(5) fun_upd_same imageI) 
+  ultimately show ?thesis
+    using that by blast 
+qed
+
+
 
 subsection {* Function R *}
 
@@ -335,84 +593,108 @@ proof -
 qed
 
 
+lemma R_union_card_is_suffix_length :
+  assumes "OFSM M2"
+  and     "io@xs \<in> L M2"
+shows "sum (\<lambda> q . card (R M2 q io xs)) (nodes M2) = length xs"
+using assms proof (induction xs rule: rev_induct)
+  case Nil
+  show ?case
+    by (simp add: sum.neutral)
+next
+  case (snoc x xs)
 
-subsection {* Permutation function Perm *}
+  have "finite (nodes M2)" using assms by auto
 
-text \<open>
-Function Perm calculates all possible reactions of an FSM to a set of inputs sequences such that 
-every set in the calculated set of reactions contains exactly one reaction for each input sequence.
-\<close>
+  have R_update : "\<And> q . R M2 q io (xs@[x]) = (if (q \<in> io_targets M2 (initial M2) (io @ xs @ [x])) 
+                                    then insert (io@xs@[x]) (R M2 q io xs)   
+                                    else R M2 q io xs)" by auto
 
-fun Perm :: "'in list set \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> ('in \<times> 'out) list set set" where
-  "Perm V M = {image f V | f . \<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v }"
+  obtain q where "io_targets M2 (initial M2) (io @ xs @ [x]) = {q}"
+    by (meson assms(1) io_targets_observable_singleton_ex snoc.prems(2)) 
 
-lemma perm_empty :
-  assumes "is_det_state_cover M2 V"
-  and "V'' \<in> Perm V M1"
-shows "[] \<in> V''"
-proof -
-  have init_seq : "[] \<in> V" using det_state_cover_empty assms by simp
-  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" using assms by auto
-  then have "f [] = []" using init_seq by (metis language_state_for_input_empty singleton_iff) 
-  then show ?thesis using init_seq f_def by (metis image_eqI) 
-qed
+  then have "R M2 q io (xs@[x]) = insert (io@xs@[x]) (R M2 q io xs)" using R_update by auto
+  moreover have "(io@xs@[x]) \<notin> (R M2 q io xs)" by auto
+  ultimately have "card (R M2 q io (xs@[x])) = Suc (card (R M2 q io xs))"
+    by (metis card_insert_disjoint finite_R) 
 
-lemma perm_elem_finite :
-  assumes "is_det_state_cover M2 V"
-  and     "well_formed M2"
-  and     "V'' \<in> Perm V M1"
-  shows "finite V''"
-proof -
-  obtain f where "is_det_state_cover_ass M2 f \<and> V = f ` d_reachable M2 (initial M2)" using assms by auto
-  moreover have "finite (d_reachable M2 (initial M2))" 
+  have "q \<in> nodes M2"
+    by (metis (full_types) FSM.nodes.initial \<open>io_targets M2 (initial M2) (io@xs @ [x]) = {q}\<close> insertI1 io_targets_nodes) 
+
+  have "\<forall> q' . q' \<noteq> q \<longrightarrow> R M2 q' io (xs@[x]) = R M2 q' io xs" 
+    using \<open>io_targets M2 (initial M2) (io@xs @ [x]) = {q}\<close> R_update
+    by auto  
+  then have "\<forall> q' . q' \<noteq> q \<longrightarrow> card (R M2 q' io (xs@[x])) = card (R M2 q' io xs)" 
+    by auto
+
+  then have "(\<Sum>q\<in>(nodes M2 - {q}). card (R M2 q io (xs@[x]))) = (\<Sum>q\<in>(nodes M2 - {q}). card (R M2 q io xs))"
+    by auto
+  moreover have "(\<Sum>q\<in>nodes M2. card (R M2 q io (xs@[x]))) = (\<Sum>q\<in>(nodes M2 - {q}). card (R M2 q io (xs@[x]))) + (card (R M2 q io (xs@[x])))" 
+                "(\<Sum>q\<in>nodes M2. card (R M2 q io xs)) = (\<Sum>q\<in>(nodes M2 - {q}). card (R M2 q io xs)) + (card (R M2 q io xs))"
   proof -
-    have "finite (nodes M2)" using assms by auto
-    moreover have "nodes M2 = reachable M2 (initial M2)" by auto
-    ultimately have "finite (reachable M2 (initial M2))" by simp
-    moreover have "d_reachable M2 (initial M2) \<subseteq> reachable M2 (initial M2)" by auto
-    ultimately show ?thesis using infinite_super by blast 
-  qed
-  ultimately have "finite V" by auto
-  moreover obtain f'' where "V'' = image f'' V \<and> (\<forall> v \<in> V . f'' v \<in> language_state_for_input M1 (initial M1) v)" using assms(3) by auto 
-  ultimately show ?thesis by simp
-qed
+    have "\<forall>C c f. (infinite C \<or> (c::'c) \<notin> C) \<or> sum f C = (f c::nat) + sum f (C - {c})"
+      by (meson sum.remove)
+    then show "(\<Sum>q\<in>nodes M2. card (R M2 q io (xs@[x]))) = (\<Sum>q\<in>(nodes M2 - {q}). card (R M2 q io (xs@[x]))) + (card (R M2 q io (xs@[x])))"
+              "(\<Sum>q\<in>nodes M2. card (R M2 q io xs)) = (\<Sum>q\<in>(nodes M2 - {q}). card (R M2 q io xs)) + (card (R M2 q io xs))"
+      using \<open>finite (nodes M2)\<close> \<open>q \<in> nodes M2\<close> by presburger+
+  qed 
+  ultimately have "(\<Sum>q\<in>nodes M2. card (R M2 q io (xs@[x]))) = Suc (\<Sum>q\<in>nodes M2. card (R M2 q io xs))" 
+    using \<open>card (R M2 q io (xs@[x])) = Suc (card (R M2 q io xs))\<close> by presburger
 
-lemma perm_inputs :
-  assumes "V'' \<in> Perm V M"
-  and     "vs \<in> V''"
-shows "map fst vs \<in> V"
-proof -
-  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
-  then obtain v where v_def : "v \<in> V \<and> f v = vs" using assms by auto
-  then have "vs \<in> language_state_for_input M (initial M) v" using f_def by auto
-  then show ?thesis using v_def unfolding language_state_for_input.simps by auto
-qed
+  have "(\<Sum>q\<in>nodes M2. card (R M2 q io xs)) = length xs" 
+    using snoc.IH snoc.prems language_state_prefix[of "io@xs" "[x]" M2 "initial M2"]
+  proof -
+    show ?thesis
+      by (metis (no_types) \<open>(io @ xs) @ [x] \<in> L M2 \<Longrightarrow> io @ xs \<in> L M2\<close> \<open>OFSM M2\<close> \<open>io @ xs @ [x] \<in> L M2\<close> append.assoc snoc.IH)
+  qed 
+  
+  show ?case
+  proof -
+    show ?thesis
+      by (metis (no_types) \<open>(\<Sum>q\<in>nodes M2. card (R M2 q io (xs @ [x]))) = Suc (\<Sum>q\<in>nodes M2. card (R M2 q io xs))\<close> \<open>(\<Sum>q\<in>nodes M2. card (R M2 q io xs)) = length xs\<close> length_append_singleton)
+  qed   
+qed 
 
-lemma perm_inputs_diff :
-  assumes "V'' \<in> Perm V M"
-  and     "vs1 \<in> V''"
-  and     "vs2 \<in> V''"
-  and     "vs1 \<noteq> vs2"
-shows "map fst vs1 \<noteq> map fst vs2"
-proof -
-  obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms by auto
-  then obtain v1 v2 where v_def : "v1 \<in> V \<and> f v1 = vs1 \<and> v2 \<in> V \<and> f v2 = vs2" using assms by auto
-  then have "vs1 \<in> language_state_for_input M (initial M) v1"
-            "vs2 \<in> language_state_for_input M (initial M) v2" using f_def by auto
-  moreover have "v1 \<noteq> v2" using v_def using assms(4) by blast 
-  ultimately show ?thesis by auto
-qed
+lemma R_state_repetition_via_long_sequence :
+  assumes "OFSM M"
+  and     "card (nodes M) \<le> m"
+  and     "Suc (m * m) \<le> length xs"
+  and     "vs@xs \<in> L M"
+shows "\<exists> q \<in> nodes M . card (R M q vs xs) > m"
+proof (rule ccontr)
+  assume "\<not> (\<exists>q\<in>nodes M. m < card (R M q vs xs))"
+  then have "\<forall> q \<in> nodes M . card (R M q vs xs) \<le> m" by auto
+  then have "sum (\<lambda> q . card (R M q vs xs)) (nodes M) \<le> sum (\<lambda> q . m) (nodes M)"
+    by (meson sum_mono) 
+  moreover have "sum (\<lambda> q . m) (nodes M) \<le> m * m" 
+    using assms(2) by auto 
+  ultimately have "sum (\<lambda> q . card (R M q vs xs)) (nodes M) \<le> m * m" 
+    by presburger
 
-lemma perm_language :
-  assumes "V'' \<in> Perm V M"
-  and     "vs \<in> V''"
-shows "vs \<in> L M"
-proof -
-  obtain f where f_def : "image f V = V'' \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v)" using assms(1) by auto
-  then have "\<exists> v . f v = vs \<and> f v \<in> language_state_for_input M (initial M) v" using assms(2) by blast 
-  then show ?thesis by auto
+  moreover have "Suc (m*m) \<le> sum (\<lambda> q . card (R M q vs xs)) (nodes M)" 
+    using R_union_card_is_suffix_length[OF assms(1), of vs xs] assms(4,3) by auto
+  ultimately show "False" by simp
 qed
+  
+lemma R_state_repetition_distribution :
+  assumes "OFSM M"
+  and     "Suc (card (nodes M) * m) \<le> length xs"
+  and     "vs@xs \<in> L M"
+shows "\<exists> q \<in> nodes M . card (R M q vs xs) > m"
+proof (rule ccontr)
+  assume "\<not> (\<exists>q\<in>nodes M. m < card (R M q vs xs))"
+  then have "\<forall> q \<in> nodes M . card (R M q vs xs) \<le> m" by auto
+  then have "sum (\<lambda> q . card (R M q vs xs)) (nodes M) \<le> sum (\<lambda> q . m) (nodes M)"
+    by (meson sum_mono) 
+  moreover have "sum (\<lambda> q . m) (nodes M) \<le> card (nodes M) * m" 
+    using assms(2) by auto 
+  ultimately have "sum (\<lambda> q . card (R M q vs xs)) (nodes M) \<le> card (nodes M) * m" 
+    by presburger
 
+  moreover have "Suc (card (nodes M)*m) \<le> sum (\<lambda> q . card (R M q vs xs)) (nodes M)" 
+    using R_union_card_is_suffix_length[OF assms(1), of vs xs] assms(3,2) by auto
+  ultimately show "False" by simp
+qed
 
 
 
@@ -794,7 +1076,129 @@ qed
 
 
 
+lemma RP_union_card_is_suffix_length :
+  assumes "OFSM M2"
+  and     "io@xs \<in> L M2"
+  and     "is_det_state_cover M2 V"
+  and     "V'' \<in> Perm V M1"
+shows "\<And> q . card (R M2 q io xs) \<le> card (RP M2 q io xs V'')"
+      "sum (\<lambda> q . card (RP M2 q io xs V'')) (nodes M2) \<ge> length xs" 
+proof -
+  have "sum (\<lambda> q . card (R M2 q io xs)) (nodes M2) = length xs" 
+    using R_union_card_is_suffix_length[OF assms(1,2)] by assumption
+  show "\<And> q . card (R M2 q io xs) \<le> card (RP M2 q io xs V'')"
+    by (metis RP_from_R assms(3) assms(4) card_insert_le eq_iff finite_R) 
+  show "sum (\<lambda> q . card (RP M2 q io xs V'')) (nodes M2) \<ge> length xs"
+    by (metis (no_types, lifting) \<open>(\<Sum>q\<in>nodes M2. card (R M2 q io xs)) = length xs\<close> \<open>\<And>q. card (R M2 q io xs) \<le> card (RP M2 q io xs V'')\<close> sum_mono) 
+qed
 
+lemma RP_state_repetition_distribution_productF :
+  assumes "OFSM M2" 
+  and     "OFSM M1"
+  and     "(card (nodes M2) * m) \<le> length xs"
+  and     "card (nodes M1) \<le> m"
+  and     "vs@xs \<in> L M2 \<inter> L M1"
+  and     "is_det_state_cover M2 V"
+  and     "V'' \<in> Perm V M1"
+shows "\<exists> q \<in> nodes M2 . card (RP M2 q vs xs V'') > m"
+proof -
+  have "finite (nodes M1)"
+       "finite (nodes M2)"
+    using assms(1,2) by auto
+  then have "card(nodes M2 \<times> nodes M1) = card (nodes M2) * card (nodes M1)"
+    using card_cartesian_product by blast 
+  
+  have "nodes (product M2 M1) \<subseteq> nodes M2 \<times> nodes M1"
+    using product_nodes by auto
+  
+  have "card (nodes (product M2 M1)) \<le> card (nodes M2) * card (nodes M1)"
+    by (metis (no_types) \<open>card (nodes M2 \<times> nodes M1) = |M2| * |M1|\<close> \<open>finite (nodes M1)\<close> \<open>finite (nodes M2)\<close> \<open>nodes (product M2 M1) \<subseteq> nodes M2 \<times> nodes M1\<close> card_mono finite_cartesian_product)
+
+
+  have "(\<forall> q \<in> nodes M2 . card (R M2 q vs xs) = m) \<or> (\<exists> q \<in> nodes M2 . card (R M2 q vs xs) > m)" 
+  proof (rule ccontr)
+    assume "\<not> ((\<forall>q\<in>nodes M2. card (R M2 q vs xs) = m) \<or> (\<exists>q\<in>nodes M2. m < card (R M2 q vs xs)))"
+    
+    then have "\<forall> q \<in> nodes M2 . card (R M2 q vs xs) \<le> m" 
+      by auto
+    moreover obtain q' where "q'\<in>nodes M2" "card (R M2 q' vs xs) < m"
+      using \<open>\<not> ((\<forall>q\<in>nodes M2. card (R M2 q vs xs) = m) \<or> (\<exists>q\<in>nodes M2. m < card (R M2 q vs xs)))\<close> nat_neq_iff by blast
+
+    have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2) = sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2 - {q'}) + sum (\<lambda> q . card (R M2 q vs xs)) {q'}"
+      using \<open>q'\<in>nodes M2\<close>
+      by (meson \<open>finite (nodes M2)\<close> empty_subsetI insert_subset sum.subset_diff) 
+    moreover have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2 - {q'}) \<le>  sum (\<lambda> q . m) (nodes M2 - {q'})"
+      using \<open>\<forall> q \<in> nodes M2 . card (R M2 q vs xs) \<le> m\<close>
+      by (meson sum_mono DiffD1) 
+    moreover have "sum (\<lambda> q . card (R M2 q vs xs)) {q'} < m"
+      using \<open>card (R M2 q' vs xs) < m\<close> by auto
+    ultimately have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2) < sum (\<lambda> q . m) (nodes M2)"
+    proof -
+      have "\<forall>C c f. infinite C \<or> (c::'c) \<notin> C \<or> sum f C = (f c::nat) + sum f (C - {c})"
+        by (meson sum.remove)
+      then have "(\<Sum>c\<in>nodes M2. m) = m + (\<Sum>c\<in>nodes M2 - {q'}. m)"
+        using \<open>finite (nodes M2)\<close> \<open>q' \<in> nodes M2\<close> by blast
+      then show ?thesis
+        using \<open>(\<Sum>q\<in>nodes M2 - {q'}. card (R M2 q vs xs)) \<le> (\<Sum>q\<in>nodes M2 - {q'}. m)\<close> \<open>(\<Sum>q\<in>nodes M2. card (R M2 q vs xs)) = (\<Sum>q\<in>nodes M2 - {q'}. card (R M2 q vs xs)) + (\<Sum>q\<in>{q'}. card (R M2 q vs xs))\<close> \<open>(\<Sum>q\<in>{q'}. card (R M2 q vs xs)) < m\<close> by linarith
+    qed
+      
+      
+    moreover have "sum (\<lambda> q . m) (nodes M2) \<le> card (nodes M2) * m" 
+      using assms(2) by auto 
+    ultimately have "sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2) < card (nodes M2) * m" 
+      by presburger
+  
+    moreover have "Suc (card (nodes M2)*m) \<le> sum (\<lambda> q . card (R M2 q vs xs)) (nodes M2)" 
+      using R_union_card_is_suffix_length[OF assms(1), of vs xs] assms(5,3)
+      by (metis Int_iff \<open>vs @ xs \<in> L M2 \<Longrightarrow> (\<Sum>q\<in>nodes M2. card (R M2 q vs xs)) = length xs\<close> \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> \<open>|M2| * m \<le> length xs\<close> calculation less_eq_Suc_le not_less_eq_eq)
+   
+    ultimately show "False" by simp
+  qed
+  then show ?thesis
+  proof
+    let ?q = "initial M2"
+    
+    assume "\<forall>q\<in>nodes M2. card (R M2 q vs xs) = m"
+    then have "card (R M2 ?q vs xs) = m" 
+      by auto
+    
+    have "[] \<in> V''"
+      by (meson assms(6) assms(7) perm_empty)
+    then have "[] \<in> RP M2 ?q vs xs V''" 
+      by auto
+    have "[] \<notin> R M2 ?q vs xs"
+      by auto
+    have "card (RP M2 ?q vs xs V'') \<ge> card (R M2 ?q vs xs)"
+      using finite_R[of M2 ?q vs xs] finite_RP[OF assms(6,7),of ?q vs xs] unfolding RP.simps
+      by (simp add: card_mono)  
+    
+    have "card (RP M2 ?q vs xs V'') > card (R M2 ?q vs xs)"
+    proof -
+      have f1: "\<forall>n na. (\<not> (n::nat) \<le> na \<or> n = na) \<or> n < na"
+        by (meson le_neq_trans)
+      have "RP M2 (initial M2) vs xs V'' \<noteq> R M2 (initial M2) vs xs"
+        using \<open>[] \<in> RP M2 (initial M2) vs xs V''\<close> \<open>[] \<notin> R M2 (initial M2) vs xs\<close> by blast
+      then show ?thesis
+        using f1 by (metis (no_types) RP_from_R \<open>card (R M2 (initial M2) vs xs) \<le> card (RP M2 (initial M2) vs xs V'')\<close> assms(6) assms(7) card_insert_disjoint finite_R le_simps(2))
+    qed
+      
+    then show ?thesis 
+      using \<open>card (R M2 ?q vs xs) = m\<close>
+      by blast 
+  next 
+    assume "\<exists>q\<in>nodes M2. m < card (R M2 q vs xs)"
+    then obtain q where "q\<in>nodes M2" "m < card (R M2 q vs xs)"
+      by blast
+    moreover have "card (RP M2 q vs xs V'') \<ge> card (R M2 q vs xs)"
+      using finite_R[of M2 q vs xs] finite_RP[OF assms(6,7),of q vs xs] unfolding RP.simps
+      by (simp add: card_mono) 
+    ultimately have "m < card (RP M2 q vs xs V'')"
+      by simp 
+    
+    show ?thesis 
+      using \<open>q \<in> nodes M2\<close>  \<open>m < card (RP M2 q vs xs V'')\<close> by blast
+  qed
+qed
 
 
 
@@ -1100,182 +1504,7 @@ qed
 
 
 
-subsection {* Helper predicates *}
 
-text \<open>
-The following predicates are used to combine often repeated assumption.
-\<close>
-
-abbreviation "fault_domain M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
-
-lemma fault_domain_props[elim!] :
-  assumes "fault_domain M2 M1 m"
-  shows "inputs M2 = inputs M1"
-        "card (nodes M1) \<le> m"using assms by auto
-
-abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
-
-lemma OFSM_props[elim!] :
-  assumes "OFSM M"
-shows "well_formed M" 
-      "observable M" 
-      "completely_specified M" using assms by auto
-
-abbreviation
-  "test_tools M2 M1 FAIL PM V V'' \<Omega> \<equiv> (
-      productF M2 M1 FAIL PM
-    \<and> is_det_state_cover M2 V
-    \<and> V'' \<in> Perm V M1
-    \<and> applicable_set M2 \<Omega>
-   )"
-
-lemma test_tools_props[elim] :
-  assumes "test_tools M2 M1 FAIL PM V V'' \<Omega>"
-  and     "fault_domain M2 M1 m"
-  shows "productF M2 M1 FAIL PM"
-        "is_det_state_cover M2 V"
-        "V'' \<in> Perm V M1"
-        "applicable_set M2 \<Omega>"
-        "applicable_set M1 \<Omega>"
-proof -
-  show "productF M2 M1 FAIL PM" using assms(1) by blast
-  show "is_det_state_cover M2 V" using assms(1) by blast
-  show "V'' \<in> Perm V M1" using assms(1) by blast
-  show "applicable_set M2 \<Omega>" using assms(1) by blast
-  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
-qed
-
-
-
-
-lemma perm_nonempty : 
-  assumes "is_det_state_cover M2 V"
-  and "OFSM M1"
-  and "OFSM M2"
-  and "inputs M1 = inputs M2"
-shows "Perm V M1 \<noteq> {}"
-proof -
-  have "finite (nodes M2)" using assms(3) by auto
-  moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
-    by auto 
-  ultimately have "finite V" using det_state_cover_card[OF assms(1)]
-    by (metis assms(1) finite_imageI infinite_super is_det_state_cover.elims(2)) 
-  
-  have "[] \<in> V"
-    using assms(1) det_state_cover_empty by blast 
-
-
-  have "\<And> VS . VS \<subseteq> V \<and> VS \<noteq> {} \<Longrightarrow> Perm VS M1 \<noteq> {}"
-  proof -
-    fix VS assume "VS \<subseteq> V \<and> VS \<noteq> {}"
-    then have "finite VS" using \<open>finite V\<close>
-      using infinite_subset by auto 
-    then show "Perm VS M1 \<noteq> {}" 
-      using \<open>VS \<subseteq> V \<and> VS \<noteq> {}\<close> \<open>finite VS\<close>
-    proof (induction VS)
-      case empty
-      then show ?case by auto
-    next
-      case (insert vs F)
-      then have "vs \<in> V" by blast
-      
-      obtain q2 where "d_reaches M2 (initial M2) vs q2" using det_state_cover_d_reachable[OF assms(1) \<open>vs \<in> V\<close>] by blast
-      then obtain vs' vsP where io_path : "length vs = length vs' \<and> length vs = length vsP \<and> (path M2 ((vs || vs') || vsP) (initial M2)) \<and> target ((vs || vs') || vsP) (initial M2) = q2"
-        by auto
-    
-      have "well_formed M2" 
-        using assms by auto
-      
-      have "map fst (map fst ((vs || vs') || vsP)) = vs"
-      proof -
-        have "length (vs || vs') = length vsP" using io_path
-          by simp 
-        then show ?thesis using io_path by auto
-      qed
-      moreover have "set (map fst (map fst ((vs || vs') || vsP))) \<subseteq> inputs M2" using path_input_containment[OF \<open>well_formed M2\<close>, of "(vs || vs') || vsP" "initial M2" ] io_path
-        by linarith
-      ultimately have "set vs \<subseteq> inputs M2" 
-        by presburger
-    
-      then have "set vs \<subseteq> inputs M1" 
-        using assms by auto
-    
-      then have "LS\<^sub>i\<^sub>n M1 (initial M1) {vs} \<noteq> {}" 
-        using assms(2) language_state_for_inputs_nonempty
-        by (metis FSM.nodes.initial) 
-      then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"
-        by auto
-      then obtain vs' where "vs' \<in> language_state_for_input M1 (initial M1) vs" 
-        by blast
-
-      show ?case
-      proof (cases "F = {}")
-        case True
-        moreover obtain f where "f vs = vs'" by moura
-        ultimately have "image f (insert vs F) \<in> Perm (insert vs F) M1"
-          using Perm.simps \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by blast     
-        then show ?thesis by blast
-      next
-        case False
-        then obtain F'' where "F'' \<in> Perm F M1" 
-          using insert.IH insert.hyps(1) insert.prems(1) by blast
-        then obtain f where "F'' = image f F" "(\<forall> v \<in> F . f v \<in> language_state_for_input M1 (initial M1) v)" by auto
-        let ?f = "f(vs := vs')"
-        have "\<forall> v \<in> (insert vs F) . ?f v \<in> language_state_for_input M1 (initial M1) v" 
-        proof 
-          fix v assume "v \<in> insert vs F"
-          then show "?f v \<in> language_state_for_input M1 (initial M1) v"
-          proof (cases "v = vs")
-            case True
-            then show ?thesis
-              using \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by auto 
-          next
-            case False
-            then have "v \<in> F"
-              using \<open>v \<in> insert vs F\<close> by blast
-            then show ?thesis
-              using False \<open>\<forall>v\<in>F. f v \<in> language_state_for_input M1 (initial M1) v\<close> by auto 
-          qed
-        qed
-        then have "image ?f (insert vs F) \<in> Perm (insert vs F) M1"
-          using Perm.simps by blast 
-        then show ?thesis by blast
-      qed
-    qed
-  qed
-
-  then show ?thesis
-    using \<open>[] \<in> V\<close> by blast 
-qed
-  
-
-
-lemma perm_elem :
-  assumes "is_det_state_cover M2 V"
-  and "OFSM M1"
-  and "OFSM M2"
-  and "inputs M1 = inputs M2"
-  and     "vs \<in> V"
-  and     "vs' \<in> language_state_for_input M1 (initial M1) vs"
-obtains V''
-where "V'' \<in> Perm V M1" "vs' \<in> V''"
-proof -
-  obtain V'' where "V'' \<in> Perm V M1" 
-    using perm_nonempty[OF assms(1-4)] by blast
-  then obtain f where "V'' = image f V" "(\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" by auto  
-
-  let ?f = "f(vs := vs')"
-
-  have "\<forall> v \<in> V . ?f v \<in> language_state_for_input M1 (initial M1) v"
-    using \<open>\<forall>v\<in>V. f v \<in> language_state_for_input M1 (initial M1) v\<close> assms(6) by fastforce
-
-  then have "image ?f V \<in> Perm V M1" 
-    by auto
-  moreover have "vs' \<in> image ?f V"
-    by (metis assms(5) fun_upd_same imageI) 
-  ultimately show ?thesis
-    using that by blast 
-qed
 
 
 
