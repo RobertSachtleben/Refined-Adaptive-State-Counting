@@ -1084,6 +1084,23 @@ lemma language_state_for_inputs_alt_def :
   "LS\<^sub>i\<^sub>n M q ISeqs = \<Union> (image (language_state_for_input M q) ISeqs)" 
   by auto
 
+lemma language_state_for_inputs_in_language_state :
+  "LS\<^sub>i\<^sub>n M q T \<subseteq> language_state M q"
+  unfolding language_state_for_inputs.simps language_state_def
+  by blast 
+
+lemma language_state_for_inputs_map_fst :
+  assumes "io \<in> language_state M q"
+  and     "map fst io \<in> T"
+shows "io \<in> LS\<^sub>i\<^sub>n M q T"
+proof -
+  let ?xs = "map fst io"
+  let ?ys = "map snd io"
+  have "?xs \<in> T \<and> length ?xs = length ?ys \<and> ?xs || ?ys \<in> language_state M q" using assms(2,1) by auto
+  then have "?xs || ?ys \<in> LS\<^sub>i\<^sub>n M q T" unfolding language_state_for_inputs.simps by blast 
+  then show ?thesis by simp
+qed 
+
 lemma language_state_for_inputs_nonempty :
   assumes "set xs \<subseteq> inputs M"
   and     "completely_specified M"

@@ -4,12 +4,22 @@ begin
 
 section {* The lower bound function *}
 
+text \<open>
+This theory defines the lower bound function LB and its properties.
 
-(* Proposition 5.4.2 *)
-(* see B_dist, B_dist' in ATC *)
+Function LB calculates a lower bound on the number of states of some FSM in order for some sequence
+to not contain certain repetitions.
+\<close>
 
 
-(* R *)
+subsection {* Function R *}
+
+text \<open>
+Function R calculates the set of suffixes of a sequence that reach a given state if applied after a
+given other sequence.
+\<close>
+
+
 fun R :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list set" where
   "R M s vs xs = { vs @ xs' | xs' . xs' \<noteq> [] \<and> prefix xs' xs \<and> s \<in> io_targets M (initial M) (vs @ xs') }"
 
@@ -67,7 +77,7 @@ qed
 
 
 
-(* Lemma 5.4.5 *)
+
 lemma R_count :
   assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
   and "observable M1"
@@ -81,7 +91,12 @@ lemma R_count :
   and "length xs = length tr"
   and "distinct (states (xs || tr) (q2,q1))" 
 shows "card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))) = card (R M2 s vs xs)"
+  \<comment> \<open>each sequence in the set calculated by R reaches a different state in M1\<close>
 proof -
+
+  \<comment> \<open>Proof sketch: 
+       - states of PM reached by the sequences calculated by R can differ only in their second value
+       - the sequences in the set calculated by R reach different states in PM due to distinctness\<close>
 
   have obs_PM : "observable PM" using observable_productF assms(2) assms(3) assms(7) by blast
 
@@ -208,7 +223,8 @@ proof -
     obtain io1X io2X where rep_ios_split : "io1 = vs @ io1X \<and> prefix io1X xs \<and> io2 = vs @ io2X \<and> prefix io2X xs" using rep_ios_def by auto
     then have "length io1 > length vs" using rep_ios_def by auto
 
-    (* path from init to (q2,q1) *)
+    
+    \<comment> \<open>get a path from (initial PM) to (q2,q1)\<close>
 
     have "vs@xs \<in> L PM"
       by (metis (no_types) assms(1) assms(4) assms(5) assms(7) inf_commute productF_language)
@@ -220,9 +236,10 @@ proof -
     have "?qv \<in> io_targets PM (initial PM) vs" using trV_def by auto
     then have qv_simp[simp] : "?qv = (q2,q1)" using singletons assms by blast
     then have "?qv \<in> nodes PM" using trV_def assms by blast  
-   
-    (* path from ?qv by io1X *)
 
+    
+    \<comment> \<open>get a path using io1X from the state reached by vs in PM\<close>
+    
     obtain tr1X_all where tr1X_all_def : "path PM (vs @ io1X || tr1X_all) (initial PM) \<and> length (vs @ io1X) = length tr1X_all" using rep_ios_def rep_ios_split by auto 
     let ?tr1X = "drop (length vs) tr1X_all"
     have "take (length vs) tr1X_all = trV" 
@@ -242,7 +259,7 @@ proof -
     moreover have "?tr1X \<in> { tr . path PM (io1X || tr) ?qv \<and> length io1X = length tr }" using tr1X_def by auto
     ultimately have tr1x_unique : "tr1X' = ?tr1X" by simp
  
-    (* path from ?qv by io2X *) 
+    \<comment> \<open>get a path using io2X from the state reached by vs in PM\<close> 
 
     obtain tr2X_all where tr2X_all_def : "path PM (vs @ io2X || tr2X_all) (initial PM) \<and> length (vs @ io2X) = length tr2X_all" using rep_ios_def rep_ios_split by auto 
     let ?tr2X = "drop (length vs) tr2X_all"
@@ -263,7 +280,7 @@ proof -
     moreover have "?tr2X \<in> { tr . path PM (io2X || tr) ?qv \<and> length io2X = length tr }" using tr2X_def by auto
     ultimately have tr2x_unique : "tr2X' = ?tr2X" by simp
 
-    (* both reach same state in PM *)
+    \<comment> \<open>both paths reach the same state\<close>
 
     have "io_targets PM (initial PM) (vs @ io1X) = {(s,rep)}" using rep_state rep_ios_split by auto
     moreover have "io_targets PM (initial PM) vs = {?qv}" using assms(8) by auto 
@@ -293,7 +310,8 @@ proof -
     ultimately have rep_idx_2 : "(states (xs || tr) ?qv) ! ((length io2X) - 1) = (s,rep)"
       by (metis (no_types, lifting) One_nat_def Suc_less_eq Suc_pred rep_tgt_2 length_2 less_Suc_eq_le map_snd_zip scan_length scan_nth states_alt_def tr2X_def tr2x_unique) 
 
-    (* then (xs||tr) repeats a state *)
+
+    \<comment> \<open>thus the distinctness assumption is violated\<close>
 
     have "length io1X \<noteq> length io2X" by (metis \<open>io1X = take (length io1X) xs\<close> \<open>io2X = take (length io2X) xs\<close> less_irrefl rep_ios_def rep_ios_split) 
     moreover have "(states (xs || tr) ?qv) ! ((length io1X) - 1) = (states (xs || tr) ?qv) ! ((length io2X) - 1)" using rep_idx_1 rep_idx_2 by simp
@@ -305,7 +323,26 @@ proof -
 qed 
 
 
-(* V' *)
+
+lemma R_state_component_2 :  
+  assumes "io \<in> (R M2 s vs xs)" 
+  and     "observable M2"
+shows "io_targets M2 (initial M2) io = {s}" 
+proof -
+  have "s \<in> io_targets M2 (initial M2) io" using assms(1) by auto
+  moreover have "io \<in> language_state M2 (initial M2)" using calculation by auto
+  ultimately show "io_targets M2 (initial M2) io = {s}" using assms(2) io_targets_observable_singleton_ex by (metis singletonD) 
+qed
+
+
+
+subsection {* Permutation function Perm *}
+
+text \<open>
+Function Perm calculates all possible reactions of an FSM to a set of inputs sequences such that 
+every set in the calculated set of reactions contains exactly one reaction for each input sequence.
+\<close>
+
 fun Perm :: "'in list set \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> ('in \<times> 'out) list set set" where
   "Perm V M = {image f V | f . \<forall> v \<in> V . f v \<in> language_state_for_input M (initial M) v }"
 
@@ -379,8 +416,14 @@ qed
 
 
 
+subsection {* Function RP *}
 
-(* R\<^sup>+ *)
+text \<open>
+Function RP extends function R by adding all elements from a set of IO-sequences that also reach the
+given state.
+\<close>
+
+
 fun RP :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in \<times> 'out) list set" where
   "RP M s vs xs V'' = R M s vs xs \<union> {vs' \<in> V'' . io_targets M (initial M) vs' = {s}}"
 
@@ -428,7 +471,6 @@ shows "finite (RP M2 s vs xs V'')"
 
 
 
-(* Lemma 5.4.8 *)
 lemma RP_count :
   assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
   and "observable M1"
@@ -445,7 +487,17 @@ lemma RP_count :
   and "V'' \<in> Perm V M1"
   and "\<forall> s' \<in> set (states (xs || map fst tr) q2) . \<not> (\<exists> v \<in> V . d_reaches M2 (initial M2) v s')" 
 shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
+  \<comment> \<open>each sequence in the set calculated by RP reaches a different state in M1\<close>
 proof -
+
+  \<comment> \<open>Proof sketch:
+     - RP calculates either the same set as R or the set of R and an additional element
+     - in the first case, the result for R applies
+     - in the second case, the additional element is not contained in the set calcualted by R due to
+       the assumption that no state reached by a non-empty prefix of xs after vs is also reached by 
+       some sequence in V (see the last two assumptions)\<close>
+
+
   have RP_cases : "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" using RP_from_R assms by metis
   show ?thesis 
   proof (cases "RP M2 s vs xs V'' = R M2 s vs xs")
@@ -578,391 +630,6 @@ proof -
   qed
 qed
 
-
-
-
-
-
-  
-
-
-(* LB *)
-fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> nat" where
-  "LB M2 M1 vs xs T S \<Omega> V'' = (sum (\<lambda> s . card (RP M2 s vs xs V'')) S) 
-                              + card ( (D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''})"
-
-
-(* Prereq *)
-fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> bool" where 
-  "Prereq M2 M1 vs xs T S \<Omega> V V'' = (
-    (\<forall> vs' \<in> V'' . (prefix vs' (vs @ xs) \<longrightarrow> length vs' \<le> length vs))      \<comment>\<open>(1.)\<close>
-    \<and> (atc_io_reduction_on_sets M1 T \<Omega> M2)                                     \<comment>\<open>(2.) and (3.)\<close>
-    \<and> (finite T)                                                           \<comment>\<open>addition to 2. to enable practical application\<close>
-    \<and> V \<subseteq> T \<and> (\<forall> xs' . (prefix xs' xs \<and> xs' \<noteq> xs) \<longrightarrow> map fst (vs @ xs') \<in> T)           \<comment>\<open>(4.) (modified)\<close>
-    \<and> (vs @ xs) \<in> L M2 \<inter> L M1                                              \<comment>\<open>addition (4.), as (4.) here only considers proper prefixes of (vs@xs), since any sequence for which the LB is to be calculated is not yet contained in T\<close>
-    \<and> S \<subseteq> nodes M2                                                         \<comment>\<open>(addition, not strictly necessary as RP for any state not in (nodes M2) is empty)\<close>
-    \<and> (\<forall> s1 \<in> S . \<forall> s2 \<in> S . s1 \<noteq> s2                                       \<comment>\<open>(5.)\<close>
-        \<longrightarrow> (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
-               \<forall> io2 \<in> RP M2 s2 vs xs V'' .
-                 B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> )))"
-
-
-(* Rep_pre *)
-fun Rep_Pre :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
-  "Rep_Pre M2 M1 vs xs = (\<exists> xs1 xs2 . prefix xs1 xs2 \<and> prefix xs2 xs \<and> xs1 \<noteq> xs2 
-    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs1) = {s2} \<and> io_targets M2 (initial M2) (vs @ xs2) = {s2})
-    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs1) = {s1} \<and> io_targets M1 (initial M1) (vs @ xs2) = {s1}))"
-(*
-  "Rep_Pre M2 M1 vs xs = (\<exists> xs1 xs2 . xs1 \<noteq> [] \<and> prefix xs1 xs \<and> prefix xs2 xs \<and> xs1 \<noteq> xs2 
-    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs1) = {s2} \<and> io_targets M2 (initial M2) (vs @ xs2) = {s2})
-    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs1) = {s1} \<and> io_targets M1 (initial M1) (vs @ xs2) = {s1}))"
-*)
-
-
-
-
-lemma distinctness_via_Rep_Pre :
-  assumes "\<not> Rep_Pre M2 M1 vs xs"
-  and "productF M2 M1 FAIL PM"
-  and "observable M1"
-  and "observable M2"
-  and "io_targets PM (initial PM) vs = {(q2,q1)}"
-  and "path PM (xs || tr) (q2,q1)" 
-  and "length xs = length tr"
-  and "(vs @ xs) \<in> L M1 \<inter> L M2"
-  and "well_formed M1"
-  and "well_formed M2"
-shows "distinct (states (xs || tr) (q2, q1))"
-proof (rule ccontr)
-  assume assm : "\<not> distinct (states (xs || tr) (q2, q1))"
-  then obtain i1 i2 where index_def :
-     "i1 \<noteq> 0 
-      \<and> i1 \<noteq> i2 
-      \<and> i1 < length (states (xs || tr) (q2, q1)) 
-      \<and> i2 < length (states (xs || tr) (q2, q1)) 
-      \<and> (states (xs || tr) (q2, q1)) ! i1 = (states (xs || tr) (q2, q1)) ! i2" by (metis distinct_conv_nth) 
-  then have "length xs > 0" by auto
-  
-  let ?xs1 = "take (Suc i1) xs"
-  let ?xs2 = "take (Suc i2) xs"
-  let ?tr1 = "take (Suc i1) tr"
-  let ?tr2 = "take (Suc i2) tr"
-  let ?st  = "(states (xs || tr) (q2, q1)) ! i1"
-
-  have obs_PM : "observable PM" using observable_productF assms(2) assms(3) assms(4) by blast
-
-  have "initial PM = (initial M2, initial M1)" using assms(2) by simp
-  moreover have "vs \<in> L M2" "vs \<in> L M1" using assms(8) language_state_prefix by auto
-  ultimately have "io_targets M1 (initial M1) vs = {q1}" "io_targets M2 (initial M2) vs = {q2}" using productF_path_io_targets[of M2 M1 FAIL PM "initial M2" "initial M1" vs q2 q1] by (metis FSM.nodes.initial assms(2) assms(3) assms(4) assms(5) assms(9) assms(10) io_targets_observable_singleton_ex singletonD)+
-
-  (* paths for ?xs1 *)
-  
-  have "(states (xs || tr) (q2, q1)) ! i1 \<in> io_targets PM (q2, q1) ?xs1" by (metis \<open>0 < length xs\<close> assms(6) assms(7) index_def map_snd_zip states_alt_def states_index_io_target)
-  then have "io_targets PM (q2, q1) ?xs1 = {?st}" using obs_PM by (meson observable_io_target_is_singleton) 
-
-  have "path PM (?xs1 || ?tr1) (q2,q1)" by (metis FSM.path_append_elim append_take_drop_id assms(6) assms(7) length_take zip_append) 
-  then have "path PM (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1)" by auto
-  
-  have "vs @ ?xs1 \<in> L M2" by (metis (no_types) IntD2 append_assoc append_take_drop_id assms(8) language_state_prefix) 
-  then obtain q2' where "io_targets M2 (initial M2) (vs@?xs1) = {q2'}" using io_targets_observable_singleton_ob[of M2 "vs@?xs1" "initial M2"] assms(4) by auto
-  then have "q2' \<in> io_targets M2 q2 ?xs1"
-    using assms(4) \<open>io_targets M2 (initial M2) vs = {q2}\<close> observable_io_targets_split[of M2 "initial M2" vs ?xs1 q2' q2] by simp
-  then have "?xs1 \<in> language_state M2 q2" by auto
-  moreover have "length ?xs1 = length (map snd ?tr1)" using assms(7) by auto
-  moreover have "length (map fst ?tr1) = length (map snd ?tr1)" by auto
-  moreover have "q2 \<in> nodes M2" using \<open>io_targets M2 (initial M2) vs = {q2}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1) 
-  moreover have "q1 \<in> nodes M1" using \<open>io_targets M1 (initial M1) vs = {q1}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1)
-  ultimately have 
-     "path M1 (?xs1 || map snd ?tr1) q1" 
-     "path M2 (?xs1 || map fst ?tr1) q2" 
-     "target (?xs1 || map snd ?tr1) q1 = snd (target (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1))"
-     "target (?xs1 || map fst ?tr1) q2 = fst (target (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1))"
-    using assms(2) assms(9) assms(10) \<open>path PM (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1)\<close> assms(4) productF_path_reverse_ob_2[of ?xs1 "map fst ?tr1" "map snd ?tr1" M2 M1 FAIL PM q2 q1] by simp+
-  moreover have "target (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1) = ?st" by (metis (no_types) index_def scan_nth take_zip zip_map_fst_snd)
-  ultimately have  
-     "target (?xs1 || map snd ?tr1) q1 = snd ?st"
-     "target (?xs1 || map fst ?tr1) q2 = fst ?st" by simp+  
-
-  (* paths for ?xs2 *)
-  
-  have "(states (xs || tr) (q2, q1)) ! i2 \<in> io_targets PM (q2, q1) ?xs2" by (metis \<open>0 < length xs\<close> assms(6) assms(7) index_def map_snd_zip states_alt_def states_index_io_target)
-  then have "io_targets PM (q2, q1) ?xs2 = {?st}" using obs_PM by (metis index_def observable_io_target_is_singleton)  
-
-  have "path PM (?xs2 || ?tr2) (q2,q1)" by (metis FSM.path_append_elim append_take_drop_id assms(6) assms(7) length_take zip_append) 
-  then have "path PM (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1)" by auto
-
-  have "vs @ ?xs2 \<in> L M2" by (metis (no_types) IntD2 append_assoc append_take_drop_id assms(8) language_state_prefix) 
-  then obtain q2'' where "io_targets M2 (initial M2) (vs@?xs2) = {q2''}" using io_targets_observable_singleton_ob[of M2 "vs@?xs2" "initial M2"] assms(4) by auto
-  then have "q2'' \<in> io_targets M2 q2 ?xs2"
-    using assms(4) \<open>io_targets M2 (initial M2) vs = {q2}\<close> observable_io_targets_split[of M2 "initial M2" vs ?xs2 q2'' q2] by simp
-  then have "?xs2 \<in> language_state M2 q2" by auto
-  moreover have "length ?xs2 = length (map snd ?tr2)" using assms(7) by auto
-  moreover have "length (map fst ?tr2) = length (map snd ?tr2)" by auto
-  moreover have "q2 \<in> nodes M2" using \<open>io_targets M2 (initial M2) vs = {q2}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1) 
-  moreover have "q1 \<in> nodes M1" using \<open>io_targets M1 (initial M1) vs = {q1}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1)
-  ultimately have 
-     "path M1 (?xs2 || map snd ?tr2) q1" 
-     "path M2 (?xs2 || map fst ?tr2) q2" 
-     "target (?xs2 || map snd ?tr2) q1 = snd (target (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1))"
-     "target (?xs2 || map fst ?tr2) q2 = fst (target (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1))"
-    using assms(2) assms(9) assms(10) \<open>path PM (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1)\<close> assms(4) productF_path_reverse_ob_2[of ?xs2 "map fst ?tr2" "map snd ?tr2" M2 M1 FAIL PM q2 q1] by simp+
-  moreover have "target (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1) = ?st" by (metis (no_types) index_def scan_nth take_zip zip_map_fst_snd)
-  ultimately have  
-     "target (?xs2 || map snd ?tr2) q1 = snd ?st"
-     "target (?xs2 || map fst ?tr2) q2 = fst ?st" by simp+
-
-  
-
-  have "io_targets M1 q1 ?xs1 = {snd ?st}" using \<open>path M1 (?xs1 || map snd ?tr1) q1\<close> \<open>target (?xs1 || map snd ?tr1) q1 = snd ?st\<close> \<open>length ?xs1 = length (map snd ?tr1)\<close> assms(3) obs_target_is_io_targets[of M1 ?xs1 "map snd ?tr1" q1] by simp
-  then have tgt_1_1 : "io_targets M1 (initial M1) (vs @ ?xs1) = {snd ?st}" by (meson \<open>io_targets M1 (initial M1) vs = {q1}\<close> assms(3) observable_io_targets_append) 
-  
-  have "io_targets M2 q2 ?xs1 = {fst ?st}" using \<open>path M2 (?xs1 || map fst ?tr1) q2\<close> \<open>target (?xs1 || map fst ?tr1) q2 = fst ?st\<close> \<open>length ?xs1 = length (map snd ?tr1)\<close> assms(4) obs_target_is_io_targets[of M2 ?xs1 "map fst ?tr1" q2] by simp
-  then have tgt_1_2 : "io_targets M2 (initial M2) (vs @ ?xs1) = {fst ?st}" by (meson \<open>io_targets M2 (initial M2) vs = {q2}\<close> assms(4) observable_io_targets_append)
-  
-  have "io_targets M1 q1 ?xs2 = {snd ?st}" using \<open>path M1 (?xs2 || map snd ?tr2) q1\<close> \<open>target (?xs2 || map snd ?tr2) q1 = snd ?st\<close> \<open>length ?xs2 = length (map snd ?tr2)\<close> assms(3) obs_target_is_io_targets[of M1 ?xs2 "map snd ?tr2" q1] by simp
-  then have tgt_2_1 : "io_targets M1 (initial M1) (vs @ ?xs2) = {snd ?st}" by (meson \<open>io_targets M1 (initial M1) vs = {q1}\<close> assms(3) observable_io_targets_append)
-  
-  have "io_targets M2 q2 ?xs2 = {fst ?st}" using \<open>path M2 (?xs2 || map fst ?tr2) q2\<close> \<open>target (?xs2 || map fst ?tr2) q2 = fst ?st\<close> \<open>length ?xs2 = length (map snd ?tr2)\<close> assms(4) obs_target_is_io_targets[of M2 ?xs2 "map fst ?tr2" q2] by simp
-  then have tgt_2_2 : "io_targets M2 (initial M2) (vs @ ?xs2) = {fst ?st}" by (meson \<open>io_targets M2 (initial M2) vs = {q2}\<close> assms(4) observable_io_targets_append)
-
-  have "?xs1 \<noteq> []" using \<open>0 < length xs\<close> by auto  
-  have "prefix ?xs1 xs" using take_is_prefix by blast 
-  have "prefix ?xs2 xs" using take_is_prefix by blast
-  have "?xs1 \<noteq> ?xs2"
-  proof -
-    have f1: "\<forall>n na. \<not> n < na \<or> Suc n \<le> na" by presburger
-    have f2: "Suc i1 \<le> length xs" using index_def by force
-    have "Suc i2 \<le> length xs" using f1 by (metis index_def length_take map_snd_zip_take min_less_iff_conj states_alt_def)
-    then show ?thesis using f2 by (metis (no_types) index_def length_take min.absorb2 nat.simps(1))
-  qed 
-  have "Rep_Pre M2 M1 vs xs"
-  proof (cases "length ?xs1 < length ?xs2")
-    case True
-    then have "prefix ?xs1 ?xs2"
-      by (meson \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) xs\<close> leD prefix_length_le prefix_same_cases) 
-    show ?thesis
-      by (meson Rep_Pre.elims(3) \<open>prefix (take (Suc i1) xs) (take (Suc i2) xs)\<close> \<open>prefix (take (Suc i2) xs) xs\<close> \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> tgt_1_1 tgt_1_2 tgt_2_1 tgt_2_2) 
-  next
-    case False
-    moreover have "length ?xs1 \<noteq> length ?xs2"
-      by (metis (no_types) \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> append_eq_conv_conj append_take_drop_id) 
-    ultimately have "length ?xs2 < length ?xs1" 
-      by auto
-    then have "prefix ?xs2 ?xs1"
-      using \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) xs\<close> less_imp_le_nat prefix_length_prefix by blast 
-    show ?thesis
-      by (metis Rep_Pre.elims(3) \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) (take (Suc i1) xs)\<close> \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> tgt_1_1 tgt_1_2 tgt_2_1 tgt_2_2) 
-  qed
-    
-  then show "False" using assms(1) by simp
-qed
-
-  
-  
-
-
-
-
-
-(* Rep_Cov *)
-fun Rep_Cov :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
-  "Rep_Cov M2 M1 V'' vs xs = (\<exists> xs' vs' . xs' \<noteq> [] \<and> prefix xs' xs \<and> vs' \<in> V'' 
-    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs') = {s2} \<and> io_targets M2 (initial M2) (vs') = {s2})
-    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs') = {s1} \<and> io_targets M1 (initial M1) (vs') = {s1}))"
-
-
-
-(* Lemma 5.4.8 (modifed to use Rep_Cov) *)
-lemma RP_count_via_Rep_Cov :
-  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
-  and "observable M1"
-  and "observable M2"
-  and "well_formed M1"
-  and "well_formed M2"
-  and "s \<in> nodes M2"
-  and "productF M2 M1 FAIL PM"
-  and "io_targets PM (initial PM) vs = {(q2,q1)}"
-  and "path PM (xs || tr) (q2,q1)" 
-  and "length xs = length tr"
-  and "distinct (states (xs || tr) (q2,q1))" 
-  and "is_det_state_cover M2 V"
-  and "V'' \<in> Perm V M1"
-  and "\<not> Rep_Cov M2 M1 V'' vs xs" (* weakened from 5.4.8 *) 
-shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
-proof -
-  have RP_cases : "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" using RP_from_R assms by metis
-  show ?thesis 
-  proof (cases "RP M2 s vs xs V'' = R M2 s vs xs")
-    case True
-    then show ?thesis using R_count assms by metis
-  next
-    case False
-    then obtain vs' where vs'_def : "vs' \<in> V'' \<and> vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs)" using RP_cases by auto
-        
-    have state_component_2 : "\<forall> io \<in> (R M2 s vs xs) . io_targets M2 (initial M2) io = {s}" 
-      proof 
-        fix io assume "io \<in> R M2 s vs xs"
-        then have "s \<in> io_targets M2 (initial M2) io" by auto
-        moreover have "io \<in> language_state M2 (initial M2)" using calculation by auto
-        ultimately show "io_targets M2 (initial M2) io = {s}" using assms(3) io_targets_observable_singleton_ex by (metis singletonD) 
-      qed
-
-    have "vs' \<in> L M1" using assms(13) perm_language vs'_def by blast
-    then obtain s' where s'_def : "io_targets M1 (initial M1) vs' = {s'}" by (meson assms(2) io_targets_observable_singleton_ob) 
-
-    moreover have "s' \<notin> \<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))" 
-    proof (rule ccontr)
-      assume "\<not> s' \<notin> UNION (R M2 s vs xs) (io_targets M1 (initial M1))"
-      then obtain xs' where xs'_def : "vs @ xs' \<in> R M2 s vs xs \<and> s' \<in> io_targets M1 (initial M1) (vs @ xs')"
-      proof -
-        assume a1: "\<And>xs'. vs @ xs' \<in> R M2 s vs xs \<and> s' \<in> io_targets M1 (initial M1) (vs @ xs') \<Longrightarrow> thesis"
-        obtain pps :: "('a \<times> 'b) list set \<Rightarrow> (('a \<times> 'b) list \<Rightarrow> 'c set) \<Rightarrow> 'c \<Rightarrow> ('a \<times> 'b) list" where
-          "\<forall>x0 x1 x2. (\<exists>v3. v3 \<in> x0 \<and> x2 \<in> x1 v3) = (pps x0 x1 x2 \<in> x0 \<and> x2 \<in> x1 (pps x0 x1 x2))"
-          by moura
-        then have f2: "pps (R M2 s vs xs) (io_targets M1 (initial M1)) s' \<in> R M2 s vs xs \<and> s' \<in> io_targets M1 (initial M1) (pps (R M2 s vs xs) (io_targets M1 (initial M1)) s')"
-          using \<open>\<not> s' \<notin> UNION (R M2 s vs xs) (io_targets M1 (initial M1))\<close> by blast
-        then have "\<exists>ps. pps (R M2 s vs xs) (io_targets M1 (initial M1)) s' = vs @ ps \<and> ps \<noteq> [] \<and> prefix ps xs \<and> s \<in> io_targets M2 (initial M2) (vs @ ps)"
-          by simp
-        then show ?thesis
-          using f2 a1 by (metis (no_types))
-      qed  
-      
-      have "vs @ xs' \<in> L M1" using xs'_def by blast 
-      then have "io_targets M1 (initial M1) (vs@xs') = {s'}" by (metis assms(2) io_targets_observable_singleton_ob singletonD xs'_def)
-      moreover have "io_targets M1 (initial M1) (vs') = {s'}" using s'_def by blast 
-      moreover have "io_targets M2 (initial M2) (vs @ xs') = {s}" using state_component_2 xs'_def by blast
-      moreover have "io_targets M2 (initial M2) (vs') = {s}" by (metis (mono_tags, lifting) RP.simps Un_iff insertI1 mem_Collect_eq vs'_def) 
-      moreover have "xs' \<noteq> []" using xs'_def by simp
-      moreover have "prefix xs' xs" using xs'_def by simp
-      moreover have "vs' \<in> V''" using vs'_def by simp
-      ultimately have "Rep_Cov M2 M1 V'' vs xs" by auto
-
-      then show "False" using assms(14) by simp
-    qed 
-
-    moreover have "\<Union> (image (io_targets M1 (initial M1)) (insert vs' (R M2 s vs xs)))
-      = insert s' (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs)))" using s'_def by simp
-
-    moreover have "finite (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs)))" 
-    proof 
-      show "finite (R M2 s vs xs)" using finite_R by simp
-      show "\<And>a. a \<in> R M2 s vs xs \<Longrightarrow> finite (io_targets M1 (initial M1) a)" 
-      proof -
-        fix a assume "a \<in> R M2 s vs xs" 
-        then have "prefix a (vs@xs)" by auto
-        then have "a \<in> L M1" using language_state_prefix by (metis IntD1 assms(1) prefix_def) 
-        then obtain p where "io_targets M1 (initial M1) a = {p}" using assms(2) io_targets_observable_singleton_ob by metis
-        then show "finite (io_targets M1 (initial M1) a)" by simp
-      qed
-    qed
-
-    ultimately have "card (\<Union> (image (io_targets M1 (initial M1)) (insert vs' (R M2 s vs xs)))) = 
-      Suc (card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))))" by (metis (no_types) card_insert_disjoint)
-
-      
-    moreover have "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (\<Union> (image (io_targets M1 (initial M1)) (insert vs' (R M2 s vs xs))))" using vs'_def by simp
-    
-    ultimately have "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = Suc (card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))))" by linarith
-
-    then have "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = Suc (card (R M2 s vs xs))" using R_count[of vs xs M1 M2 s FAIL PM q2 q1 tr] using assms(1) assms(10) assms(11) assms(2) assms(3) assms(4) assms(5) assms(6) assms(7) assms(8) assms(9) by linarith 
-
-    moreover have "card (RP M2 s vs xs V'') = Suc (card (R M2 s vs xs))" using vs'_def by (metis card_insert_if finite_R)
-
-    ultimately show ?thesis by linarith
-  qed
-qed
-
-
-
-
-
-(* Lemma 5.4.8 (modifed to use Rep_Cov and Rep_Pre) *)
-lemma RP_count_alt_def :
-  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
-  and "observable M1"
-  and "observable M2"
-  and "well_formed M1"
-  and "well_formed M2"
-  and "s \<in> nodes M2"
-  and "productF M2 M1 FAIL PM"
-  and "io_targets PM (initial PM) vs = {(q2,q1)}"
-  and "path PM (xs || tr) (q2,q1)" 
-  and "length xs = length tr"
-  and "\<not> Rep_Pre M2 M1 vs xs" (* replaced the distinctness property of 5.4.8 *)
-  and "is_det_state_cover M2 V"
-  and "V'' \<in> Perm V M1"
-  and "\<not> Rep_Cov M2 M1 V'' vs xs" (* weakened from 5.4.8 *) 
-shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
-proof -
-  have "distinct (states (xs || tr) (q2,q1))" using distinctness_via_Rep_Pre[of M2 M1 vs xs FAIL PM q2 q1 tr] assms by simp
-  then show ?thesis using RP_count_via_Rep_Cov[of vs xs M1 M2 s FAIL PM q2 q1 tr V V'']
-    using assms(1) assms(10) assms(12) assms(13) assms(14) assms(2) assms(3) assms(4) assms(5) assms(6) assms(7) assms(8) assms(9) by blast 
-qed
-
-
-
-(* helper functions to shorten assumptions *)
-abbreviation "fault_domain M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
-
-lemma fault_domain_props[elim!] :
-  assumes "fault_domain M2 M1 m"
-  shows "inputs M2 = inputs M1"
-        "card (nodes M1) \<le> m"using assms by auto
-
-abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
-
-lemma OFSM_props[elim!] :
-  assumes "OFSM M"
-shows "well_formed M" 
-      "observable M" 
-      "completely_specified M" using assms by auto
-
-abbreviation
-  "test_tools M2 M1 FAIL PM V V'' \<Omega> \<equiv> (
-      productF M2 M1 FAIL PM
-    \<and> is_det_state_cover M2 V
-    \<and> V'' \<in> Perm V M1
-    \<and> applicable_set M2 \<Omega>
-   )"
-
-lemma test_tools_props[elim] :
-  assumes "test_tools M2 M1 FAIL PM V V'' \<Omega>"
-  and     "fault_domain M2 M1 m"
-  shows "productF M2 M1 FAIL PM"
-        "is_det_state_cover M2 V"
-        "V'' \<in> Perm V M1"
-        "applicable_set M2 \<Omega>"
-        "applicable_set M1 \<Omega>"
-proof -
-  show "productF M2 M1 FAIL PM" using assms(1) by blast
-  show "is_det_state_cover M2 V" using assms(1) by blast
-  show "V'' \<in> Perm V M1" using assms(1) by blast
-  show "applicable_set M2 \<Omega>" using assms(1) by blast
-  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
-qed
-
-
-(* LB helpers *)
-
-
-
-
-
-
-
-
-
-
-
-lemma R_state_component_2 :  
-  assumes "io \<in> (R M2 s vs xs)" 
-  and     "observable M2"
-shows "io_targets M2 (initial M2) io = {s}" 
-proof -
-  have "s \<in> io_targets M2 (initial M2) io" using assms(1) by auto
-  moreover have "io \<in> language_state M2 (initial M2)" using calculation by auto
-  ultimately show "io_targets M2 (initial M2) io = {s}" using assms(2) io_targets_observable_singleton_ex by (metis singletonD) 
-qed
 
 lemma RP_state_component_2 :
   assumes "io \<in> (RP M2 s vs xs V'')" 
@@ -1127,6 +794,506 @@ qed
 
 
 
+
+
+
+
+subsection {* Conditions for the result of LB to be a valid lower bound *}
+
+text \<open>
+The following predicates describe the assumptions necessary to show that the value calculated by LB
+is a lower bound on the number of states of a given FSM.
+\<close>
+
+fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> bool" where 
+  "Prereq M2 M1 vs xs T S \<Omega> V V'' = (
+    (\<forall> vs' \<in> V'' . (prefix vs' (vs @ xs) \<longrightarrow> length vs' \<le> length vs))      \<comment>\<open>(1.)\<close>
+    \<and> (atc_io_reduction_on_sets M1 T \<Omega> M2)                                     \<comment>\<open>(2.) and (3.)\<close>
+    \<and> (finite T)                                                           \<comment>\<open>addition to 2. to enable practical application\<close>
+    \<and> V \<subseteq> T \<and> (\<forall> xs' . (prefix xs' xs \<and> xs' \<noteq> xs) \<longrightarrow> map fst (vs @ xs') \<in> T)           \<comment>\<open>(4.) (modified)\<close>
+    \<and> (vs @ xs) \<in> L M2 \<inter> L M1                                              \<comment>\<open>addition (4.), as (4.) here only considers proper prefixes of (vs@xs), since any sequence for which the LB is to be calculated is not yet contained in T\<close>
+    \<and> S \<subseteq> nodes M2                                                         \<comment>\<open>(addition, not strictly necessary as RP for any state not in (nodes M2) is empty)\<close>
+    \<and> (\<forall> s1 \<in> S . \<forall> s2 \<in> S . s1 \<noteq> s2                                       \<comment>\<open>(5.)\<close>
+        \<longrightarrow> (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
+               \<forall> io2 \<in> RP M2 s2 vs xs V'' .
+                 B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> )))"
+
+
+fun Rep_Pre :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "Rep_Pre M2 M1 vs xs = (\<exists> xs1 xs2 . prefix xs1 xs2 \<and> prefix xs2 xs \<and> xs1 \<noteq> xs2 
+    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs1) = {s2} \<and> io_targets M2 (initial M2) (vs @ xs2) = {s2})
+    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs1) = {s1} \<and> io_targets M1 (initial M1) (vs @ xs2) = {s1}))"
+
+
+fun Rep_Cov :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+  "Rep_Cov M2 M1 V'' vs xs = (\<exists> xs' vs' . xs' \<noteq> [] \<and> prefix xs' xs \<and> vs' \<in> V'' 
+    \<and> (\<exists> s2 . io_targets M2 (initial M2) (vs @ xs') = {s2} \<and> io_targets M2 (initial M2) (vs') = {s2})
+    \<and> (\<exists> s1 . io_targets M1 (initial M1) (vs @ xs') = {s1} \<and> io_targets M1 (initial M1) (vs') = {s1}))"
+
+
+
+lemma distinctness_via_Rep_Pre :
+  assumes "\<not> Rep_Pre M2 M1 vs xs"
+  and "productF M2 M1 FAIL PM"
+  and "observable M1"
+  and "observable M2"
+  and "io_targets PM (initial PM) vs = {(q2,q1)}"
+  and "path PM (xs || tr) (q2,q1)" 
+  and "length xs = length tr"
+  and "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "well_formed M1"
+  and "well_formed M2"
+shows "distinct (states (xs || tr) (q2, q1))"
+proof (rule ccontr)
+  assume assm : "\<not> distinct (states (xs || tr) (q2, q1))"
+  then obtain i1 i2 where index_def :
+     "i1 \<noteq> 0 
+      \<and> i1 \<noteq> i2 
+      \<and> i1 < length (states (xs || tr) (q2, q1)) 
+      \<and> i2 < length (states (xs || tr) (q2, q1)) 
+      \<and> (states (xs || tr) (q2, q1)) ! i1 = (states (xs || tr) (q2, q1)) ! i2" by (metis distinct_conv_nth) 
+  then have "length xs > 0" by auto
+  
+  let ?xs1 = "take (Suc i1) xs"
+  let ?xs2 = "take (Suc i2) xs"
+  let ?tr1 = "take (Suc i1) tr"
+  let ?tr2 = "take (Suc i2) tr"
+  let ?st  = "(states (xs || tr) (q2, q1)) ! i1"
+
+  have obs_PM : "observable PM" using observable_productF assms(2) assms(3) assms(4) by blast
+
+  have "initial PM = (initial M2, initial M1)" using assms(2) by simp
+  moreover have "vs \<in> L M2" "vs \<in> L M1" using assms(8) language_state_prefix by auto
+  ultimately have "io_targets M1 (initial M1) vs = {q1}" "io_targets M2 (initial M2) vs = {q2}" using productF_path_io_targets[of M2 M1 FAIL PM "initial M2" "initial M1" vs q2 q1] by (metis FSM.nodes.initial assms(2) assms(3) assms(4) assms(5) assms(9) assms(10) io_targets_observable_singleton_ex singletonD)+
+
+  \<comment> \<open>paths for ?xs1\<close>
+  
+  have "(states (xs || tr) (q2, q1)) ! i1 \<in> io_targets PM (q2, q1) ?xs1" by (metis \<open>0 < length xs\<close> assms(6) assms(7) index_def map_snd_zip states_alt_def states_index_io_target)
+  then have "io_targets PM (q2, q1) ?xs1 = {?st}" using obs_PM by (meson observable_io_target_is_singleton) 
+
+  have "path PM (?xs1 || ?tr1) (q2,q1)" by (metis FSM.path_append_elim append_take_drop_id assms(6) assms(7) length_take zip_append) 
+  then have "path PM (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1)" by auto
+  
+  have "vs @ ?xs1 \<in> L M2" by (metis (no_types) IntD2 append_assoc append_take_drop_id assms(8) language_state_prefix) 
+  then obtain q2' where "io_targets M2 (initial M2) (vs@?xs1) = {q2'}" using io_targets_observable_singleton_ob[of M2 "vs@?xs1" "initial M2"] assms(4) by auto
+  then have "q2' \<in> io_targets M2 q2 ?xs1"
+    using assms(4) \<open>io_targets M2 (initial M2) vs = {q2}\<close> observable_io_targets_split[of M2 "initial M2" vs ?xs1 q2' q2] by simp
+  then have "?xs1 \<in> language_state M2 q2" by auto
+  moreover have "length ?xs1 = length (map snd ?tr1)" using assms(7) by auto
+  moreover have "length (map fst ?tr1) = length (map snd ?tr1)" by auto
+  moreover have "q2 \<in> nodes M2" using \<open>io_targets M2 (initial M2) vs = {q2}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1) 
+  moreover have "q1 \<in> nodes M1" using \<open>io_targets M1 (initial M1) vs = {q1}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1)
+  ultimately have 
+     "path M1 (?xs1 || map snd ?tr1) q1" 
+     "path M2 (?xs1 || map fst ?tr1) q2" 
+     "target (?xs1 || map snd ?tr1) q1 = snd (target (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1))"
+     "target (?xs1 || map fst ?tr1) q2 = fst (target (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1))"
+    using assms(2) assms(9) assms(10) \<open>path PM (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1)\<close> assms(4) productF_path_reverse_ob_2[of ?xs1 "map fst ?tr1" "map snd ?tr1" M2 M1 FAIL PM q2 q1] by simp+
+  moreover have "target (?xs1 || map fst ?tr1 || map snd ?tr1) (q2,q1) = ?st" by (metis (no_types) index_def scan_nth take_zip zip_map_fst_snd)
+  ultimately have  
+     "target (?xs1 || map snd ?tr1) q1 = snd ?st"
+     "target (?xs1 || map fst ?tr1) q2 = fst ?st" by simp+  
+
+  \<comment> \<open>paths for ?xs2\<close>
+  
+  have "(states (xs || tr) (q2, q1)) ! i2 \<in> io_targets PM (q2, q1) ?xs2" by (metis \<open>0 < length xs\<close> assms(6) assms(7) index_def map_snd_zip states_alt_def states_index_io_target)
+  then have "io_targets PM (q2, q1) ?xs2 = {?st}" using obs_PM by (metis index_def observable_io_target_is_singleton)  
+
+  have "path PM (?xs2 || ?tr2) (q2,q1)" by (metis FSM.path_append_elim append_take_drop_id assms(6) assms(7) length_take zip_append) 
+  then have "path PM (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1)" by auto
+
+  have "vs @ ?xs2 \<in> L M2" by (metis (no_types) IntD2 append_assoc append_take_drop_id assms(8) language_state_prefix) 
+  then obtain q2'' where "io_targets M2 (initial M2) (vs@?xs2) = {q2''}" using io_targets_observable_singleton_ob[of M2 "vs@?xs2" "initial M2"] assms(4) by auto
+  then have "q2'' \<in> io_targets M2 q2 ?xs2"
+    using assms(4) \<open>io_targets M2 (initial M2) vs = {q2}\<close> observable_io_targets_split[of M2 "initial M2" vs ?xs2 q2'' q2] by simp
+  then have "?xs2 \<in> language_state M2 q2" by auto
+  moreover have "length ?xs2 = length (map snd ?tr2)" using assms(7) by auto
+  moreover have "length (map fst ?tr2) = length (map snd ?tr2)" by auto
+  moreover have "q2 \<in> nodes M2" using \<open>io_targets M2 (initial M2) vs = {q2}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1) 
+  moreover have "q1 \<in> nodes M1" using \<open>io_targets M1 (initial M1) vs = {q1}\<close> io_targets_nodes by (metis FSM.nodes.initial insertI1)
+  ultimately have 
+     "path M1 (?xs2 || map snd ?tr2) q1" 
+     "path M2 (?xs2 || map fst ?tr2) q2" 
+     "target (?xs2 || map snd ?tr2) q1 = snd (target (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1))"
+     "target (?xs2 || map fst ?tr2) q2 = fst (target (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1))"
+    using assms(2) assms(9) assms(10) \<open>path PM (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1)\<close> assms(4) productF_path_reverse_ob_2[of ?xs2 "map fst ?tr2" "map snd ?tr2" M2 M1 FAIL PM q2 q1] by simp+
+  moreover have "target (?xs2 || map fst ?tr2 || map snd ?tr2) (q2,q1) = ?st" by (metis (no_types) index_def scan_nth take_zip zip_map_fst_snd)
+  ultimately have  
+     "target (?xs2 || map snd ?tr2) q1 = snd ?st"
+     "target (?xs2 || map fst ?tr2) q2 = fst ?st" by simp+
+
+  
+
+  have "io_targets M1 q1 ?xs1 = {snd ?st}" using \<open>path M1 (?xs1 || map snd ?tr1) q1\<close> \<open>target (?xs1 || map snd ?tr1) q1 = snd ?st\<close> \<open>length ?xs1 = length (map snd ?tr1)\<close> assms(3) obs_target_is_io_targets[of M1 ?xs1 "map snd ?tr1" q1] by simp
+  then have tgt_1_1 : "io_targets M1 (initial M1) (vs @ ?xs1) = {snd ?st}" by (meson \<open>io_targets M1 (initial M1) vs = {q1}\<close> assms(3) observable_io_targets_append) 
+  
+  have "io_targets M2 q2 ?xs1 = {fst ?st}" using \<open>path M2 (?xs1 || map fst ?tr1) q2\<close> \<open>target (?xs1 || map fst ?tr1) q2 = fst ?st\<close> \<open>length ?xs1 = length (map snd ?tr1)\<close> assms(4) obs_target_is_io_targets[of M2 ?xs1 "map fst ?tr1" q2] by simp
+  then have tgt_1_2 : "io_targets M2 (initial M2) (vs @ ?xs1) = {fst ?st}" by (meson \<open>io_targets M2 (initial M2) vs = {q2}\<close> assms(4) observable_io_targets_append)
+  
+  have "io_targets M1 q1 ?xs2 = {snd ?st}" using \<open>path M1 (?xs2 || map snd ?tr2) q1\<close> \<open>target (?xs2 || map snd ?tr2) q1 = snd ?st\<close> \<open>length ?xs2 = length (map snd ?tr2)\<close> assms(3) obs_target_is_io_targets[of M1 ?xs2 "map snd ?tr2" q1] by simp
+  then have tgt_2_1 : "io_targets M1 (initial M1) (vs @ ?xs2) = {snd ?st}" by (meson \<open>io_targets M1 (initial M1) vs = {q1}\<close> assms(3) observable_io_targets_append)
+  
+  have "io_targets M2 q2 ?xs2 = {fst ?st}" using \<open>path M2 (?xs2 || map fst ?tr2) q2\<close> \<open>target (?xs2 || map fst ?tr2) q2 = fst ?st\<close> \<open>length ?xs2 = length (map snd ?tr2)\<close> assms(4) obs_target_is_io_targets[of M2 ?xs2 "map fst ?tr2" q2] by simp
+  then have tgt_2_2 : "io_targets M2 (initial M2) (vs @ ?xs2) = {fst ?st}" by (meson \<open>io_targets M2 (initial M2) vs = {q2}\<close> assms(4) observable_io_targets_append)
+
+  have "?xs1 \<noteq> []" using \<open>0 < length xs\<close> by auto  
+  have "prefix ?xs1 xs" using take_is_prefix by blast 
+  have "prefix ?xs2 xs" using take_is_prefix by blast
+  have "?xs1 \<noteq> ?xs2"
+  proof -
+    have f1: "\<forall>n na. \<not> n < na \<or> Suc n \<le> na" by presburger
+    have f2: "Suc i1 \<le> length xs" using index_def by force
+    have "Suc i2 \<le> length xs" using f1 by (metis index_def length_take map_snd_zip_take min_less_iff_conj states_alt_def)
+    then show ?thesis using f2 by (metis (no_types) index_def length_take min.absorb2 nat.simps(1))
+  qed 
+  have "Rep_Pre M2 M1 vs xs"
+  proof (cases "length ?xs1 < length ?xs2")
+    case True
+    then have "prefix ?xs1 ?xs2"
+      by (meson \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) xs\<close> leD prefix_length_le prefix_same_cases) 
+    show ?thesis
+      by (meson Rep_Pre.elims(3) \<open>prefix (take (Suc i1) xs) (take (Suc i2) xs)\<close> \<open>prefix (take (Suc i2) xs) xs\<close> \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> tgt_1_1 tgt_1_2 tgt_2_1 tgt_2_2) 
+  next
+    case False
+    moreover have "length ?xs1 \<noteq> length ?xs2"
+      by (metis (no_types) \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> append_eq_conv_conj append_take_drop_id) 
+    ultimately have "length ?xs2 < length ?xs1" 
+      by auto
+    then have "prefix ?xs2 ?xs1"
+      using \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) xs\<close> less_imp_le_nat prefix_length_prefix by blast 
+    show ?thesis
+      by (metis Rep_Pre.elims(3) \<open>prefix (take (Suc i1) xs) xs\<close> \<open>prefix (take (Suc i2) xs) (take (Suc i1) xs)\<close> \<open>take (Suc i1) xs \<noteq> take (Suc i2) xs\<close> tgt_1_1 tgt_1_2 tgt_2_1 tgt_2_2) 
+  qed
+    
+  then show "False" using assms(1) by simp
+qed
+
+  
+  
+
+
+lemma RP_count_via_Rep_Cov :
+  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
+  and "s \<in> nodes M2"
+  and "productF M2 M1 FAIL PM"
+  and "io_targets PM (initial PM) vs = {(q2,q1)}"
+  and "path PM (xs || tr) (q2,q1)" 
+  and "length xs = length tr"
+  and "distinct (states (xs || tr) (q2,q1))" 
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+  and "\<not> Rep_Cov M2 M1 V'' vs xs"  
+shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
+proof -
+  have RP_cases : "RP M2 s vs xs V'' = R M2 s vs xs \<or> (\<exists> vs' \<in> V'' . vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs))" using RP_from_R assms by metis
+  show ?thesis 
+  proof (cases "RP M2 s vs xs V'' = R M2 s vs xs")
+    case True
+    then show ?thesis using R_count assms by metis
+  next
+    case False
+    then obtain vs' where vs'_def : "vs' \<in> V'' \<and> vs' \<notin> R M2 s vs xs \<and> RP M2 s vs xs V'' = insert vs' (R M2 s vs xs)" using RP_cases by auto
+        
+    have state_component_2 : "\<forall> io \<in> (R M2 s vs xs) . io_targets M2 (initial M2) io = {s}" 
+      proof 
+        fix io assume "io \<in> R M2 s vs xs"
+        then have "s \<in> io_targets M2 (initial M2) io" by auto
+        moreover have "io \<in> language_state M2 (initial M2)" using calculation by auto
+        ultimately show "io_targets M2 (initial M2) io = {s}" using assms(3) io_targets_observable_singleton_ex by (metis singletonD) 
+      qed
+
+    have "vs' \<in> L M1" using assms(13) perm_language vs'_def by blast
+    then obtain s' where s'_def : "io_targets M1 (initial M1) vs' = {s'}" by (meson assms(2) io_targets_observable_singleton_ob) 
+
+    moreover have "s' \<notin> \<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))" 
+    proof (rule ccontr)
+      assume "\<not> s' \<notin> UNION (R M2 s vs xs) (io_targets M1 (initial M1))"
+      then obtain xs' where xs'_def : "vs @ xs' \<in> R M2 s vs xs \<and> s' \<in> io_targets M1 (initial M1) (vs @ xs')"
+      proof -
+        assume a1: "\<And>xs'. vs @ xs' \<in> R M2 s vs xs \<and> s' \<in> io_targets M1 (initial M1) (vs @ xs') \<Longrightarrow> thesis"
+        obtain pps :: "('a \<times> 'b) list set \<Rightarrow> (('a \<times> 'b) list \<Rightarrow> 'c set) \<Rightarrow> 'c \<Rightarrow> ('a \<times> 'b) list" where
+          "\<forall>x0 x1 x2. (\<exists>v3. v3 \<in> x0 \<and> x2 \<in> x1 v3) = (pps x0 x1 x2 \<in> x0 \<and> x2 \<in> x1 (pps x0 x1 x2))"
+          by moura
+        then have f2: "pps (R M2 s vs xs) (io_targets M1 (initial M1)) s' \<in> R M2 s vs xs \<and> s' \<in> io_targets M1 (initial M1) (pps (R M2 s vs xs) (io_targets M1 (initial M1)) s')"
+          using \<open>\<not> s' \<notin> UNION (R M2 s vs xs) (io_targets M1 (initial M1))\<close> by blast
+        then have "\<exists>ps. pps (R M2 s vs xs) (io_targets M1 (initial M1)) s' = vs @ ps \<and> ps \<noteq> [] \<and> prefix ps xs \<and> s \<in> io_targets M2 (initial M2) (vs @ ps)"
+          by simp
+        then show ?thesis
+          using f2 a1 by (metis (no_types))
+      qed  
+      
+      have "vs @ xs' \<in> L M1" using xs'_def by blast 
+      then have "io_targets M1 (initial M1) (vs@xs') = {s'}" by (metis assms(2) io_targets_observable_singleton_ob singletonD xs'_def)
+      moreover have "io_targets M1 (initial M1) (vs') = {s'}" using s'_def by blast 
+      moreover have "io_targets M2 (initial M2) (vs @ xs') = {s}" using state_component_2 xs'_def by blast
+      moreover have "io_targets M2 (initial M2) (vs') = {s}" by (metis (mono_tags, lifting) RP.simps Un_iff insertI1 mem_Collect_eq vs'_def) 
+      moreover have "xs' \<noteq> []" using xs'_def by simp
+      moreover have "prefix xs' xs" using xs'_def by simp
+      moreover have "vs' \<in> V''" using vs'_def by simp
+      ultimately have "Rep_Cov M2 M1 V'' vs xs" by auto
+
+      then show "False" using assms(14) by simp
+    qed 
+
+    moreover have "\<Union> (image (io_targets M1 (initial M1)) (insert vs' (R M2 s vs xs)))
+      = insert s' (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs)))" using s'_def by simp
+
+    moreover have "finite (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs)))" 
+    proof 
+      show "finite (R M2 s vs xs)" using finite_R by simp
+      show "\<And>a. a \<in> R M2 s vs xs \<Longrightarrow> finite (io_targets M1 (initial M1) a)" 
+      proof -
+        fix a assume "a \<in> R M2 s vs xs" 
+        then have "prefix a (vs@xs)" by auto
+        then have "a \<in> L M1" using language_state_prefix by (metis IntD1 assms(1) prefix_def) 
+        then obtain p where "io_targets M1 (initial M1) a = {p}" using assms(2) io_targets_observable_singleton_ob by metis
+        then show "finite (io_targets M1 (initial M1) a)" by simp
+      qed
+    qed
+
+    ultimately have "card (\<Union> (image (io_targets M1 (initial M1)) (insert vs' (R M2 s vs xs)))) = 
+      Suc (card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))))" by (metis (no_types) card_insert_disjoint)
+
+      
+    moreover have "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (\<Union> (image (io_targets M1 (initial M1)) (insert vs' (R M2 s vs xs))))" using vs'_def by simp
+    
+    ultimately have "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = Suc (card (\<Union> (image (io_targets M1 (initial M1)) (R M2 s vs xs))))" by linarith
+
+    then have "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = Suc (card (R M2 s vs xs))" using R_count[of vs xs M1 M2 s FAIL PM q2 q1 tr] using assms(1) assms(10) assms(11) assms(2) assms(3) assms(4) assms(5) assms(6) assms(7) assms(8) assms(9) by linarith 
+
+    moreover have "card (RP M2 s vs xs V'') = Suc (card (R M2 s vs xs))" using vs'_def by (metis card_insert_if finite_R)
+
+    ultimately show ?thesis by linarith
+  qed
+qed
+
+
+
+
+
+lemma RP_count_alt_def :
+  assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
+  and "observable M1"
+  and "observable M2"
+  and "well_formed M1"
+  and "well_formed M2"
+  and "s \<in> nodes M2"
+  and "productF M2 M1 FAIL PM"
+  and "io_targets PM (initial PM) vs = {(q2,q1)}"
+  and "path PM (xs || tr) (q2,q1)" 
+  and "length xs = length tr"
+  and "\<not> Rep_Pre M2 M1 vs xs" 
+  and "is_det_state_cover M2 V"
+  and "V'' \<in> Perm V M1"
+  and "\<not> Rep_Cov M2 M1 V'' vs xs"  
+shows "card (\<Union> (image (io_targets M1 (initial M1)) (RP M2 s vs xs V''))) = card (RP M2 s vs xs V'')"
+proof -
+  have "distinct (states (xs || tr) (q2,q1))" using distinctness_via_Rep_Pre[of M2 M1 vs xs FAIL PM q2 q1 tr] assms by simp
+  then show ?thesis using RP_count_via_Rep_Cov[of vs xs M1 M2 s FAIL PM q2 q1 tr V V'']
+    using assms(1) assms(10) assms(12) assms(13) assms(14) assms(2) assms(3) assms(4) assms(5) assms(6) assms(7) assms(8) assms(9) by blast 
+qed
+
+
+
+
+subsection {* Helper predicates *}
+
+text \<open>
+The following predicates are used to combine often repeated assumption.
+\<close>
+
+abbreviation "fault_domain M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
+
+lemma fault_domain_props[elim!] :
+  assumes "fault_domain M2 M1 m"
+  shows "inputs M2 = inputs M1"
+        "card (nodes M1) \<le> m"using assms by auto
+
+abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
+
+lemma OFSM_props[elim!] :
+  assumes "OFSM M"
+shows "well_formed M" 
+      "observable M" 
+      "completely_specified M" using assms by auto
+
+abbreviation
+  "test_tools M2 M1 FAIL PM V V'' \<Omega> \<equiv> (
+      productF M2 M1 FAIL PM
+    \<and> is_det_state_cover M2 V
+    \<and> V'' \<in> Perm V M1
+    \<and> applicable_set M2 \<Omega>
+   )"
+
+lemma test_tools_props[elim] :
+  assumes "test_tools M2 M1 FAIL PM V V'' \<Omega>"
+  and     "fault_domain M2 M1 m"
+  shows "productF M2 M1 FAIL PM"
+        "is_det_state_cover M2 V"
+        "V'' \<in> Perm V M1"
+        "applicable_set M2 \<Omega>"
+        "applicable_set M1 \<Omega>"
+proof -
+  show "productF M2 M1 FAIL PM" using assms(1) by blast
+  show "is_det_state_cover M2 V" using assms(1) by blast
+  show "V'' \<in> Perm V M1" using assms(1) by blast
+  show "applicable_set M2 \<Omega>" using assms(1) by blast
+  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
+qed
+
+
+
+
+lemma perm_nonempty : 
+  assumes "is_det_state_cover M2 V"
+  and "OFSM M1"
+  and "OFSM M2"
+  and "inputs M1 = inputs M2"
+shows "Perm V M1 \<noteq> {}"
+proof -
+  have "finite (nodes M2)" using assms(3) by auto
+  moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
+    by auto 
+  ultimately have "finite V" using det_state_cover_card[OF assms(1)]
+    by (metis assms(1) finite_imageI infinite_super is_det_state_cover.elims(2)) 
+  
+  have "[] \<in> V"
+    using assms(1) det_state_cover_empty by blast 
+
+
+  have "\<And> VS . VS \<subseteq> V \<and> VS \<noteq> {} \<Longrightarrow> Perm VS M1 \<noteq> {}"
+  proof -
+    fix VS assume "VS \<subseteq> V \<and> VS \<noteq> {}"
+    then have "finite VS" using \<open>finite V\<close>
+      using infinite_subset by auto 
+    then show "Perm VS M1 \<noteq> {}" 
+      using \<open>VS \<subseteq> V \<and> VS \<noteq> {}\<close> \<open>finite VS\<close>
+    proof (induction VS)
+      case empty
+      then show ?case by auto
+    next
+      case (insert vs F)
+      then have "vs \<in> V" by blast
+      
+      obtain q2 where "d_reaches M2 (initial M2) vs q2" using det_state_cover_d_reachable[OF assms(1) \<open>vs \<in> V\<close>] by blast
+      then obtain vs' vsP where io_path : "length vs = length vs' \<and> length vs = length vsP \<and> (path M2 ((vs || vs') || vsP) (initial M2)) \<and> target ((vs || vs') || vsP) (initial M2) = q2"
+        by auto
+    
+      have "well_formed M2" 
+        using assms by auto
+      
+      have "map fst (map fst ((vs || vs') || vsP)) = vs"
+      proof -
+        have "length (vs || vs') = length vsP" using io_path
+          by simp 
+        then show ?thesis using io_path by auto
+      qed
+      moreover have "set (map fst (map fst ((vs || vs') || vsP))) \<subseteq> inputs M2" using path_input_containment[OF \<open>well_formed M2\<close>, of "(vs || vs') || vsP" "initial M2" ] io_path
+        by linarith
+      ultimately have "set vs \<subseteq> inputs M2" 
+        by presburger
+    
+      then have "set vs \<subseteq> inputs M1" 
+        using assms by auto
+    
+      then have "LS\<^sub>i\<^sub>n M1 (initial M1) {vs} \<noteq> {}" 
+        using assms(2) language_state_for_inputs_nonempty
+        by (metis FSM.nodes.initial) 
+      then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"
+        by auto
+      then obtain vs' where "vs' \<in> language_state_for_input M1 (initial M1) vs" 
+        by blast
+
+      show ?case
+      proof (cases "F = {}")
+        case True
+        moreover obtain f where "f vs = vs'" by moura
+        ultimately have "image f (insert vs F) \<in> Perm (insert vs F) M1"
+          using Perm.simps \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by blast     
+        then show ?thesis by blast
+      next
+        case False
+        then obtain F'' where "F'' \<in> Perm F M1" 
+          using insert.IH insert.hyps(1) insert.prems(1) by blast
+        then obtain f where "F'' = image f F" "(\<forall> v \<in> F . f v \<in> language_state_for_input M1 (initial M1) v)" by auto
+        let ?f = "f(vs := vs')"
+        have "\<forall> v \<in> (insert vs F) . ?f v \<in> language_state_for_input M1 (initial M1) v" 
+        proof 
+          fix v assume "v \<in> insert vs F"
+          then show "?f v \<in> language_state_for_input M1 (initial M1) v"
+          proof (cases "v = vs")
+            case True
+            then show ?thesis
+              using \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by auto 
+          next
+            case False
+            then have "v \<in> F"
+              using \<open>v \<in> insert vs F\<close> by blast
+            then show ?thesis
+              using False \<open>\<forall>v\<in>F. f v \<in> language_state_for_input M1 (initial M1) v\<close> by auto 
+          qed
+        qed
+        then have "image ?f (insert vs F) \<in> Perm (insert vs F) M1"
+          using Perm.simps by blast 
+        then show ?thesis by blast
+      qed
+    qed
+  qed
+
+  then show ?thesis
+    using \<open>[] \<in> V\<close> by blast 
+qed
+  
+
+
+lemma perm_elem :
+  assumes "is_det_state_cover M2 V"
+  and "OFSM M1"
+  and "OFSM M2"
+  and "inputs M1 = inputs M2"
+  and     "vs \<in> V"
+  and     "vs' \<in> language_state_for_input M1 (initial M1) vs"
+obtains V''
+where "V'' \<in> Perm V M1" "vs' \<in> V''"
+proof -
+  obtain V'' where "V'' \<in> Perm V M1" 
+    using perm_nonempty[OF assms(1-4)] by blast
+  then obtain f where "V'' = image f V" "(\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" by auto  
+
+  let ?f = "f(vs := vs')"
+
+  have "\<forall> v \<in> V . ?f v \<in> language_state_for_input M1 (initial M1) v"
+    using \<open>\<forall>v\<in>V. f v \<in> language_state_for_input M1 (initial M1) v\<close> assms(6) by fastforce
+
+  then have "image ?f V \<in> Perm V M1" 
+    by auto
+  moreover have "vs' \<in> image ?f V"
+    by (metis assms(5) fun_upd_same imageI) 
+  ultimately show ?thesis
+    using that by blast 
+qed
+
+
+
+
+subsection {* Function LB *}
+
+text \<open>
+LB adds together the number of elements in sets calculated via RP for a given set of states and the
+number of ATC-reaction known to exist but not produced by a state reached by any of the above 
+elements.
+\<close>
+
+fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> nat" where
+  "LB M2 M1 vs xs T S \<Omega> V'' = (sum (\<lambda> s . card (RP M2 s vs xs V'')) S) 
+                              + card ( (D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''})"
+
+
+
 lemma LB_count_helper_RP_disjoint_and_cards :
   assumes "(vs @ xs) \<in> L M1 \<inter> L M2"
   and "observable M1"
@@ -1238,8 +1405,6 @@ proof -
             \<longrightarrow> (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                        \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                          B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))" using assms(14) by simp
-    (*then have dist_prop : "\<forall> t1 \<in> io_targets M1 (initial M1) io1 . \<forall> t2 \<in> io_targets M1 (initial M1) io2 .  
-                 r_dist_set M1 \<Omega> t1 t2" using assms(16,17,15) shared_elem_def(1,2) by blast*)
     
     have "io_targets M1 (initial M1) io1 \<inter> io_targets M1 (initial M1) io2 = {}" 
     proof (rule ccontr) 
@@ -1498,10 +1663,7 @@ proof -
   ultimately show ?thesis by linarith
 qed
 
-lemma language_state_for_inputs_in_language_state :
-  "LS\<^sub>i\<^sub>n M q T \<subseteq> language_state M q"
-  unfolding language_state_for_inputs.simps language_state_def
-  by blast 
+
 
 
 lemma LB_count_helper_D_states :
@@ -1540,37 +1702,12 @@ proof
   ultimately show "False" by simp
 qed
   
-lemma language_state_for_inputs_map_fst :
-  assumes "io \<in> language_state M q"
-  and     "map fst io \<in> T"
-shows "io \<in> LS\<^sub>i\<^sub>n M q T"
-proof -
-  let ?xs = "map fst io"
-  let ?ys = "map snd io"
-  have "?xs \<in> T \<and> length ?xs = length ?ys \<and> ?xs || ?ys \<in> language_state M q" using assms(2,1) by auto
-  then have "?xs || ?ys \<in> LS\<^sub>i\<^sub>n M q T" unfolding language_state_for_inputs.simps by blast 
-  then show ?thesis by simp
-qed 
 
-lemma LB_count_helper_vs_xs :
-  assumes "Prereq M2 M1 vs xs T S \<Omega> V V''"
-  and     "vs @ xs \<in> L M1"
-shows "(vs @ xs) \<in> L M2 \<inter> L M1"
-  using assms(1) by auto
-(*proof - (* proof for non-proper-prefix version of Prereq *)
-  have "map fst (vs @ xs) \<in> T" using assms by simp
-  moreover have "atc_io_reduction_on_sets M1 M2 T \<Omega>" using assms by simp
-  ultimately have "atc_io_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>" unfolding atc_io_reduction_on_sets.simps by blast
 
-  have "vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}" using assms(2) language_state_for_inputs_map_fst[of "vs@xs" M1 "initial M1" "{map fst (vs@xs)}"] by simp
-  then have "vs @ xs \<in> LS\<^sub>i\<^sub>n M2 (initial M2) {map fst (vs @ xs)}" using \<open>atc_io_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>\<close> by auto
-  then have "vs @ xs \<in> L M2" by auto 
 
-  then show ?thesis using assms(2) by simp
-qed*)
-  
-  
-(* Lemma 5.4.11 *)
+subsection {* Validity of the result of LB constituting a lower bound *}
+
+
 lemma LB_count :
 assumes "(vs @ xs) \<in> L M1"
   and     "OFSM M1"
@@ -1592,11 +1729,12 @@ proof -
   then have "finite ?D" using OFSM_props[OF assms(2)] assms(6) D_bound[of M1 T \<Omega>] unfolding Prereq.simps by linarith
   then have "finite ?DB" by simp
 
-  (* Construct a function f (via induction) that maps each response set in ?DB to some state 
-     that produces that response set.
-     This is then used to show that each response sets in ?DB indicates the existence of 
-     a distinct state in M1 not reached via the RP-sequences.
-   *)
+  \<comment> \<open>Proof sketch: 
+      Construct a function f (via induction) that maps each response set in ?DB to some state 
+      that produces that response set.
+      This is then used to show that each response sets in ?DB indicates the existence of 
+      a distinct state in M1 not reached via the RP-sequences.\<close>
+
   have states_f : "\<And> DB' . DB' \<subseteq> ?DB \<Longrightarrow> \<exists> f . inj_on f DB' \<and> image f DB' \<subseteq> (nodes M1) - ?RP \<and> (\<forall> RS \<in> DB' . IO_set M1 (f RS) \<Omega> = RS)"
   proof -
     fix DB' assume "DB' \<subseteq> ?DB"
@@ -1672,7 +1810,7 @@ proof -
   then have "card (nodes M1 - ?RP) = card (nodes M1) - card ?RP" by (meson \<open>finite (nodes M1)\<close> card_Diff_subset infinite_subset) 
   then have "card ?DB \<le> card (nodes M1) - card ?RP" using \<open>card ?DB \<le> card (nodes M1 - ?RP)\<close> by linarith
 
-  have "vs @ xs \<in> L M2 \<inter> L M1" using LB_count_helper_vs_xs[OF assms(6,1)] by simp
+  have "vs @ xs \<in> L M2 \<inter> L M1" using assms(6) by simp
   have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) = card ?RP" using LB_count_helper_RP_disjoint_M1_union[OF \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> assms(2-8)] by simp
   moreover have "card ?RP \<le> card (nodes M1)" using card_mono[OF \<open>finite (nodes M1)\<close> \<open>?RP \<subseteq> nodes M1\<close>] by assumption
   ultimately show ?thesis unfolding LB.simps
@@ -1681,7 +1819,6 @@ qed
   
   
   
-(* Usage of LB to show existence of repetition *)
 lemma LB_usage :
 assumes "(vs @ xs) \<in> L M1"
   and     "OFSM M1"
@@ -1701,148 +1838,12 @@ qed
 
 
 
-(* Lemma 5.4.13 *)
-(* see minimal_sequence_to_failure_extending_det_state_cover_ob in FSM_Product *)
 
 
 
 
 
 
-
-
-
-
-
-(* additional helper lemmata *)
-lemma perm_nonempty : 
-  assumes "is_det_state_cover M2 V"
-  and "OFSM M1"
-  and "OFSM M2"
-  and "inputs M1 = inputs M2"
-shows "Perm V M1 \<noteq> {}"
-proof -
-  have "finite (nodes M2)" using assms(3) by auto
-  moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
-    by auto 
-  ultimately have "finite V" using det_state_cover_card[OF assms(1)]
-    by (metis assms(1) finite_imageI infinite_super is_det_state_cover.elims(2)) 
-  
-  have "[] \<in> V"
-    using assms(1) det_state_cover_empty by blast 
-
-
-  have "\<And> VS . VS \<subseteq> V \<and> VS \<noteq> {} \<Longrightarrow> Perm VS M1 \<noteq> {}"
-  proof -
-    fix VS assume "VS \<subseteq> V \<and> VS \<noteq> {}"
-    then have "finite VS" using \<open>finite V\<close>
-      using infinite_subset by auto 
-    then show "Perm VS M1 \<noteq> {}" 
-      using \<open>VS \<subseteq> V \<and> VS \<noteq> {}\<close> \<open>finite VS\<close>
-    proof (induction VS)
-      case empty
-      then show ?case by auto
-    next
-      case (insert vs F)
-      then have "vs \<in> V" by blast
-      
-      obtain q2 where "d_reaches M2 (initial M2) vs q2" using det_state_cover_d_reachable[OF assms(1) \<open>vs \<in> V\<close>] by blast
-      then obtain vs' vsP where io_path : "length vs = length vs' \<and> length vs = length vsP \<and> (path M2 ((vs || vs') || vsP) (initial M2)) \<and> target ((vs || vs') || vsP) (initial M2) = q2"
-        by auto
-    
-      have "well_formed M2" 
-        using assms by auto
-      
-      have "map fst (map fst ((vs || vs') || vsP)) = vs"
-      proof -
-        have "length (vs || vs') = length vsP" using io_path
-          by simp 
-        then show ?thesis using io_path by auto
-      qed
-      moreover have "set (map fst (map fst ((vs || vs') || vsP))) \<subseteq> inputs M2" using path_input_containment[OF \<open>well_formed M2\<close>, of "(vs || vs') || vsP" "initial M2" ] io_path
-        by linarith
-      ultimately have "set vs \<subseteq> inputs M2" 
-        by presburger
-    
-      then have "set vs \<subseteq> inputs M1" 
-        using assms by auto
-    
-      then have "LS\<^sub>i\<^sub>n M1 (initial M1) {vs} \<noteq> {}" 
-        using assms(2) language_state_for_inputs_nonempty
-        by (metis FSM.nodes.initial) 
-      then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"
-        by auto
-      then obtain vs' where "vs' \<in> language_state_for_input M1 (initial M1) vs" 
-        by blast
-
-      show ?case
-      proof (cases "F = {}")
-        case True
-        moreover obtain f where "f vs = vs'" by moura
-        ultimately have "image f (insert vs F) \<in> Perm (insert vs F) M1"
-          using Perm.simps \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by blast     
-        then show ?thesis by blast
-      next
-        case False
-        then obtain F'' where "F'' \<in> Perm F M1" 
-          using insert.IH insert.hyps(1) insert.prems(1) by blast
-        then obtain f where "F'' = image f F" "(\<forall> v \<in> F . f v \<in> language_state_for_input M1 (initial M1) v)" by auto
-        let ?f = "f(vs := vs')"
-        have "\<forall> v \<in> (insert vs F) . ?f v \<in> language_state_for_input M1 (initial M1) v" 
-        proof 
-          fix v assume "v \<in> insert vs F"
-          then show "?f v \<in> language_state_for_input M1 (initial M1) v"
-          proof (cases "v = vs")
-            case True
-            then show ?thesis
-              using \<open>vs' \<in> language_state_for_input M1 (initial M1) vs\<close> by auto 
-          next
-            case False
-            then have "v \<in> F"
-              using \<open>v \<in> insert vs F\<close> by blast
-            then show ?thesis
-              using False \<open>\<forall>v\<in>F. f v \<in> language_state_for_input M1 (initial M1) v\<close> by auto 
-          qed
-        qed
-        then have "image ?f (insert vs F) \<in> Perm (insert vs F) M1"
-          using Perm.simps by blast 
-        then show ?thesis by blast
-      qed
-    qed
-  qed
-
-  then show ?thesis
-    using \<open>[] \<in> V\<close> by blast 
-qed
-  
-
-
-lemma perm_elem :
-  assumes "is_det_state_cover M2 V"
-  and "OFSM M1"
-  and "OFSM M2"
-  and "inputs M1 = inputs M2"
-  and     "vs \<in> V"
-  and     "vs' \<in> language_state_for_input M1 (initial M1) vs"
-obtains V''
-where "V'' \<in> Perm V M1" "vs' \<in> V''"
-proof -
-  obtain V'' where "V'' \<in> Perm V M1" 
-    using perm_nonempty[OF assms(1-4)] by blast
-  then obtain f where "V'' = image f V" "(\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)" by auto  
-
-  let ?f = "f(vs := vs')"
-
-  have "\<forall> v \<in> V . ?f v \<in> language_state_for_input M1 (initial M1) v"
-    using \<open>\<forall>v\<in>V. f v \<in> language_state_for_input M1 (initial M1) v\<close> assms(6) by fastforce
-
-  then have "image ?f V \<in> Perm V M1" 
-    by auto
-  moreover have "vs' \<in> image ?f V"
-    by (metis assms(5) fun_upd_same imageI) 
-  ultimately show ?thesis
-    using that by blast 
-qed
 
 
 
