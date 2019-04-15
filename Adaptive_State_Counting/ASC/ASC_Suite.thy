@@ -1476,10 +1476,10 @@ proof -
       
 
       \<comment> \<open>Proof sketch:
-           vs@xs@x must not be in ?TS (i+1), else not final iteration
-           vs@xs@x can not be in ?TS i due to its length
-           vs@xs@x must therefore not be contained in (append_set (?C i - ?R i) (inputs M2))
-           vs@xs must therefore not be contained in (?C i - ?R i)
+           vs-xs-x must not be in TS (i+1), else not final iteration
+           vs-xs-x can not be in TS i due to its length
+           vs-xs-x must therefore not be contained in (append-set (C i - R i) (inputs M2))
+           vs-xs must therefore not be contained in (C i - R i)
            contradiction \<close>
 
       have "?TS (Suc i) = ?TS i" 
