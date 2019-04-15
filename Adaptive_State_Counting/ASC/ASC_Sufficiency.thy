@@ -4,75 +4,15 @@ begin
 
 section {* Sufficiency of the test suite to test for reduction *}
 
-(* variations on preconditions *)
-(* TODO: rework by extracting V'' *)
-abbreviation
-  "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xs \<equiv> (
-      productF M2 M1 FAIL PM
-    \<and> is_det_state_cover M2 V
-    \<and> V'' \<in> N (vs@xs) M1 V
-    \<and> applicable_set M2 \<Omega>
-   )"
 
-lemma test_tools_props_N[elim] :
-  assumes "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xs"
-  and     "fault_domain M2 M1 m"
-  shows "productF M2 M1 FAIL PM"
-        "is_det_state_cover M2 V"
-        "V'' \<in> N (vs@xs) M1 V"
-        "applicable_set M2 \<Omega>"
-        "applicable_set M1 \<Omega>"
-proof -
-  show "productF M2 M1 FAIL PM" using assms(1) by blast
-  show "is_det_state_cover M2 V" using assms(1) by blast
-  show "V'' \<in> N (vs@xs) M1 V" using assms(1) by blast
-  show "applicable_set M2 \<Omega>" using assms(1) by blast
-  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
-qed
 
-abbreviation
-  "test_tools_R M2 M1 FAIL PM V \<Omega> \<equiv> (
-      productF M2 M1 FAIL PM
-    \<and> is_det_state_cover M2 V
-    \<and> applicable_set M2 \<Omega>    
-   )"
 
-lemma test_tools_props_R[elim] :
-  assumes "test_tools_R M2 M1 FAIL PM V \<Omega>"
-  and     "fault_domain M2 M1 m"
-  shows "productF M2 M1 FAIL PM"
-        "is_det_state_cover M2 V"
-        "applicable_set M2 \<Omega>"
-        "applicable_set M1 \<Omega>"
-proof -
-  show "productF M2 M1 FAIL PM" using assms(1) by blast
-  show "is_det_state_cover M2 V" using assms(1) by blast
-  show "applicable_set M2 \<Omega>" using assms(1) by blast
-  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
-qed
 
-(* helper properties concerning minimal sequences to failures *)
-lemma language_state_for_inputs_map_fst_contained :
-  assumes "vs \<in> LS\<^sub>i\<^sub>n M q V"
-shows "map fst vs \<in> V" 
-proof -
-  have "(map fst vs) || (map snd vs) = vs" 
-    by auto
-  then have "(map fst vs) || (map snd vs) \<in> LS\<^sub>i\<^sub>n M q V" 
-    using assms by auto
-  then show ?thesis by auto
-qed
+
+
   
 
-lemma mstfe_prefix_input_in_V :
-  assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
-  shows "(map fst vs) \<in> V"
-proof -
-  have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
-    using assms by auto
-  then show ?thesis 
-    using language_state_for_inputs_map_fst_contained by auto
-qed
+
     
     
 
@@ -303,7 +243,8 @@ lemma mstfe_distinct_Rep_Pre :
   and     "OFSM M1"
   and     "OFSM M2"
   and     "fault_domain M2 M1 m"
-  and     "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xs'"
+  and     "test_tools M2 M1 FAIL PM V \<Omega>"
+  and     "V'' \<in> N (vs@xs') M1 V"
   and     "prefix xs' xs"
   shows "\<not> Rep_Pre M2 M1 vs xs'"
 proof 
@@ -413,7 +354,7 @@ proof
 
 
   have "(vs @ xs2) @ (drop (length xs2) xs) = vs@xs"
-    by (metis \<open>prefix xs2 xs'\<close>  append_eq_appendI append_eq_conv_conj assms(6) prefixE) 
+    by (metis \<open>prefix xs2 xs'\<close>  append_eq_appendI append_eq_conv_conj assms(7) prefixE) 
   moreover have "io_targets PM (initial PM) (vs@xs) = {FAIL}" 
     using stf_reaches_FAIL_ob[OF \<open>sequence_to_failure M1 M2 (vs@xs)\<close> assms(2,3) \<open>productF M2 M1 FAIL PM\<close>] by assumption
   ultimately have "io_targets PM (initial PM) ((vs @ xs2) @ (drop (length xs2) xs)) = {FAIL}" 
@@ -433,7 +374,7 @@ proof
   have "xs = (xs1 @ (drop (length xs1) xs))"
     by (metis (no_types) \<open>(vs @ xs2) @ drop (length xs2) xs = vs @ xs\<close> \<open>prefix xs1 xs2\<close> append_assoc append_eq_conv_conj prefixE)
   have "length xs1 < length xs"
-    using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs'\<close> \<open>xs = xs1 @ drop (length xs1) xs\<close> \<open>xs1 \<noteq> xs2\<close> assms(6) leI by fastforce 
+    using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs'\<close> \<open>xs = xs1 @ drop (length xs1) xs\<close> \<open>xs1 \<noteq> xs2\<close> assms(7) leI by fastforce 
   have "length (xs1@(drop (length xs2) xs)) < length xs"
     using \<open>length xs1 < length xs2\<close> \<open>length xs1 < length xs\<close> by auto
 
@@ -457,7 +398,8 @@ lemma mstfe_distinct_Rep_Cov :
   and     "OFSM M1"
   and     "OFSM M2"
   and     "fault_domain M2 M1 m"
-  and     "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs xsR"
+  and     "test_tools M2 M1 FAIL PM V \<Omega>"
+  and     "V'' \<in> N (vs@xsR) M1 V"
   and     "prefix xsR xs"
 shows "\<not> Rep_Cov M2 M1 V'' vs xsR"
 proof 
@@ -552,7 +494,7 @@ proof
     using assms(1) by auto
 
   have "xs = xs' @ (drop (length xs') xs)"
-    by (metis \<open>prefix xs' xsR\<close> append_assoc append_eq_conv_conj assms(6) prefixE)
+    by (metis \<open>prefix xs' xsR\<close> append_assoc append_eq_conv_conj assms(7) prefixE)
   then have "io_targets PM (initial M2, initial M1) (vs @ xs' @ (drop (length xs') xs)) = {FAIL}"
     by (metis \<open>productF M2 M1 FAIL PM\<close> \<open>sequence_to_failure M1 M2 (vs @ xs)\<close> assms(2) assms(3) productF_simps(4) stf_reaches_FAIL_ob)
   then have "io_targets PM (initial M2, initial M1) ((vs @ xs') @ (drop (length xs') xs)) = {FAIL}"    
@@ -571,10 +513,8 @@ proof
 
   have "vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
   proof -
-    have "V'' \<in> N (vs@xsR) M1 V" 
-      using assms(5) by auto
-    then have "V'' \<in> Perm V M1" 
-      unfolding N.simps by blast
+    have "V'' \<in> Perm V M1" 
+      using assms(6) unfolding N.simps by blast
 
     then obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)"
       unfolding Perm.simps by blast
@@ -789,7 +729,7 @@ lemma asc_test_suite_sufficient_to_observe_failure :
   assumes "OFSM M1"
   and     "OFSM M2"
   and     "fault_domain M2 M1 m"
-  and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
+  and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"
 shows "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
 proof 
@@ -800,7 +740,7 @@ proof
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
   obtain vs xs where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
-    using \<open>\<not> M1 \<preceq> M2\<close> assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_det_state_cover_ob[of M2 M1 FAIL PM V] by blast 
+    using  assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_det_state_cover_ob[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>, of V] by blast
 
   then have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
             "sequence_to_failure M1 M2 (vs @ xs)" 
@@ -1119,29 +1059,23 @@ proof
       ultimately have "Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''"
         using RM_impl(4,5) unfolding Prereq.simps by blast
     
-      
-      have "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs (xr || ?yr)"
-        using assms(4) \<open>V'' \<in> N (vs@(xr || ?yr)) M1 V\<close>
-        by blast 
-      
+
       have "V'' \<in> Perm V M1"
         using \<open>V'' \<in> N (vs@(xr || ?yr)) M1 V\<close> unfolding N.simps by blast
-      then have "test_tools M2 M1 FAIL PM V V'' \<Omega>" 
-        using assms(4) by blast
-    
+      
       have \<open>prefix (xr || ?yr) xs\<close>
         by (simp add: \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> take_is_prefix)
     
     
       (* no repetition can occur as the sequence to failure is already minimal *)
       have "\<not> Rep_Pre M2 M1 vs (xr || ?yr)"
-        using mstfe_distinct_Rep_Pre[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs (xr || ?yr)\<close> \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
+        using mstfe_distinct_Rep_Pre[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
         by assumption
       then have "\<not> Rep_Pre M2 M1 vs' xs'"
         using \<open>vs' = vs\<close> \<open>xs' = xr || ?yr\<close> by blast 
     
       have "\<not> Rep_Cov M2 M1 V'' vs (xr || ?yr)" 
-        using mstfe_distinct_Rep_Cov[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs (xr || ?yr)\<close> \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
+        using mstfe_distinct_Rep_Cov[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
         by assumption
       then have "\<not> Rep_Cov M2 M1 V'' vs' xs'"
         using \<open>vs' = vs\<close> \<open>xs' = xr || ?yr\<close> by blast 
@@ -1154,7 +1088,7 @@ proof
          by demonstrating that this would require M1 to have more than m states *)
       
       have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> card (nodes M1)"
-        using LB_count[OF \<open>vs'@xs' \<in> L M1\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V V'' \<Omega>\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''\<close> \<open>\<not> Rep_Pre M2 M1 vs' xs'\<close> \<open> \<not> Rep_Cov M2 M1 V'' vs' xs'\<close>]
+        using LB_count[OF \<open>vs'@xs' \<in> L M1\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> \<open>V'' \<in> Perm V M1\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''\<close> \<open>\<not> Rep_Pre M2 M1 vs' xs'\<close> \<open> \<not> Rep_Cov M2 M1 V'' vs' xs'\<close>]
         by assumption
       then have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> m" 
         using assms(3) by linarith
@@ -1177,7 +1111,7 @@ lemma asc_sufficiency :
   assumes "OFSM M1"
   and     "OFSM M2"
   and     "fault_domain M2 M1 m"
-  and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
+  and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"  
 shows "atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2 \<longrightarrow> M1 \<preceq> M2"
 proof 
@@ -1192,7 +1126,7 @@ proof
   
     assume "\<not> M1 \<preceq> M2"
     obtain vs xs where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
-      using \<open>\<not> M1 \<preceq> M2\<close> assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_det_state_cover_ob[of M2 M1 FAIL PM V] by blast 
+      using  assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_det_state_cover_ob[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>, of V] by blast 
   
     then have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
               "sequence_to_failure M1 M2 (vs @ xs)" 
@@ -1488,14 +1422,8 @@ proof
     ultimately have "Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''"
       using RM_impl(4,5) unfolding Prereq.simps by blast
   
-    have "test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs (xr || ?yr)"
-      using assms(4) \<open>V'' \<in> N (vs@(xr || ?yr)) M1 V\<close>
-      by blast 
-    
     have "V'' \<in> Perm V M1"
       using \<open>V'' \<in> N (vs@(xr || ?yr)) M1 V\<close> unfolding N.simps by blast
-    then have "test_tools M2 M1 FAIL PM V V'' \<Omega>" 
-      using assms(4) by blast
   
     have \<open>prefix (xr || ?yr) xs\<close>
       by (simp add: \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> take_is_prefix)
@@ -1503,13 +1431,13 @@ proof
   
     (* no repetition can occur as the sequence to failure is already minimal *)
     have "\<not> Rep_Pre M2 M1 vs (xr || ?yr)"
-      using mstfe_distinct_Rep_Pre[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs (xr || ?yr)\<close> \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
+      using mstfe_distinct_Rep_Pre[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
       by assumption
     then have "\<not> Rep_Pre M2 M1 vs' xs'"
       using \<open>vs' = vs\<close> \<open>xs' = xr || ?yr\<close> by blast 
   
     have "\<not> Rep_Cov M2 M1 V'' vs (xr || ?yr)" 
-      using mstfe_distinct_Rep_Cov[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools_N M2 M1 FAIL PM V V'' \<Omega> vs (xr || ?yr)\<close> \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
+      using mstfe_distinct_Rep_Cov[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
       by assumption
     then have "\<not> Rep_Cov M2 M1 V'' vs' xs'"
       using \<open>vs' = vs\<close> \<open>xs' = xr || ?yr\<close> by blast 
@@ -1522,7 +1450,7 @@ proof
        by demonstrating that this would require M1 to have more than m states *)
     
     have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> card (nodes M1)"
-      using LB_count[OF \<open>vs'@xs' \<in> L M1\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V V'' \<Omega>\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''\<close> \<open>\<not> Rep_Pre M2 M1 vs' xs'\<close> \<open> \<not> Rep_Cov M2 M1 V'' vs' xs'\<close>]
+      using LB_count[OF \<open>vs'@xs' \<in> L M1\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> \<open>V'' \<in> Perm V M1\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''\<close> \<open>\<not> Rep_Pre M2 M1 vs' xs'\<close> \<open> \<not> Rep_Cov M2 M1 V'' vs' xs'\<close>]
       by assumption
     then have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> m" 
       using assms(3) by linarith
@@ -1549,7 +1477,7 @@ lemma asc_main_theorem :
   assumes "OFSM M1"
   and     "OFSM M2"
   and     "fault_domain M2 M1 m"
-  and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
+  and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"
 shows     "M1 \<preceq> M2 \<longleftrightarrow> atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
 by (metis asc_sufficiency assms(1-5) atc_io_reduction_on_sets_reduction)

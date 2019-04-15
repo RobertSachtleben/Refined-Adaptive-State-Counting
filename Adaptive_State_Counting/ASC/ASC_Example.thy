@@ -369,7 +369,7 @@ lemma "applicable_set M\<^sub>S \<Omega>\<^sub>I"
   by auto
 
 
-lemma example_test_tools_R : "test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
+lemma example_test_tools : "test_tools M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
   using example_productF example_det_state_cover by auto  
 
 
@@ -389,20 +389,20 @@ lemma fault_domain_not_vacuous :
   using example_fault_domain by blast
 
 
-lemma test_tools_R_not_vacuous :
+lemma test_tools_not_vacuous :
   "\<exists> (M2::(nat,nat,nat) FSM) 
      (M1::(nat,nat,nat) FSM) 
      (FAIL::(nat\<times>nat))
      (PM::(nat,nat,nat\<times>nat) FSM)
      (V::(nat list set)) 
-     (\<Omega>::(nat,nat) ATC set) . test_tools_R M2 M1 FAIL PM V \<Omega>"
+     (\<Omega>::(nat,nat) ATC set) . test_tools M2 M1 FAIL PM V \<Omega>"
 proof -
   show ?thesis
   proof
-    show "\<exists> (M1::(nat,nat,nat) FSM) FAIL PM V \<Omega> . test_tools_R M\<^sub>S M1 FAIL PM V \<Omega>"
+    show "\<exists> (M1::(nat,nat,nat) FSM) FAIL PM V \<Omega> . test_tools M\<^sub>S M1 FAIL PM V \<Omega>"
     proof 
-      show "\<exists> FAIL PM V \<Omega>. test_tools_R M\<^sub>S M\<^sub>I FAIL PM V \<Omega>"
-        using example_test_tools_R by blast
+      show "\<exists> FAIL PM V \<Omega>. test_tools M\<^sub>S M\<^sub>I FAIL PM V \<Omega>"
+        using example_test_tools by blast
     qed
   qed
 qed
@@ -415,38 +415,38 @@ lemma precondition_not_vacuous :
            (PM::(nat,nat,nat\<times>nat) FSM)
            (V::(nat list set)) 
            (\<Omega>::(nat,nat) ATC set)
-           (m :: nat) . OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools_R M2 M1 FAIL PM V \<Omega>"
+           (m :: nat) . OFSM M1 \<and> OFSM M2 \<and> fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>"
 proof 
   show "\<exists>(M1::(nat,nat,nat) FSM)
          (FAIL::(nat\<times>nat))
          (PM::(nat,nat,nat\<times>nat) FSM)
          (V::(nat list set)) 
          (\<Omega>::(nat,nat) ATC set)
-         (m :: nat) . OFSM M1 \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M1 m \<and> test_tools_R M\<^sub>S M1 FAIL PM V \<Omega>"
+         (m :: nat) . OFSM M1 \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M1 m \<and> test_tools M\<^sub>S M1 FAIL PM V \<Omega>"
   
   proof
     show "\<exists>(FAIL::(nat\<times>nat))
            (PM::(nat,nat,nat\<times>nat) FSM)
            (V::(nat list set)) 
            (\<Omega>::(nat,nat) ATC set)
-           (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL PM V \<Omega>"
+           (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools M\<^sub>S M\<^sub>I FAIL PM V \<Omega>"
     proof 
       show "\<exists>(PM::(nat,nat,nat\<times>nat) FSM)
              (V::(nat list set)) 
              (\<Omega>::(nat,nat) ATC set)
-             (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM V \<Omega>"
+             (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools M\<^sub>S M\<^sub>I FAIL\<^sub>I PM V \<Omega>"
       proof
         show "\<exists>(V::(nat list set)) 
                (\<Omega>::(nat,nat) ATC set)
-               (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V \<Omega>"
+               (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V \<Omega>"
         proof
           show "\<exists>(\<Omega>::(nat,nat) ATC set)
-                 (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>"
+                 (m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>"
           proof 
-            show "\<exists>(m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
+            show "\<exists>(m :: nat) . OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I m \<and> test_tools M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
             proof
-              show "OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I 2 \<and> test_tools_R M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
-                using example_OFSM(2,1) example_fault_domain example_test_tools_R by linarith
+              show "OFSM M\<^sub>I \<and> OFSM M\<^sub>S \<and> fault_domain M\<^sub>S M\<^sub>I 2 \<and> test_tools M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub>I V\<^sub>I \<Omega>\<^sub>I"
+                using example_OFSM(2,1) example_fault_domain example_test_tools by linarith
             qed
           qed
         qed
