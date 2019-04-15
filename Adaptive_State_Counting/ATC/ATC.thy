@@ -4,6 +4,17 @@ begin
 
 section {* Adaptive test cases *}
 
+text \<open>
+Adaptive test cases (ATCs) are tree-like structures that label nodes with inputs and edges with
+outputs such that applying an ATC to some FSM is performed by applying the label of its root node
+and then applying the ATC connected to the root node by an edge labeled with the observed output of
+the FSM. The result of such an application is here called an ATC-reaction.
+
+ATCs are here modelled to have edges for every possible output from each non-leaf node. This is not
+a restriction of the definition of ATCs by Hierons, as a missing edge can be expressed by an edge to
+a leaf.
+\<close>
+
 
 datatype ('in, 'out) ATC = Leaf | Node 'in "'out \<Rightarrow> ('in, 'out) ATC"
 
@@ -13,6 +24,11 @@ inductive atc_reaction :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Righta
 
 inductive_cases leaf_elim[elim!] : "atc_reaction M q1 Leaf []"
 inductive_cases node_elim[elim!] : "atc_reaction M q1 (Node x f) ((x,y)#io)"
+
+
+
+
+subsection {* Properties of ATC-reactions *}
 
 lemma atc_reaction_empty[simp] :
   assumes "atc_reaction M q t []"
@@ -64,7 +80,11 @@ by (meson assms atc_reaction_path_ex)
 
 
 
+subsection {* Applicability *}
 
+text \<open> 
+An ATC can be applied to an FSM if each node-label is contained in the input alphabet of the FSM.
+\<close>
 
 inductive subtest :: "('in, 'out) ATC \<Rightarrow> ('in, 'out) ATC \<Rightarrow> bool" where
   "t \<in> range f \<Longrightarrow> subtest t (Node x f)"
@@ -116,6 +136,13 @@ using assms inputs_atc.simps
 by (simp add: Sup_le_iff)
 
 
+
+subsection {* Application function IO *}
+
+text \<open>
+Function IO collects all ATC-reactions of some FSM to some ATC.
+\<close>
+
 fun IO :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in \<times> 'out) list set" where
   "IO M q t = { tr . atc_reaction M q t tr }"
 
@@ -138,14 +165,7 @@ next
 qed
 
 
-fun r_dist :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
-"r_dist M t s1 s2 = (IO M s1 t \<inter> IO M s2 t = {})"
-
-fun r_dist_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
-"r_dist_set M T s1 s2 = (\<exists> t \<in> T . r_dist M t s1 s2)"
-
-
-lemma applicable_nonempty :
+lemma IO_applicable_nonempty :
   assumes "applicable M t"
   and     "completely_specified M"
   and     "q1 \<in> nodes M"
@@ -164,6 +184,29 @@ next
   then show ?case unfolding IO.simps using x_appl by blast  
 qed
 
+
+lemma IO_in_language :
+  "IO M q t \<subseteq> LS M q"
+  unfolding IO.simps by blast
+
+lemma IO_set_in_language :
+  "IO_set M q \<Omega> \<subseteq> LS M q"
+  using IO_in_language[of M q] unfolding IO_set.simps by blast
+
+
+subsection {* R-distinguishability *}
+
+text \<open>
+A non-empty ATC r-distinguishes two states of some FSM if there exists no shared ATC-reaction.
+\<close>
+
+fun r_dist :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
+"r_dist M t s1 s2 = (t \<noteq> Leaf \<and> IO M s1 t \<inter> IO M s2 t = {})"
+
+fun r_dist_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
+"r_dist_set M T s1 s2 = (\<exists> t \<in> T . r_dist M t s1 s2)"
+
+
 lemma r_dist_dist :
   assumes "applicable M t"
   and     "completely_specified M"
@@ -174,7 +217,7 @@ proof (rule ccontr)
   assume "\<not>(q1 \<noteq> q2)" 
   then have "q1 = q2" by simp
   then have "IO M q1 t = {}" using assms by simp
-  moreover have "IO M q1 t \<noteq> {}" using assms applicable_nonempty by auto
+  moreover have "IO M q1 t \<noteq> {}" using assms IO_applicable_nonempty by auto
   ultimately show "False" by simp
 qed
 
@@ -197,49 +240,28 @@ shows "T1 \<inter> T2 = {}"
 
 
 
-fun atc_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-"atc_reduction M2 s2 M1 s1 \<Omega> = (\<forall> t \<in> \<Omega> . IO M2 s2 t \<subseteq> IO M1 s1 t)"
 
+subsection {* Response sets *}
 
-
-
-
-
-(* Lemma 5.3.7 *)  
-lemma atc_rdist_dist[intro] :
-  assumes wf2   : "well_formed M2"
-  and     cs2   : "completely_specified M2"
-  and     ap2   : "applicable_set M2 \<Omega>"
-  and     el_t1 : "t1 \<in> nodes M2"
-  and     red1  : "atc_reduction M2 t1 M1 s1 \<Omega>"
-  and     red2  : "atc_reduction M2 t2 M1 s2 \<Omega>"
-  and     rdist : "r_dist_set M1 \<Omega> s1 s2"
-  and             "t1 \<in> nodes M2"
-  shows "r_dist_set M2 \<Omega> t1 t2"
-proof -
-  obtain td where td_def : "td \<in> \<Omega> \<and> r_dist M1 td s1 s2" using rdist by auto
-  then have "IO M1 s1 td \<inter> IO M1 s2 td = {}" using td_def by simp
-  moreover have "IO M2 t1 td \<subseteq> IO M1 s1 td" using red1 td_def by auto
-  moreover have "IO M2 t2 td \<subseteq> IO M1 s2 td" using red2 td_def by auto
-  ultimately have no_inter : "IO M2 t1 td \<inter> IO M2 t2 td = {}" by blast
-  
-  then have "td \<noteq> Leaf" by auto
-  then have "IO M2 t1 td \<noteq> {}" by (meson ap2 applicable_nonempty applicable_set.elims(2) cs2 td_def assms(8)) 
-  then have "IO M2 t1 td \<noteq> IO M2 t2 td" using no_inter by auto 
-  then show ?thesis using no_inter td_def by auto 
-qed
-
-
-(* explicitly requires the ATC set to be applicable to the FSM *)
-fun characterizing_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-"characterizing_set M \<Omega> = (applicable_set M \<Omega> \<and> (\<forall> s1 \<in> (nodes M) . \<forall> s2 \<in> (nodes M) . 
-    (\<exists> td . r_dist M td s1 s2) \<longrightarrow> (\<exists> tt \<in> \<Omega> . r_dist M tt s1 s2)))"
+text \<open>
+The following functions calculate the sets of all ATC-reactions observed by applying some set of 
+ATCs on every state reached in some FSM using a given set of IO-sequences.
+\<close>
 
 
 fun B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
 "B M io \<Omega> = \<Union> (image (\<lambda> s . IO_set M s \<Omega>) (io_targets M (initial M) io))"
 
-(* Proposition 5.4.2 *)
+
+fun D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in * 'out) list set set" where
+  "D M \<Omega> ISeqs = image (\<lambda> io . B M io \<Omega>) (LS\<^sub>i\<^sub>n M (initial M) ISeqs)"
+
+fun append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
+"append_io_B M io \<Omega> = { io@res | res . res \<in> B M io \<Omega> }"
+
+
+
+
 lemma B_dist' :
   assumes df: "B M io1 \<Omega> \<noteq> B M io2 \<Omega>"
   shows   "(io_targets M (initial M) io1) \<noteq> (io_targets M (initial M) io2)"
@@ -251,22 +273,6 @@ lemma B_dist :
   and     "B M io1 \<Omega> \<noteq> B M io2 \<Omega>"
 shows   "q1 \<noteq> q2"
   using assms by force
-
-lemma IO_in_language :
-  "IO M q t \<subseteq> LS M q"
-  unfolding IO.simps by blast
-
-lemma IO_set_in_language :
-  "IO_set M q \<Omega> \<subseteq> LS M q"
-  using IO_in_language[of M q] unfolding IO_set.simps by blast
-
-
-
-
-
-fun D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in * 'out) list set set" where
-  "D M \<Omega> ISeqs = image (\<lambda> io . B M io \<Omega>) (LS\<^sub>i\<^sub>n M (initial M) ISeqs)"
-
 
 
 lemma D_bound :
@@ -288,24 +294,6 @@ proof -
   ultimately show "finite (D M \<Omega> ISeqs)" "card (D M \<Omega> ISeqs) \<le> card (nodes M)" by (meson  finite_imageI infinite_super surj_card_le)+
 qed
 
-
-
-
-
-fun append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in * 'out) list set" where
-"append_io_B M io \<Omega> = { io@res | res . res \<in> B M io \<Omega> }"
-
-fun is_reduction_on :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
-"is_reduction_on M1 M2 iseq \<Omega> = (LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq} 
-  \<and> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))"
-
-fun is_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> bool" where
-"is_reduction_on_sets M1 TS \<Omega> M2 = (\<forall> iseq \<in> TS . is_reduction_on M1 M2 iseq \<Omega>)"
-
-notation 
-  is_reduction_on_sets ("(_ \<preceq>\<lbrakk>_._\<rbrakk> _)" )
-notation  (latex output)
-  is_reduction_on_sets ("(_ \<preceq>\<^bsub>_._\<^esub> _)" [1000,0,0] 61)
 
 lemma append_io_B_in_language :
   "append_io_B M io \<Omega> \<subseteq> L M"
@@ -330,7 +318,6 @@ proof
 qed
 
 
-
 lemma append_io_B_nonempty :
   assumes "applicable_set M \<Omega>"
   and     "completely_specified M"
@@ -343,7 +330,7 @@ proof -
   moreover obtain tr where "path M (io || tr) (initial M) \<and> length tr = length io" using assms(3) by auto
   moreover have "target (io || tr) (initial M) \<in> nodes M"
     using calculation(2) by blast
-  ultimately have "IO M (target (io || tr) (initial M)) t \<noteq> {}" using assms(2) applicable_nonempty by simp
+  ultimately have "IO M (target (io || tr) (initial M)) t \<noteq> {}" using assms(2) IO_applicable_nonempty by simp
   then obtain io' where "io' \<in> IO M (target (io || tr) (initial M)) t" by blast
   then have "io' \<in> IO_set M (target (io || tr) (initial M)) \<Omega>" using \<open>t \<in> \<Omega>\<close> unfolding IO_set.simps by blast
   moreover have "(target (io || tr) (initial M)) \<in> io_targets M (initial M) io" using \<open>path M (io || tr) (initial M) \<and> length tr = length io\<close> by auto 
@@ -351,7 +338,6 @@ proof -
   then have "io@io' \<in> append_io_B M io \<Omega>" unfolding append_io_B.simps by blast
   then show ?thesis by blast
 qed
-
   
 
 lemma append_io_B_prefix_in_language :
@@ -365,6 +351,80 @@ proof -
   then show ?thesis by auto
 qed
 
+
+
+
+
+subsection {* Characterizing sets *}
+
+text \<open>
+A set of ATCs is a characterizing set for some FSM if for every pair of r-distinguishable states it
+contains an ATC that r-distinguishes them.
+\<close>
+
+fun characterizing_atc_set :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"characterizing_atc_set M \<Omega> = (applicable_set M \<Omega> \<and> (\<forall> s1 \<in> (nodes M) . \<forall> s2 \<in> (nodes M) . 
+    (\<exists> td . r_dist M td s1 s2) \<longrightarrow> (\<exists> tt \<in> \<Omega> . r_dist M tt s1 s2)))"
+
+
+subsection {* Reduction over ATCs *}
+
+text \<open>
+Some state is a an ATC-reduction of another over some set of ATCs if for every contained ATC every 
+ATC-reaction to it of the former state is also an ATC-reaction of the latter state.
+\<close>
+
+
+fun atc_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"atc_reduction M2 s2 M1 s1 \<Omega> = (\<forall> t \<in> \<Omega> . IO M2 s2 t \<subseteq> IO M1 s1 t)"
+
+
+
+\<comment> \<open>r-distinguishability holds for atc-reductions\<close>
+lemma atc_rdist_dist[intro] :
+  assumes wf2   : "well_formed M2"
+  and     cs2   : "completely_specified M2"
+  and     ap2   : "applicable_set M2 \<Omega>"
+  and     el_t1 : "t1 \<in> nodes M2"
+  and     red1  : "atc_reduction M2 t1 M1 s1 \<Omega>"
+  and     red2  : "atc_reduction M2 t2 M1 s2 \<Omega>"
+  and     rdist : "r_dist_set M1 \<Omega> s1 s2"
+  and             "t1 \<in> nodes M2"
+shows "r_dist_set M2 \<Omega> t1 t2"
+proof -
+  obtain td where td_def : "td \<in> \<Omega> \<and> r_dist M1 td s1 s2" using rdist by auto
+  then have "IO M1 s1 td \<inter> IO M1 s2 td = {}" using td_def by simp
+  moreover have "IO M2 t1 td \<subseteq> IO M1 s1 td" using red1 td_def by auto
+  moreover have "IO M2 t2 td \<subseteq> IO M1 s2 td" using red2 td_def by auto
+  ultimately have no_inter : "IO M2 t1 td \<inter> IO M2 t2 td = {}" by blast
+  
+  then have "td \<noteq> Leaf" by auto
+  then have "IO M2 t1 td \<noteq> {}" by (meson ap2 IO_applicable_nonempty applicable_set.elims(2) cs2 td_def assms(8)) 
+  then have "IO M2 t1 td \<noteq> IO M2 t2 td" using no_inter by auto 
+  then show ?thesis using no_inter td_def by auto 
+qed
+
+
+
+
+subsection {* Reduction over ATCs applied after input sequences *}
+
+text \<open>
+The following functions check whether some FSM is a reduction of another over a given set of input
+sequences while furthermore the response sets obtained by applying a set of ATCs after every input
+sequence to the first FSM are subsets of the analogously constructed response sets of the second
+FSM.
+\<close>
+
+fun atc_io_reduction_on :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> 'in list \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> bool" where
+"atc_io_reduction_on M1 M2 iseq \<Omega> = (LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq} 
+  \<and> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} . append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>))"
+
+fun atc_io_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> bool" where
+"atc_io_reduction_on_sets M1 TS \<Omega> M2 = (\<forall> iseq \<in> TS . atc_io_reduction_on M1 M2 iseq \<Omega>)"
+
+notation 
+  atc_io_reduction_on_sets ("(_ \<preceq>\<lbrakk>_._\<rbrakk> _)" )
 
 
 lemma atc_reaction_reduction[intro] :
@@ -493,27 +553,27 @@ qed
 
 
 
-lemma is_reduction_on_reduction[intro] :
+lemma atc_io_reduction_on_reduction[intro] :
   assumes red : "M1 \<preceq> M2"
   and     ob1 : "observable M1"
   and     ob2 : "observable M2"
-shows "is_reduction_on M1 M2 iseq \<Omega>"
-unfolding is_reduction_on.simps proof 
+shows "atc_io_reduction_on M1 M2 iseq \<Omega>"
+unfolding atc_io_reduction_on.simps proof 
   show "LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq}" using red by auto 
 next
   show "\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>" using  append_io_B_reduction assms by blast
 qed
     
 
-lemma is_reduction_on_sets_reduction[intro] :
+lemma atc_io_reduction_on_sets_reduction[intro] :
   assumes red : "M1 \<preceq> M2"
   and     ob1 : "observable M1"
   and     ob2 : "observable M2"
-shows "is_reduction_on_sets M1 TS \<Omega> M2"
-  using assms is_reduction_on_reduction by (metis is_reduction_on_sets.elims(3)) 
+shows "atc_io_reduction_on_sets M1 TS \<Omega> M2"
+  using assms atc_io_reduction_on_reduction by (metis atc_io_reduction_on_sets.elims(3)) 
 
-lemma is_reduction_on_sets_via_LS\<^sub>i\<^sub>n : 
-  assumes "is_reduction_on_sets M1 TS \<Omega> M2"
+lemma atc_io_reduction_on_sets_via_LS\<^sub>i\<^sub>n : 
+  assumes "atc_io_reduction_on_sets M1 TS \<Omega> M2"
   shows "(L\<^sub>i\<^sub>n M1 TS \<union> (\<Union>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) TS. append_io_B M1 io \<Omega>)) \<subseteq> (L\<^sub>i\<^sub>n M2 TS \<union> (\<Union>io\<in>LS\<^sub>i\<^sub>n M2 (initial M2) TS. append_io_B M2 io \<Omega>))"
 proof -
   have "\<forall> iseq \<in> TS . (LS\<^sub>i\<^sub>n M1 (initial M1) {iseq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {iseq} 
@@ -534,7 +594,7 @@ proof -
       case True
       then obtain iseq where "iseq \<in> TS" "x\<in> L\<^sub>i\<^sub>n M1 {iseq}"
         unfolding language_state_for_inputs.simps by blast 
-      then have "is_reduction_on M1 M2 iseq \<Omega>" 
+      then have "atc_io_reduction_on M1 M2 iseq \<Omega>" 
         using assms by auto
       then have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}" 
         by auto

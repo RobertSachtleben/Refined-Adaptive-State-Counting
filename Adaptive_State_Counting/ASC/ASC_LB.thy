@@ -596,7 +596,7 @@ fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rig
 fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> bool" where 
   "Prereq M2 M1 vs xs T S \<Omega> V V'' = (
     (\<forall> vs' \<in> V'' . (prefix vs' (vs @ xs) \<longrightarrow> length vs' \<le> length vs))      \<comment>\<open>(1.)\<close>
-    \<and> (is_reduction_on_sets M1 T \<Omega> M2)                                     \<comment>\<open>(2.) and (3.)\<close>
+    \<and> (atc_io_reduction_on_sets M1 T \<Omega> M2)                                     \<comment>\<open>(2.) and (3.)\<close>
     \<and> (finite T)                                                           \<comment>\<open>addition to 2. to enable practical application\<close>
     \<and> V \<subseteq> T \<and> (\<forall> xs' . (prefix xs' xs \<and> xs' \<noteq> xs) \<longrightarrow> map fst (vs @ xs') \<in> T)           \<comment>\<open>(4.) (modified)\<close>
     \<and> (vs @ xs) \<in> L M2 \<inter> L M1                                              \<comment>\<open>addition (4.), as (4.) here only considers proper prefixes of (vs@xs), since any sequence for which the LB is to be calculated is not yet contained in T\<close>
@@ -1559,11 +1559,11 @@ shows "(vs @ xs) \<in> L M2 \<inter> L M1"
   using assms(1) by auto
 (*proof - (* proof for non-proper-prefix version of Prereq *)
   have "map fst (vs @ xs) \<in> T" using assms by simp
-  moreover have "is_reduction_on_sets M1 M2 T \<Omega>" using assms by simp
-  ultimately have "is_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>" unfolding is_reduction_on_sets.simps by blast
+  moreover have "atc_io_reduction_on_sets M1 M2 T \<Omega>" using assms by simp
+  ultimately have "atc_io_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>" unfolding atc_io_reduction_on_sets.simps by blast
 
   have "vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}" using assms(2) language_state_for_inputs_map_fst[of "vs@xs" M1 "initial M1" "{map fst (vs@xs)}"] by simp
-  then have "vs @ xs \<in> LS\<^sub>i\<^sub>n M2 (initial M2) {map fst (vs @ xs)}" using \<open>is_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>\<close> by auto
+  then have "vs @ xs \<in> LS\<^sub>i\<^sub>n M2 (initial M2) {map fst (vs @ xs)}" using \<open>atc_io_reduction_on M1 M2 (map fst (vs @ xs)) \<Omega>\<close> by auto
   then have "vs @ xs \<in> L M2" by auto 
 
   then show ?thesis using assms(2) by simp

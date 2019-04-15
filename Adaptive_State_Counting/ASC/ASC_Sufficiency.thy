@@ -660,7 +660,7 @@ proof (rule ccontr)
 qed
     
 lemma io_reduction_from_atc_reduction :
-  assumes "is_reduction_on_sets M1 T \<Omega> M2"
+  assumes "atc_io_reduction_on_sets M1 T \<Omega> M2"
   and     "finite T"
   shows "io_reduction_on M1 T M2" 
 using assms(2,1) proof (induction T)
@@ -668,16 +668,16 @@ using assms(2,1) proof (induction T)
   then show ?case by auto
 next
   case (insert t T)
-  then have "is_reduction_on M1 M2 t \<Omega>"
+  then have "atc_io_reduction_on M1 M2 t \<Omega>"
     by auto
   then have "LS\<^sub>i\<^sub>n M1 (initial M1) {t} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {t}"
-    using is_reduction_on.simps by blast
+    using atc_io_reduction_on.simps by blast
 
   have "LS\<^sub>i\<^sub>n M1 (initial M1) T \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) T" 
     using insert.IH
   proof -
-    have "is_reduction_on_sets M1 T \<Omega> M2"
-      by (meson contra_subsetD insert.prems is_reduction_on_sets.simps subset_insertI)
+    have "atc_io_reduction_on_sets M1 T \<Omega> M2"
+      by (meson contra_subsetD insert.prems atc_io_reduction_on_sets.simps subset_insertI)
     then show ?thesis
       using insert.IH by blast
   qed
@@ -722,11 +722,11 @@ next
   qed 
 qed
     
-lemma is_reduction_on_subset :
-  assumes "is_reduction_on_sets M1 T \<Omega> M2"
+lemma atc_io_reduction_on_subset :
+  assumes "atc_io_reduction_on_sets M1 T \<Omega> M2"
   and     "T' \<subseteq> T"
-shows "is_reduction_on_sets M1 T' \<Omega> M2"
-  using assms unfolding is_reduction_on_sets.simps by blast
+shows "atc_io_reduction_on_sets M1 T' \<Omega> M2"
+  using assms unfolding atc_io_reduction_on_sets.simps by blast
 
 
 
@@ -791,7 +791,7 @@ lemma asc_test_suite_sufficient_to_observe_failure :
   and     "fault_domain M2 M1 m"
   and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"
-shows "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
+shows "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
 proof 
   assume "\<not> M1 \<preceq> M2"
 
@@ -817,7 +817,7 @@ proof
     by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_for_inputs_in_language_state subsetCE) 
 
   
-  show "\<not> is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
+  show "\<not> atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
   proof (cases "io_reduction_on M1 (?TS i) M2")
     case False
     then obtain io where "io \<in> L\<^sub>i\<^sub>n M1 (?TS i) - L\<^sub>i\<^sub>n M2 (?TS i)"
@@ -838,7 +838,7 @@ proof
         using \<open>io \<in> L\<^sub>i\<^sub>n M1 (?TS i) - L\<^sub>i\<^sub>n M2 (?TS i)\<close> by blast
     qed
     ultimately show ?thesis 
-      unfolding is_reduction_on_sets.simps is_reduction_on.simps by blast
+      unfolding atc_io_reduction_on_sets.simps atc_io_reduction_on.simps by blast
   
   next
 
@@ -1020,14 +1020,14 @@ proof
        already occured *)
 
     show ?thesis
-    proof (cases "is_reduction_on_sets M1 (?TS j \<union> V) \<Omega> M2")
+    proof (cases "atc_io_reduction_on_sets M1 (?TS j \<union> V) \<Omega> M2")
       case False
       have "j < i" 
         using \<open>Suc j \<le> i\<close> by auto
       then have "?TS j \<subseteq> ?TS i" 
         by (simp add: TS_subset)
       then show ?thesis 
-        using False \<open>V \<subseteq> TS M2 M1 \<Omega> V m i\<close> unfolding is_reduction_on_sets.simps by blast
+        using False \<open>V \<subseteq> TS M2 M1 \<Omega> V m i\<close> unfolding atc_io_reduction_on_sets.simps by blast
     next
       case True
 
@@ -1179,9 +1179,9 @@ lemma asc_sufficiency :
   and     "fault_domain M2 M1 m"
   and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"  
-shows "is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2 \<longrightarrow> M1 \<preceq> M2"
+shows "atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2 \<longrightarrow> M1 \<preceq> M2"
 proof 
-  assume "is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
+  assume "atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
   show "M1 \<preceq> M2"
   proof (rule ccontr)
   
@@ -1213,7 +1213,7 @@ proof
     then have "finite (?TS i)"
       using TS_finite[of V M2] assms(2) by auto
     then have "io_reduction_on M1 (?TS i) M2" 
-      using io_reduction_from_atc_reduction[OF \<open>is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>] by auto
+      using io_reduction_from_atc_reduction[OF \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>] by auto
   
     have "map fst (vs@xs) \<notin> ?TS i"
     proof -
@@ -1392,15 +1392,15 @@ proof
     have "(\<forall>vs'a\<in>V''. prefix vs'a (vs' @ xs') \<longrightarrow> length vs'a \<le> length vs')"
       using \<open>mcp (vs' @ xs') V'' vs'\<close> by auto
   
-    moreover have "is_reduction_on_sets M1 (?TS j \<union> V) \<Omega> M2"   
+    moreover have "atc_io_reduction_on_sets M1 (?TS j \<union> V) \<Omega> M2"   
     proof -
       have "j < i" 
         using \<open>Suc j \<le> i\<close> by auto
       then have "?TS j \<subseteq> ?TS i" 
         by (simp add: TS_subset) 
       then show ?thesis 
-        using is_reduction_on_subset[OF \<open>is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>, of "?TS j"]
-        by (meson Un_subset_iff \<open>V \<subseteq> ?TS i\<close> \<open>is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close> is_reduction_on_subset) 
+        using atc_io_reduction_on_subset[OF \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>, of "?TS j"]
+        by (meson Un_subset_iff \<open>V \<subseteq> ?TS i\<close> \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close> atc_io_reduction_on_subset) 
     qed
   
     moreover have "finite (?TS j \<union> V)"
@@ -1539,8 +1539,8 @@ qed
 lemma asc_soundness :
   assumes     "OFSM M1"
   and         "OFSM M2"
-shows "M1 \<preceq> M2 \<longrightarrow> is_reduction_on_sets M1 T \<Omega> M2"
-  using is_reduction_on_sets_reduction assms by blast
+shows "M1 \<preceq> M2 \<longrightarrow> atc_io_reduction_on_sets M1 T \<Omega> M2"
+  using atc_io_reduction_on_sets_reduction assms by blast
 
 
 
@@ -1551,8 +1551,8 @@ lemma asc_main_theorem :
   and     "fault_domain M2 M1 m"
   and     "test_tools_R M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"
-shows     "M1 \<preceq> M2 \<longleftrightarrow> is_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
-by (metis asc_sufficiency assms(1-5) is_reduction_on_sets_reduction)
+shows     "M1 \<preceq> M2 \<longleftrightarrow> atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
+by (metis asc_sufficiency assms(1-5) atc_io_reduction_on_sets_reduction)
 
 
 

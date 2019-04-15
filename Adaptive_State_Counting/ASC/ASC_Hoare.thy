@@ -9,11 +9,11 @@ lemma language_state_for_inputs_union :
   shows "LS\<^sub>i\<^sub>n M q T1 \<union> LS\<^sub>i\<^sub>n M q T2 = LS\<^sub>i\<^sub>n M q (T1 \<union> T2)"
   unfolding language_state_for_inputs.simps by blast
 
-lemma is_reduction_on_sets_from_obs :
+lemma atc_io_reduction_on_sets_from_obs :
   assumes "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
   and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)" 
-shows "is_reduction_on_sets M1 T \<Omega> M2"
-  unfolding is_reduction_on_sets.simps is_reduction_on.simps
+shows "atc_io_reduction_on_sets M1 T \<Omega> M2"
+  unfolding atc_io_reduction_on_sets.simps atc_io_reduction_on.simps
 proof 
   fix iseq assume "iseq \<in> T"
   have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}"
@@ -47,14 +47,14 @@ proof
 qed
 
 
-lemma is_reduction_on_sets_to_obs :   
-  assumes "is_reduction_on_sets M1 T \<Omega> M2"
+lemma atc_io_reduction_on_sets_to_obs :   
+  assumes "atc_io_reduction_on_sets M1 T \<Omega> M2"
 shows "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
   and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
 proof 
   fix x assume "x \<in> L\<^sub>i\<^sub>n M1 T"
   show "x \<in> L\<^sub>i\<^sub>n M2 T"
-    using assms unfolding is_reduction_on_sets.simps is_reduction_on.simps
+    using assms unfolding atc_io_reduction_on_sets.simps atc_io_reduction_on.simps
   proof -
     assume a1: "\<forall>iseq\<in>T. L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
     have f2: "x \<in> UNION T (language_state_for_input M1 (initial M1))"
@@ -82,7 +82,7 @@ next
       by blast
 
     then have "x \<in> append_io_B M2 io \<Omega>"
-      using assms unfolding is_reduction_on_sets.simps is_reduction_on.simps
+      using assms unfolding atc_io_reduction_on_sets.simps atc_io_reduction_on.simps
       by (metis (no_types, lifting) UN_E \<open>io \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_for_input_alt_def language_state_for_inputs_alt_def subsetCE) 
     then have "(io,x) \<in> {io} \<times> append_io_B M2 io \<Omega>"
       by blast
@@ -890,13 +890,13 @@ next
     then have "final_iteration M2 M1 \<Omega> V m (iter-1)" 
       using \<open>0 < iter\<close> by auto
     
-    have "M1 \<preceq> M2 = is_reduction_on_sets M1 tsN \<Omega> M2" 
+    have "M1 \<preceq> M2 = atc_io_reduction_on_sets M1 tsN \<Omega> M2" 
       using asc_main_theorem[OF \<open>OFSM M1\<close> \<open>OFSM M2\<close> \<open>fault_domain M2 M1 m\<close> \<open>test_tools_R M2 M1 FAIL PM V \<Omega>\<close> \<open>final_iteration M2 M1 \<Omega> V m (iter-1)\<close>]
       using \<open>tsN = TS M2 M1 \<Omega> V m (iter - 1)\<close>
       by blast
     moreover have "tsN \<union> cN = tsN"
       using \<open>cN = {}\<close> by blast
-    ultimately have "M1 \<preceq> M2 = is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
+    ultimately have "M1 \<preceq> M2 = atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
       by presburger
 
     have "obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
@@ -906,36 +906,36 @@ next
       by (simp add: \<open>obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)\<close> \<open>obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close>)
     
 
-    have "(obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>) = is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
+    have "(obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>) = atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
     proof
       assume "obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>"
-      show "is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
-        using is_reduction_on_sets_from_obs[of M1 "tsN \<union> cN" M2 \<Omega>]
+      show "atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
+        using atc_io_reduction_on_sets_from_obs[of M1 "tsN \<union> cN" M2 \<Omega>]
         using \<open>obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>\<close> \<open>obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> by linarith
     next
-      assume "is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
+      assume "atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
       show "obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>" 
-        using is_reduction_on_sets_to_obs[of M1 \<open>tsN \<union> cN\<close> \<Omega> M2]
-        using \<open>is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> \<open>obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> by blast 
+        using atc_io_reduction_on_sets_to_obs[of M1 \<open>tsN \<union> cN\<close> \<Omega> M2]
+        using \<open>atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> \<open>obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> by blast 
     qed
     then show ?thesis 
-      using \<open>M1 \<preceq> M2 = is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> by linarith
+      using \<open>M1 \<preceq> M2 = atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> by linarith
 next
     case False
 
     then have "\<not> obsI \<subseteq> obs"
       using \<open>cN = {} \<or> \<not> obsI \<subseteq> obs\<close> by auto
 
-    have "\<not> is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
-      by (metis (no_types, lifting) False is_reduction_on_sets_to_obs(1) precond) 
+    have "\<not> atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
+      by (metis (no_types, lifting) False atc_io_reduction_on_sets_to_obs(1) precond) 
   
     have "\<not> M1 \<preceq> M2"
     proof 
       assume "M1 \<preceq> M2"
-      have "is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
+      have "atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
         using asc_soundness[OF \<open>OFSM M1\<close> \<open>OFSM M2\<close>] \<open>M1 \<preceq> M2\<close> by blast
       then show "False"
-        using \<open>\<not> is_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> by blast
+        using \<open>\<not> atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> by blast
     qed
     
     then show ?thesis 
