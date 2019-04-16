@@ -27,13 +27,16 @@ proof -
       fix p assume "p \<in> {p . prefix p z}"
       then obtain i where "i \<le> length z \<and> p = take i z"
         by (metis append_eq_conv_conj mem_Collect_eq prefix_def prefix_length_le) 
-      then have "i < Suc (length z) \<and> p = take i z" by simp
+      then have "i < Suc (length z) \<and> p = take i z" 
+        by simp
       then show "p \<in> image (\<lambda> i . take i z) (set [0 ..< Suc (length z)])" 
         using atLeast_upt by blast  
     qed
-    then show ?thesis using finite_surj by blast 
+    then show ?thesis 
+      using finite_surj by blast 
   qed
-  then have "finite ?P" by simp 
+  then have "finite ?P" 
+    by simp 
 
   have "?P \<noteq> {}"
     using Nil_prefix assms(1) by blast 
@@ -41,18 +44,26 @@ proof -
   have "\<exists> maxP \<in> ?P . \<forall> p \<in> ?P . length p \<le> length maxP" 
   proof (rule ccontr)
     assume "\<not>(\<exists> maxP \<in> ?P . \<forall> p \<in> ?P . length p \<le> length maxP)" 
-    then have "\<forall> p \<in> ?P . \<exists> p' \<in> ?P . length p < length p'" by (meson not_less) 
-    then have "\<forall> l \<in> (image length ?P) . \<exists> l' \<in> (image length ?P) . l < l'" by auto 
+    then have "\<forall> p \<in> ?P . \<exists> p' \<in> ?P . length p < length p'" 
+      by (meson not_less) 
+    then have "\<forall> l \<in> (image length ?P) . \<exists> l' \<in> (image length ?P) . l < l'" 
+      by auto 
     
-    then have "infinite (image length ?P)" by (metis (no_types, lifting) \<open>?P \<noteq> {}\<close> image_is_empty infinite_growing) 
-    then have "infinite ?P" by blast 
-    then show "False" using \<open>finite ?P\<close> by simp
+    then have "infinite (image length ?P)" 
+      by (metis (no_types, lifting) \<open>?P \<noteq> {}\<close> image_is_empty infinite_growing) 
+    then have "infinite ?P" 
+      by blast 
+    then show "False" 
+      using \<open>finite ?P\<close> by simp
   qed 
 
-  then obtain maxP where "maxP \<in> ?P" "\<forall> p \<in> ?P . length p \<le> length maxP" by blast
+  then obtain maxP where "maxP \<in> ?P" "\<forall> p \<in> ?P . length p \<le> length maxP" 
+    by blast
 
-  then have "mcp z W maxP" unfolding mcp.simps by blast 
-  then show ?thesis using that by auto
+  then have "mcp z W maxP" 
+    unfolding mcp.simps by blast 
+  then show ?thesis 
+    using that by auto
 qed
 
 
@@ -61,13 +72,19 @@ lemma mcp_unique :
   and     "mcp z W p'"
 shows "p = p'"
 proof -
-  have "length p' \<le> length p" using assms(1) assms(2) by auto 
-  moreover have "length p \<le> length p'" using assms(1) assms(2) by auto
-  ultimately have "length p' = length p" by simp
+  have "length p' \<le> length p" 
+    using assms(1) assms(2) by auto 
+  moreover have "length p \<le> length p'" 
+    using assms(1) assms(2) by auto
+  ultimately have "length p' = length p"
+    by simp
 
-  moreover have "prefix p z" using assms(1) by auto
-  moreover have "prefix p' z" using assms(2) by auto
-  ultimately show ?thesis by (metis append_eq_conv_conj prefixE)
+  moreover have "prefix p z" 
+    using assms(1) by auto
+  moreover have "prefix p' z" 
+    using assms(2) by auto
+  ultimately show ?thesis 
+    by (metis append_eq_conv_conj prefixE)
 qed
 
 fun mcp' :: "'a list \<Rightarrow> 'a list set \<Rightarrow> 'a list" where
@@ -85,12 +102,16 @@ shows "mcp (vs@xs') V vs"
 proof (rule ccontr)
   assume "\<not> mcp (vs @ xs') V vs"
   then have "\<not> (prefix vs (vs @ xs') \<and> vs \<in> V \<and> 
-                 (\<forall> p' . (prefix p' (vs @ xs') \<and> p' \<in> V) \<longrightarrow> length p' \<le> length vs))" by auto
-  then have "\<not> (\<forall> p' . (prefix p' (vs @ xs') \<and> p' \<in> V) \<longrightarrow> length p' \<le> length vs)" using assms(1) by auto
+                 (\<forall> p' . (prefix p' (vs @ xs') \<and> p' \<in> V) \<longrightarrow> length p' \<le> length vs))" 
+    by auto
+  then have "\<not> (\<forall> p' . (prefix p' (vs @ xs') \<and> p' \<in> V) \<longrightarrow> length p' \<le> length vs)" 
+    using assms(1) by auto
   then obtain vs' where "vs' \<in> V \<and> prefix vs' (vs@xs) \<and> length vs < length vs'"
     by (meson assms(2) leI prefix_append prefix_order.dual_order.trans) 
-  then have "\<not> (mcp (vs@xs) V vs)" by auto
-  then show "False" using assms(1) by auto
+  then have "\<not> (mcp (vs@xs) V vs)" 
+    by auto
+  then show "False" 
+    using assms(1) by auto
 qed
 
 lemma minimal_sequence_to_failure_extending_mcp :
@@ -114,11 +135,13 @@ proof (rule ccontr)
     using prefixE by blast 
 
   have "vs@xs \<in> L M1 - L M2" 
-    using assms(4) unfolding minimal_sequence_to_failure_extending.simps sequence_to_failure.simps by blast
+    using assms(4) unfolding minimal_sequence_to_failure_extending.simps sequence_to_failure.simps 
+    by blast
   then have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs@xs)}"
     by (meson DiffE insertI1 language_state_for_inputs_map_fst) 
   have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {v'@x'}"
-    using \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}\<close> by presburger
+    using \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}\<close> 
+    by presburger
    
   let ?vs' = "take (length v') (vs@xs)"
   let ?xs' = "drop (length v') (vs@xs)"
@@ -127,16 +150,24 @@ proof (rule ccontr)
     by (metis append_take_drop_id) 
 
   have "?vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V"
-    by (metis (no_types) DiffE \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>v' \<in> V\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> append_eq_conv_conj append_take_drop_id language_state_for_inputs_map_fst language_state_prefix take_map) 
+    by (metis (no_types) DiffE \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>v' \<in> V\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> 
+        append_eq_conv_conj append_take_drop_id language_state_for_inputs_map_fst 
+        language_state_prefix take_map) 
     
   have "sequence_to_failure M1 M2 (?vs' @ ?xs')"
-    by (metis (full_types) \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> assms(4) minimal_sequence_to_failure_extending.simps) 
+    by (metis (full_types) \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> 
+        assms(4) minimal_sequence_to_failure_extending.simps) 
 
   have "length ?xs' < length xs"
-    using \<open>length (map fst vs) < length v'\<close> \<open>prefix v' (map fst (vs @ xs))\<close> \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> prefix_length_le by fastforce 
+    using \<open>length (map fst vs) < length v'\<close> \<open>prefix v' (map fst (vs @ xs))\<close> 
+          \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> prefix_length_le 
+    by fastforce 
   
   show "False"
-    by (meson \<open>length (drop (length v') (vs @ xs)) < length xs\<close> \<open>sequence_to_failure M1 M2 (take (length v') (vs @ xs) @ drop (length v') (vs @ xs))\<close> \<open>take (length v') (vs @ xs) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close> assms(4) minimal_sequence_to_failure_extending.elims(2)) 
+    by (meson \<open>length (drop (length v') (vs @ xs)) < length xs\<close> 
+        \<open>sequence_to_failure M1 M2 (take (length v') (vs @ xs) @ drop (length v') (vs @ xs))\<close> 
+        \<open>take (length v') (vs @ xs) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close> assms(4) 
+        minimal_sequence_to_failure_extending.elims(2)) 
 
 qed
 
@@ -149,7 +180,8 @@ state counting algorithm to contain only relevant sequences.
 It is the main refinement of the original formulation of the algorithm.
 \<close>
 
-fun N :: "('in \<times> 'out) list \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set set" where
+fun N :: "('in \<times> 'out) list \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set set" 
+  where
   "N io M V = { V'' \<in> Perm V M . (map fst (mcp' io V'')) = (mcp' (map fst io) V) }"
 
 
@@ -161,19 +193,27 @@ lemma N_nonempty :
   and     "io \<in> L M1"
 shows "N io M1 V \<noteq> {}"
 proof -
-  have "[] \<in> V" using assms(1) det_state_cover_empty by blast 
+  have "[] \<in> V" 
+    using assms(1) det_state_cover_empty by blast 
 
-  have "inputs M1 = inputs M2" using assms(4) by auto
+  have "inputs M1 = inputs M2" 
+    using assms(4) by auto
 
-  have "is_det_state_cover M2 V" using assms by auto
-  moreover have "finite (nodes M2)" using assms(3) by auto
+  have "is_det_state_cover M2 V" 
+    using assms by auto
+  moreover have "finite (nodes M2)" 
+    using assms(3) by auto
   moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
     by auto 
-  ultimately have "finite V" using det_state_cover_card[of M2 V]
-    by (metis finite_if_finite_subsets_card_bdd infinite_subset is_det_state_cover.elims(2) surj_card_le)
+  ultimately have "finite V" 
+    using det_state_cover_card[of M2 V]
+    by (metis finite_if_finite_subsets_card_bdd infinite_subset is_det_state_cover.elims(2) 
+        surj_card_le)
 
-  obtain ioV where "mcp (map fst io) V ioV" using mcp_ex[OF \<open>[] \<in> V\<close> \<open>finite V\<close>] by blast
-  then have "ioV \<in> V" by auto
+  obtain ioV where "mcp (map fst io) V ioV" 
+    using mcp_ex[OF \<open>[] \<in> V\<close> \<open>finite V\<close>] by blast
+  then have "ioV \<in> V" 
+    by auto
 
   \<comment> \<open>Proof sketch:
      - ioV uses only inputs of M2 
@@ -181,8 +221,12 @@ proof -
      - as M1 completely spec.: ex. reaction of M1 to ioV
      - this reaction is in some V''\<close>
 
-  obtain q2 where "d_reaches M2 (initial M2) ioV q2" using det_state_cover_d_reachable[OF assms(1) \<open>ioV \<in> V\<close>] by blast
-  then obtain ioV' ioP where io_path : "length ioV = length ioV' \<and> length ioV = length ioP \<and> (path M2 ((ioV || ioV') || ioP) (initial M2)) \<and> target ((ioV || ioV') || ioP) (initial M2) = q2"
+  obtain q2 where "d_reaches M2 (initial M2) ioV q2" 
+    using det_state_cover_d_reachable[OF assms(1) \<open>ioV \<in> V\<close>] by blast
+  then obtain ioV' ioP where io_path : "length ioV = length ioV' 
+                                        \<and> length ioV = length ioP 
+                                        \<and> (path M2 ((ioV || ioV') || ioP) (initial M2)) 
+                                        \<and> target ((ioV || ioV') || ioP) (initial M2) = q2"
     by auto
 
   have "well_formed M2" 
@@ -190,11 +234,14 @@ proof -
   
   have "map fst (map fst ((ioV || ioV') || ioP)) = ioV"
   proof -
-    have "length (ioV || ioV') = length ioP" using io_path
-      by simp 
-    then show ?thesis using io_path by auto
+    have "length (ioV || ioV') = length ioP" 
+      using io_path by simp 
+    then show ?thesis 
+      using io_path by auto
   qed
-  moreover have "set (map fst (map fst ((ioV || ioV') || ioP))) \<subseteq> inputs M2" using path_input_containment[OF \<open>well_formed M2\<close>, of "(ioV || ioV') || ioP" "initial M2" ] io_path
+  moreover have "set (map fst (map fst ((ioV || ioV') || ioP))) \<subseteq> inputs M2" 
+    using path_input_containment[OF \<open>well_formed M2\<close>, of "(ioV || ioV') || ioP" "initial M2" ] 
+          io_path
     by linarith
   ultimately have "set ioV \<subseteq> inputs M2" 
     by presburger
@@ -214,13 +261,15 @@ proof -
     by auto
     
 
-  have "(map fst io || map snd io) \<in> L M1" using assms(5)
-    by auto 
+  have "(map fst io || map snd io) \<in> L M1" 
+    using assms(5) by auto 
   moreover have "length (map fst io) = length (map snd io)"
     by auto 
-  ultimately have "(map fst io || map snd io) \<in> language_state_for_input M1 (initial M1) (map fst io)" 
+  ultimately have "(map fst io || map snd io) 
+                      \<in> language_state_for_input M1 (initial M1) (map fst io)" 
     unfolding language_state_def
-    by (metis (mono_tags, lifting) \<open>map fst io || map snd io \<in> L M1\<close> language_state_for_input.simps mem_Collect_eq) 
+    by (metis (mono_tags, lifting) \<open>map fst io || map snd io \<in> L M1\<close> 
+        language_state_for_input.simps mem_Collect_eq) 
 
   have "ioV = take (length ioV) (map fst io)"
     by (metis (no_types) \<open>prefix ioV (map fst io)\<close> append_eq_conv_conj prefixE)  
@@ -228,7 +277,8 @@ proof -
   
   then have "take (length ioV) io \<in> language_state_for_input M1 (initial M1) ioV"
     using language_state_for_input_take
-    by (metis \<open>map fst io || map snd io \<in> language_state_for_input M1 (initial M1) (map fst io)\<close> zip_map_fst_snd)
+    by (metis \<open>map fst io || map snd io \<in> language_state_for_input M1 (initial M1) (map fst io)\<close> 
+        zip_map_fst_snd)
 
   then obtain V'' where "V'' \<in> Perm V M1" "take (length ioV) io \<in> V''" 
     using perm_elem[OF assms(1-3) \<open>inputs M1 = inputs M2\<close> \<open>ioV \<in> V\<close>] by blast
@@ -246,10 +296,14 @@ proof -
     using \<open>V'' \<in> Perm V M1\<close> \<open>mcp io V'' mcpV''\<close> mcp.simps by blast 
 
   have "map fst mcpV'' = ioV"
-    by (metis (no_types) \<open>map fst (take (length ioV) io) = ioV\<close> \<open>map fst mcpV'' \<in> V\<close> \<open>mcp (map fst io) V ioV\<close> \<open>mcp io V'' mcpV''\<close> \<open>take (length ioV) io \<in> V''\<close> map_mono_prefix mcp.elims(2) prefix_length_prefix prefix_order.dual_order.antisym take_is_prefix)  
+    by (metis (no_types) \<open>map fst (take (length ioV) io) = ioV\<close> \<open>map fst mcpV'' \<in> V\<close> 
+        \<open>mcp (map fst io) V ioV\<close> \<open>mcp io V'' mcpV''\<close> \<open>take (length ioV) io \<in> V''\<close> 
+        map_mono_prefix mcp.elims(2) prefix_length_prefix prefix_order.dual_order.antisym 
+        take_is_prefix)  
 
   have "map fst (mcp' io V'') = mcp' (map fst io) V"
-    using \<open>ioV = mcp' (map fst io) V\<close> \<open>map fst mcpV'' = ioV\<close> \<open>mcp io V'' mcpV''\<close> mcp'_intro by blast
+    using \<open>ioV = mcp' (map fst io) V\<close> \<open>map fst mcpV'' = ioV\<close> \<open>mcp io V'' mcpV''\<close> mcp'_intro 
+    by blast
 
   then show ?thesis
     using \<open>V'' \<in> Perm V M1\<close> by fastforce 
@@ -264,23 +318,32 @@ lemma N_mcp_prefix :
   and     "finite V"
 shows "vs \<in> V''" "vs = mcp' (vs@xs) V''" 
 proof -
-  have "map fst (mcp' (vs@xs) V'') = mcp' (map fst (vs@xs)) V" using assms(2) by auto
-  then have "map fst (mcp' (vs@xs) V'') = map fst vs" using assms(1) by presburger
-  then have "length (mcp' (vs@xs) V'') = length vs" by (metis length_map) 
+  have "map fst (mcp' (vs@xs) V'') = mcp' (map fst (vs@xs)) V" 
+    using assms(2) by auto
+  then have "map fst (mcp' (vs@xs) V'') = map fst vs" 
+    using assms(1) by presburger
+  then have "length (mcp' (vs@xs) V'') = length vs" 
+    by (metis length_map) 
 
-  have "[] \<in> V''" using perm_empty[OF assms(3)] N.simps assms(2) by blast 
-  moreover have "finite V''" using perm_elem_finite[OF assms(3,4)] N.simps assms(2) by blast
-  ultimately obtain p where "mcp (vs@xs) V'' p" using mcp_ex by auto 
-  then have "mcp' (vs@xs) V'' = p" using mcp'_intro by simp
+  have "[] \<in> V''" 
+    using perm_empty[OF assms(3)] N.simps assms(2) by blast 
+  moreover have "finite V''" 
+    using perm_elem_finite[OF assms(3,4)] N.simps assms(2) by blast
+  ultimately obtain p where "mcp (vs@xs) V'' p" 
+    using mcp_ex by auto 
+  then have "mcp' (vs@xs) V'' = p" 
+    using mcp'_intro by simp
   
 
-  then have "prefix (mcp' (vs@xs) V'') (vs@xs)" unfolding mcp'.simps mcp.simps
+  then have "prefix (mcp' (vs@xs) V'') (vs@xs)" 
+    unfolding mcp'.simps mcp.simps
     using \<open>mcp (vs @ xs) V'' p\<close> mcp.elims(2) by blast 
   then show "vs = mcp' (vs@xs) V''"
     by (metis \<open>length (mcp' (vs @ xs) V'') = length vs\<close> append_eq_append_conv prefix_def) 
 
   show "vs \<in> V''"
-    using \<open>mcp (vs @ xs) V'' p\<close> \<open>mcp' (vs @ xs) V'' = p\<close> \<open>vs = mcp' (vs @ xs) V''\<close> by auto
+    using \<open>mcp (vs @ xs) V'' p\<close> \<open>mcp' (vs @ xs) V'' = p\<close> \<open>vs = mcp' (vs @ xs) V''\<close> 
+    by auto
 qed
 
 
@@ -302,9 +365,12 @@ abbreviation append_set :: "'a list set \<Rightarrow> 'a set \<Rightarrow> 'a li
 abbreviation append_sets :: "'a list set \<Rightarrow> 'a list set \<Rightarrow> 'a list set" where
   "append_sets T X \<equiv> {xs @ xs' | xs xs' . xs \<in> T \<and> xs' \<in> X}"
 
-fun TS :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set" 
-and C  :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
-and RM :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
+fun TS :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set 
+            \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set" 
+and C  :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set 
+            \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
+and RM :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set 
+            \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
 where
   "RM M2 M1 \<Omega> V m 0 = {}" |
   "TS M2 M1 \<Omega> V m 0 = {}" |
@@ -327,7 +393,8 @@ where
                        \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                          B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                 \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m n \<union> V) S1 \<Omega> V'' ))))}" |
-  "C M2 M1 \<Omega> V m (Suc n) = (append_set ((C M2 M1 \<Omega> V m n) - (RM M2 M1 \<Omega> V m n)) (inputs M2)) - (TS M2 M1 \<Omega> V m n)" |
+  "C M2 M1 \<Omega> V m (Suc n) = (append_set ((C M2 M1 \<Omega> V m n) - (RM M2 M1 \<Omega> V m n)) (inputs M2)) 
+                            - (TS M2 M1 \<Omega> V m n)" |
   "TS M2 M1 \<Omega> V m (Suc n) = (TS M2 M1 \<Omega> V m n) \<union> (C M2 M1 \<Omega> V m (Suc n))" 
     
     
@@ -338,23 +405,35 @@ abbreviation lists_of_length :: "'a set \<Rightarrow> nat \<Rightarrow> 'a list 
 lemma append_lists_of_length_alt_def :
   "append_sets T (lists_of_length X (Suc n)) = append_set (append_sets T (lists_of_length X n)) X"
 proof 
-  show "append_sets T (lists_of_length X (Suc n)) \<subseteq> append_set (append_sets T (lists_of_length X n)) X"
+  show "append_sets T (lists_of_length X (Suc n)) 
+          \<subseteq> append_set (append_sets T (lists_of_length X n)) X"
   proof 
     fix tx assume "tx \<in> append_sets T (lists_of_length X (Suc n))"
-    then obtain t x where "t@x = tx" "t \<in> T" "length x = Suc n" "set x \<subseteq> X" by blast
-    then have "x \<noteq> []" "length (butlast x) = n" by auto
-    moreover have "set (butlast x) \<subseteq> X" using \<open>set x \<subseteq> X\<close> by (meson dual_order.trans prefixeq_butlast set_mono_prefix) 
-    ultimately have "butlast x \<in> lists_of_length X n" by auto
-    then have "t@(butlast x) \<in> append_sets T (lists_of_length X n)" using \<open>t \<in> T\<close> by blast
-    moreover have "last x \<in> X" using \<open>set x \<subseteq> X\<close> \<open>x \<noteq> []\<close> by auto
-    ultimately have "t@(butlast x)@[last x] \<in> append_set (append_sets T (lists_of_length X n)) X" by auto
-    then show "tx \<in> append_set (append_sets T (lists_of_length X n)) X" using \<open>t@x = tx\<close> by (simp add: \<open>x \<noteq> []\<close>) 
+    then obtain t x where "t@x = tx" "t \<in> T" "length x = Suc n" "set x \<subseteq> X" 
+      by blast
+    then have "x \<noteq> []" "length (butlast x) = n" 
+      by auto
+    moreover have "set (butlast x) \<subseteq> X" 
+      using \<open>set x \<subseteq> X\<close> by (meson dual_order.trans prefixeq_butlast set_mono_prefix) 
+    ultimately have "butlast x \<in> lists_of_length X n" 
+      by auto
+    then have "t@(butlast x) \<in> append_sets T (lists_of_length X n)" 
+      using \<open>t \<in> T\<close> by blast
+    moreover have "last x \<in> X" 
+      using \<open>set x \<subseteq> X\<close> \<open>x \<noteq> []\<close> by auto
+    ultimately have "t@(butlast x)@[last x] \<in> append_set (append_sets T (lists_of_length X n)) X" 
+      by auto
+    then show "tx \<in> append_set (append_sets T (lists_of_length X n)) X" 
+      using \<open>t@x = tx\<close> by (simp add: \<open>x \<noteq> []\<close>) 
   qed
-  show "append_set (append_sets T (lists_of_length X n)) X \<subseteq> append_sets T (lists_of_length X (Suc n))"
+  show "append_set (append_sets T (lists_of_length X n)) X 
+          \<subseteq> append_sets T (lists_of_length X (Suc n))"
   proof 
     fix tx assume "tx \<in> append_set (append_sets T (lists_of_length X n)) X"
-    then obtain tx' x where "tx = tx' @ [x]" "tx' \<in> append_sets T (lists_of_length X n)" "x \<in> X" by blast
-    then obtain tx'' x' where "tx''@x' = tx'" "tx'' \<in> T" "length x' = n" "set x' \<subseteq> X" by blast
+    then obtain tx' x where "tx = tx' @ [x]" "tx' \<in> append_sets T (lists_of_length X n)" "x \<in> X" 
+      by blast
+    then obtain tx'' x' where "tx''@x' = tx'" "tx'' \<in> T" "length x' = n" "set x' \<subseteq> X"
+      by blast
     then have "tx''@x'@[x] = tx"  
       by (simp add: \<open>tx = tx' @ [x]\<close>)
     moreover have "tx'' \<in> T"
@@ -363,7 +442,8 @@ proof
       by (simp add: \<open>length x' = n\<close>)
     moreover have "set (x'@[x]) \<subseteq> X" 
       by (simp add: \<open>set x' \<subseteq> X\<close> \<open>x \<in> X\<close>)
-    ultimately show "tx \<in> append_sets T (lists_of_length X (Suc n))" by blast
+    ultimately show "tx \<in> append_sets T (lists_of_length X (Suc n))" 
+      by blast
   qed
 qed
 
@@ -378,12 +458,15 @@ proof -
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  obtain k where n_def[simp] : "n = Suc k" using assms
-    using not0_implies_Suc by blast 
+  obtain k where n_def[simp] : "n = Suc k" 
+    using assms not0_implies_Suc by blast 
 
-  have "?C (Suc n) = (append_set (?C n - ?RM n) (inputs M2)) - ?TS n" using n_def using C.simps(3) by blast
-  moreover have "?C n \<subseteq> ?TS n" using n_def by (metis C.simps(2) TS.elims UnCI assms neq0_conv subsetI)  
-  ultimately show "?C (Suc n) \<subseteq> append_set (?C n) (inputs M2) - ?C n" by blast
+  have "?C (Suc n) = (append_set (?C n - ?RM n) (inputs M2)) - ?TS n" 
+    using n_def C.simps(3) by blast
+  moreover have "?C n \<subseteq> ?TS n" 
+    using n_def by (metis C.simps(2) TS.elims UnCI assms neq0_conv subsetI)  
+  ultimately show "?C (Suc n) \<subseteq> append_set (?C n) (inputs M2) - ?C n" 
+    by blast
 qed
 
 
@@ -400,15 +483,21 @@ next
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
   have "0 < Suc k" by simp
-  have "?C (Suc (Suc k)) \<subseteq> (append_set (?C (Suc k)) (inputs M2)) - ?C (Suc k)" using C_step[OF \<open>0 < Suc k\<close>] by blast
+  have "?C (Suc (Suc k)) \<subseteq> (append_set (?C (Suc k)) (inputs M2)) - ?C (Suc k)" 
+    using C_step[OF \<open>0 < Suc k\<close>] by blast
 
-  then have "?C (Suc (Suc k)) \<subseteq> append_set (?C (Suc k)) (inputs M2)" by blast
-  moreover have "append_set (?C (Suc k)) (inputs M2) \<subseteq> append_set (append_sets V (lists_of_length (inputs M2) k)) (inputs M2)"
+  then have "?C (Suc (Suc k)) \<subseteq> append_set (?C (Suc k)) (inputs M2)" 
+    by blast
+  moreover have "append_set (?C (Suc k)) (inputs M2) 
+                  \<subseteq> append_set (append_sets V (lists_of_length (inputs M2) k)) (inputs M2)"
     using Suc.IH by auto 
-  ultimately have I_Step : "?C (Suc (Suc k)) \<subseteq> append_set (append_sets V (lists_of_length (inputs M2) k)) (inputs M2)"
+  ultimately have I_Step : 
+    "?C (Suc (Suc k)) \<subseteq> append_set (append_sets V (lists_of_length (inputs M2) k)) (inputs M2)"
     by (meson order_trans) 
 
-  show ?case using append_lists_of_length_alt_def[symmetric, of V k "inputs M2"] I_Step by presburger  
+  show ?case 
+    using append_lists_of_length_alt_def[symmetric, of V k "inputs M2"] I_Step 
+    by presburger  
 qed
 
 lemma TS_union : 
@@ -424,9 +513,12 @@ next
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
   have "?TS (Suc i) = ?TS i \<union> ?C (Suc i)"
-    by (metis (no_types) C.simps(2) TS.simps(1) TS.simps(2) TS.simps(3) not0_implies_Suc sup_bot.right_neutral sup_commute)
-  then have "?TS (Suc i) = (\<Union> j \<in> (set [0..<Suc i]) . ?C j) \<union> ?C (Suc i)" using Suc.IH by simp
-  then show ?case by auto 
+    by (metis (no_types) C.simps(2) TS.simps(1) TS.simps(2) TS.simps(3) not0_implies_Suc 
+        sup_bot.right_neutral sup_commute)
+  then have "?TS (Suc i) = (\<Union> j \<in> (set [0..<Suc i]) . ?C j) \<union> ?C (Suc i)" 
+    using Suc.IH by simp
+  then show ?case 
+    by auto 
 qed
 
 
@@ -441,12 +533,18 @@ proof -
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  have "Suc 0 < Suc j" using assms(1-2) by auto
-  then obtain k where "Suc j = Suc (Suc k)" using not0_implies_Suc by blast 
-  then have "?C (Suc j) = (append_set (?C j - ?RM j) (inputs M2))  - ?TS j" using C.simps(3) by blast
-  then have "?C (Suc j) \<inter> ?TS j = {}" by blast
-  moreover have "?C i \<subseteq> ?TS j" using assms(1) TS_union[of M2 M1 \<Omega> V m j] by fastforce  
-  ultimately show ?thesis by blast
+  have "Suc 0 < Suc j" 
+    using assms(1-2) by auto
+  then obtain k where "Suc j = Suc (Suc k)" 
+    using not0_implies_Suc by blast 
+  then have "?C (Suc j) = (append_set (?C j - ?RM j) (inputs M2))  - ?TS j" 
+    using C.simps(3) by blast
+  then have "?C (Suc j) \<inter> ?TS j = {}" 
+    by blast
+  moreover have "?C i \<subseteq> ?TS j" 
+    using assms(1) TS_union[of M2 M1 \<Omega> V m j] by fastforce  
+  ultimately show ?thesis 
+    by blast
 qed
 
 lemma C_disj_lt : 
@@ -457,7 +555,8 @@ proof (cases i)
   then show ?thesis by auto
 next
   case (Suc k)
-  then show ?thesis using C_disj_le_gz
+  then show ?thesis 
+    using C_disj_le_gz
     by (metis assms gr_implies_not0 less_Suc_eq_le old.nat.exhaust zero_less_Suc)
 qed 
 
@@ -475,7 +574,8 @@ proof (cases i)
   then show ?thesis by auto
 next
   case (Suc n)
-  then show ?thesis using RM.simps(2) by blast
+  then show ?thesis 
+    using RM.simps(2) by blast
 qed
 
 
@@ -488,30 +588,41 @@ proof -
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  have "?RM i \<subseteq> ?C i" "?RM (Suc j) \<subseteq> ?C (Suc j)" using RM_subset by blast+
-  moreover have "?C i \<inter> ?C (Suc j) = {}" using C_disj_le_gz[OF assms] by assumption
-  ultimately show ?thesis by blast
+  have "?RM i \<subseteq> ?C i" "?RM (Suc j) \<subseteq> ?C (Suc j)" 
+    using RM_subset by blast+
+  moreover have "?C i \<inter> ?C (Suc j) = {}" 
+    using C_disj_le_gz[OF assms] by assumption
+  ultimately show ?thesis 
+    by blast
 qed
 
 
 
 lemma T_extension : 
   assumes "n > 0"
-  shows "TS M2 M1 \<Omega> V m (Suc n) - TS M2 M1 \<Omega> V m n \<subseteq> (append_set (TS M2 M1 \<Omega> V m n) (inputs M2)) - TS M2 M1 \<Omega> V m n"
+  shows "TS M2 M1 \<Omega> V m (Suc n) - TS M2 M1 \<Omega> V m n 
+          \<subseteq> (append_set (TS M2 M1 \<Omega> V m n) (inputs M2)) - TS M2 M1 \<Omega> V m n"
 proof -
   let ?TS = "\<lambda> n . TS M2 M1 \<Omega> V m n"
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  obtain k where n_def[simp] : "n = Suc k" using assms
-    using not0_implies_Suc by blast 
+  obtain k where n_def[simp] : "n = Suc k" 
+    using assms not0_implies_Suc 
+    by blast 
 
-  have "?C (Suc n) = (append_set (?C n - ?RM n) (inputs M2)) - ?TS n" using n_def using C.simps(3) by blast
-  then have "?C (Suc n) \<subseteq> append_set (?C n) (inputs M2) - ?TS n" by blast
-  moreover have "?C n \<subseteq> ?TS n" using TS_union[of M2 M1 \<Omega> V m n] by fastforce
-  ultimately have "?C (Suc n) \<subseteq> append_set (?TS n) (inputs M2) - ?TS n" by blast
-  moreover have "?TS (Suc n) - ?TS n \<subseteq> ?C (Suc n) " using TS.simps(3)[of M2 M1 \<Omega> V m k] using n_def by blast
-  ultimately show ?thesis by blast
+  have "?C (Suc n) = (append_set (?C n - ?RM n) (inputs M2)) - ?TS n" 
+    using n_def using C.simps(3) by blast
+  then have "?C (Suc n) \<subseteq> append_set (?C n) (inputs M2) - ?TS n" 
+    by blast
+  moreover have "?C n \<subseteq> ?TS n" using TS_union[of M2 M1 \<Omega> V m n] 
+    by fastforce
+  ultimately have "?C (Suc n) \<subseteq> append_set (?TS n) (inputs M2) - ?TS n" 
+    by blast
+  moreover have "?TS (Suc n) - ?TS n \<subseteq> ?C (Suc n) " 
+    using TS.simps(3)[of M2 M1 \<Omega> V m k] using n_def by blast
+  ultimately show ?thesis 
+    by blast
 qed
 
 
@@ -530,9 +641,12 @@ lemma TS_subset :
   shows "TS M2 M1 \<Omega> V m i \<subseteq> TS M2 M1 \<Omega> V m j"
 proof -
   have "TS M2 M1 \<Omega> V m i = (\<Union> k \<in> (set [0..<Suc i]) . C M2 M1 \<Omega> V m k)" 
-       "TS M2 M1 \<Omega> V m j = (\<Union> k \<in> (set [0..<Suc j]) . C M2 M1 \<Omega> V m k)" using TS_union by assumption+
-  moreover have "set [0..<Suc i] \<subseteq> set [0..<Suc j]" using assms by auto
-  ultimately show ?thesis by blast
+       "TS M2 M1 \<Omega> V m j = (\<Union> k \<in> (set [0..<Suc j]) . C M2 M1 \<Omega> V m k)" 
+    using TS_union by assumption+
+  moreover have "set [0..<Suc i] \<subseteq> set [0..<Suc j]" 
+    using assms by auto
+  ultimately show ?thesis 
+    by blast
 qed
   
   
@@ -549,16 +663,22 @@ proof (rule ccontr)
 
   have "?C (Suc (Suc i)) \<subseteq> append_set (?C (Suc i) - ?RM (Suc i)) (inputs M2)"
     using C.simps(3) by blast 
-  then have "?C (Suc (Suc i)) \<subseteq> append_set (?C (Suc i) - ?RM (Suc i)) UNIV" by blast
+  then have "?C (Suc (Suc i)) \<subseteq> append_set (?C (Suc i) - ?RM (Suc i)) UNIV" 
+    by blast
   moreover have "vs @ xs \<notin> append_set (?C (Suc i) - ?RM (Suc i)) UNIV"
   proof -
-    have "\<forall>as a. vs @ xs \<noteq> as @ [a] \<or> as \<notin> C M2 M1 \<Omega> V m (Suc i) - RM M2 M1 \<Omega> V m (Suc i) \<or> a \<notin> UNIV"
-      by (metis \<open>vs @ butlast xs \<notin> C M2 M1 \<Omega> V m (Suc i) - RM M2 M1 \<Omega> V m (Suc i)\<close> assms(2) butlast_append butlast_snoc)
+    have "\<forall>as a. vs @ xs \<noteq> as @ [a] 
+                  \<or> as \<notin> C M2 M1 \<Omega> V m (Suc i) - RM M2 M1 \<Omega> V m (Suc i) 
+                  \<or> a \<notin> UNIV"
+      by (metis \<open>vs @ butlast xs \<notin> C M2 M1 \<Omega> V m (Suc i) - RM M2 M1 \<Omega> V m (Suc i)\<close> 
+          assms(2) butlast_append butlast_snoc)
     then show ?thesis
       by blast
   qed
-  ultimately have "vs @ xs \<notin> ?C (Suc (Suc i))" by blast
-  then show "False" using assms(1) by blast
+  ultimately have "vs @ xs \<notin> ?C (Suc (Suc i))" 
+    by blast
+  then show "False" 
+    using assms(1) by blast
 qed
 
 
@@ -573,15 +693,18 @@ proof -
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  obtain j where j_def : "j \<le> i \<and> vs@xs \<in> ?C j" using assms(1)  TS_union[where i=i]
+  obtain j where j_def : "j \<le> i \<and> vs@xs \<in> ?C j" 
+    using assms(1)  TS_union[where i=i]
   proof -
     assume a1: "\<And>j. j \<le> i \<and> vs @ xs \<in> C M2 M1 \<Omega> V m j \<Longrightarrow> thesis"
     obtain nn :: "nat set \<Rightarrow> (nat \<Rightarrow> 'a list set) \<Rightarrow> 'a list \<Rightarrow> nat" where
       f2: "\<forall>x0 x1 x2. (\<exists>v3. v3 \<in> x0 \<and> x2 \<in> x1 v3) = (nn x0 x1 x2 \<in> x0 \<and> x2 \<in> x1 (nn x0 x1 x2))"
       by moura
     have "vs @ xs \<in> UNION (set [0..<Suc i]) (C M2 M1 \<Omega> V m)"
-      by (metis \<open>\<And>\<Omega> V T S M2 M1. TS M2 M1 \<Omega> V m i = (\<Union>j\<in>set [0..<Suc i]. C M2 M1 \<Omega> V m j)\<close> \<open>vs @ xs \<in> TS M2 M1 \<Omega> V m i\<close>)
-    then have "nn (set [0..<Suc i]) (C M2 M1 \<Omega> V m) (vs @ xs) \<in> set [0..<Suc i] \<and> vs @ xs \<in> C M2 M1 \<Omega> V m (nn (set [0..<Suc i]) (C M2 M1 \<Omega> V m) (vs @ xs))"
+      by (metis \<open>\<And>\<Omega> V T S M2 M1. TS M2 M1 \<Omega> V m i = (\<Union>j\<in>set [0..<Suc i]. C M2 M1 \<Omega> V m j)\<close> 
+          \<open>vs @ xs \<in> TS M2 M1 \<Omega> V m i\<close>)
+    then have "nn (set [0..<Suc i]) (C M2 M1 \<Omega> V m) (vs @ xs) \<in> set [0..<Suc i] 
+                  \<and> vs @ xs \<in> C M2 M1 \<Omega> V m (nn (set [0..<Suc i]) (C M2 M1 \<Omega> V m) (vs @ xs))"
       using f2 by blast
     then show ?thesis
       using a1 by (metis (no_types) atLeastLessThan_iff leD not_less_eq_eq set_upt)
@@ -590,55 +713,78 @@ proof -
   show ?thesis
   proof (cases j)
     case 0
-    then have "?C j = {}" by auto
-    moreover have "vs@xs \<in> {}" using j_def 0 by auto
-    ultimately show ?thesis by auto  
+    then have "?C j = {}"
+      by auto
+    moreover have "vs@xs \<in> {}" 
+      using j_def 0 by auto
+    ultimately show ?thesis
+      by auto  
   next
     case (Suc k)
     then show ?thesis 
     proof (cases k)
       case 0
-      then have "?C j = V" using Suc by auto 
-      then have "vs@xs \<in> V" using j_def by auto
-      then have "mcp (vs@xs) V (vs@xs)" using assms(2) by auto
-      then have "vs@xs = vs" using assms(2) mcp_unique by auto
-      then have "butlast xs = []" by auto
-      then show ?thesis using \<open>vs @ xs = vs\<close> assms(1) by auto
+      then have "?C j = V" 
+        using Suc by auto 
+      then have "vs@xs \<in> V" 
+        using j_def by auto
+      then have "mcp (vs@xs) V (vs@xs)" 
+        using assms(2) by auto
+      then have "vs@xs = vs" 
+        using assms(2) mcp_unique by auto
+      then have "butlast xs = []"
+        by auto
+      then show ?thesis 
+        using \<open>vs @ xs = vs\<close> assms(1) by auto
     next
       case (Suc n)
-      assume j_assms : "j = Suc k" "k = Suc n"
+      assume j_assms : "j = Suc k" 
+                       "k = Suc n"
       then have "?C (Suc (Suc n)) = append_set (?C (Suc n) - ?RM (Suc n)) (inputs M2) - ?TS (Suc n)"
         using C.simps(3) by blast 
-      then have "?C (Suc (Suc n)) \<subseteq> append_set (?C (Suc n)) (inputs M2)" by blast
+      then have "?C (Suc (Suc n)) \<subseteq> append_set (?C (Suc n)) (inputs M2)" 
+        by blast
       
-      have "vs@xs \<in> ?C (Suc (Suc n))" using j_assms j_def by blast
+      have "vs@xs \<in> ?C (Suc (Suc n))" 
+        using j_assms j_def by blast
       
       have "butlast (vs@xs) \<in> ?C (Suc n)"
       proof -
         show ?thesis
-          by (meson \<open>?C (Suc (Suc n)) \<subseteq> append_set (?C (Suc n)) (inputs M2)\<close> \<open>vs @ xs \<in> ?C (Suc (Suc n))\<close> append_set_prefix subsetCE)
+          by (meson \<open>?C (Suc (Suc n)) \<subseteq> append_set (?C (Suc n)) (inputs M2)\<close> 
+              \<open>vs @ xs \<in> ?C (Suc (Suc n))\<close> append_set_prefix subsetCE)
       qed
 
       moreover have "xs \<noteq> []"
       proof -
-        have "1 \<le> k" using j_assms by auto
-        then have "?C j \<inter> ?C 1 = {}" using C_disj_le_gz[of 1 k] j_assms(1)
-          using less_numeral_extra(1) by blast 
-        then have "?C j \<inter> V = {}" by auto
-        then have "vs@xs \<notin> V" using j_def by auto
-        then show ?thesis using assms(2) by auto 
+        have "1 \<le> k" 
+          using j_assms by auto
+        then have "?C j \<inter> ?C 1 = {}" 
+          using C_disj_le_gz[of 1 k] j_assms(1) less_numeral_extra(1) by blast 
+        then have "?C j \<inter> V = {}" 
+          by auto
+        then have "vs@xs \<notin> V" 
+          using j_def by auto
+        then show ?thesis 
+          using assms(2) by auto 
       qed
 
       ultimately have "vs@(butlast xs) \<in> ?C (Suc n)"
         by (simp add: butlast_append)
 
-      have "Suc n < Suc j" using j_assms by auto
-      have "?C (Suc n) \<subseteq> ?TS j" using TS_union[of M2 M1 \<Omega> V m j] \<open>Suc n < Suc j\<close>
+      have "Suc n < Suc j" 
+        using j_assms by auto
+      have "?C (Suc n) \<subseteq> ?TS j" 
+        using TS_union[of M2 M1 \<Omega> V m j] \<open>Suc n < Suc j\<close>
         by (metis UN_upper atLeast_upt lessThan_iff)
       
 
-      have "vs @ butlast xs \<in> TS M2 M1 \<Omega> V m j" using \<open>vs@(butlast xs) \<in> ?C (Suc n)\<close> \<open>?C (Suc n) \<subseteq> ?TS j\<close> j_def by auto
-      then show ?thesis using j_def TS_subset[of j i] by blast 
+      have "vs @ butlast xs \<in> TS M2 M1 \<Omega> V m j" 
+        using \<open>vs@(butlast xs) \<in> ?C (Suc n)\<close> \<open>?C (Suc n) \<subseteq> ?TS j\<close> j_def 
+        by auto
+      then show ?thesis 
+        using j_def TS_subset[of j i] 
+        by blast 
     qed
   qed
 qed
@@ -657,60 +803,90 @@ using assms proof (induction "length xs - length xs'" arbitrary: xs')
   case 0
   then have "xs = xs'"
     by (metis append_Nil2 append_eq_conv_conj gr_implies_not0 length_drop length_greater_0_conv prefixE)
-  then show ?case using 0 by auto
+  then show ?case 
+    using 0 by auto
 next
   case (Suc k)
-  have "0 < i" using assms(1) using Suc.hyps(2) append_eq_append_conv assms(2) by auto 
+  have "0 < i" 
+    using assms(1) using Suc.hyps(2) append_eq_append_conv assms(2) by auto 
 
-  show ?case using Suc
+  show ?case 
   proof (cases xs')
     case Nil
     then show ?thesis
-      by (metis (no_types, hide_lams) \<open>0 < i\<close> TS.simps(2) TS_subset append_Nil2 assms(2) contra_subsetD leD mcp.elims(2) not_less_eq_eq)
+      by (metis (no_types, hide_lams) \<open>0 < i\<close> TS.simps(2) TS_subset append_Nil2 assms(2) 
+          contra_subsetD leD mcp.elims(2) not_less_eq_eq)
   next
     case (Cons a list)
     then show ?thesis
     proof (cases "xs = xs'")
       case True
-      then show ?thesis using assms(1) by simp
+      then show ?thesis 
+        using assms(1) by simp
     next
       case False 
-      then obtain xs'' where "xs = xs'@xs''" using Suc.prems(3) using prefixE by blast 
-      then have "xs'' \<noteq> []" using False by auto
-      then have "k = length xs - length (xs' @ [hd xs''])" using \<open>xs = xs'@xs''\<close> Suc.hyps(2) by auto
-      moreover have "prefix (xs' @ [hd xs'']) xs" using \<open>xs = xs'@xs''\<close> \<open>xs'' \<noteq> []\<close>
+      then obtain xs'' where "xs = xs'@xs''" 
+        using Suc.prems(3) prefixE by blast 
+      then have "xs'' \<noteq> []" 
+        using False by auto
+      then have "k = length xs - length (xs' @ [hd xs''])" 
+        using \<open>xs = xs'@xs''\<close> Suc.hyps(2) by auto
+      moreover have "prefix (xs' @ [hd xs'']) xs" 
+        using \<open>xs = xs'@xs''\<close> \<open>xs'' \<noteq> []\<close>
         by (metis Cons_prefix_Cons list.exhaust_sel prefix_code(1) same_prefix_prefix) 
-      ultimately have "vs @ (xs' @ [hd xs'']) \<in> TS M2 M1 \<Omega> V m i" using Suc.hyps(1)[OF _ Suc.prems(1,2)] by simp
+      ultimately have "vs @ (xs' @ [hd xs'']) \<in> TS M2 M1 \<Omega> V m i" 
+        using Suc.hyps(1)[OF _ Suc.prems(1,2)] by simp
       
       
-      have "mcp (vs @ xs' @ [hd xs'']) V vs" using \<open>xs = xs'@xs''\<close> \<open>xs'' \<noteq> []\<close> assms(2)
+      have "mcp (vs @ xs' @ [hd xs'']) V vs" 
+        using \<open>xs = xs'@xs''\<close> \<open>xs'' \<noteq> []\<close> assms(2)
       proof -
         obtain aas :: "'a list \<Rightarrow> 'a list set \<Rightarrow> 'a list \<Rightarrow> 'a list" where
-          "\<forall>x0 x1 x2. (\<exists>v3. (prefix v3 x2 \<and> v3 \<in> x1) \<and> \<not> length v3 \<le> length x0) = ((prefix (aas x0 x1 x2) x2 \<and> aas x0 x1 x2 \<in> x1) \<and> \<not> length (aas x0 x1 x2) \<le> length x0)"
+          "\<forall>x0 x1 x2. (\<exists>v3. (prefix v3 x2 \<and> v3 \<in> x1) \<and> \<not> length v3 \<le> length x0) 
+                       = ((prefix (aas x0 x1 x2) x2 \<and> aas x0 x1 x2 \<in> x1) 
+                           \<and> \<not> length (aas x0 x1 x2) \<le> length x0)"
           by moura
-        then have f1: "\<forall>as A asa. (\<not> mcp as A asa \<or> prefix asa as \<and> asa \<in> A \<and> (\<forall>asb. (\<not> prefix asb as \<or> asb \<notin> A) \<or> length asb \<le> length asa)) \<and> (mcp as A asa \<or> \<not> prefix asa as \<or> asa \<notin> A \<or> (prefix (aas asa A as) as \<and> aas asa A as \<in> A) \<and> \<not> length (aas asa A as) \<le> length asa)"
+        then have f1: "\<forall>as A asa. (\<not> mcp as A asa 
+                                    \<or> prefix asa as \<and> asa \<in> A \<and> (\<forall>asb. (\<not> prefix asb as \<or> asb \<notin> A) 
+                                                                        \<or> length asb \<le> length asa)) 
+                                  \<and> (mcp as A asa 
+                                    \<or> \<not> prefix asa as 
+                                    \<or> asa \<notin> A 
+                                    \<or> (prefix (aas asa A as) as \<and> aas asa A as \<in> A) 
+                                        \<and> \<not> length (aas asa A as) \<le> length asa)"
           by auto
         obtain aasa :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
           f2: "\<forall>x0 x1. (\<exists>v2. x0 = x1 @ v2) = (x0 = x1 @ aasa x0 x1)"
           by moura
-        then have f3: "([] @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs'']) = ([] @ [hd xs'']) @ aasa (([] @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs''])) ([] @ [hd xs''])"
+        then have f3: "([] @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs'']) 
+                        = ([] @ [hd xs'']) @ aasa (([] @ [hd xs'']) 
+                            @ aasa (xs' @ xs'') (xs' @ [hd xs''])) ([] @ [hd xs''])"
           by (meson prefixE prefixI)
         have "xs' @ xs'' = (xs' @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs''])"
           using f2 by (metis (no_types) \<open>prefix (xs' @ [hd xs'']) xs\<close> \<open>xs = xs' @ xs''\<close> prefixE)
-        then have "(vs @ (a # list) @ [hd xs'']) @ aasa (([] @ [hd xs'']) @ aasa (xs' @ xs'') (xs' @ [hd xs''])) ([] @ [hd xs'']) = vs @ xs"
+        then have "(vs @ (a # list) @ [hd xs'']) @ aasa (([] @ [hd xs'']) 
+                      @ aasa (xs' @ xs'') (xs' @ [hd xs''])) ([] @ [hd xs'']) 
+                    = vs @ xs"
           using f3 by (simp add: \<open>xs = xs' @ xs''\<close> local.Cons)
-        then have "\<not> prefix (aas vs V (vs @ xs' @ [hd xs''])) (vs @ xs' @ [hd xs'']) \<or> aas vs V (vs @ xs' @ [hd xs'']) \<notin> V \<or> length (aas vs V (vs @ xs' @ [hd xs''])) \<le> length vs"
+        then have "\<not> prefix (aas vs V (vs @ xs' @ [hd xs''])) (vs @ xs' @ [hd xs'']) 
+                    \<or> aas vs V (vs @ xs' @ [hd xs'']) \<notin> V 
+                    \<or> length (aas vs V (vs @ xs' @ [hd xs''])) \<le> length vs"
           using f1 by (metis (no_types) \<open>mcp (vs @ xs) V vs\<close> local.Cons prefix_append)
         then show ?thesis
           using f1 by (meson \<open>mcp (vs @ xs) V vs\<close> prefixI)
       qed 
       
       
-      then have "vs @ butlast (xs' @ [hd xs'']) \<in> TS M2 M1 \<Omega> V m i" using TS_immediate_prefix_containment[OF \<open>vs @ (xs' @ [hd xs'']) \<in> TS M2 M1 \<Omega> V m i\<close> _ \<open>0 < i\<close>] by simp
+      then have "vs @ butlast (xs' @ [hd xs'']) \<in> TS M2 M1 \<Omega> V m i" 
+        using TS_immediate_prefix_containment
+              [OF \<open>vs @ (xs' @ [hd xs'']) \<in> TS M2 M1 \<Omega> V m i\<close> _ \<open>0 < i\<close>] 
+        by simp
 
-      moreover have "xs' = butlast (xs' @ [hd xs''])" using \<open>xs'' \<noteq> []\<close> by simp
+      moreover have "xs' = butlast (xs' @ [hd xs''])" 
+        using \<open>xs'' \<noteq> []\<close> by simp
 
-      ultimately show ?thesis by simp
+      ultimately show ?thesis 
+        by simp
     qed
   qed
 qed
@@ -727,14 +903,18 @@ lemma C_index :
 shows "Suc (length xs) = i"
 using assms proof (induction xs arbitrary: i rule: rev_induct)
   case Nil 
-  then have "vs @ [] \<in> C M2 M1 \<Omega> V m 1" by auto
-  then have "vs @ [] \<in> C M2 M1 \<Omega> V m (Suc (length []))" by simp
+  then have "vs @ [] \<in> C M2 M1 \<Omega> V m 1" 
+    by auto
+  then have "vs @ [] \<in> C M2 M1 \<Omega> V m (Suc (length []))" 
+    by simp
   
   show ?case
   proof (rule ccontr)
     assume "Suc (length []) \<noteq> i"
-    moreover have "vs @ [] \<in> C M2 M1 \<Omega> V m i \<inter> C M2 M1 \<Omega> V m (Suc (length []))" using Nil.prems(1) \<open>vs @ [] \<in> C M2 M1 \<Omega> V m (Suc (length []))\<close> by auto
-    ultimately show "False" using C_disj by blast
+    moreover have "vs @ [] \<in> C M2 M1 \<Omega> V m i \<inter> C M2 M1 \<Omega> V m (Suc (length []))" 
+      using Nil.prems(1) \<open>vs @ [] \<in> C M2 M1 \<Omega> V m (Suc (length []))\<close> by auto
+    ultimately show "False" 
+      using C_disj by blast
   qed
 next
   case (snoc x xs')
@@ -743,10 +923,14 @@ next
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  have "vs @ xs' @ [x] \<notin> V" using snoc.prems(2) by auto  
-  then have "vs @ xs' @ [x] \<notin> ?C 1" by auto
-  moreover have "vs @ xs' @ [x] \<notin> ?C 0" by auto
-  ultimately have "1 < i" using snoc.prems(1) by (metis less_one linorder_neqE_nat) 
+  have "vs @ xs' @ [x] \<notin> V" 
+    using snoc.prems(2) by auto  
+  then have "vs @ xs' @ [x] \<notin> ?C 1" 
+    by auto
+  moreover have "vs @ xs' @ [x] \<notin> ?C 0" 
+    by auto
+  ultimately have "1 < i" 
+    using snoc.prems(1) by (metis less_one linorder_neqE_nat) 
 
   then have "vs @ butlast (xs' @ [x]) \<in> C M2 M1 \<Omega> V m (i-1)" 
   proof -
@@ -757,14 +941,18 @@ next
     have "0 < i"
       by (metis (no_types) One_nat_def Suc_lessD \<open>1 < i\<close>)
     then show ?thesis
-      using f1 by (metis C_immediate_prefix_containment DiffD1 One_nat_def Suc_pred' snoc.prems(1) snoc_eq_iff_butlast)
+      using f1 by (metis C_immediate_prefix_containment DiffD1 One_nat_def Suc_pred' snoc.prems(1) 
+                    snoc_eq_iff_butlast)
   qed
 
-  moreover have "mcp (vs @ butlast (xs' @ [x])) V vs" by (meson mcp_prefix_of_suffix prefixeq_butlast snoc.prems(2)) 
+  moreover have "mcp (vs @ butlast (xs' @ [x])) V vs" 
+    by (meson mcp_prefix_of_suffix prefixeq_butlast snoc.prems(2)) 
 
-  ultimately have "Suc (length xs') = i-1" using snoc.IH by simp 
+  ultimately have "Suc (length xs') = i-1" 
+    using snoc.IH by simp 
 
-  then show ?case by auto 
+  then show ?case 
+    by auto 
 qed
 
 lemma TS_index :
@@ -776,10 +964,11 @@ proof -
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  obtain j where "j < Suc i" "vs@xs \<in> ?C j" using TS_union[of M2 M1 \<Omega> V m i]
+  obtain j where "j < Suc i" "vs@xs \<in> ?C j"
+    using TS_union[of M2 M1 \<Omega> V m i]
     by (metis (full_types) UN_iff assms(1) atLeastLessThan_iff set_upt) 
-  then have "Suc (length xs) = j" using C_index
-    using assms(2) by blast
+  then have "Suc (length xs) = j" 
+    using C_index assms(2) by blast
   then show "Suc (length xs) \<le> i" 
     using \<open>j < Suc i\<close> by auto
   show "vs@xs \<in> C M2 M1 \<Omega> V m (Suc (length xs))" 
@@ -803,24 +992,34 @@ next
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
-  obtain k where "i = Suc k" using assms(4) using gr0_implies_Suc by blast 
-  then have "?C (Suc i) = append_set (?C i - ?RM i) (inputs M2) - ?TS i" using C.simps(3) by blast
+  obtain k where "i = Suc k" 
+    using assms(4) gr0_implies_Suc by blast 
+  then have "?C (Suc i) = append_set (?C i - ?RM i) (inputs M2) - ?TS i" 
+    using C.simps(3) by blast
 
-  moreover have "vs@xs \<in> ?C i - ?RM i" using assms(1) False by blast
+  moreover have "vs@xs \<in> ?C i - ?RM i" 
+    using assms(1) False by blast
 
-  ultimately have "vs@xs@[x] \<in> append_set (?C i - ?RM i) (inputs M2)" by (simp add: assms(3))
+  ultimately have "vs@xs@[x] \<in> append_set (?C i - ?RM i) (inputs M2)" 
+    by (simp add: assms(3))
 
   moreover have "vs@xs@[x] \<notin> ?TS i"
   proof (rule ccontr)
     assume "\<not> vs @ xs @ [x] \<notin> ?TS i"
-    then obtain j where "j < Suc i" "vs@xs@[x] \<in> ?C j" using TS_union[of M2 M1 \<Omega> V m i] by fastforce
-    then have "Suc (length (xs@[x])) = j" using C_index assms(2) by blast 
+    then obtain j where "j < Suc i" "vs@xs@[x] \<in> ?C j" 
+      using TS_union[of M2 M1 \<Omega> V m i] by fastforce
+    then have "Suc (length (xs@[x])) = j" 
+      using C_index assms(2) by blast 
 
-    then have "Suc (length (xs@[x])) < Suc i" using \<open>j < Suc i\<close> by auto
-    moreover have "Suc (length xs) = i" using C_index
+    then have "Suc (length (xs@[x])) < Suc i" 
+      using \<open>j < Suc i\<close> by auto
+    moreover have "Suc (length xs) = i" 
+      using C_index
       by (metis assms(1) assms(2) mcp_prefix_of_suffix prefixI)
-    ultimately have "Suc (length (xs@[x])) < Suc (Suc (length xs))" by auto
-    then show "False" by auto
+    ultimately have "Suc (length (xs@[x])) < Suc (Suc (length xs))" 
+      by auto
+    then show "False" 
+      by auto
   qed
 
   ultimately show ?thesis
@@ -858,7 +1057,8 @@ proof -
     have "\<not> (\<exists> xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> ?RM j)" 
     proof 
       assume "\<exists>xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 \<Omega> V m j"
-      then obtain xr j where "prefix xr xs" "j \<le> i" "vs @ xr \<in> ?RM j" by blast
+      then obtain xr j where "prefix xr xs" "j \<le> i" "vs @ xr \<in> ?RM j" 
+        by blast
       then show "False"
       proof (cases "xr = xs")
         case True
@@ -870,7 +1070,9 @@ proof -
         then show ?thesis using assms(1) by blast
       next
         case False
-        then show ?thesis using \<open>\<not> ?PrefPreviouslyRemoved\<close> \<open>prefix xr xs\<close> \<open>j \<le> i\<close> \<open>vs @ xr \<in> ?RM j\<close> by blast
+        then show ?thesis 
+          using \<open>\<not> ?PrefPreviouslyRemoved\<close> \<open>prefix xr xs\<close> \<open>j \<le> i\<close> \<open>vs @ xr \<in> ?RM j\<close> 
+          by blast
       qed
     qed
       
@@ -885,28 +1087,37 @@ proof -
       proof (induction k)
         case 0
         show ?case using \<open>vs \<in> ?C 1\<close>
-          by (metis "0.prems" DiffI One_nat_def \<open>\<not> (\<exists> xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 \<Omega> V m j)\<close> append_Nil2 take_0 take_is_prefix)  
+          by (metis "0.prems" DiffI One_nat_def 
+              \<open>\<not> (\<exists> xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 \<Omega> V m j)\<close> 
+              append_Nil2 take_0 take_is_prefix)  
       next
         case (Suc k)
 
-        have "1 \<le> Suc k \<and> Suc k \<le> i" using Suc.prems by auto
-        then have "vs @ take k xs \<in> ?C (Suc k)" using Suc.IH by simp
+        have "1 \<le> Suc k \<and> Suc k \<le> i" 
+          using Suc.prems by auto
+        then have "vs @ take k xs \<in> ?C (Suc k)" 
+          using Suc.IH by simp
 
         moreover have "vs @ take k xs \<notin> ?RM (Suc k)" 
-          using \<open>1 \<le> Suc k \<and> Suc k \<le> i\<close> \<open>\<not> ?PrefPreviouslyRemoved\<close> take_is_prefix
-          using Suc.IH by blast 
+          using \<open>1 \<le> Suc k \<and> Suc k \<le> i\<close> \<open>\<not> ?PrefPreviouslyRemoved\<close> take_is_prefix Suc.IH 
+          by blast 
 
-        ultimately have "vs @ take k xs \<in> (?C (Suc k)) - (?RM (Suc k))" by blast
+        ultimately have "vs @ take k xs \<in> (?C (Suc k)) - (?RM (Suc k))" 
+          by blast
 
         have "k < length xs" 
         proof (rule ccontr)
           assume "\<not> k < length xs"
-          then have "vs @ xs \<in> ?C (Suc k)" using \<open>vs @ take k xs \<in> ?C (Suc k)\<close> by simp 
+          then have "vs @ xs \<in> ?C (Suc k)" using \<open>vs @ take k xs \<in> ?C (Suc k)\<close> 
+            by simp 
           have "vs @ xs \<in> ?TS i" 
-            by (metis C_subset TS_subset \<open>1 \<le> Suc k \<and> Suc k \<le> i\<close> \<open>vs @ xs \<in> ?C (Suc k)\<close> contra_subsetD) 
-          then show "False" using assms(1) by simp
+            by (metis C_subset TS_subset \<open>1 \<le> Suc k \<and> Suc k \<le> i\<close> \<open>vs @ xs \<in> ?C (Suc k)\<close> 
+                contra_subsetD) 
+          then show "False" 
+            using assms(1) by simp
         qed
-        moreover have "set xs \<subseteq> inputs M2" using assms(3) by auto
+        moreover have "set xs \<subseteq> inputs M2" 
+          using assms(3) by auto
         ultimately have "last (take (Suc k) xs) \<in> inputs M2"
           by (simp add: subset_eq take_Suc_conv_app_nth)  
 
@@ -932,43 +1143,55 @@ proof -
         qed
         
         
-        show "vs @ take (Suc k) xs \<in> ?C (Suc (Suc k)) - ?RM (Suc (Suc k))" using C.simps(3)[of M2 M1 \<Omega> V m k]
-          by (metis (no_types, lifting) DiffI Suc.prems \<open>\<not> (\<exists> xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 \<Omega> V m j)\<close> \<open>vs @ take (Suc k) xs \<notin> TS M2 M1 \<Omega> V m (Suc k)\<close> calculation take_is_prefix) 
-         
+        show "vs @ take (Suc k) xs \<in> ?C (Suc (Suc k)) - ?RM (Suc (Suc k))" 
+          using C.simps(3)[of M2 M1 \<Omega> V m k]
+          by (metis (no_types, lifting) DiffI Suc.prems 
+              \<open>\<not> (\<exists> xr j. prefix xr xs \<and> j \<le> i \<and> vs @ xr \<in> RM M2 M1 \<Omega> V m j)\<close> 
+              \<open>vs @ take (Suc k) xs \<notin> TS M2 M1 \<Omega> V m (Suc k)\<close> calculation take_is_prefix)          
       qed
     qed
 
-    then have "vs @ take (i-1) xs \<in> C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i" using assms(4)
+    then have "vs @ take (i-1) xs \<in> C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i" 
+      using assms(4)
       by (metis One_nat_def Suc_diff_1 Suc_leI le_less) 
     then have "?PrefJustContained"
       by (metis C_subset DiffD1 assms(1) subsetCE take_is_prefix)
-    then show "False" using \<open>\<not> ?PrefJustContained\<close> by simp
+    then show "False" 
+      using \<open>\<not> ?PrefJustContained\<close> by simp
   qed
-
 
 
 
   show "\<not> (?PrefPreviouslyRemoved \<and> ?PrefJustContained)"
   proof 
     assume "?PrefPreviouslyRemoved \<and> ?PrefJustContained"
-    then have "?PrefPreviouslyRemoved" "?PrefJustContained" by auto
+    then have "?PrefPreviouslyRemoved" 
+              "?PrefJustContained" 
+      by auto
 
-    obtain xr j where "prefix xr xs" "j \<le> i" "vs@xr \<in> ?RM j" using \<open>?PrefPreviouslyRemoved\<close> by blast
-    obtain xc where "prefix xc xs" "vs@xc \<in> ?C i - ?RM i" using \<open>?PrefJustContained\<close> by blast
+    obtain xr j where "prefix xr xs" "j \<le> i" "vs@xr \<in> ?RM j" 
+      using \<open>?PrefPreviouslyRemoved\<close> by blast
+    obtain xc where "prefix xc xs" "vs@xc \<in> ?C i - ?RM i"
+      using \<open>?PrefJustContained\<close> by blast
 
-    then have "Suc (length xc) = i" using C_index
+    then have "Suc (length xc) = i" 
+      using C_index
       by (metis Diff_iff assms(2) mcp_prefix_of_suffix)
-    moreover have "length xc \<le> length xs" using \<open>prefix xc xs\<close> by (simp add: prefix_length_le) 
+    moreover have "length xc \<le> length xs"
+      using \<open>prefix xc xs\<close> by (simp add: prefix_length_le) 
     moreover have "xc \<noteq> xs"
     proof 
       assume "xc = xs"
-      then have "vs@xs \<in> ?C i" using \<open>vs@xc \<in> ?C i - ?RM i\<close> by auto
-      then have "vs@xs \<in> ?TS i" using C_subset by blast 
-      then show "False" using assms(1) by blast
+      then have "vs@xs \<in> ?C i" 
+        using \<open>vs@xc \<in> ?C i - ?RM i\<close> by auto
+      then have "vs@xs \<in> ?TS i" 
+        using C_subset by blast 
+      then show "False" 
+        using assms(1) by blast
     qed
     ultimately have "i \<le> length xs"
-      using \<open>prefix xc xs\<close> not_less_eq_eq prefix_length_prefix prefix_order.antisym by blast 
-
+      using \<open>prefix xc xs\<close> not_less_eq_eq prefix_length_prefix prefix_order.antisym 
+      by blast 
 
 
 
@@ -978,26 +1201,34 @@ proof -
       show "vs @ take n xs \<in> C M2 M1 \<Omega> V m (Suc n)"
       proof -
         have "n \<le> length xc"
-          using \<open>n < i\<close> \<open>Suc (length xc) = i\<close> less_Suc_eq_le by blast 
+          using \<open>n < i\<close> \<open>Suc (length xc) = i\<close> less_Suc_eq_le 
+          by blast 
         then have "prefix (vs @ (take n xs)) (vs @ xc)"
         proof -
           have "n \<le> length xs"
-            using \<open>length xc \<le> length xs\<close> \<open>n \<le> length xc\<close> order_trans by blast
+            using \<open>length xc \<le> length xs\<close> \<open>n \<le> length xc\<close> order_trans 
+            by blast
           then have "prefix (take n xs) xc"
-            by (metis (no_types) \<open>n \<le> length xc\<close> \<open>prefix xc xs\<close> length_take min.absorb2 prefix_length_prefix take_is_prefix)
+            by (metis (no_types) \<open>n \<le> length xc\<close> \<open>prefix xc xs\<close> length_take min.absorb2 
+                prefix_length_prefix take_is_prefix)
           then show ?thesis
             by simp
         qed 
         then have "vs @ take n xs \<in> ?TS i"
-          by (meson C_subset DiffD1 TS_prefix_containment \<open>prefix xc xs\<close> \<open>vs @ xc \<in> C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i\<close> assms(2) contra_subsetD mcp_prefix_of_suffix same_prefix_prefix)
-        then obtain jn where "jn < Suc i" "vs@(take n xs) \<in> ?C jn" using TS_union[of M2 M1 \<Omega> V m i]
+          by (meson C_subset DiffD1 TS_prefix_containment \<open>prefix xc xs\<close> 
+              \<open>vs @ xc \<in> C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i\<close> assms(2) contra_subsetD 
+              mcp_prefix_of_suffix same_prefix_prefix)
+        then obtain jn where "jn < Suc i" "vs@(take n xs) \<in> ?C jn" 
+          using TS_union[of M2 M1 \<Omega> V m i]
           by (metis UN_iff atLeast_upt lessThan_iff)
         moreover have "mcp (vs @ take n xs) V vs"
           by (meson assms(2) mcp_prefix_of_suffix take_is_prefix) 
-        ultimately have "jn = Suc (length (take n xs))" using C_index[of vs "take n xs" M2 M1 \<Omega> V m jn] by auto
+        ultimately have "jn = Suc (length (take n xs))" 
+          using C_index[of vs "take n xs" M2 M1 \<Omega> V m jn] by auto
         then have "jn = Suc n"
           using \<open>length xc \<le> length xs\<close> \<open>n \<le> length xc\<close> by auto 
-        then show "vs@(take n xs) \<in> ?C (Suc n)" using \<open>vs@(take n xs) \<in> ?C jn\<close> by auto
+        then show "vs@(take n xs) \<in> ?C (Suc n)" 
+          using \<open>vs@(take n xs) \<in> ?C jn\<close> by auto
       qed
     qed
 
@@ -1008,7 +1239,8 @@ proof -
       show "vs @ take n xs \<notin> RM M2 M1 \<Omega> V m (Suc n)"
       proof (cases "n = length xc")
         case True
-        then show ?thesis using \<open>vs@xc \<in> ?C i - ?RM i\<close>
+        then show ?thesis 
+          using \<open>vs@xc \<in> ?C i - ?RM i\<close>
           by (metis DiffD2 \<open>Suc (length xc) = i\<close> \<open>prefix xc xs\<close> append_eq_conv_conj prefixE) 
       next
         case False
@@ -1026,7 +1258,8 @@ proof -
             using True C_immediate_prefix_containment[of vs "take (Suc n) xs" M2 M1 \<Omega> V m n]
             by (metis Suc_neq_Zero \<open>prefix xc xs\<close> \<open>xc \<noteq> xs\<close> prefix_Nil take_eq_Nil)
           then show ?thesis
-            by (metis DiffD2 Suc_lessD True \<open>length xc \<le> length xs\<close> butlast_snoc less_le_trans take_Suc_conv_app_nth)
+            by (metis DiffD2 Suc_lessD True \<open>length xc \<le> length xs\<close> butlast_snoc less_le_trans 
+                take_Suc_conv_app_nth)
         next
           case False
           then have "Suc n = length xc"
@@ -1046,15 +1279,22 @@ proof -
 
     have "xr = take j xs"
     proof -
-      have "vs@xr \<in> ?C j" using \<open>vs@xr \<in> ?RM j\<close> RM_subset by blast 
-      then show ?thesis using C_index
-        by (metis Suc_le_lessD \<open>\<And>n. n < i \<Longrightarrow> vs @ take n xs \<notin> RM M2 M1 \<Omega> V m (Suc n)\<close> \<open>j \<le> i\<close> \<open>prefix xr xs\<close> \<open>vs @ xr \<in> RM M2 M1 \<Omega> V m j\<close> append_eq_conv_conj assms(2) mcp_prefix_of_suffix prefix_def) 
+      have "vs@xr \<in> ?C j"
+        using \<open>vs@xr \<in> ?RM j\<close> RM_subset by blast 
+      then show ?thesis 
+        using C_index
+        by (metis Suc_le_lessD \<open>\<And>n. n < i \<Longrightarrow> vs @ take n xs \<notin> RM M2 M1 \<Omega> V m (Suc n)\<close> \<open>j \<le> i\<close> 
+            \<open>prefix xr xs\<close> \<open>vs @ xr \<in> RM M2 M1 \<Omega> V m j\<close> append_eq_conv_conj assms(2) 
+            mcp_prefix_of_suffix prefix_def) 
     qed
  
     have "vs@xr \<notin> ?RM j"
-      by (metis (no_types) C_index RM_subset \<open>i \<le> length xs\<close> \<open>j \<le> i\<close> \<open>prefix xr xs\<close> \<open>xr = take j xs\<close> assms(2) contra_subsetD dual_order.trans length_take lessI less_irrefl mcp_prefix_of_suffix min.absorb2) 
+      by (metis (no_types) C_index RM_subset \<open>i \<le> length xs\<close> \<open>j \<le> i\<close> \<open>prefix xr xs\<close> 
+          \<open>xr = take j xs\<close> assms(2) contra_subsetD dual_order.trans length_take lessI less_irrefl 
+          mcp_prefix_of_suffix min.absorb2) 
     
-    then show "False" using \<open>vs@xr \<in> ?RM j\<close> by simp    
+    then show "False" 
+      using \<open>vs@xr \<in> ?RM j\<close> by simp    
   qed
 qed
 
@@ -1077,15 +1317,18 @@ proof
   have "?PrefPreviouslyRemoved \<Longrightarrow> False"
   proof -
     assume ?PrefPreviouslyRemoved
-    then obtain xr j where "xr \<noteq> xs" "prefix xr xs" "j \<le> i" "vs@xr \<in> ?RM j" by blast
-    then have "vs@xr \<notin> ?C j - ?RM j" by blast 
+    then obtain xr j where "xr \<noteq> xs" "prefix xr xs" "j \<le> i" "vs@xr \<in> ?RM j" 
+      by blast
+    then have "vs@xr \<notin> ?C j - ?RM j" 
+      by blast 
 
      
     
     have "vs@(take (Suc (length xr)) xs) \<notin> ?C (Suc j)" 
     proof -
       have "vs@(take (length xr) xs) \<notin> ?C j - ?RM j"
-        by (metis \<open>prefix xr xs\<close> \<open>vs @ xr \<notin> C M2 M1 \<Omega> V m j - RM M2 M1 \<Omega> V m j\<close> append_eq_conv_conj prefix_def) 
+        by (metis \<open>prefix xr xs\<close> \<open>vs @ xr \<notin> C M2 M1 \<Omega> V m j - RM M2 M1 \<Omega> V m j\<close> 
+            append_eq_conv_conj prefix_def) 
       show ?thesis
       proof (cases j)
         case 0
@@ -1096,7 +1339,8 @@ proof
         then have "?C (Suc j) \<subseteq> append_set (?C j - ?RM j) (inputs M2)"
           using C.simps(3) Suc by blast
         obtain x where "vs@(take (Suc (length xr)) xs) = vs@(take (length xr) xs) @ [x]"
-          by (metis \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> append_eq_conv_conj not_le prefix_def take_Suc_conv_app_nth take_all) 
+          by (metis \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> append_eq_conv_conj not_le prefix_def 
+              take_Suc_conv_app_nth take_all) 
         have "vs@(take (length xr) xs) @ [x] \<notin> append_set (?C j - ?RM j) (inputs M2)"
           using \<open>vs@(take (length xr) xs) \<notin> ?C j - ?RM j\<close> by simp
         then have "vs@(take (length xr) xs) @ [x] \<notin> ?C (Suc j)"
@@ -1108,39 +1352,55 @@ proof
     
     have "prefix (take (Suc (length xr)) xs) xs"
       by (simp add: take_is_prefix) 
-    then have "vs@(take (Suc (length xr)) xs) \<in> ?TS i" using TS_prefix_containment[OF \<open>vs @ xs \<in> TS M2 M1 \<Omega> V m i\<close> assms(1)] by simp
-    then obtain j' where "j' < Suc i \<and> vs@(take (Suc (length xr)) xs) \<in> ?C j'" using TS_union[of M2 M1 \<Omega> V m i] by fastforce
-    then have "Suc (Suc (length xr)) = j'" using C_index[of vs "take (Suc (length xr)) xs"]
+    then have "vs@(take (Suc (length xr)) xs) \<in> ?TS i" 
+      using TS_prefix_containment[OF \<open>vs @ xs \<in> TS M2 M1 \<Omega> V m i\<close> assms(1)] by simp
+    then obtain j' where "j' < Suc i \<and> vs@(take (Suc (length xr)) xs) \<in> ?C j'" 
+      using TS_union[of M2 M1 \<Omega> V m i] by fastforce
+    then have "Suc (Suc (length xr)) = j'" 
+      using C_index[of vs "take (Suc (length xr)) xs"]
     proof -
       have "\<not> length xs \<le> length xr"
-        by (metis (no_types) \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> append_Nil2 append_eq_conv_conj leD nat_less_le prefix_def prefix_length_le)
+        by (metis (no_types) \<open>prefix xr xs\<close> \<open>xr \<noteq> xs\<close> append_Nil2 append_eq_conv_conj leD 
+            nat_less_le prefix_def prefix_length_le)
       then show ?thesis
-        by (metis (no_types) \<open>\<And>i \<Omega> V T S M2 M1. \<lbrakk>vs @ take (Suc (length xr)) xs \<in> C M2 M1 \<Omega> V m i; mcp (vs @ take (Suc (length xr)) xs) V vs\<rbrakk> \<Longrightarrow> Suc (length (take (Suc (length xr)) xs)) = i\<close> \<open>j' < Suc i \<and> vs @ take (Suc (length xr)) xs \<in> C M2 M1 \<Omega> V m j'\<close> append_eq_conv_conj assms(1) length_take mcp_prefix_of_suffix min.absorb2 not_less_eq_eq prefix_def)
+        by (metis (no_types) \<open>\<And>i \<Omega> V T S M2 M1. \<lbrakk>vs @ take (Suc (length xr)) xs \<in> C M2 M1 \<Omega> V m i; 
+                                                    mcp (vs @ take (Suc (length xr)) xs) V vs\<rbrakk> 
+                                                  \<Longrightarrow> Suc (length (take (Suc (length xr)) xs)) = i\<close> 
+            \<open>j' < Suc i \<and> vs @ take (Suc (length xr)) xs \<in> C M2 M1 \<Omega> V m j'\<close> 
+            append_eq_conv_conj assms(1) length_take mcp_prefix_of_suffix min.absorb2 
+            not_less_eq_eq prefix_def)
     qed
     moreover have "Suc (length xr) = j" 
       using \<open>vs@xr \<in> ?RM j\<close> RM_subset C_index
       by (metis \<open>prefix xr xs\<close> assms(1) mcp_prefix_of_suffix subsetCE)
-    ultimately have "j' = Suc j" by auto
+    ultimately have "j' = Suc j" 
+      by auto
 
-    then have "vs@(take (Suc (length xr)) xs) \<in> ?C (Suc j)" using \<open>j' < Suc i \<and> vs@(take (Suc (length xr)) xs) \<in> ?C j'\<close> by auto
-    then show "False" using \<open>vs@(take (Suc (length xr)) xs) \<notin> ?C (Suc j)\<close> by blast
+    then have "vs@(take (Suc (length xr)) xs) \<in> ?C (Suc j)" 
+      using \<open>j' < Suc i \<and> vs@(take (Suc (length xr)) xs) \<in> ?C j'\<close> by auto
+    then show "False" 
+      using \<open>vs@(take (Suc (length xr)) xs) \<notin> ?C (Suc j)\<close> by blast
   qed
 
     
   moreover have "?PrefJustContained \<Longrightarrow> False"
   proof -
     assume ?PrefJustContained
-    then obtain xc where "xc \<noteq> xs" "prefix xc xs" "vs @ xc \<in> ?C i - ?RM i" by blast
+    then obtain xc where "xc \<noteq> xs" 
+                         "prefix xc xs" 
+                         "vs @ xc \<in> ?C i - ?RM i" 
+      by blast
     
     \<comment> \<open> only possible if xc = xs \<close>
     then show "False"
-      by (metis C_index DiffD1 Suc_less_eq TS_index(1) \<open>vs @ xs \<in> ?TS i\<close> assms(1) leD le_neq_trans mcp_prefix_of_suffix prefix_length_le prefix_length_prefix prefix_order.dual_order.antisym prefix_order.order_refl) 
+      by (metis C_index DiffD1 Suc_less_eq TS_index(1) \<open>vs @ xs \<in> ?TS i\<close> assms(1) leD le_neq_trans 
+          mcp_prefix_of_suffix prefix_length_le prefix_length_prefix 
+          prefix_order.dual_order.antisym prefix_order.order_refl) 
   qed
 
-  ultimately show "False" using assms(2) by auto
+  ultimately show "False" 
+    using assms(2) by auto
 qed
-
-
 
 
 
@@ -1162,13 +1422,16 @@ next
   show ?case
   proof (cases "n=0")
     case True
-    then have "?TS (Suc n) = V" by auto
-    then show ?thesis using \<open>finite V\<close> by auto
+    then have "?TS (Suc n) = V" 
+      by auto
+    then show ?thesis 
+      using \<open>finite V\<close> by auto
   next
     case False
     then have "?TS (Suc n) = ?TS n \<union> ?C (Suc n)"
       by (metis TS.simps(3) gr0_implies_Suc neq0_conv) 
-    moreover have "finite (?TS n)" using Suc.IH[OF Suc.prems] by assumption
+    moreover have "finite (?TS n)" 
+      using Suc.IH[OF Suc.prems] by assumption
     moreover have "finite (?C (Suc n))"
     proof -
       have "?C (Suc n) \<subseteq> append_set (?C n) (inputs M2)"
@@ -1232,12 +1495,16 @@ proof -
   let ?RM = "\<lambda> n . RM M2 M1 \<Omega> V m n"
 
 
-  have "is_det_state_cover M2 V" using assms by auto
-  moreover have "finite (nodes M2)" using assms(2) by auto
+  have "is_det_state_cover M2 V" 
+    using assms by auto
+  moreover have "finite (nodes M2)" 
+    using assms(2) by auto
   moreover have "d_reachable M2 (initial M2) \<subseteq> nodes M2"
     by auto 
-  ultimately have "finite V" using det_state_cover_card[of M2 V]
-    by (metis finite_if_finite_subsets_card_bdd infinite_subset is_det_state_cover.elims(2) surj_card_le)
+  ultimately have "finite V" 
+    using det_state_cover_card[of M2 V]
+    by (metis finite_if_finite_subsets_card_bdd infinite_subset is_det_state_cover.elims(2) 
+        surj_card_le)
 
 
   have "\<forall> seq \<in> ?C ?i . seq \<in> ?RM ?i"
@@ -1246,10 +1513,12 @@ proof -
     show "seq \<in> ?RM ?i"
     proof -
 
-      have "[] \<in> V" using \<open>is_det_state_cover M2 V\<close>
-        using det_state_cover_empty by blast 
+      have "[] \<in> V" 
+        using \<open>is_det_state_cover M2 V\<close> det_state_cover_empty 
+        by blast 
       then obtain vs where "mcp seq V vs" 
-        using mcp_ex[OF _ \<open>finite V\<close>] by blast   
+        using mcp_ex[OF _ \<open>finite V\<close>] 
+        by blast   
       then obtain xs where "seq = vs@xs"
         using prefixE by auto 
   
@@ -1291,7 +1560,8 @@ proof -
                     \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V'' ))))"
       proof (cases "(\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {seq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {seq}))")
         case True
-        then show ?thesis using RM_def by blast
+        then show ?thesis 
+          using RM_def by blast
       next
         case False
         have "(\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {seq} .
@@ -1353,7 +1623,8 @@ proof -
             using \<open>V'' \<in> N io M1 V\<close> \<open>mcp' io V'' = vs\<close> by auto 
 
           then have "mcp (map fst io) V (map fst vs)"
-            by (metis \<open>\<And>thesis. (\<And>vs. mcp seq V vs \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> \<open>map fst io = seq\<close> mcp'_intro) 
+            by (metis \<open>\<And>thesis. (\<And>vs. mcp seq V vs \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> 
+                \<open>map fst io = seq\<close> mcp'_intro) 
           
           
           then have "mcp (map fst vs @ map fst xs) V (map fst vs)"
@@ -1372,14 +1643,18 @@ proof -
           have "vs @ xs \<in> L M2 \<inter> L M1" 
             using \<open>vs @ xs \<in> L M1\<close> \<open>vs @ xs \<in> L M2\<close> by blast
           obtain q where "q \<in> nodes M2" "m < card (RP M2 q vs xs V'')"
-            using RP_state_repetition_distribution_productF[OF assms(2,1) \<open>( |M2| * m) \<le> length xs\<close> \<open>|M1| \<le> m\<close> \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> \<open>is_det_state_cover M2 V\<close> \<open>V'' \<in> Perm V M1\<close>] by blast          
+            using RP_state_repetition_distribution_productF
+                  [OF assms(2,1) \<open>( |M2| * m) \<le> length xs\<close> \<open>|M1| \<le> m\<close> \<open>vs @ xs \<in> L M2 \<inter> L M1\<close> 
+                      \<open>is_det_state_cover M2 V\<close> \<open>V'' \<in> Perm V M1\<close>] 
+            by blast          
 
           have "m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) {q} \<Omega> V''" 
           proof -
             have "m < (sum (\<lambda> s . card (RP M2 s vs xs V'')) {q})" 
               using \<open>m < card (RP M2 q vs xs V'')\<close>
               by auto
-            moreover have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) {q}) \<le> LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) {q} \<Omega> V''"
+            moreover have "(sum (\<lambda> s . card (RP M2 s vs xs V'')) {q}) 
+                              \<le> LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) {q} \<Omega> V''"
               by auto
             ultimately show ?thesis 
               by linarith 
@@ -1394,7 +1669,8 @@ proof -
                     (\<forall>s1\<in>S1.
                         \<forall>s2\<in>S1.
                            s1 \<noteq> s2 \<longrightarrow>
-                           (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
+                           (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. 
+                                                                      B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                     m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V''"
           proof -
             
@@ -1425,15 +1701,18 @@ proof -
                           (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                              \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                                B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                      \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) {q} \<Omega> V'' " using \<open>m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) {q} \<Omega> V''\<close> 
+                      \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) {q} \<Omega> V'' " 
+              using \<open>m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) {q} \<Omega> V''\<close> 
               by linarith 
 
-            show ?thesis using \<open>V''\<in>N io M1 V\<close> RM_body
+            show ?thesis 
+              using \<open>V''\<in>N io M1 V\<close> RM_body
               by metis 
           qed
         qed
 
-        then show ?thesis by metis
+        then show ?thesis 
+          by metis
       qed
 
       then have "seq \<in> {xs' \<in> C M2 M1 \<Omega> V m ((Suc ( |M2| * m))).
@@ -1447,12 +1726,14 @@ proof -
                                    (\<forall>s1\<in>S1.
                                        \<forall>s2\<in>S1.
                                           s1 \<noteq> s2 \<longrightarrow>
-                                          (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
+                                          (\<forall>io1\<in>RP M2 s1 vs xs V''. \<forall>io2\<in>RP M2 s2 vs xs V''. 
+                                                                      B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                                    m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V'')}" 
         using \<open>seq \<in> ?C ?i\<close> by blast
 
 
-      then show ?thesis using RM_def by blast
+      then show ?thesis 
+        using RM_def by blast
     qed
   qed
 
@@ -1553,12 +1834,17 @@ proof -
 
 
       have "vs @ xc @ [x] \<notin> ?TS (Suc i)"
-        by (metis Suc_n_not_le_n TS_index(1) \<open>Suc (length xc) = i\<close> \<open>prefix (vs @ xc @ [x]) (vs @ xs)\<close> assms(2) assms(4) length_append_singleton mcp_prefix_of_suffix same_prefix_prefix) 
+        by (metis Suc_n_not_le_n TS_index(1) \<open>Suc (length xc) = i\<close> 
+            \<open>prefix (vs @ xc @ [x]) (vs @ xs)\<close> assms(2) assms(4) length_append_singleton 
+            mcp_prefix_of_suffix same_prefix_prefix) 
       then have "vs @ xc @ [x] \<notin> ?TS i"
         by (simp add: assms(4)) 
 
       have "vs @ xc @ [x] \<notin> append_set (?C i - ?RM i) (inputs M2)"
-        using \<open>vs @ xc @ [x] \<notin> TS M2 M1 \<Omega> V m i\<close> \<open>vs @ xc @ [x] \<notin> append_set (C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i) (inputs M2) - TS M2 M1 \<Omega> V m i\<close> by blast  
+        using \<open>vs @ xc @ [x] \<notin> TS M2 M1 \<Omega> V m i\<close> 
+              \<open>vs @ xc @ [x] \<notin> append_set (C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i) (inputs M2) 
+                                - TS M2 M1 \<Omega> V m i\<close> 
+        by blast  
       
       then have "vs @ xc \<notin> (?C i - ?RM i)"
       proof -
@@ -1574,7 +1860,8 @@ proof -
         then have "x \<in> inputs M2"
           using f1 by (metis (no_types) assms(3) contra_subsetD insert_iff list.set(2) set_append)
         then show ?thesis
-          using \<open>vs @ xc @ [x] \<notin> append_set (C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i) (inputs M2)\<close> by force
+          using \<open>vs @ xc @ [x] \<notin> append_set (C M2 M1 \<Omega> V m i - RM M2 M1 \<Omega> V m i) (inputs M2)\<close> 
+          by force
       qed 
 
       then have "False" 

@@ -51,13 +51,21 @@ proof
   have "vs@xs2 \<in> L M2" 
     using io_target_implies_L[OF \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs2)\<close>] by assumption
 
-  obtain tr1_1 where "path M1 (vs@xs1 || tr1_1) (initial M1)" "length tr1_1 = length (vs@xs1)" "target (vs@xs1 || tr1_1) (initial M1) = s1"
+  obtain tr1_1 where "path M1 (vs@xs1 || tr1_1) (initial M1)" 
+                     "length tr1_1 = length (vs@xs1)" 
+                     "target (vs@xs1 || tr1_1) (initial M1) = s1"
     using \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs1)\<close> by auto
-  obtain tr1_2 where "path M1 (vs@xs2 || tr1_2) (initial M1)" "length tr1_2 = length (vs@xs2)" "target (vs@xs2 || tr1_2) (initial M1) = s1"
+  obtain tr1_2 where "path M1 (vs@xs2 || tr1_2) (initial M1)" 
+                     "length tr1_2 = length (vs@xs2)" 
+                     "target (vs@xs2 || tr1_2) (initial M1) = s1"
     using \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs2)\<close> by auto 
-  obtain tr2_1 where "path M2 (vs@xs1 || tr2_1) (initial M2)" "length tr2_1 = length (vs@xs1)" "target (vs@xs1 || tr2_1) (initial M2) = s2"
+  obtain tr2_1 where "path M2 (vs@xs1 || tr2_1) (initial M2)" 
+                     "length tr2_1 = length (vs@xs1)" 
+                     "target (vs@xs1 || tr2_1) (initial M2) = s2"
     using \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs1)\<close> by auto
-  obtain tr2_2 where "path M2 (vs@xs2 || tr2_2) (initial M2)" "length tr2_2 = length (vs@xs2)" "target (vs@xs2 || tr2_2) (initial M2) = s2"
+  obtain tr2_2 where "path M2 (vs@xs2 || tr2_2) (initial M2)"
+                     "length tr2_2 = length (vs@xs2)"
+                     "target (vs@xs2 || tr2_2) (initial M2) = s2"
     using \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs2)\<close> by auto 
 
 
@@ -76,8 +84,10 @@ proof
     using \<open>length tr1_1 = length (vs@xs1)\<close> by presburger
 
   have "vs@xs1 \<in> L PM" 
-    using productF_path_inclusion[OF \<open>length (vs@xs1) = length tr2_1\<close> \<open>length tr2_1 = length tr1_1\<close> \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
-    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs @ xs1 \<in> L M1\<close> \<open>vs @ xs1 \<in> L M2\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> productF_language)
+    using productF_path_inclusion[OF \<open>length (vs@xs1) = length tr2_1\<close> \<open>length tr2_1 = length tr1_1\<close> 
+                                     \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
+    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs @ xs1 \<in> L M1\<close> \<open>vs @ xs1 \<in> L M2\<close> \<open>well_formed M1\<close> 
+        \<open>well_formed M2\<close> productF_language)
     
 
   have "length (vs@xs2) = length tr2_2"
@@ -86,28 +96,40 @@ proof
     using \<open>length tr1_2 = length (vs@xs2)\<close> by presburger
 
   have "vs@xs2 \<in> L PM" 
-    using productF_path_inclusion[OF \<open>length (vs@xs2) = length tr2_2\<close> \<open>length tr2_2 = length tr1_2\<close> \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
-    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs @ xs2 \<in> L M1\<close> \<open>vs @ xs2 \<in> L M2\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> productF_language)
+    using productF_path_inclusion[OF \<open>length (vs@xs2) = length tr2_2\<close> \<open>length tr2_2 = length tr1_2\<close> 
+                                     \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
+    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs @ xs2 \<in> L M1\<close> \<open>vs @ xs2 \<in> L M2\<close> \<open>well_formed M1\<close> 
+        \<open>well_formed M2\<close> productF_language)
 
 
   
 
   have "io_targets PM (initial M2, initial M1) (vs @ xs1) = {(s2, s1)}" 
-    using productF_path_io_targets_reverse[OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs1)\<close> \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs1)\<close> \<open>vs @ xs1 \<in> L M2\<close> \<open>vs @ xs1 \<in> L M1\<close> ]
+    using productF_path_io_targets_reverse
+          [OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs1)\<close> 
+              \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs1)\<close> \<open>vs @ xs1 \<in> L M2\<close> \<open>vs @ xs1 \<in> L M1\<close> ]
   proof -
     have "\<forall>c f. c \<noteq> initial (f::('a, 'b, 'c) FSM) \<or> c \<in> nodes f"
       by blast
     then show ?thesis
-      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs @ xs1) = {(s2, s1)}\<close> assms(2) assms(3))
+      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; 
+                             initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> 
+                            \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs @ xs1) = {(s2, s1)}\<close> 
+          assms(2) assms(3))
   qed 
 
   have "io_targets PM (initial M2, initial M1) (vs @ xs2) = {(s2, s1)}" 
-    using productF_path_io_targets_reverse[OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs2)\<close> \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs2)\<close> \<open>vs @ xs2 \<in> L M2\<close> \<open>vs @ xs2 \<in> L M1\<close> ]
+    using productF_path_io_targets_reverse
+          [OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs2)\<close> 
+              \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs2)\<close> \<open>vs @ xs2 \<in> L M2\<close> \<open>vs @ xs2 \<in> L M1\<close> ]
   proof -
     have "\<forall>c f. c \<noteq> initial (f::('a, 'b, 'c) FSM) \<or> c \<in> nodes f"
       by blast
     then show ?thesis
-      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs @ xs2) = {(s2, s1)}\<close> assms(2) assms(3))
+      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; 
+                             initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> 
+                            \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs @ xs2) = {(s2, s1)}\<close> 
+          assms(2) assms(3))
   qed
 
   have "prefix (vs @ xs1) (vs @ xs2)"
@@ -120,7 +142,8 @@ proof
   
 
   have "prefix (vs@xs1) (vs@xs')"
-    using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs'\<close> prefix_order.dual_order.trans same_prefix_prefix by blast 
+    using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs'\<close> prefix_order.dual_order.trans same_prefix_prefix 
+    by blast 
   have "prefix (vs@xs2) (vs@xs')"
     using \<open>prefix xs2 xs'\<close> prefix_order.dual_order.trans same_prefix_prefix by blast 
 
@@ -135,31 +158,50 @@ proof
   have "(vs @ xs2) @ (drop (length xs2) xs) = vs@xs"
     by (metis \<open>prefix xs2 xs'\<close>  append_eq_appendI append_eq_conv_conj assms(7) prefixE) 
   moreover have "io_targets PM (initial PM) (vs@xs) = {FAIL}" 
-    using sequence_to_failure_reaches_FAIL_ob[OF \<open>sequence_to_failure M1 M2 (vs@xs)\<close> assms(2,3) \<open>productF M2 M1 FAIL PM\<close>] by assumption
+    using sequence_to_failure_reaches_FAIL_ob[OF \<open>sequence_to_failure M1 M2 (vs@xs)\<close> assms(2,3) 
+                                                 \<open>productF M2 M1 FAIL PM\<close>] 
+    by assumption
   ultimately have "io_targets PM (initial PM) ((vs @ xs2) @ (drop (length xs2) xs)) = {FAIL}" 
     by auto
   
   have "io_targets PM (s2,s1) (drop (length xs2) xs) = {FAIL}" 
-    using observable_io_targets_split[OF \<open>observable PM\<close> \<open>io_targets PM (initial PM) ((vs @ xs2) @ (drop (length xs2) xs)) = {FAIL}\<close> \<open>io_targets PM (initial PM) (vs @ xs2) = {(s2, s1)}\<close>] by assumption
+    using observable_io_targets_split
+          [OF \<open>observable PM\<close>
+              \<open>io_targets PM (initial PM) ((vs @ xs2) @ (drop (length xs2) xs)) = {FAIL}\<close>
+              \<open>io_targets PM (initial PM) (vs @ xs2) = {(s2, s1)}\<close>] 
+    by assumption
 
   have "io_targets PM (initial PM) (vs@xs1@(drop (length xs2) xs)) = {FAIL}"
-    using observable_io_targets_append[OF \<open>observable PM\<close> \<open>io_targets PM (initial PM) (vs @ xs1) = {(s2,s1)}\<close> \<open>io_targets PM (s2,s1) (drop (length xs2) xs) = {FAIL}\<close>] by simp
+    using observable_io_targets_append
+          [OF \<open>observable PM\<close> \<open>io_targets PM (initial PM) (vs @ xs1) = {(s2,s1)}\<close> 
+              \<open>io_targets PM (s2,s1) (drop (length xs2) xs) = {FAIL}\<close>] 
+    by simp
   have "sequence_to_failure M1 M2 (vs@xs1@(drop (length xs2) xs))"
-    using sequence_to_failure_alt_def[OF \<open>io_targets PM (initial PM) (vs@xs1@(drop (length xs2) xs)) = {FAIL}\<close> assms(2,3)]
-    using assms(5) by blast 
+    using sequence_to_failure_alt_def
+          [OF \<open>io_targets PM (initial PM) (vs@xs1@(drop (length xs2) xs)) = {FAIL}\<close> assms(2,3)]
+          assms(5) 
+    by blast 
 
   have "length xs1 < length xs2"
     using \<open>prefix xs1 xs2\<close> \<open>xs1 \<noteq> xs2\<close> prefix_length_prefix by fastforce     
   have "xs = (xs1 @ (drop (length xs1) xs))"
-    by (metis (no_types) \<open>(vs @ xs2) @ drop (length xs2) xs = vs @ xs\<close> \<open>prefix xs1 xs2\<close> append_assoc append_eq_conv_conj prefixE)
+    by (metis (no_types) \<open>(vs @ xs2) @ drop (length xs2) xs = vs @ xs\<close> \<open>prefix xs1 xs2\<close> 
+        append_assoc append_eq_conv_conj prefixE)
   have "length xs1 < length xs"
-    using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs'\<close> \<open>xs = xs1 @ drop (length xs1) xs\<close> \<open>xs1 \<noteq> xs2\<close> assms(7) leI by fastforce 
+    using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs'\<close> \<open>xs = xs1 @ drop (length xs1) xs\<close> \<open>xs1 \<noteq> xs2\<close> 
+          assms(7) leI 
+    by fastforce 
   have "length (xs1@(drop (length xs2) xs)) < length xs"
     using \<open>length xs1 < length xs2\<close> \<open>length xs1 < length xs\<close> by auto
 
 
-  have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ xs1@(drop (length xs2) xs)) \<and> length (xs1@(drop (length xs2) xs)) < length xs"
-    using \<open>length (xs1 @ drop (length xs2) xs) < length xs\<close> \<open>sequence_to_failure M1 M2 (vs @ xs1 @ drop (length xs2) xs)\<close> assms(1) minimal_sequence_to_failure_extending.simps by blast
+  have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V 
+        \<and> sequence_to_failure M1 M2 (vs @ xs1@(drop (length xs2) xs)) 
+        \<and> length (xs1@(drop (length xs2) xs)) < length xs"
+    using \<open>length (xs1 @ drop (length xs2) xs) < length xs\<close> 
+          \<open>sequence_to_failure M1 M2 (vs @ xs1 @ drop (length xs2) xs)\<close> 
+          assms(1) minimal_sequence_to_failure_extending.simps 
+    by blast
   
   then have "\<not> minimal_sequence_to_failure_extending V M1 M2 vs xs"
     by (meson minimal_sequence_to_failure_extending.elims(2))
@@ -207,13 +249,21 @@ proof
   have "vs' \<in> L M2" 
     using io_target_implies_L[OF \<open>s2 \<in> io_targets M2 (initial M2) (vs')\<close>] by assumption
 
-  obtain tr1_1 where "path M1 (vs@xs' || tr1_1) (initial M1)" "length tr1_1 = length (vs@xs')" "target (vs@xs' || tr1_1) (initial M1) = s1"
+  obtain tr1_1 where "path M1 (vs@xs' || tr1_1) (initial M1)"
+                     "length tr1_1 = length (vs@xs')"
+                     "target (vs@xs' || tr1_1) (initial M1) = s1"
     using \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs')\<close> by auto
-  obtain tr1_2 where "path M1 (vs' || tr1_2) (initial M1)" "length tr1_2 = length (vs')" "target (vs' || tr1_2) (initial M1) = s1"
+  obtain tr1_2 where "path M1 (vs' || tr1_2) (initial M1)"
+                     "length tr1_2 = length (vs')"
+                     "target (vs' || tr1_2) (initial M1) = s1"
     using \<open>s1 \<in> io_targets M1 (initial M1) (vs')\<close> by auto 
-  obtain tr2_1 where "path M2 (vs@xs' || tr2_1) (initial M2)" "length tr2_1 = length (vs@xs')" "target (vs@xs' || tr2_1) (initial M2) = s2"
+  obtain tr2_1 where "path M2 (vs@xs' || tr2_1) (initial M2)"
+                     "length tr2_1 = length (vs@xs')"
+                     "target (vs@xs' || tr2_1) (initial M2) = s2"
     using \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs')\<close> by auto
-  obtain tr2_2 where "path M2 (vs' || tr2_2) (initial M2)" "length tr2_2 = length (vs')" "target (vs' || tr2_2) (initial M2) = s2"
+  obtain tr2_2 where "path M2 (vs' || tr2_2) (initial M2)"
+                     "length tr2_2 = length (vs')"
+                     "target (vs' || tr2_2) (initial M2) = s2" 
     using \<open>s2 \<in> io_targets M2 (initial M2) (vs')\<close> by auto 
 
 
@@ -232,8 +282,10 @@ proof
     using \<open>length tr1_1 = length (vs@xs')\<close> by presburger
 
   have "vs@xs' \<in> L PM" 
-    using productF_path_inclusion[OF \<open>length (vs@xs') = length tr2_1\<close> \<open>length tr2_1 = length tr1_1\<close> \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
-    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs @ xs' \<in> L M1\<close> \<open>vs @ xs' \<in> L M2\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> productF_language)
+    using productF_path_inclusion[OF \<open>length (vs@xs') = length tr2_1\<close> \<open>length tr2_1 = length tr1_1\<close> 
+                                     \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
+    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs @ xs' \<in> L M1\<close> \<open>vs @ xs' \<in> L M2\<close> \<open>well_formed M1\<close>
+        \<open>well_formed M2\<close> productF_language)
     
 
   have "length (vs') = length tr2_2"
@@ -242,31 +294,44 @@ proof
     using \<open>length tr1_2 = length (vs')\<close> by presburger
 
   have "vs' \<in> L PM" 
-    using productF_path_inclusion[OF \<open>length (vs') = length tr2_2\<close> \<open>length tr2_2 = length tr1_2\<close> \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
-    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs' \<in> L M1\<close> \<open>vs' \<in> L M2\<close> \<open>well_formed M1\<close> \<open>well_formed M2\<close> productF_language)
+    using productF_path_inclusion[OF \<open>length (vs') = length tr2_2\<close> \<open>length tr2_2 = length tr1_2\<close> 
+                                     \<open>productF M2 M1 FAIL PM\<close> \<open>well_formed M2\<close> \<open>well_formed M1\<close>]
+    by (meson Int_iff \<open>productF M2 M1 FAIL PM\<close> \<open>vs' \<in> L M1\<close> \<open>vs' \<in> L M2\<close> \<open>well_formed M1\<close> 
+        \<open>well_formed M2\<close> productF_language)
 
 
   
 
   have "io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}" 
-    using productF_path_io_targets_reverse[OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs')\<close> \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs')\<close> \<open>vs @ xs' \<in> L M2\<close> \<open>vs @ xs' \<in> L M1\<close> ]
+    using productF_path_io_targets_reverse
+          [OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs @ xs')\<close> 
+              \<open>s1 \<in> io_targets M1 (initial M1) (vs @ xs')\<close> \<open>vs @ xs' \<in> L M2\<close> \<open>vs @ xs' \<in> L M1\<close> ]
   proof -
     have "\<forall>c f. c \<noteq> initial (f::('a, 'b, 'c) FSM) \<or> c \<in> nodes f"
       by blast
     then show ?thesis
-      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}\<close> assms(2) assms(3))
+      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; 
+                              initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> 
+                            \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}\<close> 
+          assms(2) assms(3))
   qed 
 
   have "io_targets PM (initial M2, initial M1) (vs') = {(s2, s1)}" 
-    using productF_path_io_targets_reverse[OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs')\<close> \<open>s1 \<in> io_targets M1 (initial M1) (vs')\<close> \<open>vs' \<in> L M2\<close> \<open>vs' \<in> L M1\<close> ]
+    using productF_path_io_targets_reverse
+          [OF \<open>productF M2 M1 FAIL PM\<close> \<open>s2 \<in> io_targets M2 (initial M2) (vs')\<close> 
+              \<open>s1 \<in> io_targets M1 (initial M1) (vs')\<close> \<open>vs' \<in> L M2\<close> \<open>vs' \<in> L M1\<close> ]
   proof -
     have "\<forall>c f. c \<noteq> initial (f::('a, 'b, 'c) FSM) \<or> c \<in> nodes f"
       by blast
     then show ?thesis
-      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs') = {(s2, s1)}\<close> assms(2) assms(3))
+      by (metis (no_types) \<open>\<lbrakk>observable M2; observable M1; well_formed M2; well_formed M1; 
+                              initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> 
+                            \<Longrightarrow> io_targets PM (initial M2, initial M1) (vs') = {(s2, s1)}\<close> 
+          assms(2) assms(3))
   qed
   have "io_targets PM (initial PM) (vs') = {(s2, s1)}"
-    by (metis (no_types) \<open>io_targets PM (initial M2, initial M1) vs' = {(s2, s1)}\<close> \<open>productF M2 M1 FAIL PM\<close> productF_simps(4))
+    by (metis (no_types) \<open>io_targets PM (initial M2, initial M1) vs' = {(s2, s1)}\<close> 
+        \<open>productF M2 M1 FAIL PM\<close> productF_simps(4))
    
 
   have "sequence_to_failure M1 M2 (vs@xs)" 
@@ -275,27 +340,40 @@ proof
   have "xs = xs' @ (drop (length xs') xs)"
     by (metis \<open>prefix xs' xsR\<close> append_assoc append_eq_conv_conj assms(7) prefixE)
   then have "io_targets PM (initial M2, initial M1) (vs @ xs' @ (drop (length xs') xs)) = {FAIL}"
-    by (metis \<open>productF M2 M1 FAIL PM\<close> \<open>sequence_to_failure M1 M2 (vs @ xs)\<close> assms(2) assms(3) productF_simps(4) sequence_to_failure_reaches_FAIL_ob)
+    by (metis \<open>productF M2 M1 FAIL PM\<close> \<open>sequence_to_failure M1 M2 (vs @ xs)\<close> assms(2) assms(3) 
+        productF_simps(4) sequence_to_failure_reaches_FAIL_ob)
   then have "io_targets PM (initial M2, initial M1) ((vs @ xs') @ (drop (length xs') xs)) = {FAIL}"    
     by auto
   have "io_targets PM (s2, s1) (drop (length xs') xs) = {FAIL}" 
-    using observable_io_targets_split[OF \<open>observable PM\<close> \<open>io_targets PM (initial M2, initial M1) ((vs @ xs') @ (drop (length xs') xs)) = {FAIL}\<close> \<open>io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}\<close>] by assumption
+    using observable_io_targets_split
+          [OF \<open>observable PM\<close> 
+              \<open>io_targets PM (initial M2,initial M1) ((vs @ xs') @ (drop (length xs') xs)) = {FAIL}\<close> 
+              \<open>io_targets PM (initial M2, initial M1) (vs @ xs') = {(s2, s1)}\<close>] 
+    by assumption
 
   have "io_targets PM (initial PM) (vs' @ (drop (length xs') xs)) = {FAIL}" 
-    using observable_io_targets_append[OF \<open>observable PM\<close> \<open>io_targets PM (initial PM) (vs') = {(s2, s1)}\<close> \<open>io_targets PM (s2, s1) (drop (length xs') xs) = {FAIL}\<close>] by assumption
+    using observable_io_targets_append
+          [OF \<open>observable PM\<close> \<open>io_targets PM (initial PM) (vs') = {(s2, s1)}\<close>
+              \<open>io_targets PM (s2, s1) (drop (length xs') xs) = {FAIL}\<close>] 
+    by assumption
 
   have "sequence_to_failure M1 M2 (vs' @ (drop (length xs') xs))"   
-    using sequence_to_failure_alt_def[OF \<open>io_targets PM (initial PM) (vs' @ (drop (length xs') xs)) = {FAIL}\<close> assms(2,3)] assms(5) by blast
+    using sequence_to_failure_alt_def
+          [OF \<open>io_targets PM (initial PM) (vs' @ (drop (length xs') xs)) = {FAIL}\<close> assms(2,3)] 
+          assms(5) 
+    by blast
 
   have "length (drop (length xs') xs) < length xs"
-    by (metis (no_types) \<open>xs = xs' @ drop (length xs') xs\<close> \<open>xs' \<noteq> []\<close> length_append length_greater_0_conv less_add_same_cancel2)   
+    by (metis (no_types) \<open>xs = xs' @ drop (length xs') xs\<close> \<open>xs' \<noteq> []\<close> length_append 
+        length_greater_0_conv less_add_same_cancel2)   
 
   have "vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
   proof -
     have "V'' \<in> Perm V M1" 
       using assms(6) unfolding N.simps by blast
 
-    then obtain f where f_def : "V'' = image f V \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)"
+    then obtain f where f_def : "V'' = image f V 
+                                  \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)"
       unfolding Perm.simps by blast
     then obtain v where "v \<in> V" "vs' = f v" 
       using \<open>vs' \<in> V''\<close> by auto
@@ -358,28 +436,35 @@ proof
   
     assume "\<not> M1 \<preceq> M2"
     obtain vs xs where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
-      using  assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_det_state_cover_ob[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>, of V] by blast 
+      using  assms(1) assms(2) assms(4) 
+             minimal_sequence_to_failure_extending_det_state_cover_ob[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>, of V]
+      by blast 
   
     then have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
               "sequence_to_failure M1 M2 (vs @ xs)" 
-              "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') \<and> length io' < length xs)"
+              "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') 
+                                                          \<and> length io' < length xs)"
       by auto
   
     then have "vs@xs \<in> L M1 - L M2" 
       by auto
   
     have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs@xs)}"
-      by (metis (full_types) Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> insertI1 language_state_for_inputs_map_fst)
+      by (metis (full_types) Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> insertI1 
+          language_state_for_inputs_map_fst)
   
     have "vs@xs \<notin> LS\<^sub>i\<^sub>n M2 (initial M2) {map fst (vs@xs)}"
-      by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_for_inputs_in_language_state subsetCE) 
+      by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_for_inputs_in_language_state 
+          subsetCE) 
   
     have "finite V" 
       using det_state_cover_finite assms(4,2) by auto
     then have "finite (?TS i)"
       using TS_finite[of V M2] assms(2) by auto
     then have "io_reduction_on M1 (?TS i) M2" 
-      using io_reduction_from_atc_io_reduction[OF \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>] by auto
+      using io_reduction_from_atc_io_reduction
+            [OF \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>] 
+      by auto
   
     have "map fst (vs@xs) \<notin> ?TS i"
     proof -
@@ -388,7 +473,8 @@ proof
       have "\<forall>P Pa ps. \<not> P \<subseteq> Pa \<or> (ps::('a \<times> 'b) list) \<in> Pa \<or> ps \<notin> P"
         by blast
       then show ?thesis
-        using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> \<open>io_reduction_on M1 (?TS i) M2\<close> language_state_for_inputs_in_language_state language_state_for_inputs_map_fst)
+        using f1 by (metis (no_types) \<open>vs @ xs \<in> L M1 - L M2\<close> \<open>io_reduction_on M1 (?TS i) M2\<close> 
+                     language_state_for_inputs_in_language_state language_state_for_inputs_map_fst)
     qed 
   
     have "map fst vs \<in> V"
@@ -404,7 +490,9 @@ proof
       using \<open>?stf \<notin> ?TS i\<close> by auto 
   
     have "mcp (?stfV @ ?stfX) V ?stfV"
-      by (metis \<open>map fst (vs @ xs) = map fst vs @ map fst xs\<close> \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1) assms(2) assms(4) minimal_sequence_to_failure_extending_mcp)
+      by (metis \<open>map fst (vs @ xs) = map fst vs @ map fst xs\<close> 
+          \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1) assms(2) assms(4) 
+          minimal_sequence_to_failure_extending_mcp)
   
     have "set ?stf \<subseteq> inputs M1"
       by (meson DiffD1 \<open>vs @ xs \<in> L M1 - L M2\<close> assms(1) language_state_inputs) 
@@ -416,30 +504,40 @@ proof
       by blast 
   
   
-    obtain xr j where "xr \<noteq> ?stfX" "prefix xr ?stfX" "Suc j \<le> i" "?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)"
-      using TS_non_containment_causes_final_suc[OF \<open>?stfV @ ?stfX \<notin> ?TS i\<close> \<open>mcp (?stfV @ ?stfX) V ?stfV\<close> \<open>set ?stfX \<subseteq> inputs M2\<close> assms(5,2)] by blast
+    obtain xr j where "xr \<noteq> ?stfX" 
+                      "prefix xr ?stfX" 
+                      "Suc j \<le> i" 
+                      "?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)"
+      using TS_non_containment_causes_final_suc[OF \<open>?stfV @ ?stfX \<notin> ?TS i\<close> 
+            \<open>mcp (?stfV @ ?stfX) V ?stfV\<close> \<open>set ?stfX \<subseteq> inputs M2\<close> assms(5,2)] 
+      by blast
   
     
     let ?yr = "take (length xr) (map snd xs)"
     have "length ?yr = length xr"
       using \<open>prefix xr (map fst xs)\<close> prefix_length_le by fastforce 
     have "(xr || ?yr) = take (length xr) xs"
-      by (metis (no_types, hide_lams) \<open>prefix xr (map fst xs)\<close> append_eq_conv_conj prefixE take_zip zip_map_fst_snd) 
+      by (metis (no_types, hide_lams) \<open>prefix xr (map fst xs)\<close> append_eq_conv_conj prefixE take_zip
+          zip_map_fst_snd) 
   
     have "prefix (vs@(xr || ?yr)) (vs@xs)"
       by (simp add: \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> take_is_prefix)
   
     have "xr = take (length xr) (map fst xs)"
-      by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> map_fst_zip take_map) 
+      by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> 
+          \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> map_fst_zip take_map) 
   
     have "vs@(xr || ?yr) \<in> L M1"
-      by (metis DiffD1 \<open>prefix (vs @ (xr || take (length xr) (map snd xs))) (vs @ xs)\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_prefix prefixE) 
+      by (metis DiffD1 \<open>prefix (vs @ (xr || take (length xr) (map snd xs))) (vs @ xs)\<close> 
+          \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_prefix prefixE) 
   
     then have "vs@(xr || ?yr) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV @ xr}"
-      by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> insertI1 language_state_for_inputs_map_fst map_append map_fst_zip) 
+      by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> insertI1 
+          language_state_for_inputs_map_fst map_append map_fst_zip) 
   
     have "length xr < length xs"
-      by (metis \<open>xr = take (length xr) (map fst xs)\<close> \<open>xr \<noteq> map fst xs\<close> not_le_imp_less take_all take_map)
+      by (metis \<open>xr = take (length xr) (map fst xs)\<close> \<open>xr \<noteq> map fst xs\<close> not_le_imp_less take_all 
+          take_map)
   
   
   
@@ -468,7 +566,8 @@ proof
       then have "{xs'} \<subseteq> ?TS i" 
         using \<open>xs' \<in> ?C (Suc j)\<close> by blast
       show "LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}" 
-        using io_reduction_on_subset[OF \<open>io_reduction_on M1 (?TS i) M2\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] by assumption
+        using io_reduction_on_subset[OF \<open>io_reduction_on M1 (?TS i) M2\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] 
+        by assumption
     qed
   
     ultimately have "(\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV@xr} .
@@ -517,7 +616,9 @@ proof
   
    
     have "?stfV = mcp' (map fst (vs @ (xr || take (length xr) (map snd xs)))) V"
-      by (metis (full_types) \<open>length (take (length xr) (map snd xs)) = length xr\<close> \<open>mcp (map fst vs @ map fst xs) V (map fst vs)\<close> \<open>prefix xr (map fst xs)\<close> map_append map_fst_zip mcp'_intro mcp_prefix_of_suffix) 
+      by (metis (full_types) \<open>length (take (length xr) (map snd xs)) = length xr\<close> 
+          \<open>mcp (map fst vs @ map fst xs) V (map fst vs)\<close> \<open>prefix xr (map fst xs)\<close> map_append 
+          map_fst_zip mcp'_intro mcp_prefix_of_suffix) 
   
     have "is_det_state_cover M2 V"
       using assms(4) by blast 
@@ -526,16 +627,18 @@ proof
     moreover have "finite V" 
       using det_state_cover_finite assms(4,2) by auto
     ultimately have "vs \<in> V''"  
-         "vs = mcp' (vs @ (xr || take (length xr) (map snd xs))) V''"
-      using N_mcp_prefix[OF \<open>?stfV = mcp' (map fst (vs @ (xr || take (length xr) (map snd xs)))) V\<close> \<open>V'' \<in> N (vs@(xr || ?yr)) M1 V\<close>, of M2] by simp+
+                    "vs = mcp' (vs @ (xr || take (length xr) (map snd xs))) V''"
+      using N_mcp_prefix[OF \<open>?stfV = mcp' (map fst (vs @ (xr || take (length xr) (map snd xs)))) V\<close> 
+            \<open>V'' \<in> N (vs@(xr || ?yr)) M1 V\<close>, of M2] 
+      by simp+
     
     have "vs' = vs"
-      by (metis (no_types) \<open>mcp (vs' @ xs') V'' vs'\<close> \<open>vs = mcp' (vs @ (xr || take (length xr) (map snd xs))) V''\<close> \<open>vs @ (xr || take (length xr) (map snd xs)) = vs' @ xs'\<close> mcp'_intro)
+      by (metis (no_types) \<open>mcp (vs' @ xs') V'' vs'\<close> 
+          \<open>vs = mcp' (vs @ (xr || take (length xr) (map snd xs))) V''\<close> 
+          \<open>vs @ (xr || take (length xr) (map snd xs)) = vs' @ xs'\<close> mcp'_intro)
      
     then have "xs' = (xr || ?yr)"
       using \<open>vs @ (xr || take (length xr) (map snd xs)) = vs' @ xs'\<close> by blast  
-  
-  
   
   
     have "V \<subseteq> ?TS i"
@@ -549,7 +652,7 @@ proof
     qed
       
     have "?stfV@xr \<in> ?C (Suc j)" 
-          using \<open>?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)\<close> unfolding RM.simps by blast
+      using \<open>?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)\<close> unfolding RM.simps by blast
   
   
   
@@ -565,8 +668,10 @@ proof
       then have "?TS j \<subseteq> ?TS i" 
         by (simp add: TS_subset) 
       then show ?thesis 
-        using atc_io_reduction_on_subset[OF \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>, of "?TS j"]
-        by (meson Un_subset_iff \<open>V \<subseteq> ?TS i\<close> \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close> atc_io_reduction_on_subset) 
+        using atc_io_reduction_on_subset
+              [OF \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>, of "?TS j"]
+        by (meson Un_subset_iff \<open>V \<subseteq> ?TS i\<close> \<open>atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2\<close>
+            atc_io_reduction_on_subset) 
     qed
   
     moreover have "finite (?TS j \<union> V)"
@@ -590,7 +695,10 @@ proof
         have "prefix (map fst (vs' @ p)) (map fst (vs' @ xs'))"
           by (simp add: \<open>prefix p xs' \<and> p \<noteq> xs'\<close> map_mono_prefix)
         have "prefix (map fst (vs' @ p)) (?stfV @ xr)"
-          using \<open>length (take (length xr) (map snd xs)) = length xr\<close> \<open>prefix (map fst (vs' @ p)) (map fst (vs' @ xs'))\<close> \<open>vs' = vs\<close> \<open>xs' = xr || take (length xr) (map snd xs)\<close> by auto
+          using \<open>length (take (length xr) (map snd xs)) = length xr\<close> 
+                \<open>prefix (map fst (vs' @ p)) (map fst (vs' @ xs'))\<close> 
+                \<open>vs' = vs\<close> \<open>xs' = xr || take (length xr) (map snd xs)\<close> 
+          by auto
         then have "prefix (map fst vs' @ map fst p) (?stfV @ xr)"
           by simp 
         then have "prefix (map fst p) xr"
@@ -608,25 +716,35 @@ proof
         qed
   
         have "mcp (map fst vs @ xr) V (map fst vs)"
-          using \<open>mcp (map fst vs @ map fst xs) V (map fst vs)\<close> \<open>prefix xr (map fst xs)\<close> mcp_prefix_of_suffix by blast 
+          using \<open>mcp (map fst vs @ map fst xs) V (map fst vs)\<close> \<open>prefix xr (map fst xs)\<close> 
+                mcp_prefix_of_suffix 
+          by blast 
   
         have "map fst vs @ map fst p \<in> TS M2 M1 \<Omega> V m (Suc j)"
-          using TS_prefix_containment[OF \<open>?stfV @ xr \<in> ?TS (Suc j)\<close> \<open>mcp (map fst vs @ xr) V (map fst vs)\<close> \<open>prefix (map fst p) xr\<close>] by assumption
+          using TS_prefix_containment[OF \<open>?stfV @ xr \<in> ?TS (Suc j)\<close> 
+                                         \<open>mcp (map fst vs @ xr) V (map fst vs)\<close> 
+                                         \<open>prefix (map fst p) xr\<close>] 
+          by assumption
    
   
         have "Suc (length xr) = (Suc j)" 
-          using C_index[OF \<open>?stfV@xr \<in> ?C (Suc j)\<close> \<open>mcp (map fst vs @ xr) V (map fst vs)\<close>] by assumption
+          using C_index[OF \<open>?stfV@xr \<in> ?C (Suc j)\<close> \<open>mcp (map fst vs @ xr) V (map fst vs)\<close>] 
+          by assumption
         
         have"Suc (length p) < (Suc j)"
         proof -
           have "map fst xs' = xr"
-            by (metis \<open>xr = take (length xr) (map fst xs)\<close> \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> \<open>xs' = xr || take (length xr) (map snd xs)\<close> take_map)
+            by (metis \<open>xr = take (length xr) (map fst xs)\<close> 
+                \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> 
+                \<open>xs' = xr || take (length xr) (map snd xs)\<close> take_map)
           then show ?thesis
-            by (metis (no_types) Suc_less_eq \<open>Suc (length xr) = Suc j\<close> \<open>prefix p xs' \<and> p \<noteq> xs'\<close> append_eq_conv_conj length_map nat_less_le prefixE prefix_length_le take_all)
+            by (metis (no_types) Suc_less_eq \<open>Suc (length xr) = Suc j\<close> \<open>prefix p xs' \<and> p \<noteq> xs'\<close> 
+                append_eq_conv_conj length_map nat_less_le prefixE prefix_length_le take_all)
         qed
   
         have "mcp (map fst vs @ map fst p) V (map fst vs)"
-          using \<open>mcp (map fst vs @ xr) V (map fst vs)\<close> \<open>prefix (map fst p) xr\<close> mcp_prefix_of_suffix by blast 
+          using \<open>mcp (map fst vs @ xr) V (map fst vs)\<close> \<open>prefix (map fst p) xr\<close> mcp_prefix_of_suffix 
+          by blast 
   
         then have "map fst vs @ map fst p \<in> ?C (Suc (length (map fst p)))" 
           using TS_index(2)[OF \<open>map fst vs @ map fst p \<in> TS M2 M1 \<Omega> V m (Suc j)\<close>] by auto
@@ -637,7 +755,9 @@ proof
           have "Suc (length p) \<in> {0..<Suc j}"
             using \<open>Suc (length p) < Suc j\<close> by force
           then show ?thesis
-            by (metis UN_I \<open>TS M2 M1 \<Omega> V m j = (\<Union>j\<in>set [0..<Suc j]. C M2 M1 \<Omega> V m j)\<close> \<open>map fst vs @ map fst p \<in> C M2 M1 \<Omega> V m (Suc (length (map fst p)))\<close> length_map set_upt)
+            by (metis UN_I \<open>TS M2 M1 \<Omega> V m j = (\<Union>j\<in>set [0..<Suc j]. C M2 M1 \<Omega> V m j)\<close> 
+                \<open>map fst vs @ map fst p \<in> C M2 M1 \<Omega> V m (Suc (length (map fst p)))\<close> 
+                length_map set_upt)
         qed 
   
         then show "map fst (vs' @ p) \<in> TS M2 M1 \<Omega> V m j \<union> V"
@@ -647,7 +767,11 @@ proof
   
     
     moreover have "vs' @ xs' \<in> L M2 \<inter> L M1"
-      by (metis (no_types, lifting) IntI RM_impl(2) \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}\<close> \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L\<^sub>i\<^sub>n M1 {map fst vs @ xr}\<close> language_state_for_inputs_in_language_state subsetCE)
+      by (metis (no_types, lifting) IntI RM_impl(2) 
+          \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}\<close> 
+          \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> 
+          \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L\<^sub>i\<^sub>n M1 {map fst vs @ xr}\<close> 
+          language_state_for_inputs_in_language_state subsetCE)
       
           
     
@@ -661,29 +785,39 @@ proof
       by (simp add: \<open>xr || take (length xr) (map snd xs) = take (length xr) xs\<close> take_is_prefix)
   
   
-    \<comment> \<open> show that furthermore neither Rep_Pre nor Rep_Cov holds \<close>
+    \<comment> \<open> show that furthermore neither Rep\_Pre nor Rep\_Cov holds \<close>
 
     have "\<not> Rep_Pre M2 M1 vs (xr || ?yr)"
-      using minimal_sequence_to_failure_extending_implies_Rep_Pre[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
+      using minimal_sequence_to_failure_extending_implies_Rep_Pre
+            [OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) 
+                \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) 
+                \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
       by assumption
     then have "\<not> Rep_Pre M2 M1 vs' xs'"
       using \<open>vs' = vs\<close> \<open>xs' = xr || ?yr\<close> by blast 
   
     have "\<not> Rep_Cov M2 M1 V'' vs (xr || ?yr)" 
-      using minimal_sequence_to_failure_extending_implies_Rep_Cov[OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
+      using minimal_sequence_to_failure_extending_implies_Rep_Cov
+            [OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) 
+                \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) 
+                \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
       by assumption
     then have "\<not> Rep_Cov M2 M1 V'' vs' xs'"
       using \<open>vs' = vs\<close> \<open>xs' = xr || ?yr\<close> by blast 
   
     have "vs'@xs' \<in> L M1"
-      using \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L M1\<close> \<open>vs' = vs\<close> \<open>xs' = xr || take (length xr) (map snd xs)\<close> by blast 
+      using \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L M1\<close> 
+            \<open>vs' = vs\<close> \<open>xs' = xr || take (length xr) (map snd xs)\<close> 
+      by blast 
     
   
     \<comment> \<open> therefore it is impossible to remove the prefix of the minimal sequence to a failure,
          as this would require M1 to have more than m states \<close>
     
     have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> card (nodes M1)"
-      using LB_count[OF \<open>vs'@xs' \<in> L M1\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> \<open>V'' \<in> Perm V M1\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''\<close> \<open>\<not> Rep_Pre M2 M1 vs' xs'\<close> \<open> \<not> Rep_Cov M2 M1 V'' vs' xs'\<close>]
+      using LB_count[OF \<open>vs'@xs' \<in> L M1\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> 
+                        \<open>V'' \<in> Perm V M1\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''\<close> 
+                        \<open>\<not> Rep_Pre M2 M1 vs' xs'\<close> \<open> \<not> Rep_Cov M2 M1 V'' vs' xs'\<close>]
       by assumption
     then have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> m" 
       using assms(3) by linarith
