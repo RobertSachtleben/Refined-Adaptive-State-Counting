@@ -1062,6 +1062,156 @@ qed
 
 
 
+lemma sequence_to_failure_reaches_FAIL :
+  assumes "sequence_to_failure M1 M2 io"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "productF M2 M1 FAIL PM"
+shows "FAIL \<in> io_targets PM (initial PM) io" 
+proof -
+  obtain p where "path PM (io || p) (initial PM) \<and> length p = length io \<and> target (io || p) (initial PM) = FAIL" 
+    using fail_reachable_by_sequence_to_failure[OF assms(1)]
+    using assms(2) assms(3) assms(4) by blast 
+  then show ?thesis by auto
+qed
+
+lemma sequence_to_failure_reaches_FAIL_ob :
+  assumes "sequence_to_failure M1 M2 io"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "productF M2 M1 FAIL PM"
+shows "io_targets PM (initial PM) io = {FAIL}"
+proof -
+  have "FAIL \<in> io_targets PM (initial PM) io" 
+    using sequence_to_failure_reaches_FAIL[OF assms(1-4)] by assumption
+  have "observable PM"
+    by (meson assms(2) assms(3) assms(4) observable_productF)
+  show ?thesis
+    by (meson \<open>FAIL \<in> io_targets PM (initial PM) io\<close> \<open>observable PM\<close> observable_io_target_is_singleton)
+qed
+
+
+lemma sequence_to_failure_alt_def :
+  assumes "io_targets PM (initial PM) io = {FAIL}"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "productF M2 M1 FAIL PM"
+shows "sequence_to_failure M1 M2 io"
+proof -
+  obtain p where "path PM (io || p) (initial PM)" "length p = length io" "target (io || p) (initial PM) = FAIL"
+    using assms(1) by (metis io_targets_elim singletonI) 
+  have "io \<noteq> []" 
+  proof 
+    assume "io = []"
+    then have "io_targets PM (initial PM) io = {initial PM}" 
+      by auto 
+    moreover have "initial PM \<noteq> FAIL" 
+    proof -
+      have "initial PM = (initial M2, initial M1)" 
+        using assms(4) by auto
+      then have "initial PM \<in> (nodes M2 \<times> nodes M1)"
+        by (simp add: FSM.nodes.initial) 
+      moreover have "FAIL \<notin> (nodes M2 \<times> nodes M1)"
+        using assms(4) by auto
+      ultimately show ?thesis 
+        by auto
+    qed
+    ultimately show "False"
+      using assms(1) by blast 
+  qed
+  then have "0 < length io" 
+    by blast
+  
+  have "target (butlast (io||p)) (initial PM) \<noteq> FAIL" using no_prefix_targets_FAIL[OF assms(4) \<open>path PM (io || p) (initial PM)\<close>, of "(length io) - 1" ]
+    by (metis (no_types, lifting) \<open>0 < length io\<close> \<open>length p = length io\<close> butlast_conv_take diff_less length_map less_numeral_extra(1) map_fst_zip)  
+  have "target (butlast (io||p)) (initial PM) \<in> nodes PM"
+    by (metis FSM.nodes.initial FSM.nodes_target FSM.path_append_elim \<open>path PM (io || p) (initial PM)\<close> append_butlast_last_id butlast.simps(1)) 
+  moreover have "nodes PM \<subseteq> insert FAIL (nodes M2 \<times> nodes M1)" 
+    using nodes_productF[OF _ _ assms(4)] assms(2) assms(3) by linarith 
+  ultimately have "target (butlast (io||p)) (initial PM) \<in> insert FAIL (nodes M2 \<times> nodes M1)"
+    by blast
+  
+  have "target (butlast (io||p)) (initial PM) \<in> (nodes M2 \<times> nodes M1)"
+    using \<open>target (butlast (io || p)) (initial PM) \<in> insert FAIL (nodes M2 \<times> nodes M1)\<close> \<open>target (butlast (io || p)) (initial PM) \<noteq> FAIL\<close> by blast
+  then obtain s2 s1 where "target (butlast (io||p)) (initial PM) = (s2,s1)" "s2 \<in> nodes M2" "s1 \<in> nodes M1" 
+    by blast
+
+  have "length (butlast io) = length (map fst (butlast p))" "length (map fst (butlast p)) = length (map snd (butlast p))"
+    by (simp add: \<open>length p = length io\<close>)+
+
+  have "path PM (butlast (io||p)) (initial PM)"
+    by (metis FSM.path_append_elim \<open>path PM (io || p) (initial PM)\<close> append_butlast_last_id butlast.simps(1)) 
+  then have "path PM ((butlast io) || (map fst (butlast p)) || (map snd (butlast p))) (initial M2, initial M1)"
+    using \<open>length p = length io\<close> assms(4) by auto 
+  have "target (butlast io || map fst (butlast p) || map snd (butlast p)) (initial M2, initial M1) \<noteq> FAIL"
+    using \<open>length p = length io\<close> \<open>target (butlast (io || p)) (initial PM) \<noteq> FAIL\<close> assms(4) by auto  
+  
+  have "path M2 (butlast io || map fst (butlast p)) (initial M2) \<and>
+          path M1 (butlast io || map snd (butlast p)) (initial M1) \<or>
+        target (butlast io || map fst (butlast p) || map snd (butlast p)) (initial M2, initial M1) = FAIL" 
+    using productF_path_reverse[OF \<open>length (butlast io) = length (map fst (butlast p))\<close> 
+                                   \<open>length (map fst (butlast p)) = length (map snd (butlast p))\<close> 
+                                   assms(4) _ _ 
+                                   \<open>path PM ((butlast io) || (map fst (butlast p)) || (map snd (butlast p))) (initial M2, initial M1)\<close> _ _]
+    using assms(2) assms(3) by auto
+  then have "path M2 (butlast io || map fst (butlast p)) (initial M2)"
+            "path M1 (butlast io || map snd (butlast p)) (initial M1)"
+    using \<open>target (butlast io || map fst (butlast p) || map snd (butlast p)) (initial M2, initial M1) \<noteq> FAIL\<close> by auto
+  
+  then have "butlast io \<in> L M2 \<inter> L M1"
+    using \<open>length (butlast io) = length (map fst (butlast p))\<close> by auto 
+
+  have "path PM (io || map fst p || map snd p) (initial M2, initial M1)"
+    using \<open>path PM (io || p) (initial PM)\<close> assms(4) by auto 
+  have "length io = length (map fst p)"
+       "length (map fst p) = length (map snd p)"
+    by (simp add: \<open>length p = length io\<close>)+
+    
+  obtain p1' where "path M1 (io || p1') (initial M1) \<and> length io = length p1'"
+    using productF_path_reverse_ob[OF \<open>length io = length (map fst p)\<close> \<open>length (map fst p) = length (map snd p)\<close> assms(4) _ _ \<open>path PM (io || map fst p || map snd p) (initial M2, initial M1)\<close>]
+    using assms(2) assms(3) by blast 
+  then have "io \<in> L M1" 
+    by auto
+    
+
+
+  moreover have "io \<notin> L M2"
+  proof  
+    assume "io \<in> L M2" \<comment> \<open> only possible if io does not target FAIL \<close>
+    then obtain p2' where "path M2 (io || p2') (initial M2)" "length io = length p2'" 
+      by auto
+    then have "length p2' = length p1'"
+      using \<open>path M1 (io || p1') (initial M1) \<and> length io = length p1'\<close> by auto 
+      
+    have "path PM (io || p2' || p1') (initial M2, initial M1)" 
+      using productF_path_inclusion[OF \<open>length io = length p2'\<close> \<open>length p2' = length p1'\<close> assms(4), of "initial M2" "initial M1"]
+      by (meson FSM.nodes.initial \<open>\<lbrakk>well_formed M2; well_formed M1; path M2 (io || p2') (initial M2) \<and> path M1 (io || p1') (initial M1); initial M2 \<in> nodes M2; initial M1 \<in> nodes M1\<rbrakk> \<Longrightarrow> path PM (io || p2' || p1') (initial M2, initial M1)\<close> \<open>path M1 (io || p1') (initial M1) \<and> length io = length p1'\<close> \<open>path M2 (io || p2') (initial M2)\<close> assms(2) assms(3))
+    
+    have "target (io || p2' || p1') (initial M2, initial M1) \<in> (nodes M2 \<times> nodes M1)"
+      using \<open>length io = length p2'\<close> \<open>path M1 (io || p1') (initial M1) \<and> length io = length p1'\<close> \<open>path M2 (io || p2') (initial M2)\<close> by auto 
+    moreover have "FAIL \<notin> (nodes M2 \<times> nodes M1)"
+      using assms(4) by auto
+    ultimately have "target (io || p2' || p1') (initial M2, initial M1) \<noteq> FAIL" 
+      by blast
+    
+    have "length io = length (p2' || p1')"
+      by (simp add: \<open>length io = length p2'\<close> \<open>length p2' = length p1'\<close>) 
+    have "target (io || p2' || p1') (initial M2, initial M1) \<in> io_targets PM (initial M2, initial M1) io"  
+      using \<open>path PM (io || p2' || p1') (initial M2, initial M1)\<close> \<open>length io = length (p2' || p1')\<close>
+      unfolding io_targets.simps by blast
+    
+    have "io_targets PM (initial PM) io \<noteq> {FAIL}"
+      using \<open>target (io || p2' || p1') (initial M2, initial M1) \<in> io_targets PM (initial M2, initial M1) io\<close> \<open>target (io || p2' || p1') (initial M2, initial M1) \<noteq> FAIL\<close> assms(4) by auto
+    then show "False"
+      using assms(1) by blast  
+  qed
+
+  ultimately have "io \<in> L M1 - L M2" 
+    by blast
+
+  show "sequence_to_failure M1 M2 io" 
+    using \<open>butlast io \<in> L M2 \<inter> L M1\<close> \<open>io \<in> L M1 - L M2\<close> by auto
+qed
 
 
 

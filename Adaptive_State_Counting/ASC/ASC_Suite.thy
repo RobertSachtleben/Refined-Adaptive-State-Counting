@@ -93,6 +93,53 @@ proof (rule ccontr)
   then show "False" using assms(1) by auto
 qed
 
+lemma minimal_sequence_to_failure_extending_mcp :
+  assumes "OFSM M1"
+  and     "OFSM M2"
+  and     "is_det_state_cover M2 V"
+  and     "minimal_sequence_to_failure_extending V M1 M2 vs xs"
+shows "mcp (map fst (vs@xs)) V (map fst vs)"
+proof (rule ccontr)
+  assume "\<not> mcp (map fst (vs @ xs)) V (map fst vs)"
+  moreover have "prefix (map fst vs) (map fst (vs @ xs))"  
+    by auto
+  moreover have "(map fst vs) \<in> V"
+    using mstfe_prefix_input_in_V assms(4) by auto
+  ultimately obtain v' where "prefix v' (map fst (vs @ xs))" 
+                             "v' \<in> V" 
+                             "length v' > length (map fst vs)"
+    using leI by auto 
+
+  then obtain x' where "(map fst (vs@xs)) = v'@x'"
+    using prefixE by blast 
+
+  have "vs@xs \<in> L M1 - L M2" 
+    using assms(4) unfolding minimal_sequence_to_failure_extending.simps sequence_to_failure.simps by blast
+  then have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs@xs)}"
+    by (meson DiffE insertI1 language_state_for_inputs_map_fst) 
+  have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {v'@x'}"
+    using \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}\<close> by presburger
+   
+  let ?vs' = "take (length v') (vs@xs)"
+  let ?xs' = "drop (length v') (vs@xs)"
+  
+  have "vs@xs = ?vs'@?xs'"
+    by (metis append_take_drop_id) 
+
+  have "?vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V"
+    by (metis (no_types) DiffE \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>v' \<in> V\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> append_eq_conv_conj append_take_drop_id language_state_for_inputs_map_fst language_state_prefix take_map) 
+    
+  have "sequence_to_failure M1 M2 (?vs' @ ?xs')"
+    by (metis (full_types) \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> assms(4) minimal_sequence_to_failure_extending.simps) 
+
+  have "length ?xs' < length xs"
+    using \<open>length (map fst vs) < length v'\<close> \<open>prefix v' (map fst (vs @ xs))\<close> \<open>vs @ xs = take (length v') (vs @ xs) @ drop (length v') (vs @ xs)\<close> prefix_length_le by fastforce 
+  
+  show "False"
+    by (meson \<open>length (drop (length v') (vs @ xs)) < length xs\<close> \<open>sequence_to_failure M1 M2 (take (length v') (vs @ xs) @ drop (length v') (vs @ xs))\<close> \<open>take (length v') (vs @ xs) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close> assms(4) minimal_sequence_to_failure_extending.elims(2)) 
+
+qed
+
 
 subsection {* Function N *}
 
@@ -110,7 +157,7 @@ lemma N_nonempty :
   assumes "is_det_state_cover M2 V"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   and     "io \<in> L M1"
 shows "N io M1 V \<noteq> {}"
 proof -
@@ -1160,6 +1207,9 @@ iteration.
 
 Such a final iteration exists and is at most equal to the number of states of M2 multiplied by the
 upper bound on the number of states of M1.
+
+Furthermore, for any sequence not contained in the final iteration of the test suite, a prefix of
+this sequence must be contained in the latter.
 \<close>
 
                                                   
@@ -1169,7 +1219,7 @@ abbreviation "final_iteration M2 M1 \<Omega> V m i \<equiv> TS M2 M1 \<Omega> V 
 lemma final_iteration_ex :
   assumes "OFSM M1"
   and     "OFSM M2"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
   shows "final_iteration M2 M1 \<Omega> V m (Suc ( |M2| * m))"

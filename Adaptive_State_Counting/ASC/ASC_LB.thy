@@ -97,20 +97,12 @@ text \<open>
 The following predicates are used to combine often repeated assumption.
 \<close>
 
-abbreviation "fault_domain M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
+abbreviation "asc_fault_domain M2 M1 m \<equiv> (inputs M2 = inputs M1 \<and> card (nodes M1) \<le> m )"
 
-lemma fault_domain_props[elim!] :
-  assumes "fault_domain M2 M1 m"
+lemma asc_fault_domain_props[elim!] :
+  assumes "asc_fault_domain M2 M1 m"
   shows "inputs M2 = inputs M1"
         "card (nodes M1) \<le> m"using assms by auto
-
-abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
-
-lemma OFSM_props[elim!] :
-  assumes "OFSM M"
-shows "well_formed M" 
-      "observable M" 
-      "completely_specified M" using assms by auto
 
 abbreviation
   "test_tools M2 M1 FAIL PM V \<Omega> \<equiv> (
@@ -121,7 +113,7 @@ abbreviation
 
 lemma test_tools_props[elim] :
   assumes "test_tools M2 M1 FAIL PM V \<Omega>"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   shows "productF M2 M1 FAIL PM"
         "is_det_state_cover M2 V"
         "applicable_set M2 \<Omega>"
@@ -130,7 +122,7 @@ proof -
   show "productF M2 M1 FAIL PM" using assms(1) by blast
   show "is_det_state_cover M2 V" using assms(1) by blast
   show "applicable_set M2 \<Omega>" using assms(1) by blast
-  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using fault_domain_props(1)[OF assms(2)] by simp
+  then show "applicable_set M1 \<Omega>" unfolding applicable_set.simps applicable.simps using asc_fault_domain_props(1)[OF assms(2)] by simp
 qed
 
 
@@ -1719,7 +1711,7 @@ lemma LB_count_helper_RP_card_union_sum :
   assumes "(vs @ xs) \<in> L M2 \<inter> L M1"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
   and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
@@ -1785,7 +1777,7 @@ lemma LB_count_helper_RP_disjoint_M1_union :
   assumes "(vs @ xs) \<in> L M2 \<inter> L M1"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
   and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
@@ -1870,7 +1862,7 @@ lemma LB_count_helper_LB1 :
   assumes "(vs @ xs) \<in> L M2 \<inter> L M1"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
   and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
@@ -1936,7 +1928,7 @@ lemma LB_count :
 assumes "(vs @ xs) \<in> L M1"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
   and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
@@ -2048,7 +2040,7 @@ lemma LB_usage :
 assumes "(vs @ xs) \<in> L M1"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "fault_domain M2 M1 m"
+  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
   and     "Prereq M2 M1 vs xs T S \<Omega> V V''"

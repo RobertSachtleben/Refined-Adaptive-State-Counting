@@ -427,6 +427,77 @@ notation
   atc_io_reduction_on_sets ("(_ \<preceq>\<lbrakk>_._\<rbrakk> _)" )
 
 
+
+lemma io_reduction_from_atc_io_reduction :
+  assumes "atc_io_reduction_on_sets M1 T \<Omega> M2"
+  and     "finite T"
+  shows "io_reduction_on M1 T M2" 
+using assms(2,1) proof (induction T)
+  case empty
+  then show ?case by auto
+next
+  case (insert t T)
+  then have "atc_io_reduction_on M1 M2 t \<Omega>"
+    by auto
+  then have "LS\<^sub>i\<^sub>n M1 (initial M1) {t} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {t}"
+    using atc_io_reduction_on.simps by blast
+
+  have "LS\<^sub>i\<^sub>n M1 (initial M1) T \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) T" 
+    using insert.IH
+  proof -
+    have "atc_io_reduction_on_sets M1 T \<Omega> M2"
+      by (meson contra_subsetD insert.prems atc_io_reduction_on_sets.simps subset_insertI)
+    then show ?thesis
+      using insert.IH by blast
+  qed
+  then have "LS\<^sub>i\<^sub>n M1 (initial M1) T \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
+    by (meson insert_iff language_state_for_inputs_in_language_state language_state_for_inputs_map_fst language_state_for_inputs_map_fst_contained subsetCE subsetI) 
+  moreover have "LS\<^sub>i\<^sub>n M1 (initial M1) {t} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
+  proof -
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    then have "\<forall>P Pa. pps Pa P \<in> P \<and> pps Pa P \<notin> Pa \<or> P \<subseteq> Pa"
+      by blast
+    moreover
+    { assume "map fst (pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t})) \<notin> insert t T"
+      then have "pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t}) \<notin> L\<^sub>i\<^sub>n M1 {t} \<or> pps (L\<^sub>i\<^sub>n M2 (insert t T)) (L\<^sub>i\<^sub>n M1 {t}) \<in> L\<^sub>i\<^sub>n M2 (insert t T)"
+        by (metis (no_types) insertI1 language_state_for_inputs_map_fst_contained singletonD) }
+    ultimately show ?thesis
+      by (meson \<open>L\<^sub>i\<^sub>n M1 {t} \<subseteq> L\<^sub>i\<^sub>n M2 {t}\<close> language_state_for_inputs_in_language_state language_state_for_inputs_map_fst set_rev_mp)
+  qed
+    
+    
+     
+  ultimately show ?case
+  proof -
+    have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"
+      by blast
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    moreover
+    { assume "pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<notin> LS\<^sub>i\<^sub>n M1 (initial M1) {t}"
+      moreover
+      { assume "map fst (pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T))) \<notin> {t}"
+        then have "map fst (pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T))) \<noteq> t"
+          by blast
+        then have "pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<notin> LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T) \<or> pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<in> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
+          using f1 by (meson \<open>LS\<^sub>i\<^sub>n M1 (initial M1) T \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)\<close> insertE language_state_for_inputs_in_language_state language_state_for_inputs_map_fst language_state_for_inputs_map_fst_contained) }
+      ultimately have "io_reduction_on M1 (insert t T) M2 \<or> pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<notin> LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T) \<or> pps (LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)) (LS\<^sub>i\<^sub>n M1 (initial M1) (insert t T)) \<in> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)"
+        using f1 by (meson language_state_for_inputs_in_language_state language_state_for_inputs_map_fst) }
+      ultimately show ?thesis
+        using f1 by (meson \<open>LS\<^sub>i\<^sub>n M1 (initial M1) {t} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) (insert t T)\<close> subsetI)
+  qed 
+qed
+    
+lemma atc_io_reduction_on_subset :
+  assumes "atc_io_reduction_on_sets M1 T \<Omega> M2"
+  and     "T' \<subseteq> T"
+shows "atc_io_reduction_on_sets M1 T' \<Omega> M2"
+  using assms unfolding atc_io_reduction_on_sets.simps by blast
+
+
 lemma atc_reaction_reduction[intro] :
   assumes ls : "language_state M1 q1 \<subseteq> language_state M2 q2"
   and     el1 : "q1 \<in> nodes M1"

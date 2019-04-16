@@ -266,6 +266,13 @@ fun well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
     \<and> inputs M \<noteq> {}
     \<and> outputs M \<noteq> {})"
 
+abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
+
+lemma OFSM_props[elim!] :
+  assumes "OFSM M"
+shows "well_formed M" 
+      "observable M" 
+      "completely_specified M" using assms by auto
 
 lemma set_of_succs_finite :
   assumes "well_formed M"
@@ -323,6 +330,18 @@ lemma path_state_containment :
   and     "q \<in> nodes M"
 shows "set (map snd p) \<subseteq> nodes M"
   using assms by (metis FSM.nodes_states states_alt_def) 
+
+
+lemma language_state_inputs :
+  assumes "well_formed M"
+  and     "io \<in> language_state M q"
+shows "set (map fst io) \<subseteq> inputs M"
+proof -
+  obtain tr where "path M (io || tr) q" "length tr = length io" 
+    using assms(2) by auto
+  show ?thesis 
+    by (metis (no_types) \<open>\<And>thesis. (\<And>tr. \<lbrakk>path M (io || tr) q; length tr = length io\<rbrakk> \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> assms(1) map_fst_zip path_input_containment)
+qed 
 
 
 lemma set_of_paths_finite : 
@@ -547,6 +566,15 @@ Notably, for any observable FSM, this set contains at most one state.
 
 fun io_targets :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'state set" where
   "io_targets M q io = { target (io || tr) q | tr . path M (io || tr) q \<and> length io = length tr }"
+
+lemma io_target_implies_L :
+  assumes "q \<in> io_targets M (initial M) io"
+  shows "io \<in> L M" 
+proof -
+  obtain tr where "path M (io || tr) (initial M)" "length tr = length io" "target (io || tr) (initial M) = q" 
+    using assms by auto
+  then show ?thesis by auto
+qed
 
 lemma io_target_from_path :
   assumes "path M (w || tr) q"
@@ -1185,7 +1213,64 @@ proof -
     using \<open>(take n xs) || (take n ys) \<in> language_state M q\<close> unfolding language_state_for_input.simps by blast
 qed
 
+lemma language_state_for_inputs_prefix :
+  assumes "vs@xs \<in> L\<^sub>i\<^sub>n M1 {vs'@xs'}"
+  and "length vs = length vs'"
+shows "vs \<in> L\<^sub>i\<^sub>n M1 {vs'}"
+proof -
+  have "vs@xs \<in> L M1"
+    using assms(1) by auto
+  then have "vs \<in> L M1"
+    by (meson language_state_prefix) 
+  then have "vs \<in> L\<^sub>i\<^sub>n M1 {map fst vs}"
+    by (meson insertI1 language_state_for_inputs_map_fst)
+  moreover have "vs' = map fst vs"
+    by (metis append_eq_append_conv assms(1) assms(2) language_state_for_inputs_map_fst_contained length_map map_append singletonD)
+  ultimately show ?thesis 
+    by blast
+qed
 
+lemma io_reduction_on_subset :
+  assumes "io_reduction_on M1 T M2"
+  and     "T' \<subseteq> T"
+shows "io_reduction_on M1 T' M2"
+proof (rule ccontr)
+  assume "\<not> io_reduction_on M1 T' M2"
+  then obtain xs' where "xs' \<in> T'" "\<not> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}"
+  proof -
+    have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"
+      by blast
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    then have f2: "\<forall>P Pa. pps Pa P \<in> P \<and> pps Pa P \<notin> Pa \<or> P \<subseteq> Pa"
+      by (meson subsetI)
+    have f3: "\<forall>ps f c A. (ps::('a \<times> 'b) list) \<notin> LS\<^sub>i\<^sub>n f (c::'c) A \<or> map fst ps \<in> A"
+      by (meson language_state_for_inputs_map_fst_contained)
+    then have "LS\<^sub>i\<^sub>n M1 (initial M1) T' \<subseteq> LS\<^sub>i\<^sub>n M1 (initial M1) T"
+      using f2 by (meson assms(2) language_state_for_inputs_in_language_state language_state_for_inputs_map_fst set_rev_mp)
+    then show ?thesis
+      using f3 f2 f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> assms(1) language_state_for_inputs_in_language_state language_state_for_inputs_map_fst)
+  qed 
+  then have "xs' \<in> T" 
+    using assms(2) by blast
+
+  have "\<not> io_reduction_on M1 T M2"
+  proof -
+    have f1: "\<forall>as. as \<notin> T' \<or> as \<in> T"
+      using assms(2) by auto
+    obtain pps :: "('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list set \<Rightarrow> ('a \<times> 'b) list" where
+      "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+      by moura
+    then have "\<forall>P Pa. (\<not> P \<subseteq> Pa \<or> (\<forall>ps. ps \<notin> P \<or> ps \<in> Pa)) \<and> (P \<subseteq> Pa \<or> pps Pa P \<in> P \<and> pps Pa P \<notin> Pa)"
+      by blast
+    then show ?thesis
+      using f1 by (meson \<open>\<not> io_reduction_on M1 T' M2\<close> language_state_for_inputs_in_language_state language_state_for_inputs_map_fst language_state_for_inputs_map_fst_contained)
+  qed 
+
+  then show "False" 
+    using assms(1) by auto
+qed
 
 subsection {* Sequences to failures *}
 
@@ -1288,6 +1373,47 @@ proof
       using assms by auto
   qed
 qed
+
+lemma sequence_to_failure_non_nil : 
+  assumes "sequence_to_failure M1 M2 xs"
+  shows "xs \<noteq> []" 
+proof 
+  assume "xs = []"
+  then have "xs \<in> L M1 \<inter> L M2" 
+    by auto
+  then show "False" using assms by auto
+qed
+
+lemma sequence_to_failure_from_arbitrary_failure :
+  assumes "vs@xs \<in> L M1 - L M2"
+    and "vs \<in> L M2 \<inter> L M1"
+shows "\<exists> xs' . prefix xs' xs \<and> sequence_to_failure M1 M2 (vs@xs')"
+using assms proof (induction xs rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc x xs)
+
+  have "vs @ xs \<in> L M1"
+    using snoc.prems(1) by (metis Diff_iff append.assoc language_state_prefix) 
+
+  show ?case
+  proof (cases "vs@xs \<in> L M2")
+    case True
+    have "butlast (vs@xs@[x]) \<in> L M2 \<inter> L M1" 
+      using True \<open>vs @ xs \<in> L M1\<close> by (simp add: butlast_append) 
+    then show ?thesis
+      using sequence_to_failure.simps snoc.prems by blast
+  next
+    case False
+    then have "vs@xs \<in> L M1 - L M2"
+      using \<open>vs @ xs \<in> L M1\<close> by blast
+    then obtain xs' where "prefix xs' xs" "sequence_to_failure M1 M2 (vs@xs')"
+      using snoc.prems(2) snoc.IH by blast
+    then show ?thesis
+      using prefix_snoc by auto 
+  qed 
+qed  
 
 
 text \<open>
@@ -1576,7 +1702,81 @@ qed
 
 
 
+subsection {* Complete test suite derived from the product machine *}
 
+text \<open>
+The classical result of testing FSMs for language inclusion :
+Any failure can be observed by a sequence of length at
+most n*m where n is the number of states of the reference 
+model (here FSM M2) and m is an upper bound on the number
+of states of the SUT (here FSM M1).
+\<close>
+
+lemma product_suite_soundness :
+  assumes "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M1"
+  and     "observable M2"
+  and     "inputs M2 = inputs M1"
+  and     "|M1| \<le> m "
+shows     "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> M1 \<preceq>\<lbrakk>{xs . set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<rbrakk> M2" 
+  (is "\<not> M1 \<preceq> M2 \<longrightarrow> \<not> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2")
+proof 
+  assume "\<not> M1 \<preceq> M2"
+  obtain stf where "sequence_to_failure M1 M2 stf \<and> length stf \<le> |M2| * |M1|"
+    using sequence_to_failure_length[OF assms(1-4) \<open>\<not> M1 \<preceq> M2\<close>] by blast
+  then have "sequence_to_failure M1 M2 stf" "length stf \<le> |M2| * |M1|"
+    by auto
+
+  then have "stf \<in> L M1"
+    by auto
+  let ?xs = "map fst stf"
+  have "set ?xs \<subseteq> inputs M1"
+    by (meson \<open>stf \<in> L M1\<close> assms(1) language_state_inputs)
+  then have "set ?xs \<subseteq> inputs M2"
+    using assms(5) by auto
+ 
+  have "length ?xs \<le> |M2| * |M1|"
+    using \<open>length stf \<le> |M2| * |M1|\<close> by auto 
+  have "length ?xs \<le> |M2| * m"
+  proof -
+    show ?thesis
+      by (metis (no_types) \<open>length (map fst stf) \<le> |M2| * |M1|\<close> \<open>|M1| \<le> m\<close> dual_order.trans mult.commute mult_le_mono1)
+  qed 
+
+  have "stf \<in> L\<^sub>i\<^sub>n M1 {?xs}"
+    by (meson \<open>stf \<in> L M1\<close> insertI1 language_state_for_inputs_map_fst)
+  have "?xs \<in> ?TS" 
+    using \<open>set ?xs \<subseteq> inputs M2\<close> \<open>length ?xs \<le> |M2| * m\<close> by blast
+  have "stf \<in> L\<^sub>i\<^sub>n M1 ?TS"
+    by (metis (no_types, lifting) \<open>map fst stf \<in> {xs. set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<close> \<open>stf \<in> L M1\<close> language_state_for_inputs_map_fst) 
+
+  have "stf \<notin> L M2"
+    using \<open>sequence_to_failure M1 M2 stf\<close> by auto
+  then have "stf \<notin> L\<^sub>i\<^sub>n M2 ?TS"
+    by auto 
+    
+
+  show "\<not> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2"
+    using \<open>stf \<in> L\<^sub>i\<^sub>n M1 ?TS\<close> \<open>stf \<notin> L\<^sub>i\<^sub>n M2 ?TS\<close> by blast
+qed
+
+
+lemma product_suite_completeness :
+  assumes "well_formed M1"
+  and     "well_formed M2"
+  and     "observable M1"
+  and     "observable M2"
+  and     "inputs M2 = inputs M1"
+  and     "|M1| \<le> m "
+shows     "M1 \<preceq> M2 \<longleftrightarrow> M1 \<preceq>\<lbrakk>{xs . set xs \<subseteq> inputs M2 \<and> length xs \<le> |M2| * m}\<rbrakk> M2" 
+  (is "M1 \<preceq> M2 \<longleftrightarrow> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2")
+proof 
+  show "M1 \<preceq> M2 \<Longrightarrow> M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2" \<comment> \<open>soundness holds trivially\<close>
+    unfolding language_state_for_inputs.simps io_reduction.simps by blast
+  show "M1 \<preceq>\<lbrakk>?TS\<rbrakk> M2 \<Longrightarrow> M1 \<preceq> M2"
+    using product_suite_soundness[OF assms] by auto
+qed
 
 
 
