@@ -4,10 +4,13 @@ begin
 
 section {* Correctness of the Adaptive State Counting Algorithm in Hoare-Logic *}
 
+text \<open>
+In this section we give an example implementation of the adaptive state counting algorithm in a
+simple WHILE-language and prove that this implementation produces a certain output if and only if
+input FSM M1 is a reduction of input FSM M2.
+\<close>
 
-lemma language_state_for_inputs_union : 
-  shows "LS\<^sub>i\<^sub>n M q T1 \<union> LS\<^sub>i\<^sub>n M q T2 = LS\<^sub>i\<^sub>n M q (T1 \<union> T2)"
-  unfolding language_state_for_inputs.simps by blast
+
 
 lemma atc_io_reduction_on_sets_from_obs :
   assumes "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
@@ -93,6 +96,14 @@ next
   qed
 qed
   
+lemma atc_io_reduction_on_sets_alt_def :
+  shows "atc_io_reduction_on_sets M1 T \<Omega> M2 = 
+           (L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T 
+            \<and> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) 
+                \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>))"
+  using atc_io_reduction_on_sets_to_obs[of M1 T \<Omega> M2] 
+  and   atc_io_reduction_on_sets_from_obs[of M1 T M2 \<Omega>] 
+  by blast
 
 
         
@@ -574,26 +585,11 @@ next
 
 
 
-
-
-
-
-
-
-
-
-
-  
-
-
-
   have "0 < iter + 1"
     using \<open>0 < iter\<close> by simp
   have "tsN \<union> cN = TS M2 M1 \<Omega> V m (iter + 1 - 1)"
     using tsN_calc by simp
 
-
-  (* putting the above results together *)
   
 
   from \<open>0 < iter + 1\<close>

@@ -1131,7 +1131,8 @@ proof
   proof -
     assume ?PrefJustContained
     then obtain xc where "xc \<noteq> xs" "prefix xc xs" "vs @ xc \<in> ?C i - ?RM i" by blast
-    (* only possible if xc = xs *)
+    
+    \<comment> \<open> only possible if xc = xs \<close>
     then show "False"
       by (metis C_index DiffD1 Suc_less_eq TS_index(1) \<open>vs @ xs \<in> ?TS i\<close> assms(1) leD le_neq_trans mcp_prefix_of_suffix prefix_length_le prefix_length_prefix prefix_order.dual_order.antisym prefix_order.order_refl) 
   qed

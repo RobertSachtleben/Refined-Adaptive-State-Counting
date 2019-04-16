@@ -5,16 +5,27 @@ begin
 
 section {* Example product machines and properties *}
 
+text \<open>
+This section provides example FSMs and shows that the assumptions on the inputs of the adaptive
+state counting algorithm are not vacuous.
+\<close>
 
-(* helper function to more easily create FSMs, only requiring a set of transition-tuples 
-   and an initial state instead of, in particular, the explicit successor function *)
+
+subsection {* Constructing FSMs from transition relations *}
+
+text \<open>
+This subsection provides a function to more easily create FSMs, only requiring a set of 
+transition-tuples and an initial state instead of, in particular, the explicit successor function.
+\<close>
+
+
 fun from_rel :: "('state \<times> ('in \<times> 'out) \<times> 'state) set \<Rightarrow> 'state \<Rightarrow> ('in, 'out, 'state) FSM" where
 "from_rel rel q0 = \<lparr> succ = \<lambda> io p . { q . (p,io,q) \<in> rel }, 
                     inputs = image (fst \<circ> fst \<circ> snd) rel, 
                     outputs = image (snd \<circ> fst \<circ> snd) rel, 
                     initial = q0 \<rparr>"
 
-(* functions for checking whether a set of transition-tuples constitutes an OFSM *)
+
 
 lemma nodes_from_rel : "nodes (from_rel rel q0) \<subseteq> insert q0 (image (snd \<circ> snd) rel)" 
   (is "nodes ?M \<subseteq> insert q0 (image (snd \<circ> snd) rel)")
@@ -131,8 +142,9 @@ lemma OFMS_from_rel :
 
 
 
+subsection {* Example FSMs and properties *}
 
-(* example FSMs and properties  *)
+
 
 abbreviation "M\<^sub>S_rel :: (nat\<times>(nat\<times>nat)\<times>nat) set \<equiv> {(0,(0,0),1), (0,(0,1),1), (1,(0,2),1)}"
 abbreviation "M\<^sub>S :: (nat,nat,nat) FSM \<equiv> from_rel M\<^sub>S_rel 0"
@@ -377,7 +389,7 @@ lemma example_test_tools : "test_tools M\<^sub>S M\<^sub>I FAIL\<^sub>I PM\<^sub
 
 
 
-(* proofs that the precondition of the refined adaptive state counting algorithm are not vacuous *)
+
 
 lemma OFSM_not_vacuous : 
   "\<exists> M :: (nat,nat,nat) FSM . OFSM M"

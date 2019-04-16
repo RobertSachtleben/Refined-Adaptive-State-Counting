@@ -1230,6 +1230,10 @@ proof -
     by blast
 qed
 
+lemma language_state_for_inputs_union : 
+  shows "LS\<^sub>i\<^sub>n M q T1 \<union> LS\<^sub>i\<^sub>n M q T2 = LS\<^sub>i\<^sub>n M q (T1 \<union> T2)"
+  unfolding language_state_for_inputs.simps by blast
+
 lemma io_reduction_on_subset :
   assumes "io_reduction_on M1 T M2"
   and     "T' \<subseteq> T"
