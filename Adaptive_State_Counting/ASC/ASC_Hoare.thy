@@ -7,7 +7,7 @@ section {* Correctness of the Adaptive State Counting Algorithm in Hoare-Logic *
 text \<open>
 In this section we give an example implementation of the adaptive state counting algorithm in a
 simple WHILE-language and prove that this implementation produces a certain output if and only if
-input FSM M1 is a reduction of input FSM M2.
+input FSM @{verbatim M1} is a reduction of input FSM @{verbatim M2}.
 \<close>
 
 

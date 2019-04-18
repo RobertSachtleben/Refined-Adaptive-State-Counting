@@ -53,7 +53,9 @@ qed
 
 fun well_formed_rel :: "('state \<times> ('in \<times> 'out) \<times> 'state) set \<Rightarrow> bool" where
   "well_formed_rel rel = (finite rel
-                          \<and> (\<forall> s1 x y . (x \<notin> image (fst \<circ> fst \<circ> snd) rel \<or> y \<notin> image (snd \<circ> fst \<circ> snd) rel) \<longrightarrow> \<not>(\<exists> s2 . (s1,(x,y),s2) \<in> rel))
+                          \<and> (\<forall> s1 x y . (x \<notin> image (fst \<circ> fst \<circ> snd) rel 
+                                            \<or> y \<notin> image (snd \<circ> fst \<circ> snd) rel) 
+                                        \<longrightarrow> \<not>(\<exists> s2 . (s1,(x,y),s2) \<in> rel))
                           \<and> rel \<noteq> {})"
 
 lemma well_formed_from_rel :
@@ -85,8 +87,12 @@ qed
 
 
 
-fun completely_specified_rel_over :: "('state \<times> ('in \<times> 'out) \<times> 'state) set \<Rightarrow> 'state set \<Rightarrow> bool" where
-  "completely_specified_rel_over rel nods = (\<forall> s1 \<in> nods . \<forall> x \<in> image (fst \<circ> fst \<circ> snd) rel . \<exists> y \<in> image (snd \<circ> fst \<circ> snd) rel . \<exists> s2 . (s1,(x,y),s2) \<in> rel)"
+fun completely_specified_rel_over :: "('state \<times> ('in \<times> 'out) \<times> 'state) set \<Rightarrow> 'state set \<Rightarrow> bool" 
+  where
+  "completely_specified_rel_over rel nods = (\<forall> s1 \<in> nods . 
+                                                \<forall> x \<in> image (fst \<circ> fst \<circ> snd) rel . 
+                                                  \<exists> y \<in> image (snd \<circ> fst \<circ> snd) rel . 
+                                                    \<exists> s2 . (s1,(x,y),s2) \<in> rel)"
 
 lemma completely_specified_from_rel :
   assumes "completely_specified_rel_over rel (nodes ((from_rel rel q0)))"
@@ -117,7 +123,8 @@ qed
 
 
 fun observable_rel :: "('state \<times> ('in \<times> 'out) \<times> 'state) set \<Rightarrow> bool" where
-  "observable_rel rel = (\<forall> io s1 . { s2 . (s1,io,s2) \<in> rel } = {} \<or> (\<exists> s2 . { s2' . (s1,io,s2') \<in> rel } = {s2}))"
+  "observable_rel rel = (\<forall> io s1 . { s2 . (s1,io,s2) \<in> rel } = {} 
+                                    \<or> (\<exists> s2 . { s2' . (s1,io,s2') \<in> rel } = {s2}))"
 
 lemma observable_from_rel :
   assumes "observable_rel rel"
@@ -132,7 +139,9 @@ qed
 
 
 
-abbreviation "OFSM_rel rel q0 \<equiv> well_formed_rel rel \<and> completely_specified_rel_over rel (nodes (from_rel rel q0)) \<and> observable_rel rel"
+abbreviation "OFSM_rel rel q0 \<equiv> well_formed_rel rel 
+                                \<and> completely_specified_rel_over rel (nodes (from_rel rel q0)) 
+                                \<and> observable_rel rel"
 
 lemma OFMS_from_rel :
   assumes "OFSM_rel rel q0"
@@ -196,7 +205,8 @@ proof -
       using nodes_from_rel[of M\<^sub>S_rel 0] by blast
     moreover have "completely_specified_rel_over M\<^sub>S_rel (insert 0 (image (snd \<circ> snd) M\<^sub>S_rel))"
       unfolding completely_specified_rel_over.simps by auto
-    ultimately show "\<forall>x\<in>(fst \<circ> fst \<circ> snd) ` M\<^sub>S_rel. \<exists>y\<in>(snd \<circ> fst \<circ> snd) ` M\<^sub>S_rel. \<exists>s2. (s1, (x, y), s2) \<in> M\<^sub>S_rel"
+    ultimately show "\<forall>x\<in>(fst \<circ> fst \<circ> snd) ` M\<^sub>S_rel. 
+                      \<exists>y\<in>(snd \<circ> fst \<circ> snd) ` M\<^sub>S_rel. \<exists>s2. (s1, (x, y), s2) \<in> M\<^sub>S_rel"
       by simp
   qed
 
@@ -220,8 +230,10 @@ next
       using nodes_from_rel[of M\<^sub>I_rel 0] by blast
     have "completely_specified_rel_over M\<^sub>I_rel (insert 0 (image (snd \<circ> snd) M\<^sub>I_rel))"
       unfolding completely_specified_rel_over.simps by auto
-    show "\<forall>x\<in>(fst \<circ> fst \<circ> snd) ` M\<^sub>I_rel. \<exists>y\<in>(snd \<circ> fst \<circ> snd) ` M\<^sub>I_rel. \<exists>s2. (s1, (x, y), s2) \<in> M\<^sub>I_rel"
-      by (meson \<open>completely_specified_rel_over M\<^sub>I_rel (insert 0 ((snd \<circ> snd) ` M\<^sub>I_rel))\<close> \<open>s1 \<in> insert 0 ((snd \<circ> snd) ` M\<^sub>I_rel)\<close> completely_specified_rel_over.elims(2))    
+    show "\<forall>x\<in>(fst \<circ> fst \<circ> snd) ` M\<^sub>I_rel. 
+            \<exists>y\<in>(snd \<circ> fst \<circ> snd) ` M\<^sub>I_rel. \<exists>s2. (s1, (x, y), s2) \<in> M\<^sub>I_rel"
+      by (meson \<open>completely_specified_rel_over M\<^sub>I_rel (insert 0 ((snd \<circ> snd) ` M\<^sub>I_rel))\<close> 
+          \<open>s1 \<in> insert 0 ((snd \<circ> snd) ` M\<^sub>I_rel)\<close> completely_specified_rel_over.elims(2))    
   qed
 
   moreover have "observable_rel M\<^sub>I_rel" 
@@ -248,7 +260,8 @@ qed
 
 abbreviation "FAIL\<^sub>I :: (nat\<times>nat) \<equiv> (3,3)"
 abbreviation "PM\<^sub>I :: (nat, nat, nat\<times>nat) FSM \<equiv> \<lparr>
-            succ = (\<lambda> a (p1,p2) . (if (p1 \<in> nodes M\<^sub>S \<and> p2 \<in> nodes M\<^sub>I \<and> (fst a \<in> inputs M\<^sub>S) \<and> (snd a \<in> outputs M\<^sub>S \<union> outputs M\<^sub>I))
+            succ = (\<lambda> a (p1,p2) . (if (p1 \<in> nodes M\<^sub>S \<and> p2 \<in> nodes M\<^sub>I \<and> (fst a \<in> inputs M\<^sub>S) 
+                                        \<and> (snd a \<in> outputs M\<^sub>S \<union> outputs M\<^sub>I))
                                     then (if (succ M\<^sub>S a p1 = {} \<and> succ M\<^sub>I a p2 \<noteq> {})
                                       then {FAIL\<^sub>I} 
                                       else (succ M\<^sub>S a p1 \<times> succ M\<^sub>I a p2))
@@ -284,21 +297,30 @@ proof -
   have "d_reached_by M\<^sub>S (initial M\<^sub>S) [0] 1 [1] [0]" 
   proof 
     show "length [0] = length [0] \<and>
-    length [0] = length [1] \<and> path M\<^sub>S (([0] || [0]) || [1]) (initial M\<^sub>S) \<and> target (([0] || [0]) || [1]) (initial M\<^sub>S) = 1" by auto
+    length [0] = length [1] \<and> path M\<^sub>S (([0] || [0]) || [1]) (initial M\<^sub>S) 
+                            \<and> target (([0] || [0]) || [1]) (initial M\<^sub>S) = 1" 
+      by auto
     
     have "\<And>ys2 tr2.
-       length [0] = length ys2 \<and> length [0] = length tr2 \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S) \<longrightarrow>
-       target (([0] || ys2) || tr2) (initial M\<^sub>S) = 1" 
+       length [0] = length ys2 
+          \<and> length [0] = length tr2 
+          \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S) 
+            \<longrightarrow> target (([0] || ys2) || tr2) (initial M\<^sub>S) = 1" 
     proof 
-      fix ys2 tr2 assume "length [0] = length ys2 \<and> length [0] = length tr2 \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S)"
+      fix ys2 tr2 assume "length [0] = length ys2 \<and> length [0] = length tr2 
+                            \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S)"
       then have "length ys2 = 1" "length tr2 = 1" "path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S)"
         by auto
       moreover obtain y2 where "ys2 = [y2]"
         using \<open>length ys2 = 1\<close>
-        by (metis One_nat_def \<open>length [0] = length ys2 \<and> length [0] = length tr2 \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S)\<close> append.simps(1) append_butlast_last_id butlast_snoc length_butlast length_greater_0_conv list.size(3) nat.simps(3))  
+        by (metis One_nat_def \<open>length [0] = length ys2 \<and> length [0] = length tr2 
+            \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S)\<close> append.simps(1) append_butlast_last_id 
+            butlast_snoc length_butlast length_greater_0_conv list.size(3) nat.simps(3))  
       moreover obtain t2 where "tr2 = [t2]"
         using \<open>length tr2 = 1\<close>
-        by (metis One_nat_def \<open>length [0] = length ys2 \<and> length [0] = length tr2 \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S)\<close> append.simps(1) append_butlast_last_id butlast_snoc length_butlast length_greater_0_conv list.size(3) nat.simps(3))
+        by (metis One_nat_def \<open>length [0] = length ys2 \<and> length [0] = length tr2 
+            \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S)\<close> append.simps(1) append_butlast_last_id 
+            butlast_snoc length_butlast length_greater_0_conv list.size(3) nat.simps(3))
       ultimately have "path M\<^sub>S [((0,y2),t2)] (initial M\<^sub>S)" 
         by auto
       then have "t2 \<in> succ M\<^sub>S (0,y2) (initial M\<^sub>S)"
@@ -312,8 +334,9 @@ proof -
         using \<open>ys2 = [y2]\<close> \<open>tr2 = [t2]\<close> \<open>t2 = 1\<close> by auto
     qed
     then show "\<forall>ys2 tr2.
-       length [0] = length ys2 \<and> length [0] = length tr2 \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S) \<longrightarrow>
-       target (([0] || ys2) || tr2) (initial M\<^sub>S) = 1" 
+       length [0] = length ys2 \<and> length [0] = length tr2 
+          \<and> path M\<^sub>S (([0] || ys2) || tr2) (initial M\<^sub>S) 
+            \<longrightarrow> target (([0] || ys2) || tr2) (initial M\<^sub>S) = 1" 
       by auto
   qed
 

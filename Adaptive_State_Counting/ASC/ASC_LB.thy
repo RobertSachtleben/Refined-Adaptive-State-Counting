@@ -5,17 +5,18 @@ begin
 section {* The lower bound function *}
 
 text \<open>
-This theory defines the lower bound function LB and its properties.
+This theory defines the lower bound function @{verbatim LB} and its properties.
 
-Function LB calculates a lower bound on the number of states of some FSM in order for some sequence
-to not contain certain repetitions.
+Function @{verbatim LB} calculates a lower bound on the number of states of some FSM in order for 
+some sequence to not contain certain repetitions.
 \<close>
 
 subsection {* Permutation function Perm *}
 
 text \<open>
-Function Perm calculates all possible reactions of an FSM to a set of inputs sequences such that 
-every set in the calculated set of reactions contains exactly one reaction for each input sequence.
+Function @{verbatim Perm} calculates all possible reactions of an FSM to a set of inputs sequences 
+such that every set in the calculated set of reactions contains exactly one reaction for each input 
+sequence.
 \<close>
 
 fun Perm :: "'in list set \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> ('in \<times> 'out) list set set" where
@@ -308,8 +309,8 @@ qed
 subsection {* Function R *}
 
 text \<open>
-Function R calculates the set of suffixes of a sequence that reach a given state if applied after a
-given other sequence.
+Function @{verbatim R} calculates the set of suffixes of a sequence that reach a given state if 
+applied after a given other sequence.
 \<close>
 
 
@@ -955,8 +956,8 @@ qed
 subsection {* Function RP *}
 
 text \<open>
-Function RP extends function R by adding all elements from a set of IO-sequences that also reach the
-given state.
+Function @{verbatim RP} extends function @{verbatim MR} by adding all elements from a set of 
+IO-sequences that also reach the given state.
 \<close>
 
 
@@ -1670,8 +1671,8 @@ qed
 subsection {* Conditions for the result of LB to be a valid lower bound *}
 
 text \<open>
-The following predicates describe the assumptions necessary to show that the value calculated by LB
-is a lower bound on the number of states of a given FSM.
+The following predicates describe the assumptions necessary to show that the value calculated by 
+@{verbatim LB} is a lower bound on the number of states of a given FSM.
 \<close>
 
 fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list 
@@ -2113,9 +2114,9 @@ qed
 subsection {* Function LB *}
 
 text \<open>
-LB adds together the number of elements in sets calculated via RP for a given set of states and the
-number of ATC-reaction known to exist but not produced by a state reached by any of the above 
-elements.
+@{verbatim LB} adds together the number of elements in sets calculated via RP for a given set of 
+states and the number of ATC-reaction known to exist but not produced by a state reached by any of 
+the above elements.
 \<close>
 
 fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list 

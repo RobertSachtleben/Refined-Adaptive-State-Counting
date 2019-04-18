@@ -8,10 +8,11 @@ text \<open>
 We extend the product machine for language intersection presented in theory FSM by an additional
 state that is reached only by sequences such that any proper prefix of the sequence is in the
 language intersection, whereas the full sequence is only contained in the language of the machine
-B for which we are interested whether it is a reduction of some machine B.
+@{verbatim B} for which we want to check whether it is a reduction of some machine @{verbatim A}.
 
-To allow for free choice of the FAIL state, we define the following property that holds iff AB is
-the product automaton of A and B extended with fail state FAIL.
+To allow for free choice of the FAIL state, we define the following property that holds iff 
+@{verbatim AB} is the product machine of @{verbatim A} and @{verbatim B} extended with fail state 
+@{verbatim FAIL}.
 \<close>
 
 
@@ -948,8 +949,8 @@ qed
 subsection {* Sequences to failure in the product machine *}
 
 text \<open>
-A sequence to a failure for A and B reaches the fail state of any product machine 
-of A and B with added fail state.
+A sequence to a failure for @{verbatim A} and @{verbatim B} reaches the fail state of any product 
+machine of @{verbatim A} and @{verbatim B} with added fail state.
 \<close>
 
 lemma fail_reachable_by_sequence_to_failure :

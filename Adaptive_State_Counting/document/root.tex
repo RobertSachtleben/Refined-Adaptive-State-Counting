@@ -1,4 +1,5 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[8pt,a4paper]{article}
+\usepackage[margin=2cm]{geometry}
 \usepackage{isabelle,isabellesym}
 
 % further packages required for unusual symbols (see also
@@ -36,8 +37,17 @@
 \begin{document}
 
 \title{Adaptive-State-Counting}
-\author{robert}
+\author{Robert Sachtleben}
 \maketitle
+
+
+\begin{abstract}
+    This entry provides a formalization of the adaptive state counting algorithm, used to test for reduction between finite state machines and originally presented by Hierons \cite{hierons} and slightly refined in \cite{refinement}.
+    Definitions for finite state machines and adaptive test cases are given and many useful theorems are derived from these.
+    The algorithm is first specified using mutually recursive functions, for which it is proven that the generated test suite is sufficient to test for reduction.
+    Furthermore, the algorithm is also specified in a simple WHILE-language and its correctness is shown using Hoare-logic.
+\end{abstract}
+
 
 \tableofcontents
 
@@ -48,8 +58,8 @@
 \input{session}
 
 % optional bibliography
-%\bibliographystyle{abbrv}
-%\bibliography{root}
+\bibliographystyle{abbrv}
+\bibliography{root}
 
 \end{document}
 

@@ -11,8 +11,8 @@ and then applying the ATC connected to the root node by an edge labeled with the
 the FSM. The result of such an application is here called an ATC-reaction.
 
 ATCs are here modelled to have edges for every possible output from each non-leaf node. This is not
-a restriction of the definition of ATCs by Hierons, as a missing edge can be expressed by an edge to
-a leaf.
+a restriction on the definition of ATCs by Hierons @{cite "hierons"} as a missing edge can be 
+expressed by an edge to a leaf.
 \<close>
 
 
@@ -151,7 +151,7 @@ using assms inputs_atc.simps
 subsection {* Application function IO *}
 
 text \<open>
-Function IO collects all ATC-reactions of some FSM to some ATC.
+Function @{verbatim IO} collects all ATC-reactions of some FSM to some ATC.
 \<close>
 
 fun IO :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in \<times> 'out) list set" where

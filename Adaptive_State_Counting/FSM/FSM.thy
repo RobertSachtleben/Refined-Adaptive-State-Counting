@@ -12,8 +12,8 @@ text \<open>
 We formalise finite state machines as a 4-tuples, omitting the explicit formulation of the state 
 set,as it can easily be calculated from the successor function.
 This definition does not require the successor function to be restricted to the input or output 
-alphabet, which is later expressed by the property well\_formed, together with the finiteness of
-the state set.
+alphabet, which is later expressed by the property @{verbatim well_formed}, together with the 
+finiteness of the state set.
 \<close>
 
 record ('in, 'out, 'state) FSM =
@@ -27,7 +27,8 @@ record ('in, 'out, 'state) FSM =
 subsection {* FSMs as transition systems *}
 
 text \<open>
-We interpret FSMs as transition systems with a singleton initial state set.
+We interpret FSMs as transition systems with a singleton initial state set, based on 
+@{cite "Transition_Systems_and_Automata-AFP"}. 
 \<close>
 
 global_interpretation FSM : transition_system_initial
@@ -44,7 +45,10 @@ subsection {* Language *}
 
 text \<open>
 The following definitions establish basic notions for FSMs similarly to those of nondeterministic
-finite automata as defined in Transition\_Systems\_and\_Automata.Automata.NFA.
+finite automata as defined in @{cite "Transition_Systems_and_Automata-AFP"}.
+
+In particular, the language of an FSM state are the IO-parts of the paths in the FSM enabled from
+that state.
 \<close>
 
 abbreviation "target \<equiv> FSM.target"
@@ -183,9 +187,9 @@ lemma states_target_index :
 subsection {* Product machine for language intersection *}
 
 text \<open>
-The following describes the classical construction of a product machine from two FSMs such that
-the language of the product machine is the intersection of the languages of the FSMs it has been
-created from.
+The following describes the construction of a product machine from two FSMs @{verbatim M1} 
+and @{verbatim M2} such that the language of the product machine is the intersection of the 
+language of @{verbatim M1} and the language of @{verbatim M2}.
 \<close>
 
 definition product :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow>
@@ -634,8 +638,8 @@ qed
 subsection {* States reached by a given IO-sequence *}
 
 text \<open>
-The function io\_targets collects all states of an FSM reached from a given state by a given 
-IO-sequence.
+The function @{verbatim io_targets} collects all states of an FSM reached from a given state by a 
+given IO-sequence.
 Notably, for any observable FSM, this set contains at most one state.
 \<close>
 
@@ -1436,11 +1440,12 @@ qed
 subsection {* Sequences to failures *}
 
 text \<open>
-A sequence to a failure for FSMs A and B is a sequence such that any proper prefix of it is 
-contained in the languages of both A and B, while the sequence itself is contained only in the
-language of A.
+A sequence to a failure for FSMs @{verbatim M1} and @{verbatim M2} is a sequence such that any 
+proper prefix of it is contained in the languages of both @{verbatim M1} and @{verbatim M2}, while 
+the sequence itself is contained only in the language of A.
 
-That is, if a sequence to a failure for A and B exists, then A is not a reduction of B.
+That is, if a sequence to a failure for @{verbatim M1} and @{verbatim M2} exists, then 
+@{verbatim M1} is not a reduction of @{verbatim M2}.
 \<close>
 
 
@@ -1599,8 +1604,9 @@ qed
 
 
 text \<open>
-The following lemma shows that if M1 is not a reduction of M2, then a minimal sequence to a 
-failure exists that is of length at most |M2| * |M1|. 
+The following lemma shows that if @{verbatim M1} is not a reduction of @{verbatim M2}, then a 
+minimal sequence to a failure exists that is of length at most the number of states in 
+@{verbatim M1} times the number of states in @{verbatim M2}. 
 \<close>
 
 lemma sequence_to_failure_length :
@@ -1938,8 +1944,8 @@ text \<open>
 The classical result of testing FSMs for language inclusion :
 Any failure can be observed by a sequence of length at
 most n*m where n is the number of states of the reference 
-model (here FSM M2) and m is an upper bound on the number
-of states of the SUT (here FSM M1).
+model (here FSM @{verbatim M2}) and m is an upper bound on the number
+of states of the SUT (here FSM @{verbatim M1}).
 \<close>
 
 lemma product_suite_soundness :

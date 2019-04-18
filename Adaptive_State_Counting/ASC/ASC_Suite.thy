@@ -175,9 +175,10 @@ qed
 subsection {* Function N *}
 
 text \<open>
-Function N narrows the sets of reaction to the determinisitc state cover considered by the adaptive 
-state counting algorithm to contain only relevant sequences.
-It is the main refinement of the original formulation of the algorithm.
+Function @{verbatim N} narrows the sets of reaction to the determinisitc state cover considered by 
+the adaptive state counting algorithm to contain only relevant sequences.
+It is the main refinement of the original formulation of the algorithm in @{cite "hierons"} and has
+been proposed in @{cite "refinement"}.
 \<close>
 
 fun N :: "('in \<times> 'out) list \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set set" 
@@ -352,11 +353,13 @@ qed
 subsection {* Functions TS, C, RM *}
 
 text \<open>
-Function TS defines the calculation of the test suite used by the adaptive state counting algorithm.
-It is defined using the three functions TS, C and RM:
-   TS = Test Suite,
-   C  = currently considered sequences,
-   RM = sequences to remove
+Function T@{verbatim TS} defines the calculation of the test suite used by the adaptive state 
+counting algorithm in an iterative way.
+It is defined using the three functions @{verbatim TS}, @{verbatim C} and @{verbatim RM} where
+   @{verbatim TS} represents the test suite calculated up to some iteration,
+   @{verbatim C} contains the sequences considered for extension in some iteration, and
+   @{verbatim RM} contains the sequences of the corresponding @{verbatim C} result that are not to
+                  be extended, which we also call removed sequences.
 \<close>
 
 abbreviation append_set :: "'a list set \<Rightarrow> 'a set \<Rightarrow> 'a list set" where
@@ -1466,11 +1469,11 @@ qed
 subsection {* Final iteration *}
 
 text \<open>
-The result of calculating TS for some iteration is final if the result does not change for the next
-iteration.
+The result of calculating @{verbatim TS} for some iteration is final if the result does not change 
+for the next iteration.
 
-Such a final iteration exists and is at most equal to the number of states of M2 multiplied by the
-upper bound on the number of states of M1.
+Such a final iteration exists and is at most equal to the number of states of FSM @{verbatim M2} 
+multiplied by an upper bound on the number of states of FSM @{verbatim M1}.
 
 Furthermore, for any sequence not contained in the final iteration of the test suite, a prefix of
 this sequence must be contained in the latter.
