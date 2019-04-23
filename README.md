@@ -33,10 +33,8 @@ To install this entry, please follow [these instructions](https://www.isa-afp.or
 
 ## Background
 
-The adaptive state counting algorithm formalized in this project is a slight modification of the algorithm developed by R. M. Hierons.
+The adaptive state counting algorithm formalized in this project is a slight modification of the algorithm developed by Robert M. Hierons.
 The need for this modification and the modification itself are described in my [master's thesis](doc/Master's_thesis.pdf), in which I have performed "on paper" most of the proofs contained in this project. The thesis also contains a full bibliography, referencing in particular the works of Hierons.
-
-Any reference to some lemma by a three-digit index (e.g. lemma 5.4.7) in the comments of the theories described above is a reference to the corresponding lemma in my master's thesis.
 
 
 
