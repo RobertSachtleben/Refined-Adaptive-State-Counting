@@ -314,11 +314,12 @@ applied after a given other sequence.
 \<close>
 
 
-fun R :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list 
-          \<Rightarrow> ('in \<times> 'out) list set" where
-  "R M s vs xs = { vs @ xs' | xs' . xs' \<noteq> [] 
-                                    \<and> prefix xs' xs 
-                                    \<and> s \<in> io_targets M (initial M) (vs @ xs') }"
+fun R :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list 
+          \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list set" 
+  where
+  "R M s vs xs = { vs@xs' | xs' . xs' \<noteq> [] 
+                                \<and> prefix xs' xs 
+                                \<and> s \<in> io_targets M (initial M) (vs@xs') }"
 
 lemma finite_R : "finite (R M s vs xs)" 
 proof -
@@ -961,9 +962,12 @@ IO-sequences that also reach the given state.
 \<close>
 
 
-fun RP :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list 
-            \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> ('in \<times> 'out) list set" where
-  "RP M s vs xs V'' = R M s vs xs \<union> {vs' \<in> V'' . io_targets M (initial M) vs' = {s}}"
+fun RP :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list 
+            \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list set 
+            \<Rightarrow> ('in \<times> 'out) list set" 
+  where
+  "RP M s vs xs V'' = R M s vs xs 
+                      \<union> {vs' \<in> V'' . io_targets M (initial M) vs' = {s}}"
 
 lemma RP_from_R:
   assumes "is_det_state_cover M2 V"
@@ -2119,12 +2123,15 @@ states and the number of ATC-reaction known to exist but not produced by a state
 the above elements.
 \<close>
 
-fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list 
-          \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set 
-          \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> nat" where
-  "LB M2 M1 vs xs T S \<Omega> V'' = (sum (\<lambda> s . card (RP M2 s vs xs V'')) S) 
-                              + card ( (D M1 \<Omega> T) - 
-                                        {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''})"
+fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM 
+          \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set 
+          \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set 
+          \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> nat" 
+  where
+  "LB M2 M1 vs xs T S \<Omega> V'' = 
+    (sum (\<lambda> s . card (RP M2 s vs xs V'')) S) 
+    + card ((D M1 \<Omega> T) - 
+            {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''})"
 
 
 

@@ -17,8 +17,8 @@ finiteness of the state set.
 \<close>
 
 record ('in, 'out, 'state) FSM =
-  succ :: "('in \<times> 'out) \<Rightarrow> 'state \<Rightarrow> 'state set"
-  inputs :: "'in set"
+  succ    :: "('in \<times> 'out) \<Rightarrow> 'state \<Rightarrow> 'state set"
+  inputs  :: "'in set"
   outputs :: "'out set"
   initial :: "'state"
 
@@ -30,11 +30,16 @@ text \<open>
 We interpret FSMs as transition systems with a singleton initial state set, based on 
 @{cite "Transition_Systems_and_Automata-AFP"}. 
 \<close>
-
+                                   
 global_interpretation FSM : transition_system_initial
-"\<lambda> a p. snd a" "\<lambda> a p. snd a \<in> succ A (fst a) p" "\<lambda> p. p = initial A"
+  "\<lambda> a p. snd a"                    \<comment> \<open>execute\<close>
+  "\<lambda> a p. snd a \<in> succ A (fst a) p" \<comment> \<open>enabled\<close>
+  "\<lambda> p. p = initial A"              \<comment> \<open>initial\<close>
   for A
-  defines path = FSM.path and run = FSM.run and reachable = FSM.reachable and nodes = FSM.nodes
+  defines path = FSM.path 
+      and run = FSM.run 
+      and reachable = FSM.reachable 
+      and nodes = FSM.nodes
   by this
 
 abbreviation "size_FSM M \<equiv> card (nodes M)" 
@@ -64,7 +69,8 @@ lemma trace_alt_def: "trace r p = smap snd r"
   by (coinduction arbitrary: r p) (auto)
 
 
-definition language_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in \<times> 'out) list set" ("LS") 
+definition language_state :: "('in, 'out, 'state) FSM \<Rightarrow> 'state 
+                              \<Rightarrow> ('in \<times> 'out) list set" ("LS") 
   where
   "language_state M q \<equiv> {map fst r |r . path M r q}"
 
@@ -265,22 +271,29 @@ and hence allows for several stronger reformulations of previous results.
 
 
 fun finite_FSM :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
-  "finite_FSM M = (finite (nodes M) \<and> finite (inputs M) \<and> finite (outputs M))"
+  "finite_FSM M = (finite (nodes M) 
+                  \<and> finite (inputs M) 
+                  \<and> finite (outputs M))"
 
 fun observable :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
-  "observable M = (\<forall> t . \<forall> s1 . ((succ M) t s1 = {}) \<or> (\<exists> s2 . (succ M) t s1 = {s2}))"
+  "observable M = (\<forall> t . \<forall> s1 . ((succ M) t s1 = {}) 
+                                \<or> (\<exists> s2 . (succ M) t s1 = {s2}))"
 
 fun completely_specified :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
-  "completely_specified M = (\<forall> s1 \<in> nodes M . \<forall> x \<in> inputs M . \<exists> y \<in> outputs M . \<exists> s2 . s2 \<in> (succ M) (x,y) s1)"
+  "completely_specified M = (\<forall> s1 \<in> nodes M . \<forall> x \<in> inputs M . 
+                              \<exists> y \<in> outputs M . 
+                                \<exists> s2 . s2 \<in> (succ M) (x,y) s1)"
 
 fun well_formed :: "('in, 'out, 'state) FSM \<Rightarrow> bool" where
-  "well_formed M =
-    (finite_FSM M
-    \<and> (\<forall> s1 x y . (x \<notin> inputs M \<or> y \<notin> outputs M) \<longrightarrow> succ M (x,y) s1 = {})
-    \<and> inputs M \<noteq> {}
-    \<and> outputs M \<noteq> {})"
+  "well_formed M = (finite_FSM M
+                    \<and> (\<forall> s1 x y . (x \<notin> inputs M \<or> y \<notin> outputs M) 
+                                    \<longrightarrow> succ M (x,y) s1 = {})
+                    \<and> inputs M \<noteq> {}
+                    \<and> outputs M \<noteq> {})"
 
-abbreviation "OFSM M \<equiv> (well_formed M \<and> observable M \<and> completely_specified M)"
+abbreviation "OFSM M \<equiv> well_formed M 
+                        \<and> observable M 
+                        \<and> completely_specified M"
 
 lemma OFSM_props[elim!] :
   assumes "OFSM M"
@@ -1189,7 +1202,8 @@ An FSM is a reduction of another, if its language is a subset of the language of
 \<close>
 
 
-fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM \<Rightarrow> bool" (infix "\<preceq>" 200) 
+fun io_reduction :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out, 'state) FSM 
+                      \<Rightarrow> bool" (infix "\<preceq>" 200) 
   where 
   "M1 \<preceq> M2 = (LS M1 (initial M1) \<subseteq> LS M2 (initial M2))"
 

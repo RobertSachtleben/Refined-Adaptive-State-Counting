@@ -116,18 +116,20 @@ lemma atc_io_reduction_on_sets_alt_def :
         
 
 
-lemma refined_adaptive_state_counting_correctness: 
+lemma asc_algorithm_correctness: 
 "VARS tsN cN rmN obs obsI obs\<^sub>\<Omega> obsI\<^sub>\<Omega> iter isReduction
-  {OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>}
+  {
+    OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>
+  }
   tsN := {};
   cN  := V;
   rmN := {};
   obs := L\<^sub>i\<^sub>n M2 cN;
   obsI := L\<^sub>i\<^sub>n M1 cN;
-  obs\<^sub>\<Omega> := \<Union> (image (\<lambda> io . {io} \<times> append_io_B M2 io \<Omega>) (L\<^sub>i\<^sub>n M2 cN));
-  obsI\<^sub>\<Omega> := \<Union> (image (\<lambda> io . {io} \<times> append_io_B M1 io \<Omega>) (L\<^sub>i\<^sub>n M1 cN));
+  obs\<^sub>\<Omega> := (\<Union>io\<in>L\<^sub>i\<^sub>n M2 cN. {io} \<times> append_io_B M2 io \<Omega>);
+  obsI\<^sub>\<Omega> := (\<Union>io\<in>L\<^sub>i\<^sub>n M1 cN. {io} \<times> append_io_B M1 io \<Omega>);
   iter := 1;
-  WHILE (cN \<noteq> {} \<and> obsI \<subseteq> obs)
+  WHILE (cN \<noteq> {} \<and> obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>)
   INV {
     0 < iter
     \<and> tsN = TS M2 M1 \<Omega> V m (iter-1)
@@ -135,8 +137,8 @@ lemma refined_adaptive_state_counting_correctness:
     \<and> rmN = RM M2 M1 \<Omega> V m (iter-1)
     \<and> obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)
     \<and> obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)
-    \<and> obs\<^sub>\<Omega> = \<Union> (image (\<lambda> io . {io} \<times> append_io_B M2 io \<Omega>) (L\<^sub>i\<^sub>n M2 (tsN \<union> cN)))
-    \<and> obsI\<^sub>\<Omega> = \<Union> (image (\<lambda> io . {io} \<times> append_io_B M1 io \<Omega>) (L\<^sub>i\<^sub>n M1 (tsN \<union> cN)))
+    \<and> obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)
+    \<and> obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)
     \<and> OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>
   }
   DO 
@@ -160,8 +162,8 @@ lemma refined_adaptive_state_counting_correctness:
     cN := append_set (cN - rmN) (inputs M2) - tsN;
     obs := obs \<union> L\<^sub>i\<^sub>n M2 cN;
     obsI := obsI \<union> L\<^sub>i\<^sub>n M1 cN;
-    obs\<^sub>\<Omega> := obs\<^sub>\<Omega> \<union> \<Union> (image (\<lambda> io . {io} \<times> append_io_B M2 io \<Omega>) (L\<^sub>i\<^sub>n M2 cN));
-    obsI\<^sub>\<Omega> := obsI\<^sub>\<Omega> \<union> \<Union> (image (\<lambda> io . {io} \<times> append_io_B M1 io \<Omega>) (L\<^sub>i\<^sub>n M1 cN))
+    obs\<^sub>\<Omega> := obs\<^sub>\<Omega> \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 cN. {io} \<times> append_io_B M2 io \<Omega>);
+    obsI\<^sub>\<Omega> := obsI\<^sub>\<Omega> \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 cN. {io} \<times> append_io_B M1 io \<Omega>)
   OD;
   isReduction := ((obsI \<subseteq> obs) \<and> (obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>))
   {
@@ -205,7 +207,7 @@ next
                       obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
                       obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
                       OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>) 
-                    \<and> cN \<noteq> {} \<and> obsI \<subseteq> obs"
+                    \<and> cN \<noteq> {} \<and> obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>"
   then have "0 < iter"
             "OFSM M1" 
             "OFSM M2"
@@ -850,13 +852,13 @@ next
                     obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
                     obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
                     OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>) \<and>
-                   \<not> (cN \<noteq> {} \<and> obsI \<subseteq> obs)"
+                   \<not> (cN \<noteq> {} \<and> obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>)"
   then have "0 < iter"
             "OFSM M1" 
             "OFSM M2"
             "asc_fault_domain M2 M1 m"
             "test_tools M2 M1 FAIL PM V \<Omega>"
-            "cN = {} \<or> \<not> obsI \<subseteq> obs"
+            "cN = {} \<or> \<not> obsI \<subseteq> obs \<or> \<not> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>"
             "tsN = TS M2 M1 \<Omega> V m (iter-1)"
             "cN = C M2 M1 \<Omega> V m iter"
             "rmN = RM M2 M1 \<Omega> V m (iter-1)"
@@ -965,12 +967,15 @@ next
 next
     case False
 
-    then have "\<not> obsI \<subseteq> obs"
-      using \<open>cN = {} \<or> \<not> obsI \<subseteq> obs\<close> by auto
 
-    have "\<not> atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
-      by (metis (no_types, lifting) False atc_io_reduction_on_sets_to_obs(1) precond) 
-  
+    then have "\<not> obsI \<subseteq> obs \<or> \<not> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>"
+      using \<open>cN = {} \<or> \<not> obsI \<subseteq> obs \<or> \<not> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>\<close> by auto
+
+    have "\<not> atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2" 
+      using atc_io_reduction_on_sets_to_obs[of M1 "tsN \<union> cN" \<Omega> M2]
+            \<open>\<not> obsI \<subseteq> obs \<or> \<not> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>\<close> precond 
+      by fastforce
+
     have "\<not> M1 \<preceq> M2"
     proof 
       assume "M1 \<preceq> M2"
@@ -980,8 +985,8 @@ next
         using \<open>\<not> atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> by blast
     qed
     
-    then show ?thesis 
-      by (simp add: \<open>\<not> obsI \<subseteq> obs\<close>)
+    then show ?thesis
+      using \<open>\<not> obsI \<subseteq> obs \<or> \<not> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>\<close> by blast 
 
   qed
 qed

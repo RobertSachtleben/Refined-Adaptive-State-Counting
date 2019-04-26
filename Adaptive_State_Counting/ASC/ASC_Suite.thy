@@ -368,13 +368,16 @@ abbreviation append_set :: "'a list set \<Rightarrow> 'a set \<Rightarrow> 'a li
 abbreviation append_sets :: "'a list set \<Rightarrow> 'a list set \<Rightarrow> 'a list set" where
   "append_sets T X \<equiv> {xs @ xs' | xs xs' . xs \<in> T \<and> xs' \<in> X}"
 
-fun TS :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set 
-            \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set" 
-and C  :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set 
-            \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
-and RM :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in, 'out) ATC set 
-            \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'in list set"   
-where
+fun TS :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM 
+            \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat 
+            \<Rightarrow> 'in list set" 
+and C  :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM 
+            \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat 
+            \<Rightarrow> 'in list set"   
+and RM :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM 
+            \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set \<Rightarrow> nat \<Rightarrow> nat 
+            \<Rightarrow> 'in list set"   
+  where
   "RM M2 M1 \<Omega> V m 0 = {}" |
   "TS M2 M1 \<Omega> V m 0 = {}" |
   "TS M2 M1 \<Omega> V m (Suc 0) = V" |
@@ -384,9 +387,9 @@ where
     {xs' \<in> C M2 M1 \<Omega> V m (Suc n) .
       (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
       \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
-          (\<exists> V'' \<in> N io M1 V .  
-            (\<exists> S1 . 
-              (\<exists> vs xs .
+          \<exists> V'' \<in> N io M1 V .  
+            \<exists> S1 . 
+              \<exists> vs xs .
                 io = (vs@xs)
                 \<and> mcp (vs@xs) V'' vs
                 \<and> S1 \<subseteq> nodes M2
@@ -395,10 +398,12 @@ where
                     (\<forall> io1 \<in> RP M2 s1 vs xs V'' .
                        \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                          B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
-                \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m n \<union> V) S1 \<Omega> V'' ))))}" |
-  "C M2 M1 \<Omega> V m (Suc n) = (append_set ((C M2 M1 \<Omega> V m n) - (RM M2 M1 \<Omega> V m n)) (inputs M2)) 
-                            - (TS M2 M1 \<Omega> V m n)" |
-  "TS M2 M1 \<Omega> V m (Suc n) = (TS M2 M1 \<Omega> V m n) \<union> (C M2 M1 \<Omega> V m (Suc n))" 
+                \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m n \<union> V) S1 \<Omega> V'')}" |
+  "C M2 M1 \<Omega> V m (Suc n) = 
+    (append_set ((C M2 M1 \<Omega> V m n) - (RM M2 M1 \<Omega> V m n)) (inputs M2)) 
+    - (TS M2 M1 \<Omega> V m n)" |
+  "TS M2 M1 \<Omega> V m (Suc n) = 
+    (TS M2 M1 \<Omega> V m n) \<union> (C M2 M1 \<Omega> V m (Suc n))" 
     
     
 
@@ -1482,14 +1487,13 @@ this sequence must be contained in the latter.
                                                   
 abbreviation "final_iteration M2 M1 \<Omega> V m i \<equiv> TS M2 M1 \<Omega> V m i = TS M2 M1 \<Omega> V m (Suc i)"
 
-
 lemma final_iteration_ex :
   assumes "OFSM M1"
   and     "OFSM M2"
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
-  shows "final_iteration M2 M1 \<Omega> V m (Suc ( |M2| * m))"
+  shows "final_iteration M2 M1 \<Omega> V m (Suc ( |M2| * m ))"
 proof -
   let ?i = "Suc ( |M2| * m )"
 
@@ -1765,7 +1769,10 @@ lemma TS_non_containment_causes_final :
   and     "set xs \<subseteq> inputs M2"
   and     "final_iteration M2 M1 \<Omega> V m i"
   and     "OFSM M2"
-shows "(\<exists> xr j . xr \<noteq> xs \<and> prefix xr xs \<and> j \<le> i \<and> vs@xr \<in> RM M2 M1 \<Omega> V m j)"
+shows "(\<exists> xr j . xr \<noteq> xs 
+                  \<and> prefix xr xs 
+                  \<and> j \<le> i 
+                  \<and> vs@xr \<in> RM M2 M1 \<Omega> V m j)"
 proof -
   let ?TS = "\<lambda> n . TS M2 M1 \<Omega> V m n"
   let ?C = "\<lambda> n . C M2 M1 \<Omega> V m n"

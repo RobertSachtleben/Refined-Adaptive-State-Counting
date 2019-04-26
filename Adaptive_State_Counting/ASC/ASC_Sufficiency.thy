@@ -423,7 +423,7 @@ lemma asc_sufficiency :
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "final_iteration M2 M1 \<Omega> V m i"  
-shows "atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2 \<longrightarrow> M1 \<preceq> M2"
+shows "M1 \<preceq>\<lbrakk>(TS M2 M1 \<Omega> V m i) . \<Omega>\<rbrakk> M2 \<longrightarrow> M1 \<preceq> M2"
 proof 
   assume "atc_io_reduction_on_sets M1 (TS M2 M1 \<Omega> V m i) \<Omega> M2"
   show "M1 \<preceq> M2"

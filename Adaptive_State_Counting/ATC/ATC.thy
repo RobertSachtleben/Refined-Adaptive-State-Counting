@@ -18,8 +18,9 @@ expressed by an edge to a leaf.
 
 datatype ('in, 'out) ATC = Leaf | Node 'in "'out \<Rightarrow> ('in, 'out) ATC"
 
-inductive atc_reaction :: 
-  "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
+inductive atc_reaction :: "('in, 'out, 'state) FSM \<Rightarrow> 'state \<Rightarrow> ('in, 'out) ATC 
+                            \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" 
+  where
   leaf[intro!]: "atc_reaction M q1 Leaf []" |
   node[intro!]: "q2 \<in> succ M (x,y) q1 
                   \<Longrightarrow> atc_reaction M q2 (f y) io 
@@ -484,7 +485,7 @@ fun atc_io_reduction_on_sets :: "('in, 'out, 'state1) FSM \<Rightarrow> 'in list
   "atc_io_reduction_on_sets M1 TS \<Omega> M2 = (\<forall> iseq \<in> TS . atc_io_reduction_on M1 M2 iseq \<Omega>)"
 
 notation 
-  atc_io_reduction_on_sets ("(_ \<preceq>\<lbrakk>_._\<rbrakk> _)" )
+  atc_io_reduction_on_sets ("(_ \<preceq>\<lbrakk>_._\<rbrakk> _)" [1000,1000,1000,1000])
 
 
 
