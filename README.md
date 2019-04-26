@@ -10,21 +10,21 @@ This project aims at formalizing and verifying the refined adaptive state counti
 
 #### Finite state machines 
 
-Finite state machines are introduced in [FSM.thy](FSM.thy), which formalizes several basic properties. 
-Additionally, [FSM_Product.thy](FSM_Product.thy) formalizes the concept of a product machine with an explicit FAIL state, the reachability of which forms the basis of later arguments concerning testing.
+Finite state machines are introduced in [FSM.thy](Adaptive_State_Counting/FSM/FSM.thy), which formalizes several basic properties. 
+Additionally, [FSM_Product.thy](Adaptive_State_Counting/FSM/FSM_Product.thy) formalizes the concept of a product machine with an explicit FAIL state, the reachability of which forms the basis of later arguments concerning testing.
 
 #### Adaptive test cases
 
 Adaptive test cases are tree-like structures used in the adaptive state counting algorithm to prove that certain sequences reach different states. 
-They are desribed in [ATC.thy](ATC.thy).
+They are desribed in [ATC.thy](Adaptive_State_Counting/ATC/ATC.thy).
 
 #### Adaptive state counting
 
 The adaptive state counting algorithm can be used to generate complete test suites to test whether some FSM is a reduction of another.
 It essentialy performs a depth-first search to find a sequence to a failure. In doing so, it applies state counting to decide when to stop extending some sequence.
-This calculation is used as the LB function in [ASC_LB.thy](ASC_LB.thy) and test suite generated in applying this approach is described in [ASC_Suite.thy](ASC_Suite.thy).
-The proof that this test suite is sufficient to prove reduction is given in [ASC_Sufficiency.thy](ASC_Sufficiency.thy).
-Finally, an algorithm performing this generation is presented and verified (using Hoare-Logic) in [ASC_Hoare.thy](ASC_Hoare.thy).
+This calculation is used as the LB function in [ASC_LB.thy](Adaptive_State_Counting/ASC/ASC_LB.thy) and test suite generated in applying this approach is described in [ASC_Suite.thy](Adaptive_State_Counting/ASC/ASC_Suite.thy).
+The proof that this test suite is sufficient to prove reduction is given in [ASC_Sufficiency.thy](Adaptive_State_Counting/ASC/ASC_Sufficiency.thy).
+Finally, an algorithm performing this generation is presented and verified (using Hoare-Logic) in [ASC_Hoare.thy](Adaptive_State_Counting/ASC/ASC_Hoare.thy).
 
 ## Dependencies
 
@@ -33,10 +33,8 @@ To install this entry, please follow [these instructions](https://www.isa-afp.or
 
 ## Background
 
-The adaptive state counting algorithm formalized in this project is a slight modification of the algorithm developed by R. M. Hierons.
+The adaptive state counting algorithm formalized in this project is a slight modification of the algorithm developed by Robert M. Hierons.
 The need for this modification and the modification itself are described in my [master's thesis](doc/Master's_thesis.pdf), in which I have performed "on paper" most of the proofs contained in this project. The thesis also contains a full bibliography, referencing in particular the works of Hierons.
-
-Any reference to some lemma by a three-digit index (e.g. lemma 5.4.7) in the comments of the theories described above is a reference to the corresponding lemma in my master's thesis.
 
 
 
