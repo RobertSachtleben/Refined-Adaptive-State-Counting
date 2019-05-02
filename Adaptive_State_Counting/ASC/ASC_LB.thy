@@ -2130,7 +2130,7 @@ fun LB :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM
   where
   "LB M2 M1 vs xs T S \<Omega> V'' = 
     (sum (\<lambda> s . card (RP M2 s vs xs V'')) S) 
-    + card ((D M1 \<Omega> T) - 
+    + card ((D M1 T \<Omega>) - 
             {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''})"
 
 
@@ -2671,7 +2671,7 @@ qed
 
 lemma LB_count_helper_D_states :
   assumes "observable M"
-  and     "RS \<in> (D M \<Omega> T)"
+  and     "RS \<in> (D M T \<Omega>)"
 obtains q
 where "q \<in> nodes M \<and> RS = IO_set M q \<Omega>" 
 proof -
@@ -2699,7 +2699,7 @@ qed
 lemma LB_count_helper_LB2 :
   assumes "observable M1"
   and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
-  and     "IO_set M1 q \<Omega> \<in> (D M1 \<Omega> T) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
+  and     "IO_set M1 q \<Omega> \<in> (D M1 T \<Omega>) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
 shows "q \<notin> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
 proof 
   assume "q \<in> (\<Union>s\<in>S. UNION (RP M2 s vs xs V'') (io_targets M1 (initial M1)))" 
@@ -2742,7 +2742,7 @@ assumes "(vs @ xs) \<in> L M1"
 shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" 
 proof -
   
-  let ?D = "D M1 \<Omega> T"
+  let ?D = "D M1 T \<Omega>"
   let ?B = "{B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
   let ?DB = "?D - ?B"
   let ?RP = "\<Union>s\<in>S. \<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a"
@@ -2789,10 +2789,10 @@ proof -
         using insert.IH[OF insert.prems(1-9) \<open>DB' \<subseteq> ?DB\<close>] 
         by blast
       
-      have "RS \<in> D M1 \<Omega> T" 
+      have "RS \<in> D M1 T \<Omega>" 
         using insert.prems(10) by blast
       obtain q where "q \<in> nodes M1" "RS = IO_set M1 q \<Omega>" 
-        using insert.prems(2)  LB_count_helper_D_states[OF _ \<open>RS \<in> D M1 \<Omega> T\<close>] 
+        using insert.prems(2)  LB_count_helper_D_states[OF _ \<open>RS \<in> D M1 T \<Omega>\<close>] 
         by blast
       then have "IO_set M1 q \<Omega> \<in> ?DB" 
         using insert.prems(10) by blast 

@@ -277,9 +277,9 @@ fun B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> 
   "B M io \<Omega> = \<Union> (image (\<lambda> s . IO_set M s \<Omega>) (io_targets M (initial M) io))"
 
 
-fun D :: "('in, 'out, 'state) FSM \<Rightarrow> ('in, 'out) ATC set \<Rightarrow> 'in list set 
+fun D :: "('in, 'out, 'state) FSM \<Rightarrow> 'in list set \<Rightarrow> ('in, 'out) ATC set
           \<Rightarrow> ('in * 'out) list set set" where
-  "D M \<Omega> ISeqs = image (\<lambda> io . B M io \<Omega>) (LS\<^sub>i\<^sub>n M (initial M) ISeqs)"
+  "D M ISeqs \<Omega> = image (\<lambda> io . B M io \<Omega>) (LS\<^sub>i\<^sub>n M (initial M) ISeqs)"
 
 fun append_io_B :: "('in, 'out, 'state) FSM \<Rightarrow> ('in * 'out) list \<Rightarrow> ('in, 'out) ATC set 
                     \<Rightarrow> ('in * 'out) list set" where
@@ -305,11 +305,11 @@ lemma D_bound :
   assumes wf: "well_formed M"
   and     ob: "observable M"
   and     fi: "finite ISeqs"
-  shows "finite (D M \<Omega> ISeqs)" "card (D M \<Omega> ISeqs) \<le> card (nodes M)" 
+  shows "finite (D M ISeqs \<Omega>)" "card (D M ISeqs \<Omega>) \<le> card (nodes M)" 
 proof -
-  have "D M \<Omega> ISeqs \<subseteq> image (\<lambda> s . IO_set M s \<Omega>) (nodes M)"
+  have "D M ISeqs \<Omega> \<subseteq> image (\<lambda> s . IO_set M s \<Omega>) (nodes M)"
   proof 
-    fix RS assume RS_def : "RS \<in> D M \<Omega> ISeqs"
+    fix RS assume RS_def : "RS \<in> D M ISeqs \<Omega>"
     then obtain xs ys where RS_tr : "RS = B M (xs || ys) \<Omega>" 
                                     "(xs \<in> ISeqs \<and> length xs = length ys 
                                         \<and> (xs || ys) \<in> language_state M (initial M))" 
@@ -325,7 +325,7 @@ proof -
   qed
   moreover have "finite (nodes M)" 
     using assms by auto
-  ultimately show "finite (D M \<Omega> ISeqs)" "card (D M \<Omega> ISeqs) \<le> card (nodes M)" 
+  ultimately show "finite (D M ISeqs \<Omega>)" "card (D M ISeqs \<Omega>) \<le> card (nodes M)" 
     by (meson  finite_imageI infinite_super surj_card_le)+
 qed
 
