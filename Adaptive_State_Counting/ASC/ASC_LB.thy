@@ -1681,12 +1681,10 @@ The following predicates describe the assumptions necessary to show that the val
 
 fun Prereq :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM \<Rightarrow> ('in \<times> 'out) list 
               \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> 'in list set \<Rightarrow> 'state1 set \<Rightarrow> ('in, 'out) ATC set 
-              \<Rightarrow> 'in list set \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> bool" where 
-  "Prereq M2 M1 vs xs T S \<Omega> V V'' = (
-    (\<forall> vs' \<in> V'' . (prefix vs' (vs @ xs) \<longrightarrow> length vs' \<le> length vs))      
-    \<and> (atc_io_reduction_on_sets M1 T \<Omega> M2)                                 
-    \<and> (finite T)                                                           
-    \<and> V \<subseteq> T \<and> (\<forall> xs' . (prefix xs' xs \<and> xs' \<noteq> xs) \<longrightarrow> map fst (vs @ xs') \<in> T)
+              \<Rightarrow> ('in \<times> 'out) list set \<Rightarrow> bool" 
+  where 
+  "Prereq M2 M1 vs xs T S \<Omega> V'' = (
+    (finite T)                                                           
     \<and> (vs @ xs) \<in> L M2 \<inter> L M1                                              
     \<and> S \<subseteq> nodes M2                                                         
     \<and> (\<forall> s1 \<in> S . \<forall> s2 \<in> S . s1 \<noteq> s2                                       
@@ -2261,7 +2259,7 @@ lemma LB_count_helper_RP_disjoint_M1_pair :
   and "is_det_state_cover M2 V"
   and "V'' \<in> Perm V M1"
   and "\<not> Rep_Cov M2 M1 V'' vs xs"  
-  and "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and "Prereq M2 M1 vs xs T S \<Omega> V''"
   and "s1 \<noteq> s2"
   and "s1 \<in> S" 
   and "s2 \<in> S"
@@ -2415,7 +2413,7 @@ lemma LB_count_helper_RP_card_union_sum :
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "\<not> Rep_Pre M2 M1 vs xs"
   and     "\<not> Rep_Cov M2 M1 V'' vs xs"
 shows "sum (\<lambda> s . card (RP M2 s vs xs V'')) S 
@@ -2441,8 +2439,8 @@ using assms proof -
     then have "s \<in> nodes M2" 
       by simp
 
-    have "Prereq M2 M1 vs xs T S \<Omega> V V''" 
-      using \<open>Prereq M2 M1 vs xs T (insert s S) \<Omega> V V''\<close> by simp
+    have "Prereq M2 M1 vs xs T S \<Omega> V''" 
+      using \<open>Prereq M2 M1 vs xs T (insert s S) \<Omega> V''\<close> by simp
     then have "(\<Sum>s\<in>S. card (RP M2 s vs xs V'')) 
                 = (\<Sum>s\<in>S. card (\<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a))" 
       using insert.IH[OF insert.prems(1-6) _ assms(8,9)] by metis
@@ -2512,7 +2510,7 @@ lemma LB_count_helper_RP_disjoint_M1_union :
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "\<not> Rep_Pre M2 M1 vs xs"
   and     "\<not> Rep_Cov M2 M1 V'' vs xs"               
 shows "sum (\<lambda> s . card (RP M2 s vs xs V'')) S 
@@ -2538,8 +2536,8 @@ using assms proof -
     then have "s \<in> nodes M2" 
       by simp
 
-    have "Prereq M2 M1 vs xs T S \<Omega> V V''" 
-      using \<open>Prereq M2 M1 vs xs T (insert s S) \<Omega> V V''\<close> by simp
+    have "Prereq M2 M1 vs xs T S \<Omega> V''" 
+      using \<open>Prereq M2 M1 vs xs T (insert s S) \<Omega> V''\<close> by simp
     then have applied_IH : "(\<Sum>s\<in>S. card (RP M2 s vs xs V'')) 
                               = card (\<Union>s\<in>S. \<Union>a\<in>RP M2 s vs xs V''. io_targets M1 (initial M1) a)" 
       using insert.IH[OF insert.prems(1-6) _ insert.prems(8,9)] by metis
@@ -2644,7 +2642,7 @@ lemma LB_count_helper_LB1 :
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "\<not> Rep_Pre M2 M1 vs xs"
   and     "\<not> Rep_Cov M2 M1 V'' vs xs"
 shows "(sum (\<lambda> s . card (RP M2 s vs xs V'')) S) \<le> card (nodes M1)"
@@ -2698,7 +2696,7 @@ qed
 
 lemma LB_count_helper_LB2 :
   assumes "observable M1"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "IO_set M1 q \<Omega> \<in> (D M1 T \<Omega>) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
 shows "q \<notin> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
 proof 
@@ -2736,7 +2734,7 @@ assumes "(vs @ xs) \<in> L M1"
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "\<not> Rep_Pre M2 M1 vs xs"
   and     "\<not> Rep_Cov M2 M1 V'' vs xs"
 shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" 
@@ -2886,7 +2884,7 @@ assumes "(vs @ xs) \<in> L M1"
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> Perm V M1"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V V''"
+  and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "\<not> Rep_Pre M2 M1 vs xs"
   and     "\<not> Rep_Cov M2 M1 V'' vs xs"
   and     "LB M2 M1 vs xs T S \<Omega> V'' > m"

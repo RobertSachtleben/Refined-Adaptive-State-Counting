@@ -401,6 +401,22 @@ qed
 
 
 
+
+lemma mstfe_no_repetition :
+  assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
+  and     "OFSM M1"
+  and     "OFSM M2"
+  and     "asc_fault_domain M2 M1 m"
+  and     "test_tools M2 M1 FAIL PM V \<Omega>"
+  and     "V'' \<in> N (vs@xs') M1 V"
+  and     "prefix xs' xs"
+shows "\<not> Rep_Pre M2 M1 vs xs'"
+  and "\<not> Rep_Cov M2 M1 V'' vs xs'"
+  using minimal_sequence_to_failure_extending_implies_Rep_Pre[OF assms]
+        minimal_sequence_to_failure_extending_implies_Rep_Cov[OF assms]
+  by linarith+
+
+
 subsection {* Sufficiency of the test suite to test for reduction *}
 
 text \<open>
@@ -775,7 +791,7 @@ proof
       
           
     
-    ultimately have "Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''"
+    ultimately have "Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V''"
       using RM_impl(4,5) unfolding Prereq.simps by blast
   
     have "V'' \<in> Perm V M1"
@@ -816,7 +832,7 @@ proof
     
     have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> card (nodes M1)"
       using LB_count[OF \<open>vs'@xs' \<in> L M1\<close> assms(1,2,3) \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> 
-                        \<open>V'' \<in> Perm V M1\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V V''\<close> 
+                        \<open>V'' \<in> Perm V M1\<close> \<open>Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V''\<close> 
                         \<open>\<not> Rep_Pre M2 M1 vs' xs'\<close> \<open> \<not> Rep_Cov M2 M1 V'' vs' xs'\<close>]
       by assumption
     then have "LB M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V'' \<le> m" 
