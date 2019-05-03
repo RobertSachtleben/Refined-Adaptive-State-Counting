@@ -21,7 +21,6 @@ lemma minimal_sequence_to_failure_extending_implies_Rep_Pre :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> N (vs@xs') M1 V"
   and     "prefix xs' xs"
@@ -70,13 +69,13 @@ proof
 
 
   have "productF M2 M1 FAIL PM" 
-    using assms(5) by auto
+    using assms(4) by auto
   have "well_formed M1" 
     using assms(2) by auto
   have "well_formed M2" 
     using assms(3) by auto
   have "observable PM"
-    by (meson assms(2) assms(3) assms(5) observable_productF)
+    by (meson assms(2) assms(3) assms(4) observable_productF)
 
   have "length (vs@xs1) = length tr2_1"
     using \<open>length tr2_1 = length (vs @ xs1)\<close> by presburger
@@ -150,13 +149,13 @@ proof
    
 
   have "io_targets PM (initial PM) (vs @ xs1) = {(s2,s1)}"
-    using \<open>io_targets PM (initial M2, initial M1) (vs @ xs1) = {(s2, s1)}\<close> assms(5) by auto
+    using \<open>io_targets PM (initial M2, initial M1) (vs @ xs1) = {(s2, s1)}\<close> assms(4) by auto
   have "io_targets PM (initial PM) (vs @ xs2) = {(s2,s1)}"
-    using \<open>io_targets PM (initial M2, initial M1) (vs @ xs2) = {(s2, s1)}\<close> assms(5) by auto
+    using \<open>io_targets PM (initial M2, initial M1) (vs @ xs2) = {(s2, s1)}\<close> assms(4) by auto
 
 
   have "(vs @ xs2) @ (drop (length xs2) xs) = vs@xs"
-    by (metis \<open>prefix xs2 xs'\<close>  append_eq_appendI append_eq_conv_conj assms(7) prefixE) 
+    by (metis \<open>prefix xs2 xs'\<close>  append_eq_appendI append_eq_conv_conj assms(6) prefixE) 
   moreover have "io_targets PM (initial PM) (vs@xs) = {FAIL}" 
     using sequence_to_failure_reaches_FAIL_ob[OF \<open>sequence_to_failure M1 M2 (vs@xs)\<close> assms(2,3) 
                                                  \<open>productF M2 M1 FAIL PM\<close>] 
@@ -179,7 +178,7 @@ proof
   have "sequence_to_failure M1 M2 (vs@xs1@(drop (length xs2) xs))"
     using sequence_to_failure_alt_def
           [OF \<open>io_targets PM (initial PM) (vs@xs1@(drop (length xs2) xs)) = {FAIL}\<close> assms(2,3)]
-          assms(5) 
+          assms(4) 
     by blast 
 
   have "length xs1 < length xs2"
@@ -189,7 +188,7 @@ proof
         append_assoc append_eq_conv_conj prefixE)
   have "length xs1 < length xs"
     using \<open>prefix xs1 xs2\<close> \<open>prefix xs2 xs'\<close> \<open>xs = xs1 @ drop (length xs1) xs\<close> \<open>xs1 \<noteq> xs2\<close> 
-          assms(7) leI 
+          assms(6) leI 
     by fastforce 
   have "length (xs1@(drop (length xs2) xs)) < length xs"
     using \<open>length xs1 < length xs2\<close> \<open>length xs1 < length xs\<close> by auto
@@ -218,7 +217,6 @@ lemma minimal_sequence_to_failure_extending_implies_Rep_Cov :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> N (vs@xsR) M1 V"
   and     "prefix xsR xs"
@@ -268,13 +266,13 @@ proof
 
 
   have "productF M2 M1 FAIL PM" 
-    using assms(5) by auto
+    using assms(4) by auto
   have "well_formed M1" 
     using assms(2) by auto
   have "well_formed M2" 
     using assms(3) by auto
   have "observable PM"
-    by (meson assms(2) assms(3) assms(5) observable_productF)
+    by (meson assms(2) assms(3) assms(4) observable_productF)
 
   have "length (vs@xs') = length tr2_1"
     using \<open>length tr2_1 = length (vs @ xs')\<close> by presburger
@@ -338,7 +336,7 @@ proof
     using assms(1) by auto
 
   have "xs = xs' @ (drop (length xs') xs)"
-    by (metis \<open>prefix xs' xsR\<close> append_assoc append_eq_conv_conj assms(7) prefixE)
+    by (metis \<open>prefix xs' xsR\<close> append_assoc append_eq_conv_conj assms(6) prefixE)
   then have "io_targets PM (initial M2, initial M1) (vs @ xs' @ (drop (length xs') xs)) = {FAIL}"
     by (metis \<open>productF M2 M1 FAIL PM\<close> \<open>sequence_to_failure M1 M2 (vs @ xs)\<close> assms(2) assms(3) 
         productF_simps(4) sequence_to_failure_reaches_FAIL_ob)
@@ -360,7 +358,7 @@ proof
   have "sequence_to_failure M1 M2 (vs' @ (drop (length xs') xs))"   
     using sequence_to_failure_alt_def
           [OF \<open>io_targets PM (initial PM) (vs' @ (drop (length xs') xs)) = {FAIL}\<close> assms(2,3)] 
-          assms(5) 
+          assms(4) 
     by blast
 
   have "length (drop (length xs') xs) < length xs"
@@ -370,7 +368,7 @@ proof
   have "vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
   proof -
     have "V'' \<in> Perm V M1" 
-      using assms(6) unfolding N.simps by blast
+      using assms(5) unfolding N.simps by blast
 
     then obtain f where f_def : "V'' = image f V 
                                   \<and> (\<forall> v \<in> V . f v \<in> language_state_for_input M1 (initial M1) v)"
@@ -406,7 +404,6 @@ lemma mstfe_no_repetition :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   and     "OFSM M1"
   and     "OFSM M2"
-  and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
   and     "V'' \<in> N (vs@xs') M1 V"
   and     "prefix xs' xs"
@@ -805,7 +802,7 @@ proof
 
     have "\<not> Rep_Pre M2 M1 vs (xr || ?yr)"
       using minimal_sequence_to_failure_extending_implies_Rep_Pre
-            [OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) 
+            [OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2) 
                 \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) 
                 \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
       by assumption
@@ -814,7 +811,7 @@ proof
   
     have "\<not> Rep_Cov M2 M1 V'' vs (xr || ?yr)" 
       using minimal_sequence_to_failure_extending_implies_Rep_Cov
-            [OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2,3) 
+            [OF \<open>minimal_sequence_to_failure_extending V M1 M2 vs xs\<close> assms(1,2) 
                 \<open>test_tools M2 M1 FAIL PM V \<Omega>\<close> RM_impl(1) 
                 \<open>prefix (xr || take (length xr) (map snd xs)) xs\<close>]
       by assumption
