@@ -2696,7 +2696,6 @@ qed
 
 lemma LB_count_helper_LB2 :
   assumes "observable M1"
-  and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "IO_set M1 q \<Omega> \<in> (D M1 T \<Omega>) - {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}"
 shows "q \<notin> (\<Union> image (\<lambda> s . \<Union> image (io_targets M1 (initial M1)) (RP M2 s vs xs V'')) S)"
 proof 
@@ -2716,7 +2715,7 @@ proof
   ultimately have "IO_set M1 q \<Omega> \<in> {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}" 
     by blast 
   moreover have "IO_set M1 q \<Omega> \<notin> {B M1 xs' \<Omega> | xs' s' . s' \<in> S \<and> xs' \<in> RP M2 s' vs xs V''}" 
-    using assms(3) by blast
+    using assms(2) by blast
   ultimately show "False" 
     by simp
 qed
@@ -2796,7 +2795,7 @@ proof -
         using insert.prems(10) by blast 
       
       have "q \<notin> ?RP" 
-        using insert.prems(2) LB_count_helper_LB2[OF _ insert.prems(7) \<open>IO_set M1 q \<Omega> \<in> ?DB\<close>] 
+        using insert.prems(2) LB_count_helper_LB2[OF _ \<open>IO_set M1 q \<Omega> \<in> ?DB\<close>] 
         by blast
 
       let ?f = "f'(RS := q)"
