@@ -1492,7 +1492,6 @@ lemma final_iteration_ex :
   and     "OFSM M2"
   and     "asc_fault_domain M2 M1 m"
   and     "test_tools M2 M1 FAIL PM V \<Omega>"
-  and     "V'' \<in> Perm V M1"
   shows "final_iteration M2 M1 \<Omega> V m (Suc ( |M2| * m ))"
 proof -
   let ?i = "Suc ( |M2| * m )"
