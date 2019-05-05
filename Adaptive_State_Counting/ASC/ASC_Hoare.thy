@@ -14,7 +14,7 @@ input FSM @{verbatim M1} is a reduction of input FSM @{verbatim M2}.
 
 lemma atc_io_reduction_on_sets_from_obs :
   assumes "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
-  and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)" 
+  and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> B M2 io \<Omega>)"
 shows "atc_io_reduction_on_sets M1 T \<Omega> M2"
   unfolding atc_io_reduction_on_sets.simps atc_io_reduction_on.simps
 proof 
@@ -22,32 +22,32 @@ proof
   have "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq}"
     by (metis \<open>iseq \<in> T\<close> assms(1) bot.extremum insert_mono io_reduction_on_subset 
         mk_disjoint_insert)
-  moreover have "\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>"
+  moreover have "\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. B M1 io \<Omega> \<subseteq> B M2 io \<Omega>"
   proof
     fix io assume "io \<in> L\<^sub>i\<^sub>n M1 {iseq}"
     then have "io \<in> L\<^sub>i\<^sub>n M2 {iseq}"
       using calculation by blast 
-    show "append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega> "
+    show "B M1 io \<Omega> \<subseteq> B M2 io \<Omega> "
     proof
-      fix x assume "x \<in> append_io_B M1 io \<Omega>"
+      fix x assume "x \<in> B M1 io \<Omega>"
 
       have "io \<in> L\<^sub>i\<^sub>n M1 T"
         using \<open>io \<in> L\<^sub>i\<^sub>n M1 {iseq}\<close> \<open>iseq \<in> T\<close> by auto 
-      moreover have "(io,x) \<in> {io} \<times> append_io_B M1 io \<Omega>"
-        using \<open>x \<in> append_io_B M1 io \<Omega>\<close> by blast 
-      ultimately have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)" 
+      moreover have "(io,x) \<in> {io} \<times> B M1 io \<Omega>"
+        using \<open>x \<in> B M1 io \<Omega>\<close> by blast 
+      ultimately have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>)" 
         by blast
 
-      then have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+      then have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> B M2 io \<Omega>)"
         using assms(2) by blast
-      then have "(io,x) \<in> {io} \<times> append_io_B M2 io \<Omega>"
+      then have "(io,x) \<in> {io} \<times> B M2 io \<Omega>"
         by blast 
-      then show "x \<in> append_io_B M2 io \<Omega>"
+      then show "x \<in> B M2 io \<Omega>"
         by blast
     qed
   qed
   ultimately show "L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} 
-                    \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)" 
+                    \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. B M1 io \<Omega> \<subseteq> B M2 io \<Omega>)" 
     by linarith
 qed
 
@@ -55,14 +55,14 @@ qed
 lemma atc_io_reduction_on_sets_to_obs :   
   assumes "atc_io_reduction_on_sets M1 T \<Omega> M2"
 shows "L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T" 
-  and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+  and "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> B M2 io \<Omega>)"
 proof 
   fix x assume "x \<in> L\<^sub>i\<^sub>n M1 T"
   show "x \<in> L\<^sub>i\<^sub>n M2 T"
     using assms unfolding atc_io_reduction_on_sets.simps atc_io_reduction_on.simps
   proof -
     assume a1: "\<forall>iseq\<in>T. L\<^sub>i\<^sub>n M1 {iseq} \<subseteq> L\<^sub>i\<^sub>n M2 {iseq} 
-                  \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. append_io_B M1 io \<Omega> \<subseteq> append_io_B M2 io \<Omega>)"
+                  \<and> (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {iseq}. B M1 io \<Omega> \<subseteq> B M2 io \<Omega>)"
     have f2: "x \<in> UNION T (language_state_for_input M1 (initial M1))"
       by (metis (no_types) \<open>x \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_for_inputs_alt_def)
     obtain aas :: "'a list set \<Rightarrow> ('a list \<Rightarrow> ('a \<times> 'b) list set) \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'a list" 
@@ -77,28 +77,28 @@ proof
                       language_state_for_inputs_alt_def)
   qed
 next  
-  show "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"   
+  show "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>) \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> B M2 io \<Omega>)"   
   proof 
-    fix iox assume "iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)"
+    fix iox assume "iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>)"
     then obtain io x where "iox = (io,x)" 
       by blast
 
     have "io \<in> L\<^sub>i\<^sub>n M1 T"
-      using \<open>iox = (io, x)\<close> \<open>iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)\<close> by blast
-    have "(io,x) \<in> {io} \<times> append_io_B M1 io \<Omega>"
-      using \<open>iox = (io, x)\<close> \<open>iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>)\<close> by blast
-    then have "x \<in> append_io_B M1 io \<Omega>" 
+      using \<open>iox = (io, x)\<close> \<open>iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>)\<close> by blast
+    have "(io,x) \<in> {io} \<times> B M1 io \<Omega>"
+      using \<open>iox = (io, x)\<close> \<open>iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>)\<close> by blast
+    then have "x \<in> B M1 io \<Omega>" 
       by blast
 
-    then have "x \<in> append_io_B M2 io \<Omega>"
+    then have "x \<in> B M2 io \<Omega>"
       using assms unfolding atc_io_reduction_on_sets.simps atc_io_reduction_on.simps
       by (metis (no_types, lifting) UN_E \<open>io \<in> L\<^sub>i\<^sub>n M1 T\<close> language_state_for_input_alt_def 
           language_state_for_inputs_alt_def subsetCE) 
-    then have "(io,x) \<in> {io} \<times> append_io_B M2 io \<Omega>"
+    then have "(io,x) \<in> {io} \<times>B M2 io \<Omega>"
       by blast
-    then have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+    then have "(io,x) \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> B M2 io \<Omega>)"
       using \<open>io \<in> L\<^sub>i\<^sub>n M1 T\<close> by auto 
-    then show "iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>)"
+    then show "iox \<in> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> B M2 io \<Omega>)"
       using \<open>iox = (io, x)\<close> by auto
   qed
 qed
@@ -106,8 +106,8 @@ qed
 lemma atc_io_reduction_on_sets_alt_def :
   shows "atc_io_reduction_on_sets M1 T \<Omega> M2 = 
            (L\<^sub>i\<^sub>n M1 T \<subseteq> L\<^sub>i\<^sub>n M2 T 
-            \<and> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> append_io_B M1 io \<Omega>) 
-                \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> append_io_B M2 io \<Omega>))"
+            \<and> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 T. {io} \<times> B M1 io \<Omega>) 
+                \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 T. {io} \<times> B M2 io \<Omega>))"
   using atc_io_reduction_on_sets_to_obs[of M1 T \<Omega> M2] 
   and   atc_io_reduction_on_sets_from_obs[of M1 T M2 \<Omega>] 
   by blast
@@ -126,8 +126,8 @@ lemma asc_algorithm_correctness:
   rmN := {};
   obs := L\<^sub>i\<^sub>n M2 cN;
   obsI := L\<^sub>i\<^sub>n M1 cN;
-  obs\<^sub>\<Omega> := (\<Union>io\<in>L\<^sub>i\<^sub>n M2 cN. {io} \<times> append_io_B M2 io \<Omega>);
-  obsI\<^sub>\<Omega> := (\<Union>io\<in>L\<^sub>i\<^sub>n M1 cN. {io} \<times> append_io_B M1 io \<Omega>);
+  obs\<^sub>\<Omega> := (\<Union>io\<in>L\<^sub>i\<^sub>n M2 cN. {io} \<times> B M2 io \<Omega>);
+  obsI\<^sub>\<Omega> := (\<Union>io\<in>L\<^sub>i\<^sub>n M1 cN. {io} \<times> B M1 io \<Omega>);
   iter := 1;
   WHILE (cN \<noteq> {} \<and> obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>)
   INV {
@@ -137,8 +137,8 @@ lemma asc_algorithm_correctness:
     \<and> rmN = RM M2 M1 \<Omega> V m (iter-1)
     \<and> obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)
     \<and> obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)
-    \<and> obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)
-    \<and> obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)
+    \<and> obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)
+    \<and> obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>)
     \<and> OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>
   }
   DO 
@@ -162,8 +162,8 @@ lemma asc_algorithm_correctness:
     cN := append_set (cN - rmN) (inputs M2) - tsN;
     obs := obs \<union> L\<^sub>i\<^sub>n M2 cN;
     obsI := obsI \<union> L\<^sub>i\<^sub>n M1 cN;
-    obs\<^sub>\<Omega> := obs\<^sub>\<Omega> \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 cN. {io} \<times> append_io_B M2 io \<Omega>);
-    obsI\<^sub>\<Omega> := obsI\<^sub>\<Omega> \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 cN. {io} \<times> append_io_B M1 io \<Omega>)
+    obs\<^sub>\<Omega> := obs\<^sub>\<Omega> \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 cN. {io} \<times> B M2 io \<Omega>);
+    obsI\<^sub>\<Omega> := obsI\<^sub>\<Omega> \<union> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 cN. {io} \<times> B M1 io \<Omega>)
   OD;
   isReduction := ((obsI \<subseteq> obs) \<and> (obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>))
   {
@@ -177,10 +177,10 @@ proof (vcg)
        "{} = RM M2 M1 \<Omega> V m (1-1)" 
        "L\<^sub>i\<^sub>n M2 V = L\<^sub>i\<^sub>n M2 ({} \<union> V)"
        "L\<^sub>i\<^sub>n M1 V = L\<^sub>i\<^sub>n M1 ({} \<union> V)"
-       "(\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> append_io_B M2 io \<Omega>) 
-          = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> append_io_B M2 io \<Omega>)"
-       "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> append_io_B M1 io \<Omega>) 
-          = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> append_io_B M1 io \<Omega>)"
+       "(\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> B M2 io \<Omega>) 
+          = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> B M2 io \<Omega>)"
+       "(\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> B M1 io \<Omega>) 
+          = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> B M1 io \<Omega>)"
     using precond by auto
   moreover have "OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega> "
     using precond by assumption
@@ -190,10 +190,10 @@ proof (vcg)
                    {} = RM M2 M1 \<Omega> V m (1 - 1) \<and>
                    L\<^sub>i\<^sub>n M2 V = L\<^sub>i\<^sub>n M2 ({} \<union> V) \<and>
                    L\<^sub>i\<^sub>n M1 V = L\<^sub>i\<^sub>n M1 ({} \<union> V) \<and>
-                   (\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> append_io_B M2 io \<Omega>) 
-                      = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> append_io_B M2 io \<Omega>) \<and>
-                   (\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> append_io_B M1 io \<Omega>) 
-                      = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> append_io_B M1 io \<Omega>) \<and>
+                   (\<Union>io\<in>L\<^sub>i\<^sub>n M2 V. {io} \<times> B M2 io \<Omega>) 
+                      = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 ({} \<union> V). {io} \<times> B M2 io \<Omega>) \<and>
+                   (\<Union>io\<in>L\<^sub>i\<^sub>n M1 V. {io} \<times> B M1 io \<Omega>) 
+                      = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 ({} \<union> V). {io} \<times> B M1 io \<Omega>) \<and>
                    OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>" 
     by linarith+
 next 
@@ -204,8 +204,8 @@ next
                       rmN = RM M2 M1 \<Omega> V m (iter - 1) \<and>
                       obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<and>
                       obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<and>
-                      obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
-                      obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
+                      obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>) \<and>
+                      obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>) \<and>
                       OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>) 
                     \<and> cN \<noteq> {} \<and> obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>"
   then have "0 < iter"
@@ -220,8 +220,8 @@ next
             "rmN = RM M2 M1 \<Omega> V m (iter-1)"
             "obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
             "obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)"
-            "obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)"
-            "obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)"
+            "obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)"
+            "obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>)"
     by linarith+
 
 
@@ -544,7 +544,7 @@ next
                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                 (inputs M2) -
                (tsN \<union> cN)).
-           {io} \<times> append_io_B M2 io \<Omega>) =
+           {io} \<times> B M2 io \<Omega>) =
        (\<Union>io\<in>L\<^sub>i\<^sub>n M2
               (tsN \<union> cN \<union>
                (append_set
@@ -565,9 +565,9 @@ next
                              m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                  (inputs M2) -
                 (tsN \<union> cN))).
-           {io} \<times> append_io_B M2 io \<Omega>)"
+           {io} \<times> B M2 io \<Omega>)"
     using \<open>obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> 
-          \<open>obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> 
+          \<open>obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)\<close> 
           obs_calc 
     by blast
 
@@ -591,7 +591,7 @@ next
                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                 (inputs M2) -
                (tsN \<union> cN)).
-           {io} \<times> append_io_B M1 io \<Omega>) =
+           {io} \<times> B M1 io \<Omega>) =
        (\<Union>io\<in>L\<^sub>i\<^sub>n M1
               (tsN \<union> cN \<union>
                (append_set
@@ -612,9 +612,9 @@ next
                              m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                  (inputs M2) -
                 (tsN \<union> cN))).
-           {io} \<times> append_io_B M1 io \<Omega>)"
+           {io} \<times> B M1 io \<Omega>)"
     using \<open>obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)\<close> 
-          \<open>obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)\<close> 
+          \<open>obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>)\<close> 
           obsI_calc 
     by blast
 
@@ -775,7 +775,7 @@ next
                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                 (inputs M2) -
                (tsN \<union> cN)).
-           {io} \<times> append_io_B M2 io \<Omega>) =
+           {io} \<times> B M2 io \<Omega>) =
        (\<Union>io\<in>L\<^sub>i\<^sub>n M2
               (tsN \<union> cN \<union>
                (append_set
@@ -796,7 +796,7 @@ next
                              m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                  (inputs M2) -
                 (tsN \<union> cN))).
-           {io} \<times> append_io_B M2 io \<Omega>) \<and>
+           {io} \<times> B M2 io \<Omega>) \<and>
        obsI\<^sub>\<Omega> \<union>
        (\<Union>io\<in>L\<^sub>i\<^sub>n M1
               (append_set
@@ -817,7 +817,7 @@ next
                             m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                 (inputs M2) -
                (tsN \<union> cN)).
-           {io} \<times> append_io_B M1 io \<Omega>) =
+           {io} \<times> B M1 io \<Omega>) =
        (\<Union>io\<in>L\<^sub>i\<^sub>n M1
               (tsN \<union> cN \<union>
                (append_set
@@ -838,7 +838,7 @@ next
                              m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')})
                  (inputs M2) -
                 (tsN \<union> cN))).
-           {io} \<times> append_io_B M1 io \<Omega>) \<and>
+           {io} \<times> B M1 io \<Omega>) \<and>
        OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>"
     by linarith
 next
@@ -849,8 +849,8 @@ next
                     rmN = RM M2 M1 \<Omega> V m (iter - 1) \<and>
                     obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN) \<and>
                     obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<and>
-                    obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>) \<and>
-                    obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) \<and>
+                    obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>) \<and>
+                    obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>) \<and>
                     OFSM M1 \<and> OFSM M2 \<and> asc_fault_domain M2 M1 m \<and> test_tools M2 M1 FAIL PM V \<Omega>) \<and>
                    \<not> (cN \<noteq> {} \<and> obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>)"
   then have "0 < iter"
@@ -864,8 +864,8 @@ next
             "rmN = RM M2 M1 \<Omega> V m (iter-1)"
             "obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
             "obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)"
-            "obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)"
-            "obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)"
+            "obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)"
+            "obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>)"
     by linarith+
 
   
@@ -937,10 +937,10 @@ next
     have "obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)"
       by (simp add: \<open>obs = L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> \<open>obsI = L\<^sub>i\<^sub>n M1 (tsN \<union> cN)\<close>)
 
-    have "obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) 
-                            \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)"
-      by (simp add: \<open>obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>)\<close> 
-                    \<open>obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close>)
+    have "obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>) 
+                            \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)"
+      by (simp add: \<open>obsI\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>)\<close> 
+                    \<open>obs\<^sub>\<Omega> = (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)\<close>)
     
 
     have "(obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>) = atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
@@ -949,8 +949,8 @@ next
       show "atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
         using atc_io_reduction_on_sets_from_obs[of M1 "tsN \<union> cN" M2 \<Omega>]
         using \<open>obsI \<subseteq> obs \<and> obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega>\<close> \<open>obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> 
-              \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) 
-                                \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> 
+              \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>) 
+                                \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)\<close> 
         by linarith
     next
       assume "atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2"
@@ -958,8 +958,8 @@ next
         using atc_io_reduction_on_sets_to_obs[of M1 \<open>tsN \<union> cN\<close> \<Omega> M2]
               \<open>atc_io_reduction_on_sets M1 (tsN \<union> cN) \<Omega> M2\<close> 
               \<open>obsI \<subseteq> obs \<equiv> L\<^sub>i\<^sub>n M1 (tsN \<union> cN) \<subseteq> L\<^sub>i\<^sub>n M2 (tsN \<union> cN)\<close> 
-              \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> append_io_B M1 io \<Omega>) 
-                                \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> append_io_B M2 io \<Omega>)\<close> 
+              \<open>obsI\<^sub>\<Omega> \<subseteq> obs\<^sub>\<Omega> \<equiv> (\<Union>io\<in>L\<^sub>i\<^sub>n M1 (tsN \<union> cN). {io} \<times> B M1 io \<Omega>) 
+                                \<subseteq> (\<Union>io\<in>L\<^sub>i\<^sub>n M2 (tsN \<union> cN). {io} \<times> B M2 io \<Omega>)\<close> 
         by blast 
     qed
     then show ?thesis 
