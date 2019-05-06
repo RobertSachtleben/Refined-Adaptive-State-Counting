@@ -145,7 +145,7 @@ lemma asc_algorithm_correctness:
     iter := iter + 1;
     rmN := {xs' \<in> cN .
       (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
-      \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
+      \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
           (\<exists> V'' \<in> N io M1 V .  
             (\<exists> S1 . 
               (\<exists> vs xs .
@@ -238,7 +238,7 @@ next
   
   have rmN_calc[simp] : "{xs' \<in> cN.
         \<not> io_reduction_on M1 {xs'} M2 \<or>
-        (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+        (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
             \<exists>V''\<in>N io M1 V.
                \<exists>S1 vs xs.
                   io = vs @ xs \<and>
@@ -256,7 +256,7 @@ next
 
     have "{xs' \<in> cN.
           \<not> io_reduction_on M1 {xs'} M2 \<or>
-          (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+          (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
                     io = vs @ xs \<and>
@@ -270,7 +270,7 @@ next
                     m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')} =
           {xs' \<in> C M2 M1 \<Omega> V m (Suc k).
           \<not> io_reduction_on M1 {xs'} M2 \<or>
-          (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+          (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
                     io = vs @ xs \<and>
@@ -286,7 +286,7 @@ next
     
     moreover have "{xs' \<in> C M2 M1 \<Omega> V m (Suc k).
                     \<not> io_reduction_on M1 {xs'} M2 \<or>
-                    (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+                    (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                         \<exists>V''\<in>N io M1 V.
                            \<exists>S1 vs xs.
                               io = vs @ xs \<and>
@@ -302,7 +302,7 @@ next
       using RM.simps(2)[of M2 M1 \<Omega> V m k] by blast
     ultimately have "{xs' \<in> cN.
                       \<not> io_reduction_on M1 {xs'} M2 \<or>
-                      (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+                      (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                           \<exists>V''\<in>N io M1 V.
                              \<exists>S1 vs xs.
                                 io = vs @ xs \<and>
@@ -322,7 +322,7 @@ next
   moreover have "RM M2 M1 \<Omega> V m iter = RM M2 M1 \<Omega> V m (iter + 1 - 1)" by simp
   ultimately have rmN_calc' : "{xs' \<in> cN.
         \<not> io_reduction_on M1 {xs'} M2 \<or>
-        (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+        (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
             \<exists>V''\<in>N io M1 V.
                \<exists>S1 vs xs.
                   io = vs @ xs \<and>
@@ -358,7 +358,7 @@ next
         (cN -
          {xs' \<in> cN.
           \<not> io_reduction_on M1 {xs'} M2 \<or>
-          (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+          (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
                     io = vs @ xs \<and>
@@ -378,7 +378,7 @@ next
           (cN -
            {xs' \<in> cN.
             \<not> io_reduction_on M1 {xs'} M2 \<or>
-            (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+            (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                 \<exists>V''\<in>N io M1 V.
                    \<exists>S1 vs xs.
                       io = vs @ xs \<and>

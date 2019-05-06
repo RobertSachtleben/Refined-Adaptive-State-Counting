@@ -221,7 +221,7 @@ proof -
       then have "set vs \<subseteq> inputs M1" 
         using assms by auto
     
-      then have "LS\<^sub>i\<^sub>n M1 (initial M1) {vs} \<noteq> {}" 
+      then have "L\<^sub>i\<^sub>n M1 {vs} \<noteq> {}" 
         using assms(2) language_state_for_inputs_nonempty
         by (metis FSM.nodes.initial) 
       then have "language_state_for_input M1 (initial M1) vs \<noteq> {}"

@@ -194,7 +194,7 @@ proof
     using \<open>length xs1 < length xs2\<close> \<open>length xs1 < length xs\<close> by auto
 
 
-  have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V 
+  have "vs \<in> L\<^sub>i\<^sub>n M1 V 
         \<and> sequence_to_failure M1 M2 (vs @ xs1@(drop (length xs2) xs)) 
         \<and> length (xs1@(drop (length xs2) xs)) < length xs"
     using \<open>length (xs1 @ drop (length xs2) xs) < length xs\<close> 
@@ -365,7 +365,7 @@ proof
     by (metis (no_types) \<open>xs = xs' @ drop (length xs') xs\<close> \<open>xs' \<noteq> []\<close> length_append 
         length_greater_0_conv less_add_same_cancel2)   
 
-  have "vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
+  have "vs' \<in> L\<^sub>i\<^sub>n M1 V" 
   proof -
     have "V'' \<in> Perm V M1" 
       using assms(5) unfolding N.simps by blast
@@ -378,18 +378,18 @@ proof
     then have "vs' \<in> language_state_for_input M1 (initial M1) v" 
       using f_def by auto
     
-    have "language_state_for_input M1 (initial M1) v = LS\<^sub>i\<^sub>n M1 (initial M1) {v}"
+    have "language_state_for_input M1 (initial M1) v = L\<^sub>i\<^sub>n M1 {v}"
       by auto
     moreover have "{v} \<subseteq> V" 
       using \<open>v \<in> V\<close> by blast   
-    ultimately have "language_state_for_input M1 (initial M1) v \<subseteq> LS\<^sub>i\<^sub>n M1 (initial M1) V"
+    ultimately have "language_state_for_input M1 (initial M1) v \<subseteq> L\<^sub>i\<^sub>n M1 V"
       unfolding language_state_for_inputs.simps language_state_for_input.simps by blast
     then show ?thesis
       using\<open>vs' \<in> language_state_for_input M1 (initial M1) v\<close> by blast
   qed
   
   have "\<not> minimal_sequence_to_failure_extending V M1 M2 vs xs" 
-    using \<open>vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close>
+    using \<open>vs' \<in> L\<^sub>i\<^sub>n M1 V\<close>
           \<open>sequence_to_failure M1 M2 (vs' @ (drop (length xs') xs))\<close>
           \<open>length (drop (length xs') xs) < length xs\<close>
     using minimal_sequence_to_failure_extending.elims(2) by blast 
@@ -453,20 +453,20 @@ proof
              minimal_sequence_to_failure_extending_det_state_cover_ob[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>, of V]
       by blast 
   
-    then have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
+    then have "vs \<in> L\<^sub>i\<^sub>n M1 V" 
               "sequence_to_failure M1 M2 (vs @ xs)" 
-              "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') 
+              "\<not> (\<exists> io' . \<exists> w' \<in> L\<^sub>i\<^sub>n M1 V . sequence_to_failure M1 M2 (w' @ io') 
                                                           \<and> length io' < length xs)"
       by auto
   
     then have "vs@xs \<in> L M1 - L M2" 
       by auto
   
-    have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs@xs)}"
+    have "vs@xs \<in> L\<^sub>i\<^sub>n M1 {map fst (vs@xs)}"
       by (metis (full_types) Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> insertI1 
           language_state_for_inputs_map_fst)
   
-    have "vs@xs \<notin> LS\<^sub>i\<^sub>n M2 (initial M2) {map fst (vs@xs)}"
+    have "vs@xs \<notin> L\<^sub>i\<^sub>n M2 {map fst (vs@xs)}"
       by (meson Diff_iff \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_for_inputs_in_language_state 
           subsetCE) 
   
@@ -491,7 +491,7 @@ proof
     qed 
   
     have "map fst vs \<in> V"
-      using \<open>vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close> by auto 
+      using \<open>vs \<in> L\<^sub>i\<^sub>n M1 V\<close> by auto 
     
     let ?stf = "map fst (vs@xs)"
     let ?stfV = "map fst vs"
@@ -544,7 +544,7 @@ proof
       by (metis DiffD1 \<open>prefix (vs @ (xr || take (length xr) (map snd xs))) (vs @ xs)\<close> 
           \<open>vs @ xs \<in> L M1 - L M2\<close> language_state_prefix prefixE) 
   
-    then have "vs@(xr || ?yr) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV @ xr}"
+    then have "vs@(xr || ?yr) \<in> L\<^sub>i\<^sub>n M1 {?stfV @ xr}"
       by (metis \<open>length (take (length xr) (map snd xs)) = length xr\<close> insertI1 
           language_state_for_inputs_map_fst map_append map_fst_zip) 
   
@@ -555,8 +555,8 @@ proof
   
   
     from \<open>?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)\<close> have "?stfV@xr \<in> {xs' \<in> C M2 M1 \<Omega> V m (Suc j) .
-        (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
-        \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
+        (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
+        \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
             (\<exists> V'' \<in> N io M1 V .  
               (\<exists> S1 . 
                 (\<exists> vs xs .
@@ -571,19 +571,19 @@ proof
                   \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' ))))}" 
       unfolding RM.simps by blast
   
-    moreover have "\<forall> xs' \<in> ?C (Suc j) . LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}"
+    moreover have "\<forall> xs' \<in> ?C (Suc j) . L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}"
     proof 
       fix xs' assume "xs' \<in> ?C (Suc j)"
       from \<open>Suc j \<le> i\<close> have "?C (Suc j) \<subseteq> ?TS i"
         using C_subset TS_subset by blast 
       then have "{xs'} \<subseteq> ?TS i" 
         using \<open>xs' \<in> ?C (Suc j)\<close> by blast
-      show "LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}" 
+      show "L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}" 
         using io_reduction_on_subset[OF \<open>io_reduction_on M1 (?TS i) M2\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] 
         by assumption
     qed
   
-    ultimately have "(\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV@xr} .
+    ultimately have "(\<forall> io \<in> L\<^sub>i\<^sub>n M1 {?stfV@xr} .
             (\<exists> V'' \<in> N io M1 V .  
               (\<exists> S1 . 
                 (\<exists> vs xs .
@@ -611,7 +611,7 @@ proof
                          \<forall> io2 \<in> RP M2 s2 vs' xs' V'' .
                            B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                   \<and> m < LB M2 M1 vs' xs' (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' )))"
-      using \<open>vs@(xr || ?yr) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {?stfV @ xr}\<close>
+      using \<open>vs@(xr || ?yr) \<in> L\<^sub>i\<^sub>n M1 {?stfV @ xr}\<close>
       by blast 
   
     then obtain V'' S1 vs' xs' where RM_impl :  

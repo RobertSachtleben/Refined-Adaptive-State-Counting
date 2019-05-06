@@ -137,10 +137,10 @@ proof (rule ccontr)
   have "vs@xs \<in> L M1 - L M2" 
     using assms(4) unfolding minimal_sequence_to_failure_extending.simps sequence_to_failure.simps 
     by blast
-  then have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs@xs)}"
+  then have "vs@xs \<in> L\<^sub>i\<^sub>n M1 {map fst (vs@xs)}"
     by (meson DiffE insertI1 language_state_for_inputs_map_fst) 
-  have "vs@xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {v'@x'}"
-    using \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>vs @ xs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {map fst (vs @ xs)}\<close> 
+  have "vs@xs \<in> L\<^sub>i\<^sub>n M1 {v'@x'}"
+    using \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>vs @ xs \<in> L\<^sub>i\<^sub>n M1 {map fst (vs @ xs)}\<close> 
     by presburger
    
   let ?vs' = "take (length v') (vs@xs)"
@@ -149,7 +149,7 @@ proof (rule ccontr)
   have "vs@xs = ?vs'@?xs'"
     by (metis append_take_drop_id) 
 
-  have "?vs' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V"
+  have "?vs' \<in> L\<^sub>i\<^sub>n M1 V"
     by (metis (no_types) DiffE \<open>map fst (vs @ xs) = v' @ x'\<close> \<open>v' \<in> V\<close> \<open>vs @ xs \<in> L M1 - L M2\<close> 
         append_eq_conv_conj append_take_drop_id language_state_for_inputs_map_fst 
         language_state_prefix take_map) 
@@ -166,7 +166,7 @@ proof (rule ccontr)
   show "False"
     by (meson \<open>length (drop (length v') (vs @ xs)) < length xs\<close> 
         \<open>sequence_to_failure M1 M2 (take (length v') (vs @ xs) @ drop (length v') (vs @ xs))\<close> 
-        \<open>take (length v') (vs @ xs) \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V\<close> assms(4) 
+        \<open>take (length v') (vs @ xs) \<in> L\<^sub>i\<^sub>n M1 V\<close> assms(4) 
         minimal_sequence_to_failure_extending.elims(2)) 
 
 qed
@@ -250,7 +250,7 @@ proof -
   then have "set ioV \<subseteq> inputs M1" 
     using assms by auto
 
-  then have "LS\<^sub>i\<^sub>n M1 (initial M1) {ioV} \<noteq> {}" 
+  then have "L\<^sub>i\<^sub>n M1 {ioV} \<noteq> {}" 
     using assms(2) language_state_for_inputs_nonempty by (metis FSM.nodes.initial) 
 
 
@@ -385,8 +385,8 @@ and RM :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM
   "C M2 M1 \<Omega> V m (Suc 0) = V" |
   "RM M2 M1 \<Omega> V m (Suc n) = 
     {xs' \<in> C M2 M1 \<Omega> V m (Suc n) .
-      (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
-      \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
+      (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
+      \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
           \<exists> V'' \<in> N io M1 V .  
             \<exists> S1 . 
               \<exists> vs xs .
@@ -1534,8 +1534,8 @@ proof -
       then have "length xs = ( |M2| * m)" by auto
   
       have RM_def : "?RM ?i =  {xs' \<in> C M2 M1 \<Omega> V m ?i .
-                          (\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}))
-                          \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} .
+                          (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
+                          \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
                               (\<exists> V'' \<in> N io M1 V .  
                                 (\<exists> S1 . 
                                   (\<exists> vs xs .
@@ -1550,8 +1550,8 @@ proof -
             \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V'' ))))}"
       using RM.simps(2)[of M2 M1 \<Omega> V m "((card (nodes M2))*m)"] by assumption
       
-    have "(\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {seq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {seq}))
-          \<or> (\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {seq} .
+    have "(\<not> (L\<^sub>i\<^sub>n M1 {seq} \<subseteq> L\<^sub>i\<^sub>n M2 {seq}))
+          \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {seq} .
               (\<exists> V'' \<in> N io M1 V .  
                 (\<exists> S1 . 
                   (\<exists> vs xs .
@@ -1564,13 +1564,13 @@ proof -
                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                     \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V'' ))))"
-      proof (cases "(\<not> (LS\<^sub>i\<^sub>n M1 (initial M1) {seq} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {seq}))")
+      proof (cases "(\<not> (L\<^sub>i\<^sub>n M1 {seq} \<subseteq> L\<^sub>i\<^sub>n M2 {seq}))")
         case True
         then show ?thesis 
           using RM_def by blast
       next
         case False
-        have "(\<forall> io \<in> LS\<^sub>i\<^sub>n M1 (initial M1) {seq} .
+        have "(\<forall> io \<in> L\<^sub>i\<^sub>n M1 {seq} .
               (\<exists> V'' \<in> N io M1 V .  
                 (\<exists> S1 . 
                   (\<exists> vs xs .
@@ -1584,7 +1584,7 @@ proof -
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                     \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V'' ))))"
         proof 
-          fix io assume "io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {seq}"
+          fix io assume "io\<in>L\<^sub>i\<^sub>n M1 {seq}"
           then have "io \<in> L M1" 
             by auto
           moreover have "is_det_state_cover M2 V" 
@@ -1593,7 +1593,7 @@ proof -
             using N_nonempty[OF _ assms(1-3), of V io] by blast
 
           have "io \<in> L M2" 
-            using \<open>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {seq}\<close> False by auto
+            using \<open>io\<in>L\<^sub>i\<^sub>n M1 {seq}\<close> False by auto
 
           
   
@@ -1614,7 +1614,7 @@ proof -
             using \<open>io \<in> L M1\<close> \<open>io \<in> L M2\<close> by auto
 
           have "io \<in> L M1" "map fst io \<in> {seq}"
-            using \<open>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {seq}\<close> by auto
+            using \<open>io\<in>L\<^sub>i\<^sub>n M1 {seq}\<close> by auto
           then have "map fst io = seq" 
             by auto
           then have "map fst io \<in> ?C ?i" 
@@ -1722,8 +1722,8 @@ proof -
       qed
 
       then have "seq \<in> {xs' \<in> C M2 M1 \<Omega> V m ((Suc ( |M2| * m))).
-                         \<not> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'} \<or>
-                         (\<forall>io\<in>LS\<^sub>i\<^sub>n M1 (initial M1) {xs'}.
+                         \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                         (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                              \<exists>V''\<in>N io M1 V.
                                 \<exists>S1 vs xs.
                                    io = vs @ xs \<and>

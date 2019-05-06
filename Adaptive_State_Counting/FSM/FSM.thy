@@ -1260,7 +1260,7 @@ fun language_state_for_inputs  ::
 
 abbreviation "L\<^sub>i\<^sub>n M TS \<equiv> LS\<^sub>i\<^sub>n M (initial M) TS"
 
-abbreviation  "io_reduction_on M1 TS M2 \<equiv> (LS\<^sub>i\<^sub>n M1 (initial M1) TS \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) TS)" 
+abbreviation  "io_reduction_on M1 TS M2 \<equiv> (L\<^sub>i\<^sub>n M1 TS \<subseteq> L\<^sub>i\<^sub>n M2 TS)" 
 notation 
   io_reduction_on ("(_ \<preceq>\<lbrakk>_\<rbrakk> _)" [1000,0,0] 61)
 notation  (latex output)
@@ -1410,7 +1410,7 @@ lemma io_reduction_on_subset :
 shows "io_reduction_on M1 T' M2"
 proof (rule ccontr)
   assume "\<not> io_reduction_on M1 T' M2"
-  then obtain xs' where "xs' \<in> T'" "\<not> LS\<^sub>i\<^sub>n M1 (initial M1) {xs'} \<subseteq> LS\<^sub>i\<^sub>n M2 (initial M2) {xs'}"
+  then obtain xs' where "xs' \<in> T'" "\<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}"
   proof -
     have f1: "\<forall>ps P Pa. (ps::('a \<times> 'b) list) \<notin> P \<or> \<not> P \<subseteq> Pa \<or> ps \<in> Pa"
       by blast
@@ -1421,7 +1421,7 @@ proof (rule ccontr)
       by (meson subsetI)
     have f3: "\<forall>ps f c A. (ps::('a \<times> 'b) list) \<notin> LS\<^sub>i\<^sub>n f (c::'c) A \<or> map fst ps \<in> A"
       by (meson language_state_for_inputs_map_fst_contained)
-    then have "LS\<^sub>i\<^sub>n M1 (initial M1) T' \<subseteq> LS\<^sub>i\<^sub>n M1 (initial M1) T"
+    then have "L\<^sub>i\<^sub>n M1 T' \<subseteq> L\<^sub>i\<^sub>n M1 T"
       using f2 by (meson assms(2) language_state_for_inputs_in_language_state 
                     language_state_for_inputs_map_fst set_rev_mp)
     then show ?thesis
@@ -1890,8 +1890,8 @@ fun minimal_sequence_to_failure_extending ::
   "'in list set \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in,'out,'state) FSM \<Rightarrow> ('in \<times> 'out) list 
     \<Rightarrow> ('in \<times> 'out) list \<Rightarrow> bool" where
   "minimal_sequence_to_failure_extending V M1 M2 v' io = (
-   v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (v' @ io) 
-              \<and> \<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') 
+   v' \<in> L\<^sub>i\<^sub>n M1 V \<and> sequence_to_failure M1 M2 (v' @ io) 
+              \<and> \<not> (\<exists> io' . \<exists> w' \<in> L\<^sub>i\<^sub>n M1 V . sequence_to_failure M1 M2 (w' @ io') 
                                                             \<and> length io' < length io))"
 
 lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
@@ -1900,40 +1900,34 @@ lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
   and     "observable M2"
   and     "is_det_state_cover M2 V"
   and     "\<not> M1 \<preceq> M2"
-obtains vs io
-where "minimal_sequence_to_failure_extending V M1 M2 vs io" 
+obtains vs xs
+where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
 proof -
-  let ?seqs = "{seq . \<exists> v' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V .sequence_to_failure M1 M2 (v' @ seq)}"
-  obtain seq where "sequence_to_failure M1 M2 seq" 
+  \<comment> \<open>set of all IO-sequences that extend some reaction of M1 to V to a failure\<close>
+  let ?exts = "{xs . \<exists> vs' \<in> L\<^sub>i\<^sub>n M1 V .sequence_to_failure M1 M2 (vs' @ xs)}"
+  
+  \<comment> \<open>arbitrary sequence to failure, must be contained in the above set, 
+      as V contains the empty sequence\<close>
+  obtain stf where "sequence_to_failure M1 M2 stf"
     using assms sequence_to_failure_ob by blast
-  then have "sequence_to_failure M1 M2 ([] @ seq)" 
+  then have "sequence_to_failure M1 M2 ([] @ stf)" 
     by simp
-  moreover have "[] \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
+  moreover have "[] \<in> L\<^sub>i\<^sub>n M1 V" 
     using assms det_state_cover_empty language_state_for_inputs_empty by metis
-  ultimately have "seq \<in> ?seqs" 
-    using assms(5) by blast
-  then have seqs_nonempty : "?seqs \<noteq> {}" 
-    by auto
-
-  let ?minSeq = "arg_min length (\<lambda> io . io \<in> ?seqs)"
-  have minSeq_def : "?minSeq \<in> ?seqs \<and> (\<forall> seq' \<in> ?seqs . length  ?minSeq \<le> length seq')" 
-    using seqs_nonempty by (meson all_not_in_conv arg_min_nat_lemma) 
-  then obtain vs where "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V \<and> sequence_to_failure M1 M2 (vs @ ?minSeq)"
+  ultimately have "stf \<in> ?exts"
     by blast
-  moreover have "\<not> (\<exists> io' . \<exists> w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V . sequence_to_failure M1 M2 (w' @ io') 
-                                                              \<and> length io' < length ?minSeq)"
-  proof (rule ccontr)
-    assume "\<not> (\<not> (\<exists> io'. \<exists>w'\<in>LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ io') 
-                                                        \<and> length io' < length ?minSeq))"
-    then obtain seq' where "\<exists>w' \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V. sequence_to_failure M1 M2 (w' @ seq') 
-                                                            \<and> length seq' < length ?minSeq" 
-      by auto
-    then have "seq' \<in> ?seqs \<and> length seq' < length ?minSeq" 
-      by auto
-    then show "False" 
-      using minSeq_def leD by blast  
-  qed
-  ultimately have "minimal_sequence_to_failure_extending V M1 M2 vs ?minSeq" 
+
+  \<comment> \<open>the minimal length sequence of ?seqs, which by construction is a 
+      minimal sequence to a failure extending V\<close>
+  let ?xsMin = "arg_min length (\<lambda> xs . xs \<in> ?exts)"
+  have xsMin_def : "?xsMin \<in> ?exts \<and> (\<forall> xs \<in> ?exts . length  ?xsMin \<le> length xs)"
+    by (metis (no_types, lifting) \<open>stf \<in> ?exts\<close> arg_min_nat_lemma) 
+  then obtain vs where "vs \<in> L\<^sub>i\<^sub>n M1 V \<and> sequence_to_failure M1 M2 (vs @ ?xsMin)"
+    by blast
+  moreover have "\<not> (\<exists> xs . \<exists> ws \<in> L\<^sub>i\<^sub>n M1 V . sequence_to_failure M1 M2 (ws @ xs) 
+                                                \<and> length xs < length ?xsMin)"
+    using leD xsMin_def by blast
+  ultimately have "minimal_sequence_to_failure_extending V M1 M2 vs ?xsMin" 
     by auto
   then show ?thesis 
     using that by auto
@@ -1943,7 +1937,7 @@ lemma mstfe_prefix_input_in_V :
   assumes "minimal_sequence_to_failure_extending V M1 M2 vs xs"
   shows "(map fst vs) \<in> V"
 proof -
-  have "vs \<in> LS\<^sub>i\<^sub>n M1 (initial M1) V" 
+  have "vs \<in> L\<^sub>i\<^sub>n M1 V" 
     using assms by auto
   then show ?thesis 
     using language_state_for_inputs_map_fst_contained by auto
