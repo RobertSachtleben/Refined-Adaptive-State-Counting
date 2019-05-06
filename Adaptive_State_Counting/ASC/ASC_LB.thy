@@ -2736,7 +2736,7 @@ assumes "(vs @ xs) \<in> L M1"
   and     "Prereq M2 M1 vs xs T S \<Omega> V''"
   and     "\<not> Rep_Pre M2 M1 vs xs"
   and     "\<not> Rep_Cov M2 M1 V'' vs xs"
-shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> card (nodes M1)" 
+shows "LB M2 M1 vs xs T S \<Omega> V'' \<le> |M1|" 
 proof -
   
   let ?D = "D M1 T \<Omega>"
