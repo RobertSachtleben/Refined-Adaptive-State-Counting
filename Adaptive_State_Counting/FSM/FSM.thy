@@ -1904,28 +1904,30 @@ obtains vs xs
 where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
 proof -
   \<comment> \<open>set of all IO-sequences that extend some reaction of M1 to V to a failure\<close>
-  let ?exts = "{xs . \<exists> vs' \<in> L\<^sub>i\<^sub>n M1 V .sequence_to_failure M1 M2 (vs' @ xs)}"
+  let ?exts = "{xs. \<exists>vs' \<in> L\<^sub>i\<^sub>n M1 V. sequence_to_failure M1 M2 (vs'@xs)}"
   
-  \<comment> \<open>arbitrary sequence to failure, must be contained in the above set, 
-      as V contains the empty sequence\<close>
+  \<comment> \<open>arbitrary sequence to failure\<close>
+  \<comment> \<open>must be contained in ?exts as V contains the empty sequence\<close>
   obtain stf where "sequence_to_failure M1 M2 stf"
     using assms sequence_to_failure_ob by blast
   then have "sequence_to_failure M1 M2 ([] @ stf)" 
     by simp
-  moreover have "[] \<in> L\<^sub>i\<^sub>n M1 V" 
-    using assms det_state_cover_empty language_state_for_inputs_empty by metis
+  moreover have "[] \<in> L\<^sub>i\<^sub>n M1 V"
+    by (meson assms(4) det_state_cover_initial language_state_for_inputs_empty)
   ultimately have "stf \<in> ?exts"
     by blast
 
-  \<comment> \<open>the minimal length sequence of ?seqs, which by construction is a 
-      minimal sequence to a failure extending V\<close>
-  let ?xsMin = "arg_min length (\<lambda> xs . xs \<in> ?exts)"
-  have xsMin_def : "?xsMin \<in> ?exts \<and> (\<forall> xs \<in> ?exts . length  ?xsMin \<le> length xs)"
+  \<comment> \<open>the minimal length sequence of ?exts\<close>
+  \<comment> \<open>is a minimal sequence to a failure extending V by construction\<close>
+  let ?xsMin = "arg_min length (\<lambda>xs. xs \<in> ?exts)"
+  have xsMin_def : "?xsMin \<in> ?exts 
+                    \<and> (\<forall>xs \<in> ?exts. length  ?xsMin \<le> length xs)"
     by (metis (no_types, lifting) \<open>stf \<in> ?exts\<close> arg_min_nat_lemma) 
-  then obtain vs where "vs \<in> L\<^sub>i\<^sub>n M1 V \<and> sequence_to_failure M1 M2 (vs @ ?xsMin)"
+  then obtain vs where "vs \<in> L\<^sub>i\<^sub>n M1 V 
+                        \<and> sequence_to_failure M1 M2 (vs @ ?xsMin)"
     by blast
-  moreover have "\<not> (\<exists> xs . \<exists> ws \<in> L\<^sub>i\<^sub>n M1 V . sequence_to_failure M1 M2 (ws @ xs) 
-                                                \<and> length xs < length ?xsMin)"
+  moreover have "\<not>(\<exists>xs . \<exists>ws \<in> L\<^sub>i\<^sub>n M1 V. sequence_to_failure M1 M2 (ws@xs) 
+                                         \<and> length xs < length ?xsMin)"
     using leD xsMin_def by blast
   ultimately have "minimal_sequence_to_failure_extending V M1 M2 vs ?xsMin" 
     by auto
