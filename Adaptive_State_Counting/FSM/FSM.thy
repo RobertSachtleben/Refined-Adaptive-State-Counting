@@ -1897,7 +1897,6 @@ fun minimal_sequence_to_failure_extending ::
 lemma minimal_sequence_to_failure_extending_det_state_cover_ob :
   assumes "well_formed M1"
   and     "well_formed M2"
-  and     "observable M2"
   and     "is_det_state_cover M2 V"
   and     "\<not> M1 \<preceq> M2"
 obtains vs xs
@@ -1913,7 +1912,7 @@ proof -
   then have "sequence_to_failure M1 M2 ([] @ stf)" 
     by simp
   moreover have "[] \<in> L\<^sub>i\<^sub>n M1 V"
-    by (meson assms(4) det_state_cover_initial language_state_for_inputs_empty)
+    by (meson assms(3) det_state_cover_initial language_state_for_inputs_empty)
   ultimately have "stf \<in> ?exts"
     by blast
 

@@ -385,7 +385,7 @@ and RM :: "('in, 'out, 'state1) FSM \<Rightarrow> ('in, 'out, 'state2) FSM
   "C M2 M1 \<Omega> V m (Suc 0) = V" |
   "RM M2 M1 \<Omega> V m (Suc n) = 
     {xs' \<in> C M2 M1 \<Omega> V m (Suc n) .
-      (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
+      (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>)
       \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
           \<exists> V'' \<in> N io M1 V .  
             \<exists> S1 . 
@@ -1534,7 +1534,7 @@ proof -
       then have "length xs = ( |M2| * m)" by auto
   
       have RM_def : "?RM ?i =  {xs' \<in> C M2 M1 \<Omega> V m ?i .
-                          (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
+                          (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>)
                           \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
                               (\<exists> V'' \<in> N io M1 V .  
                                 (\<exists> S1 . 
@@ -1550,7 +1550,7 @@ proof -
             \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V'' ))))}"
       using RM.simps(2)[of M2 M1 \<Omega> V m "((card (nodes M2))*m)"] by assumption
       
-    have "(\<not> (L\<^sub>i\<^sub>n M1 {seq} \<subseteq> L\<^sub>i\<^sub>n M2 {seq}))
+    have "(\<not> atc_io_reduction_on M1 M2 seq \<Omega>)
           \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {seq} .
               (\<exists> V'' \<in> N io M1 V .  
                 (\<exists> S1 . 
@@ -1564,7 +1564,7 @@ proof -
                            \<forall> io2 \<in> RP M2 s2 vs xs V'' .
                              B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega> ))
                     \<and> m < LB M2 M1 vs xs (?TS (( |M2| * m)) \<union> V) S1 \<Omega> V'' ))))"
-      proof (cases "(\<not> (L\<^sub>i\<^sub>n M1 {seq} \<subseteq> L\<^sub>i\<^sub>n M2 {seq}))")
+      proof (cases "(\<not> atc_io_reduction_on M1 M2 seq \<Omega>)")
         case True
         then show ?thesis 
           using RM_def by blast
@@ -1722,7 +1722,7 @@ proof -
       qed
 
       then have "seq \<in> {xs' \<in> C M2 M1 \<Omega> V m ((Suc ( |M2| * m))).
-                         \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                         (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                          (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                              \<exists>V''\<in>N io M1 V.
                                 \<exists>S1 vs xs.

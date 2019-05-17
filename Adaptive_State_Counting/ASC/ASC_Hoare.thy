@@ -144,7 +144,7 @@ lemma asc_algorithm_correctness:
   DO 
     iter := iter + 1;
     rmN := {xs' \<in> cN .
-      (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
+      (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>)
       \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
           (\<exists> V'' \<in> N io M1 V .  
             (\<exists> S1 . 
@@ -237,7 +237,7 @@ next
         
   
   have rmN_calc[simp] : "{xs' \<in> cN.
-        \<not> io_reduction_on M1 {xs'} M2 \<or>
+        (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
         (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
             \<exists>V''\<in>N io M1 V.
                \<exists>S1 vs xs.
@@ -255,7 +255,7 @@ next
 
 
     have "{xs' \<in> cN.
-          \<not> io_reduction_on M1 {xs'} M2 \<or>
+          (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
           (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
@@ -269,7 +269,7 @@ next
                               B M1 io1 \<Omega> \<noteq> B M1 io2 \<Omega>)) \<and>
                     m < LB M2 M1 vs xs (tsN \<union> V) S1 \<Omega> V'')} =
           {xs' \<in> C M2 M1 \<Omega> V m (Suc k).
-          \<not> io_reduction_on M1 {xs'} M2 \<or>
+          (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
           (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
@@ -285,7 +285,7 @@ next
       using \<open>cN = C M2 M1 \<Omega> V m (Suc k)\<close> \<open>tsN = TS M2 M1 \<Omega> V m k\<close> by blast
     
     moreover have "{xs' \<in> C M2 M1 \<Omega> V m (Suc k).
-                    \<not> io_reduction_on M1 {xs'} M2 \<or>
+                    (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                     (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                         \<exists>V''\<in>N io M1 V.
                            \<exists>S1 vs xs.
@@ -301,7 +301,7 @@ next
                     RM M2 M1 \<Omega> V m (Suc k)"
       using RM.simps(2)[of M2 M1 \<Omega> V m k] by blast
     ultimately have "{xs' \<in> cN.
-                      \<not> io_reduction_on M1 {xs'} M2 \<or>
+                      (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                       (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                           \<exists>V''\<in>N io M1 V.
                              \<exists>S1 vs xs.
@@ -321,7 +321,7 @@ next
   qed
   moreover have "RM M2 M1 \<Omega> V m iter = RM M2 M1 \<Omega> V m (iter + 1 - 1)" by simp
   ultimately have rmN_calc' : "{xs' \<in> cN.
-        \<not> io_reduction_on M1 {xs'} M2 \<or>
+        (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
         (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
             \<exists>V''\<in>N io M1 V.
                \<exists>S1 vs xs.
@@ -357,7 +357,7 @@ next
   have cN_calc : "append_set
         (cN -
          {xs' \<in> cN.
-          \<not> io_reduction_on M1 {xs'} M2 \<or>
+          (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
           (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
@@ -377,7 +377,7 @@ next
     have "append_set
           (cN -
            {xs' \<in> cN.
-            \<not> io_reduction_on M1 {xs'} M2 \<or>
+            (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                 \<exists>V''\<in>N io M1 V.
                    \<exists>S1 vs xs.
@@ -434,7 +434,7 @@ next
         (append_set
           (cN -
            {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+            (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                 \<exists>V''\<in>N io M1 V.
                    \<exists>S1 vs xs.
@@ -454,7 +454,7 @@ next
          (append_set
            (cN -
             {xs' \<in> cN.
-             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+             (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
              (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                  \<exists>V''\<in>N io M1 V.
                     \<exists>S1 vs xs.
@@ -482,7 +482,7 @@ next
         (append_set
           (cN -
            {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+            (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                 \<exists>V''\<in>N io M1 V.
                    \<exists>S1 vs xs.
@@ -502,7 +502,7 @@ next
          (append_set
            (cN -
             {xs' \<in> cN.
-             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+             (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
              (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                  \<exists>V''\<in>N io M1 V.
                     \<exists>S1 vs xs.
@@ -529,7 +529,7 @@ next
               (append_set
                 (cN -
                  {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                  (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                       \<exists>V''\<in>N io M1 V.
                          \<exists>S1 vs xs.
@@ -550,7 +550,7 @@ next
                (append_set
                  (cN -
                   {xs' \<in> cN.
-                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                   (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                    (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                        \<exists>V''\<in>N io M1 V.
                           \<exists>S1 vs xs.
@@ -576,7 +576,7 @@ next
               (append_set
                 (cN -
                  {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                  (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                       \<exists>V''\<in>N io M1 V.
                          \<exists>S1 vs xs.
@@ -597,7 +597,7 @@ next
                (append_set
                  (cN -
                   {xs' \<in> cN.
-                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                   (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                    (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                        \<exists>V''\<in>N io M1 V.
                           \<exists>S1 vs xs.
@@ -644,7 +644,7 @@ next
        append_set
         (cN -
          {xs' \<in> cN.
-          \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+          (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
           (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
               \<exists>V''\<in>N io M1 V.
                  \<exists>S1 vs xs.
@@ -661,7 +661,7 @@ next
        (tsN \<union> cN) =
        C M2 M1 \<Omega> V m (iter + 1) \<and>
        {xs' \<in> cN.
-        \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+        (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
         (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
             \<exists>V''\<in>N io M1 V.
                \<exists>S1 vs xs.
@@ -680,7 +680,7 @@ next
         (append_set
           (cN -
            {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+            (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                 \<exists>V''\<in>N io M1 V.
                    \<exists>S1 vs xs.
@@ -700,7 +700,7 @@ next
          (append_set
            (cN -
             {xs' \<in> cN.
-             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+             (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
              (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                  \<exists>V''\<in>N io M1 V.
                     \<exists>S1 vs xs.
@@ -720,7 +720,7 @@ next
         (append_set
           (cN -
            {xs' \<in> cN.
-            \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+            (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
             (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                 \<exists>V''\<in>N io M1 V.
                    \<exists>S1 vs xs.
@@ -740,7 +740,7 @@ next
          (append_set
            (cN -
             {xs' \<in> cN.
-             \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+             (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
              (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                  \<exists>V''\<in>N io M1 V.
                     \<exists>S1 vs xs.
@@ -760,7 +760,7 @@ next
               (append_set
                 (cN -
                  {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                  (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                       \<exists>V''\<in>N io M1 V.
                          \<exists>S1 vs xs.
@@ -781,7 +781,7 @@ next
                (append_set
                  (cN -
                   {xs' \<in> cN.
-                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                   (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                    (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                        \<exists>V''\<in>N io M1 V.
                           \<exists>S1 vs xs.
@@ -802,7 +802,7 @@ next
               (append_set
                 (cN -
                  {xs' \<in> cN.
-                  \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                  (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                   (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                       \<exists>V''\<in>N io M1 V.
                          \<exists>S1 vs xs.
@@ -823,7 +823,7 @@ next
                (append_set
                  (cN -
                   {xs' \<in> cN.
-                   \<not> L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'} \<or>
+                   (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>) \<or>
                    (\<forall>io\<in>L\<^sub>i\<^sub>n M1 {xs'}.
                        \<exists>V''\<in>N io M1 V.
                           \<exists>S1 vs xs.
@@ -891,7 +891,7 @@ next
         using \<open>C M2 M1 \<Omega> V m iter = {}\<close> by auto
       moreover have "C M2 M1 \<Omega> V m (Suc 0) = V" 
         by auto
-      ultimately show"False" 
+      ultimately show "False" 
         using \<open>V \<noteq> {}\<close> by blast
     qed
 

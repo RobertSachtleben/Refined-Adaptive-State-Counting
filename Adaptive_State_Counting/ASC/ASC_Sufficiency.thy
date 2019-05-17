@@ -450,7 +450,7 @@ proof
     assume "\<not> M1 \<preceq> M2"
     obtain vs xs where "minimal_sequence_to_failure_extending V M1 M2 vs xs" 
       using  assms(1) assms(2) assms(4) 
-             minimal_sequence_to_failure_extending_det_state_cover_ob[OF _ _ _ _ \<open>\<not> M1 \<preceq> M2\<close>, of V]
+             minimal_sequence_to_failure_extending_det_state_cover_ob[OF _ _ _  \<open>\<not> M1 \<preceq> M2\<close>, of V]
       by blast 
   
     then have "vs \<in> L\<^sub>i\<^sub>n M1 V" 
@@ -555,7 +555,7 @@ proof
   
   
     from \<open>?stfV@xr \<in> RM M2 M1 \<Omega> V m (Suc j)\<close> have "?stfV@xr \<in> {xs' \<in> C M2 M1 \<Omega> V m (Suc j) .
-        (\<not> (L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}))
+        (\<not> atc_io_reduction_on M1 M2 xs' \<Omega>)
         \<or> (\<forall> io \<in> L\<^sub>i\<^sub>n M1 {xs'} .
             (\<exists> V'' \<in> N io M1 V .  
               (\<exists> S1 . 
@@ -571,16 +571,12 @@ proof
                   \<and> m < LB M2 M1 vs xs (TS M2 M1 \<Omega> V m j \<union> V) S1 \<Omega> V'' ))))}" 
       unfolding RM.simps by blast
   
-    moreover have "\<forall> xs' \<in> ?C (Suc j) . L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}"
-    proof 
-      fix xs' assume "xs' \<in> ?C (Suc j)"
-      from \<open>Suc j \<le> i\<close> have "?C (Suc j) \<subseteq> ?TS i"
-        using C_subset TS_subset by blast 
-      then have "{xs'} \<subseteq> ?TS i" 
-        using \<open>xs' \<in> ?C (Suc j)\<close> by blast
-      show "L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}" 
-        using io_reduction_on_subset[OF \<open>io_reduction_on M1 (?TS i) M2\<close> \<open>{xs'} \<subseteq> ?TS i\<close>] 
-        by assumption
+    moreover have "\<forall> xs' \<in> ?C (Suc j) . (atc_io_reduction_on M1 M2 xs' \<Omega>)"
+    proof -
+      have "\<forall>as. atc_io_reduction_on M1 M2 as \<Omega> \<or> as \<notin> C M2 M1 \<Omega> V m (Suc j)"
+        by (meson C_subset TS_subset \<open>M1 \<preceq>\<lbrakk>(TS M2 M1 \<Omega> V m i).\<Omega>\<rbrakk> M2\<close> \<open>Suc j \<le> i\<close> atc_io_reduction_on_sets.simps subsetCE)
+      then show ?thesis
+        by blast
     qed
   
     ultimately have "(\<forall> io \<in> L\<^sub>i\<^sub>n M1 {?stfV@xr} .
@@ -777,15 +773,20 @@ proof
           by (simp add: \<open>vs' = vs\<close>) 
       qed
     qed
-  
-    
+
     moreover have "vs' @ xs' \<in> L M2 \<inter> L M1"
-      by (metis (no_types, lifting) IntI RM_impl(2) 
-          \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}\<close> 
-          \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> 
-          \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L\<^sub>i\<^sub>n M1 {map fst vs @ xr}\<close> 
-          language_state_for_inputs_in_language_state subsetCE)
-      
+    proof -
+      have "\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}" 
+        using \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). atc_io_reduction_on M1 M2 xs' \<Omega>\<close>
+        unfolding atc_io_reduction_on.simps
+        by auto
+      show ?thesis 
+        by (metis (no_types, lifting) IntI RM_impl(2) 
+            \<open>\<forall>xs'\<in>C M2 M1 \<Omega> V m (Suc j). L\<^sub>i\<^sub>n M1 {xs'} \<subseteq> L\<^sub>i\<^sub>n M2 {xs'}\<close> 
+            \<open>map fst vs @ xr \<in> C M2 M1 \<Omega> V m (Suc j)\<close> 
+            \<open>vs @ (xr || take (length xr) (map snd xs)) \<in> L\<^sub>i\<^sub>n M1 {map fst vs @ xr}\<close> 
+            language_state_for_inputs_in_language_state subsetCE)
+    qed     
           
     
     ultimately have "Prereq M2 M1 vs' xs' (?TS j \<union> V) S1 \<Omega> V''"
