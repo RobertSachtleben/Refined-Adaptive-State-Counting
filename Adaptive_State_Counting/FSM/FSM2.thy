@@ -64,12 +64,12 @@ notation
 
 
 
-value "toFSM \<lparr> initial = 2, inputs = [0,1,2], outputs = [10,20,30], transitions = [] \<rparr>"
 
-fun is_wf_transition :: "FSM \<Rightarrow> (nat \<times> nat \<times> nat \<times> nat) \<Rightarrow> bool" where
+
+fun is_wf_transition :: "'a FSM_scheme \<Rightarrow> (nat \<times> nat \<times> nat \<times> nat) \<Rightarrow> bool" where
   "is_wf_transition M t = ((t_input t) \<in> set (inputs M) \<and> (t_output t) \<in> set (outputs M))"
 
-fun wf_transrel :: "FSM \<Rightarrow> (nat \<times> nat) set" where
+fun wf_transrel :: "'a FSM_scheme \<Rightarrow> (nat \<times> nat) set" where
   "wf_transrel M =  image (\<lambda> t. (t_source t, t_target t)) (set (filter (is_wf_transition M) (h M)))"
 
 lemma wf_transrel_transition_ob : 
@@ -81,13 +81,13 @@ lemma wf_transrel_transition_ob :
     and "is_wf_transition M t"
   using assms by auto
 
-fun wf_trancl :: "FSM \<Rightarrow> (nat \<times> nat) set" where
+fun wf_trancl :: "'a FSM_scheme \<Rightarrow> (nat \<times> nat) set" where
   "wf_trancl M = trancl (wf_transrel M)"
 
-fun isReachable :: "FSM \<Rightarrow> nat \<Rightarrow> bool" where
+fun isReachable :: "'a FSM_scheme \<Rightarrow> nat \<Rightarrow> bool" where
   "isReachable M q = ((initial M, q) \<in> wf_trancl M)"
 
-fun nodes' :: "FSM \<Rightarrow> nat set" where
+fun nodes' :: "'a FSM_scheme \<Rightarrow> nat set" where
   "nodes' M = insert (initial M) (set (filter (isReachable M) (map t_target (h M))))"
 
 
@@ -229,7 +229,7 @@ qed
 
 
 
-lemma "nodes M = nodes' M"
+lemma [code]: "nodes M = nodes' M"
 proof
   show "nodes M \<subseteq> nodes' M"
   proof 
@@ -287,7 +287,6 @@ proof
   qed
 qed
     
-
 
 
 
