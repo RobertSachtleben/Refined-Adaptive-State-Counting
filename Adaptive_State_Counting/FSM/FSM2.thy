@@ -72,12 +72,13 @@ fun is_wf_transition :: "FSM \<Rightarrow> (nat \<times> nat \<times> nat \<time
 fun wf_transrel :: "FSM \<Rightarrow> (nat \<times> nat) set" where
   "wf_transrel M =  image (\<lambda> t. (t_source t, t_target t)) (set (filter (is_wf_transition M) (h M)))"
 
-lemma transrel_io : 
+lemma wf_transrel_transition_ob : 
   assumes "tr \<in> wf_transrel M"
   obtains t
   where "t \<in> set (h M)"
     and "fst tr = t_source t"
-    and "snd tr = t_target t" 
+    and "snd tr = t_target t"
+    and "is_wf_transition M t"
   using assms by auto
 
 fun wf_trancl :: "FSM \<Rightarrow> (nat \<times> nat) set" where
@@ -131,6 +132,7 @@ qed
 
 
 
+
 value "wf_transrel (\<lparr> initial = 2, inputs = [0,1,2], outputs = [10,20,30], 
                        transitions = [(2,1,20,3),(2,1,20,4),(3,1,20,5)] \<rparr>)"
 
@@ -173,6 +175,57 @@ lemma trace_alt_def: "trace r p = smap snd r"
 
 
 
+lemma wf_trancl_path :
+  assumes "(q,q') \<in> wf_trancl M"
+obtains p
+  where "path M p q"
+  and   "target p q = q'"
+proof -
+  have "\<exists> p .path M p q \<and> target p q = q'"
+  using assms unfolding wf_trancl.simps proof (induction rule: trancl.induct)
+    case (r_into_trancl a b)
+    then obtain t where "t \<in> set (h M)"
+                  and   "a = t_source t"
+                  and   "b = t_target t"
+                  and   "is_wf_transition M t"
+      by auto
+    then have "path M [((t_input t, t_output t), b)] a" 
+         and  "target [((t_input t, t_output t), b)] a = b"
+      by auto
+    then show "\<exists>p. path M p a \<and> target p a = b"
+      using r_into_trancl.prems by auto
+  next
+    case (trancl_into_trancl a b c)
+    then obtain p where "path M p a"
+                  and   "target p a = b"
+      by blast
+  
+    obtain t where "t \<in> set (h M)"
+             and   "b = t_source t"
+             and   "c = t_target t"
+             and   "is_wf_transition M t"
+      using trancl_into_trancl.hyps(2) by auto
+    then have "path M [((t_input t, t_output t), c)] b" 
+         and  "target [((t_input t, t_output t), c)] b = c"
+      by auto
+  
+    have "path M (p@[((t_input t, t_output t), c)]) a"
+      by (simp add: FSM.path_append \<open>path M [((t_input t, t_output t), c)] b\<close> \<open>path M p a\<close> \<open>target p a = b\<close>)
+    moreover have  "target (p@[((t_input t, t_output t), c)]) a = c"
+    proof -
+      have "target (p@[((t_input t, t_output t), c)]) a = target [((t_input t, t_output t), c)] a"
+        by auto
+      then show ?thesis
+        by simp 
+    qed
+      
+     
+    ultimately show ?case
+      by blast     
+  qed
+  then show ?thesis using that by auto
+qed
+
 
 
 
@@ -191,19 +244,49 @@ proof
     next
       case (snoc a p)
       then have "path M [a] (target p (initial M))" 
-                "snd a = q"    
+      and       "snd a = q"    
         by auto
-      then have "(target p (initial M),fst (fst a), snd (fst a),q) \<in> set (h M)"
+      then have "(target p (initial M),fst (fst a), snd (fst a),q) \<in> set (h M)" 
+      and       "fst (fst a) \<in> set (inputs M)"
+      and       "snd (fst a) \<in> set (outputs M)"
         by auto
-      
 
+      let ?t = "(target p (initial M),fst (fst a), snd (fst a),q)"
+
+      have "is_wf_transition M ?t"
+        by (simp add: \<open>fst (fst a) \<in> set (inputs M)\<close> \<open>snd (fst a) \<in> set (outputs M)\<close>)
+      
 
       have "target p (initial M) \<in> nodes' M"
         using snoc by auto
-      then show ?case 
+      then have "t_source ?t \<in> nodes' M"
+        by auto
+      
+      show ?case 
+        using nodes'_next[OF \<open>t_source ?t \<in> nodes' M\<close> \<open>is_wf_transition M ?t\<close> \<open>?t \<in> set (h M)\<close>]
+        by auto
     qed
-      unfolding nodes'.simps isReachable.simps transrel.simps 
-
+  qed
+      
+  show "nodes' M \<subseteq> nodes M"
+  proof 
+    fix q assume "q \<in> nodes' M"
+    then show "q \<in> nodes M"
+    proof (cases "q = initial M")
+      case True
+      then show ?thesis by auto
+    next
+      case False
+      then have "(initial M, q) \<in> wf_trancl M" 
+        using \<open>q \<in> nodes' M\<close> by auto
+      obtain p where "path M p (initial M) \<and> target p (initial M) = q"
+        using wf_trancl_path[OF \<open>(initial M, q) \<in> wf_trancl M\<close>] by auto
+      then show ?thesis 
+        by auto
+    qed
+  qed
+qed
+    
 
 
 
