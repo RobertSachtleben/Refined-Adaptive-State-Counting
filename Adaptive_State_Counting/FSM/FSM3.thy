@@ -180,23 +180,151 @@ proof -
 qed
 
 
-fun language_state_for_input :: "FSM \<Rightarrow> State \<Rightarrow> Input list \<Rightarrow> Output list list" where
-  "language_state_for_input M q xs = map (map t_output) (filter (\<lambda> ts . xs = map t_input ts) (paths_of_length M q (length xs)))"
+fun language_state_for_input :: "FSM \<Rightarrow> State \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
+  "language_state_for_input M q xs = map (map (\<lambda> t . (t_input t, t_output t))) (filter (\<lambda> ts . xs = map t_input ts) (paths_of_length M q (length xs)))"
 
 value "language_state_for_input M_ex 2 [1]"
 value "language_state_for_input M_ex 2 [1,2]"
 value "language_state_for_input M_ex 3 [1,2,1,2,1,2]"
 
-fun language_state_for_inputs :: "FSM \<Rightarrow> State \<Rightarrow> Input list list \<Rightarrow> Output list list" where
-  "language_state_for_inputs M q xss = concat (map (language_state_for_input M q) xss)"
+fun language_state_for_inputs :: "FSM \<Rightarrow> State \<Rightarrow> Input list list \<Rightarrow> (Input \<times> Output) list list" where
+  "language_state_for_inputs M q xss = concat (map (language_state_for_input M q) xss)" 
 
 value "language_state_for_inputs M_ex 2 [[1]]"
 value "language_state_for_inputs M_ex 2 [[1], [1,2]]"
 value "language_state_for_inputs M_ex 3 [[1,2,1,2,1,2], [1], [2]]"
 
+lemma concat_map_elem :
+  assumes "y \<in> set (concat (map f xs))"
+  obtains x where "x \<in> set xs"
+              and "y \<in> set (f x)"
+using assms proof (induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  then show ?case 
+  proof (cases "y \<in> set (f a)")
+    case True
+    then show ?thesis 
+      using Cons.prems(1) by auto
+  next
+    case False
+    then have "y \<in> set (concat (map f xs))"
+      using Cons by auto
+    have "\<exists> x . x \<in> set xs \<and> y \<in> set (f x)"  
+    proof (rule ccontr)
+      assume "\<nexists>x. x \<in> set xs \<and> y \<in> set (f x)"
+      then have "\<not>(y \<in> set (concat (map f xs)))"
+        by auto
+      then show False 
+        using \<open>y \<in> set (concat (map f xs))\<close> by auto
+    qed
+    then show ?thesis
+      using Cons.prems(1) by auto     
+  qed
+qed
+
+lemma language_state_for_inputs_from_language_state_for_input :
+  assumes "io \<in> set (language_state_for_inputs M q xss)"
+  obtains xs 
+  where "xs \<in> set xss"
+    and "io \<in> set (language_state_for_input M q xs)"
+   using concat_map_elem[of io "language_state_for_input M q" xss] assms unfolding language_state_for_inputs.simps by blast
 
 
 
+fun LS\<^sub>i\<^sub>n :: "FSM \<Rightarrow> State \<Rightarrow> Input list set \<Rightarrow> (Input \<times> Output) list set" where 
+  "LS\<^sub>i\<^sub>n M q U = { map (\<lambda> t . (t_input t, t_output t)) p | p . path M q p \<and> map t_input p \<in> U }"
+
+
+lemma set_map_subset :
+  assumes "x \<in> set xs"
+  and     "t \<in> set (map f [x])"
+shows "t \<in> set (map f xs)"
+  using assms by auto
+
+
+lemma LS\<^sub>i\<^sub>n_subset_language_state_for_inputs : "LS\<^sub>i\<^sub>n M q (set xss) \<subseteq> set (language_state_for_inputs M q xss)"
+proof 
+  fix x assume "x \<in> LS\<^sub>i\<^sub>n M q (set xss)"
+  then obtain p where "path M q p" 
+                and   "map t_input p \<in> (set xss)"
+                and   "x = map (\<lambda> t . (t_input t, t_output t)) p"
+    by auto
+  have "p \<in> set (filter (\<lambda> ts . map t_input p = map t_input ts) (paths_of_length M q (length (map t_input p))))"
+    using \<open>path M q p\<close> paths_of_length_containment by auto
+  then have "map (\<lambda> t . (t_input t, t_output t)) p \<in> set (language_state_for_input M q (map t_input p))"
+    by auto
+  then obtain tr where  "tr \<in> set (map (language_state_for_input M q) [map t_input p])" 
+                 and    "map (\<lambda> t . (t_input t, t_output t)) p \<in> set tr" 
+    by auto
+  have "tr \<in> set (map (language_state_for_input M q) xss)"
+    using set_map_subset[OF \<open>map t_input p \<in> (set xss)\<close>  \<open>tr \<in> set (map (language_state_for_input M q) [map t_input p])\<close>] by auto
+
+  then have "set tr \<subseteq> set (language_state_for_inputs M q xss)"
+    by auto
+  then have "map (\<lambda> t . (t_input t, t_output t)) p \<in> set (language_state_for_inputs M q xss)"  
+    using \<open>map (\<lambda> t . (t_input t, t_output t)) p \<in> set tr\<close> by blast
+  then show "x \<in> set (language_state_for_inputs M q xss)"
+    using \<open>x = map (\<lambda> t . (t_input t, t_output t)) p\<close> by auto
+qed
+
+lemma LS\<^sub>i\<^sub>n_inputs : 
+  assumes "io \<in> LS\<^sub>i\<^sub>n M q U"
+  shows "map fst io \<in> U" 
+proof -
+  obtain p where "io = map (\<lambda> t . (t_input t, t_output t)) p"
+           and   "path M q p"
+           and   "map t_input p \<in> U"
+    using assms by auto
+  then have "map fst io = map t_input p" 
+    by auto
+  then show ?thesis 
+    using \<open>map t_input p \<in> U\<close> by auto
+qed
+
+lemma language_state_for_input_inputs : 
+  assumes "io \<in> set (language_state_for_input M q xs)"
+  shows "map fst io = xs" 
+proof -
+  obtain p where "io = map (\<lambda> t . (t_input t, t_output t)) p"
+           and   "p \<in> set (filter (\<lambda> ts . xs = map t_input ts) (paths_of_length M q (length xs)))"
+    using assms by auto
+  then show ?thesis by auto
+qed
+
+
+lemma language_state_for_inputs_inputs : 
+  assumes "io \<in> set (language_state_for_inputs M q U)"
+  shows "map fst io \<in> set U"
+  by (metis assms language_state_for_input_inputs language_state_for_inputs_from_language_state_for_input) 
+
+lemma language_state_for_inputs_subset_LS\<^sub>i\<^sub>n : "set (language_state_for_inputs M q xss) \<subseteq> LS\<^sub>i\<^sub>n M q (set xss)"
+proof 
+  fix x assume "x \<in> set (language_state_for_inputs M q xss)"
+  then obtain p where "x = map (\<lambda> t . (t_input t, t_output t)) p"
+                and   "p \<in> set (filter (\<lambda> ts . map fst x = map t_input ts) (paths_of_length M q (length (map fst x))))"
+    by auto
+  then have "path M q p"
+    by (metis (no_types) \<open>p \<in> set (filter (\<lambda>ts. map fst x = map t_input ts) (paths_of_length M q (length (map fst x))))\<close> filter_set member_filter paths_of_length.simps)
+  moreover have "map t_input p = map fst x"
+    by (simp add: \<open>x = map (\<lambda>t. (t_input t, t_output t)) p\<close>)
+  ultimately have "x \<in> LS\<^sub>i\<^sub>n M q {map fst x}"
+    using LS\<^sub>i\<^sub>n.simps \<open>x = map (\<lambda>t. (t_input t, t_output t)) p\<close> by blast  
+  moreover have "map fst x \<in> set xss"
+    using \<open>x \<in> set (language_state_for_inputs M q xss)\<close> language_state_for_inputs_inputs by blast
+  ultimately show "x \<in> LS\<^sub>i\<^sub>n M q (set xss)"
+    using \<open>x = map (\<lambda>t. (t_input t, t_output t)) p\<close> by auto  
+qed
+    
+
+    
+
+lemma LS\<^sub>i\<^sub>n_code[code] : "LS\<^sub>i\<^sub>n M q (set xss) = set (language_state_for_inputs M q xss)" 
+  using LS\<^sub>i\<^sub>n_subset_language_state_for_inputs language_state_for_inputs_subset_LS\<^sub>i\<^sub>n by blast
+
+value "LS\<^sub>i\<^sub>n M_ex 2 {[1]}"
 
 
 end
