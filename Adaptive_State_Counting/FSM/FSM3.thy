@@ -113,6 +113,10 @@ fun path :: "FSM \<Rightarrow> State \<Rightarrow> Transition list \<Rightarrow>
   "path M q [] = True" |
   "path M q (t#ts) = (t \<in> h M \<and> q = t_source t \<and> path M (t_target t) ts)"
 
+lemma path_h :
+  assumes "path M q p"
+  shows "set p \<subseteq> h M"
+  using assms by (induct p arbitrary: q; fastforce)
 
 (* Example FSM *)
 definition "M_ex = (\<lparr> 
@@ -122,6 +126,8 @@ definition "M_ex = (\<lparr>
                       transitions = [ (2,1,20,3),
                                       (2,1,30,4),
                                       (3,1,10,5),
+                                      (4,0,10,3),
+                                      (4,2,20,2),
                                       (5,2,30,3)]\<rparr>)"
 
 value "nodes M_ex"
@@ -130,6 +136,66 @@ value "path M_ex 3 [(3,1,10,5),(5,2,30,3)]"
 value "path M_ex 3 [(3,1,10,5),(5,2,30,4)]"
 value "path M_ex 3 [(2,1,20,3)]"
 value "path M_ex 2 [(2,1,20,3),(3,1,10,5),(5,2,30,3),(3,1,10,5),(5,2,30,3),(3,1,10,5),(5,2,30,3)]"
+
+fun lists_of_length :: "'a list \<Rightarrow> nat \<Rightarrow> 'a list list" where
+  "lists_of_length T 0 = [[]]" |
+  "lists_of_length T (Suc n) = concat (map (\<lambda> xs . map (\<lambda> x . x#xs) T ) (lists_of_length T n))" 
+
+lemma lists_of_length_containment :
+  assumes "set xs \<subseteq> set T"
+  and     "length xs = n"
+shows "xs \<in> set (lists_of_length T n)"
+using assms proof (induction xs arbitrary: n)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  then obtain k where "n = Suc k" 
+    by auto
+  then have "xs \<in> set (lists_of_length T k)" 
+    using Cons by auto
+  moreover have "a \<in> set T" 
+    using Cons by auto
+  ultimately show ?case 
+    using \<open>n = Suc k\<close> by auto
+qed
+
+value "lists_of_length [1,2,3::nat] 3"
+
+fun paths_of_length :: "FSM \<Rightarrow> State \<Rightarrow> nat \<Rightarrow> Transition list list" where
+  "paths_of_length M q n = filter (path M q) (lists_of_length (wf_transitions M) n)"
+
+value "paths M_ex 2 5"
+
+lemma paths_of_length_containment : 
+  assumes "path M q p"
+  shows "p \<in> set (paths_of_length M q (length p))"
+proof -
+  have "set p \<subseteq> h M" 
+    using assms path_h by auto
+  then have "p \<in> set (lists_of_length (wf_transitions M) (length p))"
+    by (metis lists_of_length_containment)
+  then show ?thesis
+    by (simp add: assms) 
+qed
+
+
+fun language_state_for_input :: "FSM \<Rightarrow> State \<Rightarrow> Input list \<Rightarrow> Output list list" where
+  "language_state_for_input M q xs = map (map t_output) (filter (\<lambda> ts . xs = map t_input ts) (paths_of_length M q (length xs)))"
+
+value "language_state_for_input M_ex 2 [1]"
+value "language_state_for_input M_ex 2 [1,2]"
+value "language_state_for_input M_ex 3 [1,2,1,2,1,2]"
+
+fun language_state_for_inputs :: "FSM \<Rightarrow> State \<Rightarrow> Input list list \<Rightarrow> Output list list" where
+  "language_state_for_inputs M q xss = concat (map (language_state_for_input M q) xss)"
+
+value "language_state_for_inputs M_ex 2 [[1]]"
+value "language_state_for_inputs M_ex 2 [[1], [1,2]]"
+value "language_state_for_inputs M_ex 3 [[1,2,1,2,1,2], [1], [2]]"
+
+
+
 
 
 
