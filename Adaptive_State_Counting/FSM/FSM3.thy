@@ -160,6 +160,29 @@ next
     using \<open>n = Suc k\<close> by auto
 qed
 
+
+
+lemma lists_of_length_length :
+  assumes "xs \<in> set (lists_of_length T n)"
+  shows "length xs = n"
+proof -
+  have "\<forall> xs \<in> set (lists_of_length T n) . length xs = n"
+    by (induction n; simp)
+  then show ?thesis using assms by blast
+qed
+
+lemma lists_of_length_elems :
+  assumes "xs \<in> set (lists_of_length T n)"
+  shows "set xs \<subseteq> set T"
+proof -
+  have "\<forall> xs \<in> set (lists_of_length T n) . set xs \<subseteq> set T"
+    by (induction n; simp)
+  then show ?thesis using assms by blast
+qed
+  
+
+    
+
 value "lists_of_length [1,2,3::nat] 3"
 
 fun paths_of_length :: "FSM \<Rightarrow> State \<Rightarrow> nat \<Rightarrow> Transition list list" where
@@ -177,6 +200,17 @@ proof -
     by (metis lists_of_length_containment)
   then show ?thesis
     by (simp add: assms) 
+qed
+
+lemma paths_of_length_is_path :
+  assumes "p \<in> set (paths_of_length M q k)"
+  shows "path M q p"
+    and "length p = k"
+proof -
+  show "path M q p"
+    using assms by auto
+  show "length p = k"
+    using assms lists_of_length_length by fastforce
 qed
 
 
