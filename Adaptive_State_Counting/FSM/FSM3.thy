@@ -516,7 +516,9 @@ lemma product_simps[simp]:
   "transitions (product A B) = product_transitions A B"
 unfolding product_def by simp+
 
-lemma product_path[iff]:
+
+
+lemma product_path:
   "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (map (\<lambda> t . (fst (t_source t), t_input t, t_output t, fst (t_target t))) p)
                                             \<and> path B q2 (map (\<lambda> t . (snd (t_source t), t_input t, t_output t, snd (t_target t))) p))"
 proof (induction p arbitrary: q1 q2)
@@ -633,7 +635,63 @@ qed
 
 
 
+lemma product_path_rev:
+  assumes "p_io p1 = p_io p2"
+  shows "path (product A B) (q1,q2) (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))
+          \<longleftrightarrow> path A q1 p1 \<and> path B q2 p2"
+proof -
+  have "length p1 = length p2" using assms
+    using map_eq_imp_length_eq by blast 
+  then have "(map (\<lambda> t . (fst (t_source t), t_input t, t_output t, fst (t_target t))) (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))) = p1"
+    by (induction p1 p2 arbitrary: q1 q2 rule: list_induct2; auto)
+
+  moreover have "(map (\<lambda> t . (snd (t_source t), t_input t, t_output t, snd (t_target t))) (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))) = p2"
+    using \<open>length p1 = length p2\<close> assms by (induction p1 p2 arbitrary: q1 q2 rule: list_induct2; auto)
+
+  ultimately show ?thesis using product_path[of A B q1 q2 "(map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))"]
+    by auto
+qed
+    
+    
+
+
+
+
+
+
 lemma "LS (product A B) (q1,q2) = LS A q1 \<inter> LS B q2"
-  unfolding LS.simps using product_path[of A B q1 q2] sorry
+proof 
+  show "LS (product A B) (q1, q2) \<subseteq> LS A q1 \<inter> LS B q2"
+  proof 
+    fix io assume "io \<in> LS (product A B) (q1, q2)"
+    then obtain p where "io = p_io p" 
+                    and "path (product A B) (q1,q2) p"
+      by auto
+    then obtain p1 p2 where "path A q1 p1" 
+                        and "path B q2 p2"
+                        and "io = p_io p1" 
+                        and "io = p_io p2"
+      using product_path[of A B q1 q2] by auto
+    then show "io \<in> LS A q1 \<inter> LS B q2" 
+      unfolding LS.simps by blast
+  qed
+
+  show "LS A q1 \<inter> LS B q2 \<subseteq> LS (product A B) (q1, q2)"
+  proof
+    fix io assume "io \<in> LS A q1 \<inter> LS B q2"
+    then obtain p1 p2 where "path A q1 p1" 
+                        and "path B q2 p2"
+                        and "io = p_io p1" 
+                        and "io = p_io p2"
+                        and "p_io p1 = p_io p2"
+      by auto
+
+    (* todo *)
+
+    then obtain p where "path (product A B) (q1,q2) p" 
+                    and "p_io p = p_io p1" 
+      using product_path_rev[OF \<open>p_io p1 = p_io p2\<close>, of A B q1 q2] 
+
+  unfolding LS.simps using product_path[of A B q1 q2] product_path_rev[of _ _ A B q1 q2] 
 
 end
