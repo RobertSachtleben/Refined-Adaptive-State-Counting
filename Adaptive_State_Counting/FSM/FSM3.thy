@@ -686,12 +686,23 @@ proof
                         and "p_io p1 = p_io p2"
       by auto
 
-    (* todo *)
+    let ?p = "(map (\<lambda>t. ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), t_target (fst t), t_target (snd t))) (zip p1 p2))"
+    
+    
+    have "length p1 = length p2"
+      using \<open>p_io p1 = p_io p2\<close> map_eq_imp_length_eq by blast 
+    moreover have "p_io ?p = p_io (map fst (zip p1 p2))" by auto
+    ultimately have "p_io ?p = p_io p1" by auto
 
-    then obtain p where "path (product A B) (q1,q2) p" 
-                    and "p_io p = p_io p1" 
-      using product_path_rev[OF \<open>p_io p1 = p_io p2\<close>, of A B q1 q2] 
+    then have "p_io ?p = io" 
+      using \<open>io = p_io p1\<close> by auto
+    moreover have "path (product A B) (q1, q2) ?p"
+      using product_path_rev[OF \<open>p_io p1 = p_io p2\<close>, of A B q1 q2] \<open>path A q1 p1\<close> \<open>path B q2 p2\<close> by auto
+    ultimately show "io \<in> LS (product A B) (q1, q2)" 
+      unfolding LS.simps by blast
+  qed
+qed
 
-  unfolding LS.simps using product_path[of A B q1 q2] product_path_rev[of _ _ A B q1 q2] 
+
 
 end
