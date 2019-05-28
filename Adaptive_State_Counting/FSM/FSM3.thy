@@ -59,8 +59,8 @@ fun reachable :: "'state FSM \<Rightarrow> 'state \<Rightarrow> 'state \<Rightar
 fun initially_reachable :: "'state FSM \<Rightarrow> 'state \<Rightarrow> bool" where
   "initially_reachable M q = reachable M (initial M) q"
 
-fun nodes :: "'state FSM \<Rightarrow> 'state set" where
-  "nodes M = insert (initial M) (set (filter (initially_reachable M) (map t_target (wf_transitions M))))"
+fun nodes' :: "'state FSM \<Rightarrow> 'state set" where
+  "nodes' M = insert (initial M) (set (filter (initially_reachable M) (map t_target (wf_transitions M))))"
 
 
 lemma reachable_next :
@@ -88,10 +88,10 @@ proof -
   qed
 qed
 
-lemma nodes_next :
-  assumes "t_source t \<in> nodes M"
+lemma nodes'_next :
+  assumes "t_source t \<in> nodes' M"
   and     "t \<in> h M"
-shows "t_target t \<in> nodes M"
+shows "t_target t \<in> nodes' M"
 proof (cases "t_source t = initial M")
   case True
   moreover have "(t_source t, t_target t) \<in> pairwise_reachable M"
@@ -159,7 +159,7 @@ definition "M_ex' = (\<lparr>
                                       (1003,2,20,1002),
                                       (1005,2,30,1004)]\<rparr>)"
 
-value "nodes M_ex"
+value "nodes' M_ex"
 value "path M_ex 2 []"
 value "path M_ex 3 [(3,1,10,5),(5,2,30,3)]"
 value "path M_ex 3 [(3,1,10,5),(5,2,30,4)]"
@@ -704,30 +704,30 @@ proof
 qed
 
 
-inductive_set nodes' :: "'state FSM \<Rightarrow> 'state set" for M :: "'state FSM" where
-  initial[intro!]: "initial M \<in> nodes' M" |
-  step[intro!]: "t \<in> h M \<Longrightarrow> t_source t \<in> nodes' M \<Longrightarrow> t_target t \<in> nodes' M"
+inductive_set nodes :: "'state FSM \<Rightarrow> 'state set" for M :: "'state FSM" where
+  initial[intro!]: "initial M \<in> nodes M" |
+  step[intro!]: "t \<in> h M \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_target t \<in> nodes M"
 
-lemma nodes_path : 
-  assumes "q \<in> nodes' M"
+lemma nodes'_path : 
+  assumes "q \<in> nodes M"
   and     "path M q p"
-shows "(target p q) \<in> nodes' M"
+shows "(target p q) \<in> nodes M"
   using assms proof (induction p arbitrary: q) 
   case Nil
   then show ?case by auto
 next
   case (Cons a p)
-  then have "t_target a \<in> nodes' M" 
+  then have "t_target a \<in> nodes M" 
        and  "path M (t_target a) p" 
     using Cons by auto
   then show ?case
     using Cons.IH[of "t_target a"] by auto
 qed
 
-lemma nodes_path_initial :
+lemma nodes'_path_initial :
   assumes "path M (initial M) p"
-  shows "(target p (initial M)) \<in> nodes' M"
-  by (meson assms nodes'.initial nodes_path)
+  shows "(target p (initial M)) \<in> nodes M"
+  by (meson assms nodes.initial nodes'_path)
 
 
 lemma path_reachable : 
@@ -764,46 +764,46 @@ next
   then show ?thesis using that by blast
 qed 
 
-lemma reachable_nodes :
+lemma reachable_nodes' :
   assumes "initially_reachable M q"
-  shows "q \<in> nodes' M"
-  by (metis assms initially_reachable.elims(2) nodes'.initial nodes_path path_reachable)
+  shows "q \<in> nodes M"
+  by (metis assms initially_reachable.elims(2) nodes.initial nodes'_path path_reachable)
 
 
 
 
-lemma nodes_code : "nodes' M = nodes M"
+lemma nodes'_code[code] : "nodes M = nodes' M"
 proof
-  show "nodes' M \<subseteq> nodes M"
+  show "nodes M \<subseteq> nodes' M"
   proof 
-    fix x assume "x \<in> nodes' M"
-    then show "x \<in> nodes M"
+    fix x assume "x \<in> nodes M"
+    then show "x \<in> nodes' M"
     proof (induction)
       case initial
       then show ?case by auto
     next
       case (step t)
       then show ?case
-        using nodes_next by blast 
+        using nodes'_next by blast 
     qed
   qed
-  show "nodes M \<subseteq> nodes' M"
+  show "nodes' M \<subseteq> nodes M"
   proof 
-    fix x assume "x \<in> nodes M"
+    fix x assume "x \<in> nodes' M"
 
-    then show "x \<in> nodes' M"
-      by (metis filter_set insert_iff member_filter nodes'.simps nodes.simps reachable_nodes)
+    then show "x \<in> nodes M"
+      by (metis filter_set insert_iff member_filter nodes.simps nodes'.simps reachable_nodes')
   qed
 qed
   
 
 
-(* TODO: nodes/nodes' *)
-lemma product_nodes : "nodes (product A B) \<subseteq> (nodes A) \<times> (nodes B)"
+(* TODO: nodes'/nodes *)
+lemma product_nodes' : "nodes' (product A B) \<subseteq> (nodes' A) \<times> (nodes' B)"
 proof 
-  fix q assume "q \<in> nodes (product A B)"
-  then show "q \<in> (nodes A) \<times> (nodes B)"
-  proof (induction rule: nodes.induct)
+  fix q assume "q \<in> nodes' (product A B)"
+  then show "q \<in> (nodes' A) \<times> (nodes' B)"
+  proof (induction rule: nodes'.induct)
     case (1 M)
     then show ?case sorry
   qed
