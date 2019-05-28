@@ -704,5 +704,109 @@ proof
 qed
 
 
+inductive_set nodes' :: "'state FSM \<Rightarrow> 'state set" for M :: "'state FSM" where
+  initial[intro!]: "initial M \<in> nodes' M" |
+  step[intro!]: "t \<in> h M \<Longrightarrow> t_source t \<in> nodes' M \<Longrightarrow> t_target t \<in> nodes' M"
+
+lemma nodes_path : 
+  assumes "q \<in> nodes' M"
+  and     "path M q p"
+shows "(target p q) \<in> nodes' M"
+  using assms proof (induction p arbitrary: q) 
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a p)
+  then have "t_target a \<in> nodes' M" 
+       and  "path M (t_target a) p" 
+    using Cons by auto
+  then show ?case
+    using Cons.IH[of "t_target a"] by auto
+qed
+
+lemma nodes_path_initial :
+  assumes "path M (initial M) p"
+  shows "(target p (initial M)) \<in> nodes' M"
+  by (meson assms nodes'.initial nodes_path)
+
+
+lemma path_reachable : 
+  assumes "reachable M q1 q2"
+  obtains p where "path M q1 p"
+            and   "target p q1 = q2"
+  using assms unfolding reachable.simps
+proof (cases "q1 = q2")
+  case True
+  then have "path M q1 []" and "target [] q1 = q2" by auto
+  then show ?thesis using that by blast
+next
+  case False
+  then have "(q1, q2) \<in> pairwise_reachable M" using assms by auto
+  then have "\<exists> p . path M q1 p \<and> target p q1 = q2" unfolding pairwise_reachable.simps pairwise_immediately_reachable.simps
+  proof (induction rule: trancl.induct) 
+    case (r_into_trancl a b)
+    then obtain t where "t \<in> h M"
+                  and   "a = t_source t"
+                  and   "b = t_target t"
+      by auto
+    then have "path M a [t] \<and> target [t] a = b" by auto
+    then show ?case by force 
+  next
+    case (trancl_into_trancl a b c)
+    then obtain p t where "t \<in> h M"
+                and   "b = t_source t"
+                and   "c = t_target t"
+                and "path M a p \<and> target p a = b"
+      by auto
+    then have "path M a (p@[t]) \<and> target (p@[t]) a = c" by auto
+    then show ?case by metis 
+  qed
+  then show ?thesis using that by blast
+qed 
+
+lemma reachable_nodes :
+  assumes "initially_reachable M q"
+  shows "q \<in> nodes' M"
+  by (metis assms initially_reachable.elims(2) nodes'.initial nodes_path path_reachable)
+
+
+
+
+lemma nodes_code : "nodes' M = nodes M"
+proof
+  show "nodes' M \<subseteq> nodes M"
+  proof 
+    fix x assume "x \<in> nodes' M"
+    then show "x \<in> nodes M"
+    proof (induction)
+      case initial
+      then show ?case by auto
+    next
+      case (step t)
+      then show ?case
+        using nodes_next by blast 
+    qed
+  qed
+  show "nodes M \<subseteq> nodes' M"
+  proof 
+    fix x assume "x \<in> nodes M"
+
+    then show "x \<in> nodes' M"
+      by (metis filter_set insert_iff member_filter nodes'.simps nodes.simps reachable_nodes)
+  qed
+qed
+  
+
+
+(* TODO: nodes/nodes' *)
+lemma product_nodes : "nodes (product A B) \<subseteq> (nodes A) \<times> (nodes B)"
+proof 
+  fix q assume "q \<in> nodes (product A B)"
+  then show "q \<in> (nodes A) \<times> (nodes B)"
+  proof (induction rule: nodes.induct)
+    case (1 M)
+    then show ?case sorry
+  qed
+
 
 end
