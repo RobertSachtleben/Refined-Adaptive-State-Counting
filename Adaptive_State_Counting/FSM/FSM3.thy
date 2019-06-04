@@ -509,6 +509,11 @@ definition product :: "'state1 FSM \<Rightarrow> 'state2 FSM \<Rightarrow> ('sta
 
 value "product M_ex M_ex'"
 
+abbreviation "left_path p \<equiv> map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p"
+abbreviation "right_path p \<equiv> map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p"
+abbreviation "zip_path p1 p2 \<equiv> (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))"
+
+
 lemma product_simps[simp]:
   "initial (product A B) = (initial A, initial B)"  
   "inputs (product A B) = inputs A @ inputs B"
@@ -519,8 +524,7 @@ unfolding product_def by simp+
 
 
 lemma product_path:
-  "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (map (\<lambda> t . (fst (t_source t), t_input t, t_output t, fst (t_target t))) p)
-                                            \<and> path B q2 (map (\<lambda> t . (snd (t_source t), t_input t, t_output t, snd (t_target t))) p))"
+  "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p))"
 proof (induction p arbitrary: q1 q2)
 case Nil
 then show ?case by auto
@@ -635,9 +639,10 @@ qed
 
 
 
+
 lemma product_path_rev:
   assumes "p_io p1 = p_io p2"
-  shows "path (product A B) (q1,q2) (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))
+  shows "path (product A B) (q1,q2) (zip_path p1 p2)
           \<longleftrightarrow> path A q1 p1 \<and> path B q2 p2"
 proof -
   have "length p1 = length p2" using assms
@@ -686,7 +691,7 @@ proof
                         and "p_io p1 = p_io p2"
       by auto
 
-    let ?p = "(map (\<lambda>t. ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), t_target (fst t), t_target (snd t))) (zip p1 p2))"
+    let ?p = "zip_path p1 p2"
     
     
     have "length p1 = length p2"
@@ -708,7 +713,7 @@ inductive_set nodes :: "'state FSM \<Rightarrow> 'state set" for M :: "'state FS
   initial[intro!]: "initial M \<in> nodes M" |
   step[intro!]: "t \<in> h M \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_target t \<in> nodes M"
 
-lemma nodes'_path : 
+lemma nodes_path : 
   assumes "q \<in> nodes M"
   and     "path M q p"
 shows "(target p q) \<in> nodes M"
@@ -724,10 +729,10 @@ next
     using Cons.IH[of "t_target a"] by auto
 qed
 
-lemma nodes'_path_initial :
+lemma nodes_path_initial :
   assumes "path M (initial M) p"
   shows "(target p (initial M)) \<in> nodes M"
-  by (meson assms nodes.initial nodes'_path)
+  by (meson assms nodes.initial nodes_path)
 
 
 lemma path_reachable : 
@@ -764,15 +769,16 @@ next
   then show ?thesis using that by blast
 qed 
 
-lemma reachable_nodes' :
+lemma reachable_nodes :
   assumes "initially_reachable M q"
   shows "q \<in> nodes M"
-  by (metis assms initially_reachable.elims(2) nodes.initial nodes'_path path_reachable)
+  by (metis assms initially_reachable.elims(2) nodes.initial nodes_path path_reachable)
 
 
+  
 
 
-lemma nodes'_code[code] : "nodes M = nodes' M"
+lemma nodes_code[code] : "nodes M = nodes' M"
 proof
   show "nodes M \<subseteq> nodes' M"
   proof 
@@ -792,21 +798,46 @@ proof
     fix x assume "x \<in> nodes' M"
 
     then show "x \<in> nodes M"
-      by (metis filter_set insert_iff member_filter nodes.simps nodes'.simps reachable_nodes')
+      by (metis filter_set insert_iff member_filter nodes.simps nodes'.simps reachable_nodes)
   qed
 qed
   
+lemma path_to_nodes : 
+  assumes "q \<in> nodes M"
+  obtains p where "path M (initial M) p"
+            and   "q = (target p (initial M))"
+proof -
+  have "q \<in> nodes' M"
+    using assms nodes_code by force  
+  then have "reachable M (initial M) q" 
+    by auto
+  then show ?thesis
+    by (metis path_reachable that)
+qed
 
 
-(* TODO: nodes'/nodes *)
-lemma product_nodes' : "nodes' (product A B) \<subseteq> (nodes' A) \<times> (nodes' B)"
+
+lemma product_nodes : "nodes (product A B) \<subseteq> (nodes A) \<times> (nodes B)"
 proof 
-  fix q assume "q \<in> nodes' (product A B)"
-  then show "q \<in> (nodes' A) \<times> (nodes' B)"
-  proof (induction rule: nodes'.induct)
-    case (1 M)
-    then show ?case sorry
-  qed
+  fix q assume "q \<in> nodes (product A B)"
+  then obtain p where "path (product A B) (initial (product A B)) p"
+                and   "q = target p (initial (product A B))" 
+    by (metis path_to_nodes)
+
+  let ?p1 = "left_path p"
+  let ?p2 = "right_path p"
+
+  have "path A (initial A) ?p1"
+  and  "path B (initial B) ?p2"
+    using product_path[of A B "initial A" "initial B" p]
+    using \<open>path (product A B) (initial (product A B)) p\<close> by auto 
+
+  moreover have "target p (initial (product A B)) = (target ?p1 (initial A), target ?p2 (initial B))"
+    by (induction p; auto)  
+
+  ultimately show "q \<in> (nodes A) \<times> (nodes B)"
+    by (metis (no_types, lifting) SigmaI \<open>q = target p (initial (product A B))\<close> nodes_path_initial)
+qed
 
 
 end
