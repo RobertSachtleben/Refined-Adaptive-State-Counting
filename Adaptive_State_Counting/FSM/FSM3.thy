@@ -861,34 +861,21 @@ and   "t_output t \<in> set (outputs M)"
   using assms by auto
 
 fun deterministic :: "'a FSM \<Rightarrow> bool" where
-  "deterministic M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . card { t \<in> h M . t_source t = q \<and> t_input t = x} \<le> 1)" 
+  "deterministic M = (\<forall> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<longrightarrow> t_output t1 = t_output t2 \<and> t_target t1 = t_target t2)" 
+abbreviation "deterministicH M \<equiv> (\<forall> q1 x y' y''  q1' q1'' . (q1,x,y',q1') \<in> h M \<and> (q1,x,y'',q1'') \<in> h M \<longrightarrow> y' = y'' \<and> q1' = q1'')"
 
-(*
-lemma deterministic_alt_def :
-  "deterministic M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . 
-                       ((\<exists> q' y . (q,x,y,q') \<in> h M \<and> (\<forall> q'' y' . (q' \<noteq> q'' \<or> y \<noteq> y') \<longrightarrow> (q,x,y',q'') \<notin> h M)) 
-                       \<or> \<not>(\<exists> q' y . (q,x,y,q') \<in> h M )))" 
-*)
-    
+lemma deterministic_alt_def : "deterministic M = deterministicH M" by auto
+
+
+
 fun observable :: "'a FSM \<Rightarrow> bool" where
-  "observable M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<forall> y . card { t \<in> h M . t_source t = q \<and> t_input t = x \<and> t_output t = y} \<le> 1)"
+  "observable M = (\<forall> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2 \<longrightarrow> t_target t1 = t_target t2)" 
+abbreviation "observableH M \<equiv> (\<forall> q1 x y q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x,y,q1'') \<in> h M \<longrightarrow> q1' = q1'')"
 
-lemma t_source_alt_def : "t_source (q,x,y,q') = q" by auto
-lemma t_input_alt_def  : "t_input  (q,x,y,q') = x" by auto
-lemma t_output_alt_def : "t_output (q,x,y,q') = y" by auto
-lemma t_target_alt_def : "t_target (q,x,y,q') = q'" by auto
+lemma observable_alt_def : "observable M = observableH M" by auto
 
-lemma h_access : "(q,x,y,q') \<in> h M \<longleftrightarrow> (\<exists> t \<in> h M . (t_source t = q \<and> t_input t = x \<and> t_output t = y \<and> t_target t = q'))" by auto
-lemma h_access' : "t \<in> h M \<longleftrightarrow> (t_source t, t_input t, t_output t, t_target t) \<in> h M" by auto
 
-lemma observable_alt_def :
-  "observable M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<forall> y . card { (q,x,y,q') | q' . (q,x,y,q') \<in> h M } \<le> 1)"
-proof -
-  have "\<And> q x y. {(q,x,y,q') | q' . (q,x,y,q') \<in> h M } = { t \<in> h M . t_source t = q \<and> t_input t = x \<and> t_output t = y}" by auto
-  then have "\<And> q x y. card {(q,x,y,q') | q' . (q,x,y,q') \<in> h M } = card { t \<in> h M . t_source t = q \<and> t_input t = x \<and> t_output t = y}" by auto
-  then show  ?thesis unfolding observable.simps
-    by presburger 
-qed
+
     
 
 
@@ -972,6 +959,78 @@ proof -
 qed
 
 
+
+fun is_io_target :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+  "is_io_target M [] q q' = (q = q')" |
+  "is_io_target M (xy#io) q q' = (\<exists> t \<in> h M . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target M io (t_target t) q')"
+
+fun is_io_target' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+  "is_io_target' M [] q q' = (q = q')" |
+  "is_io_target' M (xy#io) q q' = (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M) \<noteq> [])"
+
+lemma is_io_target_code[code] :
+  "is_io_target M io q q' = is_io_target' M io q q'" 
+proof 
+  show "is_io_target M io q q' \<Longrightarrow> is_io_target' M io q q'"
+  proof (induction io arbitrary: q)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons xy io)
+    then obtain t where "t \<in> h M" 
+                    and "t_source t = q" 
+                    and "t_input t = fst xy" 
+                    and "t_output t = snd xy" 
+                    and "is_io_target M io (t_target t) q'"
+      by auto
+    then have "is_io_target' M io (t_target t) q'"
+      using Cons.IH by auto
+    have "t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q'"
+      using \<open>is_io_target' M io (t_target t) q'\<close> \<open>t_input t = fst xy\<close> \<open>t_output t = snd xy\<close> \<open>t_source t = q\<close> by fastforce
+      
+    then have "(filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M) \<noteq> [])"
+      by (metis (mono_tags, lifting) \<open>t \<in> h M\<close> filter_empty_conv)  
+      
+    then show ?case by auto
+  qed
+  show "is_io_target' M io q q' \<Longrightarrow> is_io_target M io q q'"
+  proof (induction io arbitrary: q)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons xy io)
+
+    let ?t = "hd (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M))" 
+    have "length (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M)) > 0"
+      using Cons by auto
+    then obtain t where "t \<in> h M" 
+                    and "t_source t = q" 
+                    and "t_input t = fst xy" 
+                    and "t_output t = snd xy" 
+                    and "is_io_target' M io (t_target t) q'"
+      using filter_empty_conv by blast
+    then show ?case using Cons.IH
+      by (meson is_io_target.simps(2)) 
+  qed
+qed
+
+
+lemma is_io_target_path : 
+  "is_io_target M io q q' \<longleftrightarrow> (\<exists> p . path M q p \<and> target p q = q' \<and> p_io p = io)"
+proof 
+
+
+
+end (*
+
+
+
+fun io_targets'' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
+  "io_targets'' M [] q = [q]" |
+  "io_targets'' M (xy#io) q = (concat (map (io_targets'' M io) (map t_target (filter (\<lambda> t . t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))))"
+
+value "io_targets M_ex [] (initial M_ex)"
+
 fun io_targets :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "io_targets M io q = {target p q | p . path M q p \<and> p_io p = io}"
 
@@ -1025,16 +1084,42 @@ lemma nodes_finite :
   "finite (nodes M)"
   by (metis (no_types) List.finite_set finite_insert nodes'.simps nodes_code) 
 
+
+lemma observable_transition_unique :
+  assumes "observable M"
+      and "t \<in> h M" 
+      and "t_source t = q" 
+      and "t_input t = x" 
+      and "t_output t = y"
+    shows "\<exists>! t . t \<in> h M \<and> t_source t = q \<and> t_input t = x \<and> t_output t = y"
+  by (metis assms observable.elims(2) prod.expand)
+
+
+
 lemma observable_io_targets : 
   assumes "observable M"
   and "io \<in> LS M q"
 obtains q'
 where "io_targets M io q = {q'}"
+proof -
+  have "\<exists> q' . io_targets M io q = {q'}"
+  
 using assms proof (induction io arbitrary: q)
-case Nil
-then show ?case by auto
+  case Nil
+  then show ?case by auto
 next
   case (Cons a io)
+   
+  then obtain t where *: "t \<in> h M" and "t_source t = q" and "t_input t = fst a" and "t_output t = snd a" by auto
+  then have 
+
+  then have "path M q [t]" and "p_io [t] = [a]" by auto
+
+  have "\<exists> q' . io_targets M io (t_target t) = {q'}" 
+
+  have "\<exists>! t . t \<in> h M \<and> t_source t = q \<and> t_input t = fst a \<and> t_output t = snd a" 
+
+  then obtain t where "t \<in> h M" and "path M q [t]" and "p_io [t] = [a]"  
   then show ?case 
 qed
  
