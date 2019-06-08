@@ -424,9 +424,14 @@ lemma path_append_elim[elim!] :
       and "path M (target p1 q) p2"
   by (meson assms path_prefix path_suffix)
 
+lemma path_append_target:
+  "target (p1@p2) q = target p2 (target p1 q)" 
+  by (induction p1) (simp+)
 
-
-
+lemma path_append_target_hd :
+  assumes "length p > 0"
+  shows "target p q = target (tl p) (t_target (hd p))"
+using assms by (induction p) (simp+)
 
 
 fun LS :: "'state FSM \<Rightarrow> 'state \<Rightarrow> (Input \<times> Output) list set" where
@@ -964,6 +969,9 @@ fun is_io_target :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightar
   "is_io_target M [] q q' = (q = q')" |
   "is_io_target M (xy#io) q q' = (\<exists> t \<in> h M . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target M io (t_target t) q')"
 
+value "is_io_target M_ex [(1,20)] (initial M_ex) 4"
+value "is_io_target M_ex [(1,20)] (initial M_ex) 3"
+
 fun is_io_target' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "is_io_target' M [] q q' = (q = q')" |
   "is_io_target' M (xy#io) q q' = (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M) \<noteq> [])"
@@ -1017,25 +1025,88 @@ qed
 
 lemma is_io_target_path : 
   "is_io_target M io q q' \<longleftrightarrow> (\<exists> p . path M q p \<and> target p q = q' \<and> p_io p = io)"
-proof 
+proof (induction io arbitrary: q)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons xy io)
+  have "is_io_target M (xy # io) q q' \<Longrightarrow> (\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io)"
+  proof -
+    assume "is_io_target M (xy # io) q q'"
+    then obtain t where "t \<in> h M" 
+                    and "t_source t = q" 
+                    and "t_input t = fst xy" 
+                    and "t_output t = snd xy" 
+                    and "is_io_target M io (t_target t) q'"
+      by auto
+    then obtain p where "path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io"
+      using Cons by auto
+
+    have "path M q (t#p)"
+      using \<open>path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io\<close> \<open>t \<in> h M\<close> \<open>t_source t = q\<close> by blast
+    moreover have "target (t#p) q = q'"
+      using \<open>path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io\<close> by auto
+    moreover have "p_io (t#p) = xy # io"
+      by (simp add: \<open>path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io\<close> \<open>t_input t = fst xy\<close> \<open>t_output t = snd xy\<close>)
+    ultimately have "path M q (t#p) \<and> target (t#p) q = q' \<and> p_io (t#p) = xy # io" 
+      by auto
+    then show "is_io_target M (xy # io) q q' \<Longrightarrow> (\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io)"
+      by (metis (no_types, lifting)) 
+  qed
+
+  moreover have "(\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io) \<Longrightarrow> is_io_target M (xy # io) q q'"
+  proof -
+    assume "(\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io)"
+    then obtain p where "path M q p \<and> target p q = q' \<and> p_io p = xy # io"
+      by presburger 
+    then have "length p > 0" 
+      by auto
+
+    let ?t = "hd p"
+    let ?p = "tl p"
+    have "path M (t_target ?t) ?p"
+      using \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> by auto
+
+    
+
+    moreover have "target ?p (t_target ?t) = q'"
+      using path_append_target_hd[OF \<open>length p > 0\<close>, of q']
+            \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> 
+      by auto
+    moreover have "p_io ?p = io"
+      by (simp add: \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> map_tl)
+
+    ultimately have "is_io_target M io (t_target ?t) q'"
+      using Cons.IH by blast 
+
+    then show "is_io_target M (xy#io) q q'"
+      using \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> by auto
+  qed
+
+  ultimately show ?case
+    by (metis (no_types, lifting))
+qed
 
 
 
-end (*
 
 
 
-fun io_targets'' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
-  "io_targets'' M [] q = [q]" |
-  "io_targets'' M (xy#io) q = (concat (map (io_targets'' M io) (map t_target (filter (\<lambda> t . t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))))"
 
-value "io_targets M_ex [] (initial M_ex)"
 
 fun io_targets :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "io_targets M io q = {target p q | p . path M q p \<and> p_io p = io}"
 
 fun io_targets' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "io_targets' M io q = set (map (\<lambda> p . target p q) (filter (\<lambda> p . p_io p = io) (paths_of_length M q (length io))))"
+
+fun io_targets'' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
+  "io_targets'' M [] q = [q]" |
+  "io_targets'' M (xy#io) q = (concat (map (io_targets'' M io) (map t_target (filter (\<lambda> t . t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))))"
+
+
+
+
 
 fun fst_io_target'' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a option" where
   "fst_io_target'' M io q = (case (map (\<lambda> p . target p q) (filter (\<lambda> p . p_io p = io) (paths_of_length M q (length io)))) of
@@ -1075,6 +1146,8 @@ proof -
   ultimately show ?thesis by blast
 qed
 
+value "io_targets M_ex [] (initial M_ex)"
+
 lemma io_targets_nodes :
   assumes "q \<in> nodes M"
   shows "io_targets M io q \<subseteq> nodes M"
@@ -1083,6 +1156,10 @@ lemma io_targets_nodes :
 lemma nodes_finite :
   "finite (nodes M)"
   by (metis (no_types) List.finite_set finite_insert nodes'.simps nodes_code) 
+
+lemma io_targets_is_io_target :
+  "io_targets M io q = {q' . is_io_target M io q q'}"
+  using is_io_target_path[of M io q] by fastforce 
 
 
 lemma observable_transition_unique :
@@ -1096,33 +1173,69 @@ lemma observable_transition_unique :
 
 
 
+
+
 lemma observable_io_targets : 
   assumes "observable M"
   and "io \<in> LS M q"
 obtains q'
 where "io_targets M io q = {q'}"
 proof -
+
+  obtain p where "path M q p" and "p_io p = io" 
+    using assms(2) by auto 
+  then have "target p q \<in> io_targets M io q"
+    by auto   
+
   have "\<exists> q' . io_targets M io q = {q'}"
-  
-using assms proof (induction io arbitrary: q)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons a io)
-   
-  then obtain t where *: "t \<in> h M" and "t_source t = q" and "t_input t = fst a" and "t_output t = snd a" by auto
-  then have 
+  proof (rule ccontr)
+    assume "\<nexists>q'. io_targets M io q = {q'}"
+    then have "\<exists> q' . q' \<noteq> target p q \<and> q' \<in> io_targets M io q"
+      by (metis \<open>target p q \<in> io_targets M io q\<close> empty_Collect_eq io_targets_is_io_target is_singletonI' is_singleton_def mem_Collect_eq) 
+    then obtain q' where "q' \<noteq> target p q" and "q' \<in> io_targets M io q" 
+      by blast
+    then obtain p' where "path M q p'" and "target p' q = q'" and "p_io p' = io"
+      by auto 
+    then have "p_io p = p_io p'" 
+      using \<open>p_io p = io\<close> by simp
+    then have "length p = length p'"
+      using map_eq_imp_length_eq by blast 
+      
+    then have "p = p'"
+    using \<open>p_io p = p_io p'\<close> \<open>path M q p\<close> \<open>path M q p'\<close> proof (induction p p' arbitrary: q rule: list_induct2)
+      case Nil
+      then show ?case by auto
+    next
+      case (Cons x xs y ys)
+      then have *: "x \<in> h M \<and> y \<in> h M \<and> t_source x = t_source y \<and> t_input x = t_input y \<and> t_output x = t_output y" 
+        by auto
+      then have "t_target x = t_target y" 
+        using assms(1) observable.elims(2) by blast 
+      then have "x = y"
+        by (simp add: "*" prod.expand) 
+        
 
-  then have "path M q [t]" and "p_io [t] = [a]" by auto
+      have "p_io xs = p_io ys" 
+        using Cons by auto
 
-  have "\<exists> q' . io_targets M io (t_target t) = {q'}" 
+      moreover have "path M (t_target x) xs" 
+        using Cons by auto
+      moreover have "path M (t_target x) ys"
+        using Cons \<open>t_target x = t_target y\<close> by auto
+      ultimately have "xs = ys" 
+        using Cons by auto
 
-  have "\<exists>! t . t \<in> h M \<and> t_source t = q \<and> t_input t = fst a \<and> t_output t = snd a" 
+      then show ?case 
+        using \<open>x = y\<close> by simp
+    qed
 
-  then obtain t where "t \<in> h M" and "path M q [t]" and "p_io [t] = [a]"  
-  then show ?case 
+    then show "False"
+      using \<open>q' \<noteq> target p q\<close> \<open>target p' q = q'\<close> by auto
+  qed
+
+  then show ?thesis using that by blast
 qed
- 
+    
 
 
 
