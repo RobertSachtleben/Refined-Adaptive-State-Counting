@@ -242,6 +242,9 @@ proof -
     using assms lists_of_length_length by fastforce
 qed
 
+lemma paths_of_length_path_set :
+  "set (paths_of_length M q k) = { p . path M q p \<and> length p = k }"
+using paths_of_length_is_path[of _ M q k] paths_of_length_containment[of M q] by blast
 
 fun language_state_for_input :: "'state FSM \<Rightarrow> 'state \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
   "language_state_for_input M q xs = map p_io (filter (\<lambda> ts . xs = map t_input ts) (paths_of_length M q (length xs)))"
@@ -1173,7 +1176,43 @@ lemma observable_transition_unique :
 
 
 
+lemma observable_path_unique :
+  assumes "observable M"
+  and     "path M q p"
+  and     "path M q p'"
+  and     "p_io p = p_io p'"
+shows "p = p'"
+proof -
+  have "length p = length p'"
+    using assms(4) map_eq_imp_length_eq by blast 
+  then show ?thesis
+  using \<open>p_io p = p_io p'\<close> \<open>path M q p\<close> \<open>path M q p'\<close> proof (induction p p' arbitrary: q rule: list_induct2)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons x xs y ys)
+    then have *: "x \<in> h M \<and> y \<in> h M \<and> t_source x = t_source y \<and> t_input x = t_input y \<and> t_output x = t_output y" 
+      by auto
+    then have "t_target x = t_target y" 
+      using assms(1) observable.elims(2) by blast 
+    then have "x = y"
+      by (simp add: "*" prod.expand) 
+      
 
+    have "p_io xs = p_io ys" 
+      using Cons by auto
+
+    moreover have "path M (t_target x) xs" 
+      using Cons by auto
+    moreover have "path M (t_target x) ys"
+      using Cons \<open>t_target x = t_target y\<close> by auto
+    ultimately have "xs = ys" 
+      using Cons by auto
+
+    then show ?case 
+      using \<open>x = y\<close> by simp
+  qed
+qed
 
 lemma observable_io_targets : 
   assumes "observable M"
@@ -1198,37 +1237,8 @@ proof -
       by auto 
     then have "p_io p = p_io p'" 
       using \<open>p_io p = io\<close> by simp
-    then have "length p = length p'"
-      using map_eq_imp_length_eq by blast 
-      
     then have "p = p'"
-    using \<open>p_io p = p_io p'\<close> \<open>path M q p\<close> \<open>path M q p'\<close> proof (induction p p' arbitrary: q rule: list_induct2)
-      case Nil
-      then show ?case by auto
-    next
-      case (Cons x xs y ys)
-      then have *: "x \<in> h M \<and> y \<in> h M \<and> t_source x = t_source y \<and> t_input x = t_input y \<and> t_output x = t_output y" 
-        by auto
-      then have "t_target x = t_target y" 
-        using assms(1) observable.elims(2) by blast 
-      then have "x = y"
-        by (simp add: "*" prod.expand) 
-        
-
-      have "p_io xs = p_io ys" 
-        using Cons by auto
-
-      moreover have "path M (t_target x) xs" 
-        using Cons by auto
-      moreover have "path M (t_target x) ys"
-        using Cons \<open>t_target x = t_target y\<close> by auto
-      ultimately have "xs = ys" 
-        using Cons by auto
-
-      then show ?case 
-        using \<open>x = y\<close> by simp
-    qed
-
+      using observable_path_unique[OF assms(1) \<open>path M q p\<close> \<open>path M q p'\<close>] by simp
     then show "False"
       using \<open>q' \<noteq> target p q\<close> \<open>target p' q = q'\<close> by auto
   qed
@@ -1236,6 +1246,192 @@ proof -
   then show ?thesis using that by blast
 qed
     
+
+
+fun minimal :: "'a FSM \<Rightarrow> bool" where
+  "minimal M = (\<forall> q \<in> nodes M . \<forall> q' \<in> nodes M . q \<noteq> q' \<longrightarrow> LS M q \<noteq> LS M q')"
+
+
+abbreviation "size_FSM M \<equiv> card (nodes M)" 
+notation 
+  size_FSM ("(|_|)")
+
+
+lemma visited_states_prefix :
+  assumes "q' \<in> set (visited_states q p)"
+  shows "\<exists> p1 p2 . p = p1@p2 \<and> target p1 q = q'"
+using assms proof (induction p arbitrary: q)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a p)
+  then show ?case 
+  proof (cases "q' \<in> set (visited_states (t_target a) p)")
+    case True
+    then obtain p1 p2 where "p = p1 @ p2 \<and> target p1 (t_target a) = q'"
+      using Cons.IH by blast
+    then have "(a#p) = (a#p1)@p2 \<and> target (a#p1) q = q'"
+      by auto
+    then show ?thesis by blast
+  next
+    case False
+    then have "q' = q" 
+      using Cons.prems by auto     
+    then show ?thesis
+      by auto 
+  qed
+qed 
+
+lemma nondistinct_path_loop :
+  assumes "path M q p"
+  and     "\<not> distinct (visited_states q p)"
+shows "\<exists> p1 p2 p3 . p = p1@p2@p3 \<and> p2 \<noteq> [] \<and> target p1 q = target (p1@p2) q"
+using assms proof (induction p arbitrary: q)
+  case (nil M q)
+  then show ?case by auto
+next
+  case (cons t M ts)
+  then show ?case 
+  proof (cases "distinct (visited_states (t_target t) ts)")
+    case True
+    then have "q \<in> set (visited_states (t_target t) ts)"
+      using cons.prems by simp 
+    then obtain p2 p3 where "ts = p2@p3" and "target p2 (t_target t) = q" 
+      using visited_states_prefix[of q "t_target t" ts] by blast
+    then have "(t#ts) = []@(t#p2)@p3 \<and> (t#p2) \<noteq> [] \<and> target [] q = target ([]@(t#p2)) q"
+      using cons.hyps by auto
+    then show ?thesis by blast
+  next
+    case False
+    then obtain p1 p2 p3 where "ts = p1@p2@p3" and "p2 \<noteq> []" and "target p1 (t_target t) = target (p1@p2) (t_target t)" 
+      using cons.IH by blast
+    then have "t#ts = (t#p1)@p2@p3 \<and> p2 \<noteq> [] \<and> target (t#p1) q = target ((t#p1)@p2) q"
+      by simp
+    then show ?thesis by blast    
+  qed
+qed
+
+lemma nondistinct_path_shortening : 
+  assumes "path M q p"
+  and     "\<not> distinct (visited_states q p)"
+shows "\<exists> p' . path M q p' \<and> target p' q = target p q \<and> length p' < length p"
+proof -
+  obtain p1 p2 p3 where *: "p = p1@p2@p3 \<and> p2 \<noteq> [] \<and> target p1 q = target (p1@p2) q" 
+    using nondistinct_path_loop[OF assms] by blast
+  then have "path M q (p1@p3)"
+    using assms(1) by force
+  moreover have "target (p1@p3) q = target p q"
+    by (metis (full_types) * path_append_target)
+  moreover have "length (p1@p3) < length p"
+    using * by auto
+  ultimately show ?thesis by blast
+qed
+
+lemma paths_finite : "finite { p . path M q p \<and> length p \<le> k }"
+proof (induction k)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+  have "{ p . path M q p \<and> length p = (Suc k) } = set (paths_of_length M q (Suc k))"
+    using paths_of_length_path_set[of M q "Suc k"] by blast
+  then have "finite { p . path M q p \<and> length p = (Suc k) }"
+    by (metis List.finite_set)
+  moreover have "finite { p . path M q p \<and> length p < (Suc k) }"
+    using Suc.IH less_Suc_eq_le by auto
+  moreover have "{ p . path M q p \<and> length p \<le> (Suc k) } = { p . path M q p \<and> length p = (Suc k) } \<union> { p . path M q p \<and> length p < (Suc k) }"
+    by auto
+  ultimately show ?case
+    by auto 
+qed
+
+
+
+lemma distinct_path_from_nondistinct_path :
+  assumes "path M q p"
+  and     "\<not> distinct (visited_states q p)"
+obtains p' where "path M q p'" and "target p q = target p' q" and "distinct (visited_states q p')"
+proof -
+  
+  let ?paths = "{p' . (path M q p' \<and> target p' q = target p q \<and> length p' \<le> length p)}"
+  let ?minPath = "arg_min length (\<lambda> io . io \<in> ?paths)" 
+  
+  have "?paths \<noteq> empty" 
+    using assms(1) by auto
+  moreover have "finite ?paths" 
+    using paths_finite[of M q "length p"]
+    by (metis (no_types, lifting) Collect_mono rev_finite_subset)
+  ultimately have minPath_def : "?minPath \<in> ?paths \<and> (\<forall> p' \<in> ?paths . length ?minPath \<le> length p')" 
+    by (meson arg_min_nat_lemma equals0I)
+  then have "path M q ?minPath" and "target ?minPath q = target p q" 
+    by auto
+  
+  moreover have "distinct (visited_states q ?minPath)"
+  proof (rule ccontr)
+    assume "\<not> distinct (visited_states q ?minPath)"
+    have "\<exists> p' . path M q p' \<and> target p' q = target p q \<and> length p' < length ?minPath" 
+      using nondistinct_path_shortening[OF \<open>path M q ?minPath\<close> \<open>\<not> distinct (visited_states q ?minPath)\<close>] minPath_def
+            \<open>target ?minPath q = target p q\<close> by auto
+    then show "False" 
+      using minPath_def using arg_min_nat_le dual_order.strict_trans1 by auto 
+  qed
+
+  ultimately show ?thesis
+    by (simp add: that)
+qed     
+
+
+
+lemma distinct_path_ob :
+  assumes "reachable M q1 q2"
+  obtains p where "path M q1 p"
+              and "target p q1 = q2"
+              and "distinct (visited_states q1 p)"
+proof -
+  obtain p' where "path M q1 p'" and "target p' q1 = q2"
+    using assms by (meson path_reachable) 
+  then obtain p where "path M q1 p"
+                  and "target p q1 = q2"
+                  and "distinct (visited_states q1 p)"
+    using distinct_path_from_nondistinct_path[OF \<open>path M q1 p'\<close>]
+    by metis
+  then show ?thesis using that by blast
+qed
+
+
+lemma visited_states_are_nodes :
+  assumes "q1 \<in> nodes M"
+      and "path M q1 p"
+  shows "set (visited_states q1 p) \<subseteq> nodes M"
+  by (metis assms(1) assms(2) nodes_path path_prefix subsetI visited_states_prefix)
+
+
+
+lemma distinct_path_length :
+  assumes "reachable M q1 q2"
+  and     "q1 \<in> nodes M"
+  obtains p where "path M q1 p"
+              and "target p q1 = q2"
+              and "length p < |M|"
+proof -
+  obtain p where "path M q1 p"
+             and "target p q1 = q2"
+             and "distinct (visited_states q1 p)"
+    using distinct_path_ob[OF assms(1)] by blast
+
+  have "set (visited_states q1 p) \<subseteq> nodes M"
+    using visited_states_are_nodes
+    by (metis \<open>path M q1 p\<close> assms(2))
+  then have "length (visited_states q1 p) \<le> |M|"
+    using nodes_finite
+    by (metis \<open>distinct (visited_states q1 p)\<close> card_mono distinct_card) 
+  then have "length p < |M|"
+    by simp 
+
+  show ?thesis
+    using \<open>length p < |M|\<close> \<open>path M q1 p\<close> \<open>target p q1 = q2\<close> that by blast
+qed
+
 
 
 
