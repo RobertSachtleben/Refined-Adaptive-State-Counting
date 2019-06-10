@@ -1103,19 +1103,90 @@ fun io_targets :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarro
 fun io_targets' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "io_targets' M io q = set (map (\<lambda> p . target p q) (filter (\<lambda> p . p_io p = io) (paths_of_length M q (length io))))"
 
-fun io_targets'' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
-  "io_targets'' M [] q = [q]" |
-  "io_targets'' M (xy#io) q = (concat (map (io_targets'' M io) (map t_target (filter (\<lambda> t . t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))))"
+fun io_targets_list :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
+  "io_targets_list M [] q = [q]" |
+  "io_targets_list M (xy#io) q = (concat (map (io_targets_list M io) (map t_target (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))))"
+
+
+lemma set_concat_map_sublist :
+  assumes "x \<in> set (concat (map f xs))"
+  and     "set xs \<subseteq> set xs'"
+shows "x \<in> set (concat (map f xs'))"
+using assms by (induction xs) (auto)
+
+lemma set_concat_map_elem :
+  assumes "x \<in> set (concat (map f xs))"
+  shows "\<exists> x' \<in> set xs . x \<in> set (f x')"
+using assms by auto
 
 
 
+lemma io_targets_from_list[code] :
+  "io_targets M io q = set (io_targets_list M io q)"
+proof -
+  have "\<And>x. x \<in> io_targets M io q \<Longrightarrow> x \<in> set (io_targets_list M io q)"
+  proof (induction io arbitrary: q)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons xy io)
+    obtain p where "target p q = x" and "path M q p" and "p_io p = xy # io"
+      using Cons.prems by fastforce 
+    let ?t = "hd p"
+    let ?p = "tl p"
+    have "path M (t_target ?t) ?p"
+      using \<open>p_io p = xy # io\<close> \<open>path M q p\<close> by force 
+    moreover have "p_io ?p = io"
+      using \<open>p_io p = xy # io\<close> by auto
+    moreover have "target ?p (t_target ?t) = x"
+      using \<open>target p q = x\<close> \<open>p_io p = xy # io\<close> by auto 
+    ultimately have "x \<in> io_targets M io (t_target ?t)"
+      by fastforce
+    then have "x \<in> set (io_targets_list M io (t_target ?t))"
+      using Cons.IH by auto
+    then have "x \<in> set (concat (map (io_targets_list M io) [t_target ?t]))" 
+      by auto
+    moreover have "set [t_target ?t] \<subseteq> set (map t_target (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))"
+    proof -
+      have "t_source ?t = q \<and> t_input ?t = fst xy \<and> t_output ?t = snd xy"
+        using \<open>p_io p = xy # io\<close> \<open>path M q p\<close> by force
+      moreover have "?t \<in> h M"
+        using \<open>p_io p = xy # io\<close> \<open>path M q p\<close> by auto
+      ultimately show ?thesis
+        by auto 
+    qed
+    
+    ultimately show ?case 
+      unfolding io_targets_list.simps using set_concat_map_sublist[of x "io_targets_list M io" "[t_target ?t]"] by blast
+  qed
 
+  moreover have "\<And>x. x \<in> set (io_targets_list M io q) \<Longrightarrow> x \<in> io_targets M io q"
+  proof (induction io arbitrary: q)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons xy io) 
+    then obtain t where "x \<in> set (io_targets_list M io (t_target t))"
+                    and *: "t \<in> set (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M))"
+      by auto
+    then have "x \<in> io_targets M io (t_target t)"
+      using Cons.IH by auto
+    then obtain p where "target p (t_target t) = x \<and> path M (t_target t) p \<and> p_io p = io"
+      by auto
+    moreover have "t \<in> h M \<and> t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy"
+      using * by auto
+    ultimately have "x = target (t#p) q" and "path M q (t#p)" and "p_io (t#p) = xy # io"
+      using length_Cons by auto
+      
+    then show ?case 
+      unfolding io_targets.simps
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
+  qed
 
-fun fst_io_target'' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a option" where
-  "fst_io_target'' M io q = (case (map (\<lambda> p . target p q) (filter (\<lambda> p . p_io p = io) (paths_of_length M q (length io)))) of
-     [] \<Rightarrow> None |
-     xs \<Rightarrow> Some (hd xs))"
+  ultimately show ?thesis by blast
+qed 
 
+(*
 lemma io_targets_code[code] : "io_targets M io q = io_targets' M io q" 
 proof -
   have "\<And> q' . q' \<in> io_targets M io q \<Longrightarrow> q' \<in> io_targets' M io q"
@@ -1148,6 +1219,7 @@ proof -
 
   ultimately show ?thesis by blast
 qed
+*)
 
 value "io_targets M_ex [] (initial M_ex)"
 
@@ -1245,6 +1317,9 @@ proof -
 
   then show ?thesis using that by blast
 qed
+
+
+
     
 
 
@@ -1433,9 +1508,21 @@ proof -
 qed
 
 
+(* function to retrieve a single io_target *)
+abbreviation "io_target M io q \<equiv> hd (io_targets_list M io q)"
+
+lemma observable_first_io_target :
+  assumes "observable M"
+  and     "io \<in> LS M q"
+shows "io_targets M io q = {io_target M io q}"
+  by (metis assms insert_not_empty io_targets_from_list list.set(1) list.set_sel(1) observable_io_targets singletonD)
 
 
-value "fst_io_target' M_ex [(1,20),(1,10)] (initial M_ex)"
+
+
+
+
+
 
 
 
