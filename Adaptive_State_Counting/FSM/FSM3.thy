@@ -88,6 +88,32 @@ proof -
   qed
 qed
 
+lemma reachable_next' :
+  assumes "reachable M (t_target t) q"
+  and     "t \<in> h M"
+shows "reachable M (t_source t) q"
+proof -
+  have "t_target t = q \<or> (t_target t, q) \<in> pairwise_reachable M"
+    using assms(1) by auto
+  moreover have "(t_source t, t_target t) \<in> pairwise_reachable M"
+    using assms(2) by auto
+  ultimately show ?thesis 
+  proof (cases "q = t_target t")
+    case True
+    then show ?thesis
+      using \<open>(t_source t, t_target t) \<in> pairwise_reachable M\<close> by auto       
+  next
+    case False
+    then have "(t_target t, q) \<in> pairwise_reachable M" 
+      using \<open>t_target t = q \<or> (t_target t, q) \<in> pairwise_reachable M\<close> by auto
+    then have "(t_source t, q) \<in> pairwise_reachable M" 
+      using \<open>(t_source t, t_target t) \<in> pairwise_reachable M\<close> by auto
+    then show ?thesis 
+      by auto
+  qed
+qed
+
+
 lemma nodes'_next :
   assumes "t_source t \<in> nodes' M"
   and     "t \<in> h M"
@@ -859,6 +885,11 @@ qed
 
 fun completely_specified :: "'a FSM \<Rightarrow> bool" where
   "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<exists> q' y . (q,x,y,q') \<in> h M)"
+abbreviation "completely_specifiedH M \<equiv> (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x)"
+
+lemma completely_specified_alt_def : "completely_specified M = completely_specifiedH M"
+  by force 
+
 
 lemma h_contents :
   assumes "t \<in> h M"
@@ -1538,7 +1569,7 @@ lemma visited_states_are_nodes :
 
 
 
-lemma distinct_path_length :
+lemma distinct_path_length_reachable :
   assumes "reachable M q1 q2"
   and     "q1 \<in> nodes M"
   obtains p where "path M q1 p"
@@ -1563,6 +1594,42 @@ proof -
     using \<open>length p < |M|\<close> \<open>path M q1 p\<close> \<open>target p q1 = q2\<close> that by blast
 qed
 
+lemma reachable_path : 
+  "reachable M q1 q2 \<longleftrightarrow> (\<exists> p . path M q1 p \<and> target p q1 = q2)" 
+proof
+  show "reachable M q1 q2 \<Longrightarrow> \<exists>p. path M q1 p \<and> target p q1 = q2"
+    by (meson path_reachable) 
+  show "\<exists>p. path M q1 p \<and> target p q1 = q2 \<Longrightarrow> reachable M q1 q2"
+  proof -
+    assume "\<exists>p. path M q1 p \<and> target p q1 = q2"
+    then obtain p where "path M q1 p" and "target p q1 = q2"
+      by auto
+    then show "reachable M q1 q2"
+    proof (induction p arbitrary: q1 rule: list.induct)
+      case Nil
+      then show ?case by auto
+    next
+      case (Cons t ts)
+      then have "path M (t_target t) ts" and "target ts (t_target t) = q2" by auto
+      then have "reachable M (t_target t) q2" using Cons.IH by auto
+
+      have "t \<in> h M" using Cons by auto
+      moreover have "t_source t = q1" using Cons by auto
+      ultimately show ?case 
+        using reachable_next'[OF \<open>reachable M (t_target t) q2\<close>] by auto
+    qed
+  qed
+qed
+
+lemma distinct_path_length :
+  assumes "path M q p"
+  and     "q \<in> nodes M"
+obtains p' where "path M q p'"
+             and "target p' q = target p q"
+             and "length p' < |M|"
+  by (meson assms distinct_path_length_reachable reachable_path) 
+
+
 
 (* function to retrieve a single io_target *)
 abbreviation "io_target M io q \<equiv> hd (io_targets_list M io q)"
@@ -1586,9 +1653,6 @@ qed
 
 
 
-fun single_input :: "'a FSM \<Rightarrow> bool" where
-  "single_input M = ()"
-
 
 
 
@@ -1608,11 +1672,145 @@ notation
   is_io_reduction_on_inputs ("_ \<preceq>\<lbrakk>_\<rbrakk> _")
   
 
+fun is_submachine :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> bool" where 
+  "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B)"
+
+lemma submachine_path :
+  assumes "is_submachine A B"
+  and     "path A q p"
+shows "path B q p"
+  using assms by (induction p arbitrary: q; fastforce)
+
+lemma submachine_reduction : 
+  assumes "is_submachine A B"
+  shows "is_io_reduction A B"
+  using submachine_path[OF assms] assms by auto 
+
+fun from_FSM :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a FSM" where
+  "from_FSM M q = \<lparr> initial = q, inputs = inputs M, outputs = outputs M, transitions = transitions M \<rparr>"
+
+
+fun r_compatible :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where 
+  "r_compatible M q1 q2 = ((\<exists> S . completely_specified S \<and> is_submachine S (product (from_FSM M q1) (from_FSM M q2))))"
+
+abbreviation "r_distinguishable M q1 q2 \<equiv> \<not> r_compatible M q1 q2"
+
+
+fun r_distinguishable_k :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
+  "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" |
+  "r_distinguishable_k M q1 q2 (Suc k) = (r_distinguishable_k M q1 q2 k 
+                                          \<or> (\<exists> x \<in> set (inputs M) . \<forall> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
+
+lemma r_distinguishable_k_0_alt_def : 
+  "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not>(\<exists> y q1' q2' . (q1,x,y,q1') \<in> h M \<and> (q2,x,y,q2') \<in> h M))"
+  by auto
+
+lemma r_distinguishable_k_Suc_k_alt_def :
+  "r_distinguishable_k M q1 q2 (Suc k) = (r_distinguishable_k M q1 q2 k 
+                                          \<or> (\<exists> x \<in> set (inputs M) . \<forall> y q1' q2' . ((q1,x,y,q1') \<in> h M \<and> (q2,x,y,q2') \<in> h M) \<longrightarrow> r_distinguishable_k M q1' q2' k))" 
+  by auto
+
+
+
+lemma io_targets_are_nodes :
+  assumes "q' \<in> io_targets M io q"
+      and "q \<in> nodes M"
+  shows "q' \<in> nodes M"              
+  by (meson assms contra_subsetD io_targets_nodes)
+  
+
+
+lemma completely_specified_io_targets : 
+  assumes "completely_specified M"
+  shows "\<forall> q \<in> io_targets M io (initial M) . \<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x"
+  by (meson assms completely_specified_alt_def io_targets_are_nodes nodes.initial)
+
+
+fun completely_specified_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
+  "completely_specified_state M q = (\<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x)"
+
+lemma completely_specified_states :
+  "completely_specified M = (\<forall> q \<in> nodes M . completely_specified_state M q)"
+  unfolding completely_specified.simps completely_specified_state.simps by force 
+
+(* nodes that are reachable in at most k transitions *)
+fun reachable_k :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a set" where
+  "reachable_k M q n = {target p q | p . path M q p \<and> length p \<le> n}" 
+
+lemma reachable_k_nodes : "nodes M = reachable_k M (initial M) ( |M| - 1)"
+proof -
+  have "\<And>q. q \<in> nodes M \<Longrightarrow> q \<in> reachable_k M (initial M) ( |M| - 1)"
+  proof -
+    fix q assume "q \<in> nodes M"
+    then obtain p where "path M (initial M) p" and "target p (initial M) = q"
+      by (metis path_to_nodes) 
+    then obtain p' where "path M (initial M) p'"
+                     and "target p' (initial M) = target p (initial M)" 
+                     and "length p' < |M|"
+      using distinct_path_length[of M "initial M" p] by auto
+    then show "q \<in> reachable_k M (initial M) ( |M| - 1)"
+      using \<open>target p (initial M) = q\<close> list.size(3) mem_Collect_eq not_less_eq_eq reachable_k.simps by auto
+  qed
+
+  moreover have "\<And>x. x \<in> reachable_k M (initial M) ( |M| - 1) \<Longrightarrow> x \<in> nodes M"
+    using nodes_path_initial by auto
+  
+  ultimately show ?thesis by blast
+qed
+
+
+lemma from_FSM_h :
+  shows "h (from_FSM M q) = h M" 
+  unfolding wf_transitions.simps is_wf_transition.simps by auto
+
+lemma r_distinguishable_k_0_specified :
+  assumes "r_distinguishable_k M q1 q2 0"
+  shows "completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2)))"
+proof -
+  let ?F1 = "from_FSM M q1"
+  let ?F2 = "from_FSM M q2"
+  let ?P = "product ?F1 ?F2"
+
+  
+    
+
+
+
+lemma r_distinguishable_alt_def :
+  "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
+proof 
+  show "r_distinguishable M q1 q2 \<Longrightarrow> \<exists>k. r_distinguishable_k M q1 q2 k" 
+  proof (rule ccontr)
+    assume "r_distinguishable M q1 q2"
+    assume "\<nexists>k. r_distinguishable_k M q1 q2 k"
+    
+    then show "False" sorry
+  qed
+
+  show "\<exists>k. r_distinguishable_k M q1 q2 k \<Longrightarrow> r_distinguishable M q1 q2"
+  proof (rule ccontr)
+    assume *: "\<not> r_distinguishable M q1 q2"
+    assume **: "\<exists>k. r_distinguishable_k M q1 q2 k"        
+    then obtain k where "r_distinguishable_k M q1 q2 k" by auto
+    then show "False"
+    using * proof (induction k arbitrary: q1 q2)
+      case 0
+      then have "completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2)))"
+        
+
+      then show ?case 
+    next
+      case (Suc k)
+      then show ?case sorry
+    qed
+      
+
+    
 
 
 
 
-
-
+    
+      
 
 end
