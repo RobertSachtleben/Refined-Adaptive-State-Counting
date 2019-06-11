@@ -883,8 +883,64 @@ abbreviation "observableH M \<equiv> (\<forall> q1 x y q1' q1'' . (q1,x,y,q1') \
 lemma observable_alt_def : "observable M = observableH M" by auto
 
 
+fun single_input :: "'a FSM \<Rightarrow> bool" where
+  "single_input M = (\<forall> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = t_source t2 \<longrightarrow> t_input t1 = t_input t2)" 
+abbreviation "single_inputH M \<equiv> (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x',y',q1'') \<in> h M \<longrightarrow> x = x')"
 
-    
+lemma single_input_alt_def : "single_input M = single_inputH M" by force 
+
+
+fun output_complete :: "'a FSM \<Rightarrow> bool" where
+  "output_complete M = (\<forall> t \<in> h M . \<forall> y \<in> set (outputs M) . \<exists> t' \<in> h M . t_source t = t_source t' \<and> t_input t = t_input t' \<and> t_output t' = y)" 
+abbreviation "output_completeH M \<equiv> (\<forall> q x . (\<exists> y q' . (q,x,y,q') \<in> h M) \<longrightarrow> (\<forall> y \<in> set (outputs M) . \<exists> q' . (q,x,y,q') \<in> h M))"
+
+lemma output_complete_alt_def : "output_complete M = output_completeH M" by (rule; fastforce)
+
+
+fun acyclic :: "'a FSM \<Rightarrow> bool" where
+  "acyclic M = finite (L M)"
+
+fun deadlock_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where 
+  "deadlock_state M q = (\<not>(\<exists> t \<in> h M . t_source t = q))"
+
+lemma deadlock_state_alt_def : "deadlock_state M q = (LS M q = {[]})" 
+proof 
+  show "deadlock_state M q \<Longrightarrow> LS M q = {[]}" 
+  proof (rule ccontr)
+    assume "deadlock_state M q" and "LS M q \<noteq> {[]}"
+    moreover have "[] \<in> LS M q" by auto
+    ultimately obtain xy io where "xy#io \<in> LS M q"
+      by (metis all_not_in_conv is_singletonI' is_singleton_the_elem neq_Nil_conv singletonD) 
+    then obtain t where "t \<in> h M" and "t_source t = q"
+      by auto
+    then show "False" 
+      using \<open>deadlock_state M q\<close> by (meson deadlock_state.elims(2)) 
+  qed
+  show "LS M q = {[]} \<Longrightarrow> deadlock_state M q"
+  proof (rule ccontr)
+    assume "LS M q = {[]}" and "\<not> deadlock_state M q"
+    then obtain t where "t \<in> h M \<and> t_source t = q" by auto
+    then have "p_io [t] \<in> LS M q"
+      by (metis (mono_tags, lifting) LS.simps cons mem_Collect_eq nil) 
+    then show "False" using \<open>LS M q = {[]}\<close>
+      by blast
+  qed
+qed
+
+  
+
+
+fun io_in :: "(Input \<times> Output) list \<Rightarrow> Input list" where
+  "io_in io = map fst io"
+
+fun io_out :: "(Input \<times> Output) list \<Rightarrow> Input list" where
+  "io_out io = map snd io"
+
+lemma io_zip : "zip (io_in io) (io_out io) = io" 
+  by (induction io; simp)
+
+
+
 
 
 fun fst_io_target' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a option" where
@@ -1517,7 +1573,40 @@ lemma observable_first_io_target :
 shows "io_targets M io q = {io_target M io q}"
   by (metis assms insert_not_empty io_targets_from_list list.set(1) list.set_sel(1) observable_io_targets singletonD)
 
+lemma observable_path_io_target : 
+  assumes "observable M"
+  and     "path M q p"
+shows "target p q = io_target M (p_io p) q"
+proof -
+  have "target p q \<in> io_targets M (p_io p) q"
+    using assms(2) by auto
+  then show ?thesis using assms(1) observable_first_io_target
+    by (metis (mono_tags, lifting) LS.simps assms(2) mem_Collect_eq singletonD) 
+qed
 
+
+
+fun single_input :: "'a FSM \<Rightarrow> bool" where
+  "single_input M = ()"
+
+
+
+
+fun is_io_reduction_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
+  "is_io_reduction_state A a B b = (LS A a \<subseteq> LS B b)"
+
+abbreviation "is_io_reduction A B \<equiv> is_io_reduction_state A (initial A) B (initial B)" 
+notation 
+  is_io_reduction ("_ \<preceq> _")
+
+
+fun is_io_reduction_state_on_inputs :: "'a FSM \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
+  "is_io_reduction_state_on_inputs A a U B b = (LS\<^sub>i\<^sub>n A a U \<subseteq> LS\<^sub>i\<^sub>n B b U)"
+
+abbreviation "is_io_reduction_on_inputs A U B \<equiv> is_io_reduction_state_on_inputs A (initial A) U B (initial B)" 
+notation 
+  is_io_reduction_on_inputs ("_ \<preceq>\<lbrakk>_\<rbrakk> _")
+  
 
 
 
