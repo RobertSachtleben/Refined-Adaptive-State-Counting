@@ -525,8 +525,8 @@ proof -
 qed
 
 
-definition product :: "'state1 FSM \<Rightarrow> 'state2 FSM \<Rightarrow> ('state1 \<times> 'state2) FSM" where
-  "product A B \<equiv>
+fun product :: "'state1 FSM \<Rightarrow> 'state2 FSM \<Rightarrow> ('state1 \<times> 'state2) FSM" where
+  "product A B =
   \<lparr>
     initial = (initial A, initial B),
     inputs = (inputs A) @ (inputs B),
@@ -1671,15 +1671,20 @@ abbreviation "is_io_reduction_on_inputs A U B \<equiv> is_io_reduction_state_on_
 notation 
   is_io_reduction_on_inputs ("_ \<preceq>\<lbrakk>_\<rbrakk> _")
   
-
+(* extends Petrenko's definition to explicitly require same inputs and outputs *)
 fun is_submachine :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> bool" where 
-  "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B)"
+  "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B)"
 
 lemma submachine_path :
   assumes "is_submachine A B"
   and     "path A q p"
 shows "path B q p"
   using assms by (induction p arbitrary: q; fastforce)
+
+lemma submachine_nodes :
+  assumes "is_submachine A B"
+  shows "nodes A \<subseteq> nodes B"
+  by (metis (no_types, lifting) assms is_submachine.elims(2) nodes.initial nodes_path path_to_nodes submachine_path subsetI) 
 
 lemma submachine_reduction : 
   assumes "is_submachine A B"
@@ -1763,21 +1768,116 @@ lemma from_FSM_h :
   shows "h (from_FSM M q) = h M" 
   unfolding wf_transitions.simps is_wf_transition.simps by auto
 
-lemma r_distinguishable_k_0_specified :
+
+lemma product_transition_split :
+  assumes "t \<in> h (product A B)"
+  obtains t1 t2 
+  where "t1 \<in> h A \<and> t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
+    and "t2 \<in> h B \<and> t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)"      
+proof -
+  have "t \<in> set (filter (is_wf_transition (product A B)) (transitions (product A B)))"
+    using assms by (metis wf_transitions.simps) 
+  then have "t \<in> set (transitions (product A B))"
+    by (metis filter_set member_filter)    
+  then have "t \<in> set (map (\<lambda>(t1, t2).
+                      ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2))
+               (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)
+                 (cartesian_product_list (wf_transitions A) (wf_transitions B))))"
+    by (metis product_simps(4) product_transitions.elims) 
+
+  then obtain t1 t2 where "t = ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2))"
+                 and "(t1,t2) \<in> set (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)
+                                      (cartesian_product_list (wf_transitions A) (wf_transitions B)))"
+    by (metis (no_types, lifting) case_prod_beta' imageE prod.collapse set_map)
+
+  then have *: "t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)" 
+    by auto
+  have **: "t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
+    by (simp add: \<open>t = ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)\<close>)
+
+  have "(t1,t2) \<in> h A \<times> h B"
+    using \<open>(t1,t2) \<in> set (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2) (cartesian_product_list (wf_transitions A) (wf_transitions B)))\<close> cartesian_product_list_set[of "(wf_transitions A)" "(wf_transitions B)"] by auto
+  then have "t1 \<in> h A" and "t2 \<in> h B" by auto
+
+  have "t1 \<in> h A \<and> t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
+   and "t2 \<in> h B \<and> t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)" 
+    using \<open>t1 : h A\<close> * \<open>t2 \<in> h B\<close> ** by auto
+
+  then show ?thesis
+    using that by blast 
+qed
+    
+
+
+
+lemma r_distinguishable_k_0_not_completely_specified :
   assumes "r_distinguishable_k M q1 q2 0"
-  shows "completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2)))"
+  shows "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2)))"
 proof -
   let ?F1 = "from_FSM M q1"
   let ?F2 = "from_FSM M q2"
   let ?P = "product ?F1 ?F2"
 
+  obtain x where "x \<in> set (inputs M)" 
+             and "\<not> (\<exists> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"  
+    using assms by auto
+
+  then have *: "\<not> (\<exists> t1 t2 . t1 \<in> h ?F1 \<and> t2 \<in> h ?F2 \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"
+    by auto
   
+  have **: "\<not> (\<exists> t \<in> h ?P . t_source t = (q1,q2) \<and> t_input t = x)"
+  proof (rule ccontr)  
+    assume "\<not> \<not> (\<exists>t\<in>h (product (from_FSM M q1) (from_FSM M q2)). t_source t = (q1, q2) \<and> t_input t = x)"
+    then obtain t where "t \<in> h ?P" and "t_source t = (q1,q2)" and "t_input t = x"
+      by blast 
+
+    have "\<exists> t1 t2 . t1 \<in> h ?F1 \<and> t2 \<in> h ?F2 \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2"
+      using product_transition_split[OF \<open>t \<in> h ?P\<close>]
+      by (metis \<open>t_input t = x\<close> \<open>t_source t = (q1, q2)\<close> fst_conv snd_conv)
+    then show "False" 
+      using * by auto
+  qed
+
+  moreover have "x \<in> set (inputs ?P)"
+    using \<open>x \<in> set (inputs M)\<close> by auto
+
+  ultimately have "\<not> completely_specified_state ?P (q1,q2)"
+    by (meson completely_specified_state.elims(2))
     
+
+  have "(q1,q2) = initial (product (from_FSM M q1) (from_FSM M q2))"
+    by auto
+
+  show ?thesis
+    using \<open>(q1, q2) = initial (product (from_FSM M q1) (from_FSM M q2))\<close> \<open>\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1, q2)\<close> by presburger
+  
+qed
+    
+
+lemma complete_submachine_initial :
+  assumes "is_submachine A B"
+      and "completely_specified A"
+  shows "completely_specified_state B (initial B)"
+proof -
+  have "initial B = initial A"
+    using assms(1) by auto
+
+  moreover have "completely_specified_state A (initial A)"
+    using assms(2) by (meson completely_specified_states nodes.initial) 
+
+  moreover have "inputs A = inputs B" and "h A \<subseteq> h B"
+    using assms(1) by auto
+
+  ultimately show ?thesis 
+    unfolding completely_specified_state.simps by fastforce
+qed
+  
 
 
 
 lemma r_distinguishable_alt_def :
-  "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
+  assumes "completely_specified M"
+  shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
 proof 
   show "r_distinguishable M q1 q2 \<Longrightarrow> \<exists>k. r_distinguishable_k M q1 q2 k" 
   proof (rule ccontr)
@@ -1795,10 +1895,12 @@ proof
     then show "False"
     using * proof (induction k arbitrary: q1 q2)
       case 0
+      then obtain S where "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+                      and "completely_specified S"
+        by (meson r_compatible.elims(2))      
       then have "completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2)))"
-        
-
-      then show ?case 
+        using complete_submachine_initial by metis
+      then show "False" using r_distinguishable_k_0_not_completely_specified[OF "0.prems"(1)] by metis
     next
       case (Suc k)
       then show ?case sorry
