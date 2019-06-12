@@ -2009,6 +2009,13 @@ qed
 
 
 
+lemma from_FSM_product_inputs[simp] :
+  "set (inputs (product (from_FSM M q1) (from_FSM M q2))) = set (inputs M)"
+  unfolding product.simps from_FSM.simps by auto
+
+lemma from_FSM_product_outputs[simp] :
+  "set (outputs (product (from_FSM M q1) (from_FSM M q2))) = set (outputs M)"
+  unfolding product.simps from_FSM.simps by auto
 
 lemma r_distinguishable_alt_def :
   assumes "completely_specified M"
@@ -2017,6 +2024,44 @@ lemma r_distinguishable_alt_def :
   shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
 proof 
   show "r_distinguishable M q1 q2 \<Longrightarrow> \<exists>k. r_distinguishable_k M q1 q2 k" 
+  proof -
+    let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+    have "\<And>k . (\<not> r_distinguishable_k M q1 q2 k) \<Longrightarrow> (\<forall> q \<in> reachable_k ?P (q1,q2) k . completely_specified_state ?P q)"
+    proof -
+      fix k assume "\<not> r_distinguishable_k M q1 q2 k"
+      then show "\<forall> q \<in> reachable_k ?P (q1,q2) k . completely_specified_state ?P q"
+      proof (induction k arbitrary: q1 q2)
+        case 0
+        let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+        have "completely_specified_state ?P (q1,q2)"
+        proof (rule ccontr)
+          assume "\<not> completely_specified_state ?P (q1,q2)"
+          then obtain x where "x \<in> set (inputs ?P)"
+                          and "\<not> (\<exists>t\<in>h ?P. t_source t = (q1, q2) \<and> t_input t = x)" 
+            unfolding completely_specified_state.simps by blast
+          then have "\<nexists>t1 t2.
+                        t1 \<in> h M \<and>
+                        t2 \<in> h M \<and>
+                        t_source t1 = q1 \<and>
+                        t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2"
+            by (metis from_FSM_h fst_conv prod.exhaust_sel product_transition snd_conv)
+          then have "r_distinguishable_k M q1 q2 0"
+            using \<open>x \<in> set (inputs ?P)\<close> unfolding r_distinguishable_k.simps by auto
+          then show "False"
+            using 0 by simp
+        qed
+            
+        moreover have "reachable_k ?P (q1,q2) 0 = {(q1,q2)}" by auto
+        
+        ultimately show ?case
+          by (metis singletonD) 
+      next
+        case (Suc k)
+        from Suc.prems have "\<forall> x \<in> set (inputs M) . \<exists> y q1' q2' . ((q1,x,y,q1') \<in> h M \<and> (q2,x,y,q2') \<in> h M) \<and> \<not> r_distinguishable_k M q1' q2' k"
+          by auto
+        then show ?case sorry
+      qed
+  
   proof (rule ccontr)
     assume "r_distinguishable M q1 q2"
     assume "\<nexists>k. r_distinguishable_k M q1 q2 k"
