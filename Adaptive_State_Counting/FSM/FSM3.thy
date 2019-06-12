@@ -557,11 +557,37 @@ unfolding product_def by simp+
 
 
 
+
+lemma product_transitions_wf :
+  "set (product_transitions A B) = h (product A B)"
+proof -
+  have "\<And> t . t \<in> set (product_transitions A B) \<Longrightarrow> t \<in> h (product A B)"
+  proof -
+    fix t assume *: "t \<in> set (product_transitions A B)"
+    then obtain t1 t2 where "t = ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)"
+                        and "t1 \<in> h A \<and> t2 \<in> h B \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
+      using product_transitions_alt2[of A B] by blast
+    then have "is_wf_transition (product A B) t"
+      unfolding is_wf_transition.simps by auto
+    then show "t \<in> h (product A B)" using *
+      by (metis filter_set member_filter product_simps(4) wf_transitions.simps) 
+  qed
+  moreover have "\<And> t . t \<in> h (product A B) \<Longrightarrow>  t \<in> set (product_transitions A B)"
+    by (metis filter_set member_filter product_simps(4) wf_transitions.simps) 
+  ultimately show ?thesis by blast
+qed
+  
+
+lemma product_transition :
+  "((q1,q2),x,y,(q1',q2')) \<in> h (product A B) \<longleftrightarrow> (q1,x,y,q1') \<in> h A \<and> (q2,x,y,q2') \<in> h B"
+  using product_transitions_wf[of A B] product_transitions_alt3[of A B] by blast
+
+
 lemma product_path:
   "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p))"
 proof (induction p arbitrary: q1 q2)
-case Nil
-then show ?case by auto
+  case Nil
+  then show ?case by auto
 next
   case (Cons t p)
   then show ?case 
@@ -1874,9 +1900,120 @@ qed
   
 
 
+lemma from_FSM_path :
+  assumes "q \<in> nodes M"
+      and "path (from_FSM M q) q p"
+  shows "path M q p"
+using assms proof (induction p rule: rev_induct) 
+  case Nil
+  then show ?case by auto
+next
+  case (snoc t p)
+  then show ?case by auto
+qed
+
+lemma from_FSM_nodes :
+  assumes "q \<in> nodes M"
+  shows "nodes (from_FSM M q) \<subseteq> nodes M"
+  using from_FSM_path[OF assms]
+  by (metis assms from_FSM.simps nodes_path path_to_nodes select_convs(1) subsetI) 
+
+lemma submachine_from :
+  assumes "is_submachine S M"
+  shows "is_submachine (from_FSM S q) (from_FSM M q)"
+  using assms by auto
+
+lemma submachine_transition_product_from :
+  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+      and "((q1,q2),x,y,(q1',q2')) \<in> h S"
+ shows "is_submachine (from_FSM S (q1',q2')) (product (from_FSM M q1') (from_FSM M q2'))"
+proof -
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
+  let ?F = "(from_FSM S (q1',q2'))"  
+
+  have "inputs (from_FSM M q1) = inputs (from_FSM M q1')"
+   and "inputs (from_FSM M q2) = inputs (from_FSM M q2')"
+   and "outputs (from_FSM M q1) = outputs (from_FSM M q1')"
+   and "outputs (from_FSM M q2) = outputs (from_FSM M q2')"
+    by auto
+
+  have "transitions (from_FSM M q1) = transitions (from_FSM M q1')" and "transitions (from_FSM M q2) = transitions (from_FSM M q2')"
+    by auto
+  
+
+  have "wf_transitions (from_FSM M q1) = wf_transitions (from_FSM M q1')" 
+   and "wf_transitions (from_FSM M q2) = wf_transitions (from_FSM M q2')"
+    unfolding wf_transitions.simps is_wf_transition.simps by auto
+  
+  then have "product_transitions (from_FSM M q1) (from_FSM M q2) = product_transitions (from_FSM M q1') (from_FSM M q2')" 
+    unfolding product_transitions.simps  by fastforce
+  then have "h ?P = h ?P'" 
+    unfolding product.simps
+    by (metis FSM3.product.simps \<open>inputs (from_FSM M q1) = inputs (from_FSM M q1')\<close> \<open>inputs (from_FSM M q2) = inputs (from_FSM M q2')\<close> \<open>outputs (from_FSM M q1) = outputs (from_FSM M q1')\<close> \<open>outputs (from_FSM M q2) = outputs (from_FSM M q2')\<close> from_FSM.simps from_FSM_h product_simps(2) product_simps(3) product_simps(4))  
+  then have **: "h ?F \<subseteq> h ?P'"
+    by (metis (no_types, lifting) assms(1) from_FSM_h is_submachine.simps) 
+
+
+  have *: "initial ?F = initial ?P'" 
+    by auto
+
+  have ***: "inputs ?F = inputs ?P'"
+  proof -
+    have "inputs (from_FSM M q1) @ inputs (from_FSM M q2) = inputs S"
+      by (metis (no_types) assms(1) is_submachine.simps product_simps(2))
+    then show ?thesis
+      by (metis (no_types) from_FSM.simps product_simps(2) select_convs(2))
+  qed 
+
+  have ****: "outputs ?F = outputs ?P'"
+  proof -
+    have "outputs (from_FSM M q1) @ outputs (from_FSM M q2) = outputs S"
+      by (metis (no_types) assms(1) is_submachine.simps product_simps(3))
+    then show ?thesis
+      by (metis (no_types) from_FSM.simps product_simps(3) select_convs(3))
+  qed
+
+
+  show "is_submachine ?F ?P'" 
+    using is_submachine.simps[of ?F ?P'] * ** *** **** by blast 
+qed
+
+
+
+
+lemma submachine_transition_complete_product_from :
+  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+      and "completely_specified S"
+      and "((q1,q2),x,y,(q1',q2')) \<in> h S"
+ shows "completely_specified (from_FSM S (q1',q2'))"
+proof -
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
+  let ?F = "(from_FSM S (q1',q2'))"  
+
+  have "initial ?P = (q1,q2)"
+    by auto
+  then have "initial S = (q1,q2)" 
+    using assms(1) by (metis is_submachine.simps) 
+  then have "(q1',q2') \<in> nodes S"
+    using assms(3)
+    by (metis fst_conv nodes.initial nodes.step snd_conv) 
+  then have "nodes ?F \<subseteq> nodes S"
+    using from_FSM_nodes by metis
+  moreover have "inputs ?F = inputs S"
+    by auto
+  ultimately show "completely_specified ?F"
+    using assms(2) by auto 
+qed
+
+
+
 
 lemma r_distinguishable_alt_def :
   assumes "completely_specified M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
   shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
 proof 
   show "r_distinguishable M q1 q2 \<Longrightarrow> \<exists>k. r_distinguishable_k M q1 q2 k" 
@@ -1903,16 +2040,52 @@ proof
       then show "False" using r_distinguishable_k_0_not_completely_specified[OF "0.prems"(1)] by metis
     next
       case (Suc k)
-      then show ?case sorry
+      then show "False" 
+      proof (cases "r_distinguishable_k M q1 q2 k")
+        case True
+        then show ?thesis 
+          using Suc.IH Suc.prems(2) by blast 
+      next
+        case False
+        then obtain x where "x \<in> set (inputs M)"
+                        and "\<forall>y q1' q2'. (q1, x, y, q1') \<in> h M \<and> (q2, x, y, q2') \<in> h M \<longrightarrow> r_distinguishable_k M q1' q2' k"
+          using Suc.prems(1) by auto
+
+        from Suc obtain S where "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+                            and "completely_specified S"
+          by (meson r_compatible.elims(2)) 
+
+        have "x \<in> set (inputs (product (from_FSM M q1) (from_FSM M q2)))"
+          using \<open>x \<in> set (inputs M)\<close> by auto
+        then have "x \<in> set (inputs S)" 
+          using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
+          by (metis is_submachine.elims(2)) 
+
+        moreover have "initial S = (q1,q2)"
+          using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close> by auto
+        ultimately obtain y q1' q2' where "((q1,q2),x,y,(q1',q2')) \<in> h S"
+          using \<open>completely_specified S\<close> using nodes.initial by fastforce 
+        then have "((q1,q2),x,y,(q1',q2')) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+          using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
+          by (meson contra_subsetD is_submachine.elims(2)) 
+        then have "(q1, x, y, q1') \<in> h M" and "(q2, x, y, q2') \<in> h M"
+          by (metis (no_types) \<open>((q1, q2), x, y, q1', q2') \<in> h (product (from_FSM M q1) (from_FSM M q2))\<close> from_FSM_h product_transition)+ 
+        then have "r_distinguishable_k M q1' q2' k" 
+          using \<open>\<forall>y q1' q2'. (q1, x, y, q1') \<in> h M \<and> (q2, x, y, q2') \<in> h M \<longrightarrow> r_distinguishable_k M q1' q2' k\<close> by blast
+        then have "r_distinguishable M q1' q2'"
+          using Suc.IH by blast 
+
+        moreover have "\<exists> S' . completely_specified S' \<and> is_submachine S' (product (from_FSM M q1') (from_FSM M q2'))"
+          using \<open>((q1,q2),x,y,(q1',q2')) \<in> h S\<close>
+          by (meson \<open>completely_specified S\<close> \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close> submachine_transition_complete_product_from submachine_transition_product_from) 
+
+        ultimately show "False" unfolding r_compatible.simps by blast
+      qed
     qed
-      
+  qed
+qed
 
-    
+        
 
-
-
-
-    
-      
 
 end
