@@ -2193,9 +2193,130 @@ proof (rule ccontr)
 qed 
     
 
+lemma filter_double :
+  assumes "x \<in> set (filter P1 xs)"
+  and     "P2 x"
+shows "x \<in> set (filter P2 (filter P1 xs))"
+  by (metis (no_types) assms(1) assms(2) filter_set member_filter)
+
+lemma filter_list_set :
+  assumes "x \<in> set xs"
+  and     "P x"
+shows "x \<in> set (filter P xs)"
+  by (simp add: assms(1) assms(2))
+
+lemma asdf_movie4: 
+  assumes "r_distinguishable M q1 q2"
+  shows "\<exists>k. r_distinguishable_k M q1 q2 k"
+proof (rule ccontr)
+  assume *: "\<nexists>k. r_distinguishable_k M q1 q2 k"
+
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?ct = "filter(\<lambda> t . \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |?P| ) (transitions ?P)"
+  let ?PC = "?P\<lparr> transitions := ?ct \<rparr>"
+
+  have h_ct : "h ?PC = { t \<in> h ?P . \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |?P| }"
+  proof -
+    have wf_eq: "\<And> t . is_wf_transition ?PC t = is_wf_transition ?P t"
+      by (metis (no_types, lifting) FSM3.product.simps is_wf_transition.simps select_convs(2) select_convs(3) update_convs(4))
+    have "transitions ?PC = ?ct"
+        by (metis (mono_tags, lifting) select_convs(4) surjective update_convs(4))
+
+    have "\<And> t . t \<in> h ?PC \<Longrightarrow> t \<in> h ?P \<and> \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |?P|"
+      by (metis (no_types, lifting) FSM3.product.simps filter_set member_filter product_transitions_wf select_convs(4) update_convs(4) wf_transitions.simps)
+    moreover have "\<And> t . t \<in> h ?P \<and> \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |?P| \<Longrightarrow> t \<in> h ?PC"
+    proof -
+      fix t assume "t \<in> h ?P \<and> \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |?P|"
+      then have "t \<in> set (transitions ?P) \<and> is_wf_transition ?P t \<and> \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |?P|"
+        by (metis filter_set member_filter wf_transitions.simps)
+      then have "t \<in> set ?ct \<and> is_wf_transition ?PC t"
+        using wf_eq by (metis (no_types, lifting) filter_set member_filter)
+      moreover have "transitions ?PC = ?ct"
+        by (metis (mono_tags, lifting) select_convs(4) surjective update_convs(4))
+      ultimately have "t \<in> set (transitions ?PC)" and "is_wf_transition ?PC t" 
+        by metis+
+      show "t \<in> h ?PC" 
+        unfolding wf_transitions.simps using filter_list_set[OF \<open>t \<in> set (transitions ?PC)\<close>, of "is_wf_transition ?PC", OF \<open>is_wf_transition ?PC t\<close>] by assumption
+    qed
+
+    ultimately show ?thesis by blast
+  qed
+        
+      
+
+    
 
 
+  have "\<And> k q . q \<in> reachable_k ?PC (q1,q2) k \<Longrightarrow> completely_specified_state ?PC q"
+  proof -
+    fix k q assume "q \<in> reachable_k ?PC (q1,q2) k"
+    then show "completely_specified_state ?PC q"
+    using * proof (induction k) (* arbitrary: q1 q2) *)
+      case 0
 
+      have "reachable_k ?PC (q1,q2) 0 = {(q1,q2)}"
+        using reachable_k_0[of ?PC "(q1,q2)"] by assumption
+      then have "q = (q1,q2)" 
+        using "0.prems" by blast
+
+      moreover have "completely_specified_state ?PC (q1,q2)"
+      proof (rule ccontr)
+        assume "\<not> completely_specified_state ?PC (q1,q2)"
+        then obtain x where "x \<in> set (inputs ?PC)"
+                        and "\<not> (\<exists>t\<in>h ?PC. t_source t = (q1, q2) \<and> t_input t = x)" 
+          unfolding completely_specified_state.simps by blast
+
+        have "\<not> (\<exists>t\<in>h ?P. t_source t = (q1, q2) \<and> t_input t = x \<and> \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |?P| )"
+          using h_ct \<open>\<not> (\<exists>t\<in>h ?PC. t_source t = (q1, q2) \<and> t_input t = x)\<close> mem_Collect_eq by smt (*TODO*)
+
+        then have "\<nexists>t1 t2.
+                      t1 \<in> h M \<and>
+                      t2 \<in> h M \<and>
+                      t_source t1 = q1 \<and>
+                      t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2
+                      \<and> \<not> r_distinguishable_k M (t_target t1) (t_target t2) |?P| "
+          by (metis from_FSM_h fst_conv prod.exhaust_sel product_transition snd_conv)
+        then have "r_distinguishable_k M q1 q2 ( |?P| + 1 )"
+          by (smt FSM3.product.simps \<open>x \<in> set (inputs (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |product (from_FSM M q1) (from_FSM M q2)| ) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>))\<close> add.commute from_FSM_product_inputs plus_1_eq_Suc r_distinguishable_k.simps(2) select_convs(2) update_convs(4))
+          (* TODO*)
+        then show "False" using * by blast
+      qed
+
+      ultimately show ?case by fastforce
+    next
+      case (Suc k)
+
+      
+      
+      then show ?case 
+      proof (cases "q \<in> reachable_k ?PC (q1,q2) k")
+        case True
+        then show ?thesis
+          using Suc by fastforce
+      next
+        case False
+        
+        then show ?thesis sorry
+      qed
+
+      
+    qed
+  qed
+
+  then have "\<forall> q \<in> nodes ?PC . completely_specified_state ?PC q"
+    sorry
+
+  then have "completely_specified ?PC" 
+    using completely_specified_states[of ?PC] by fastforce
+  moreover have "is_submachine ?PC ?P"
+    unfolding is_submachine.simps
+    by (smt FSM3.product.simps filter_filter filter_is_subset product_transitions_wf select_convs(1) select_convs(2) select_convs(3) select_convs(4) update_convs(4) wf_transitions.simps) 
+    (* TODO *)
+  ultimately have "r_compatible M q1 q2"
+    unfolding r_compatible.simps by blast
+  then show "False" 
+    using assms by fastforce
+qed
 
 
 
