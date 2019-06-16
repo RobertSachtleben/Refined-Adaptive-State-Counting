@@ -2248,10 +2248,7 @@ fun completely_specified_k :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Right
 
 
 lemma r_distinguishable_alt_def :
-  assumes "completely_specified M"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
-  shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
+  "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
 proof 
   show "r_distinguishable M q1 q2 \<Longrightarrow> \<exists>k. r_distinguishable_k M q1 q2 k" 
   proof (rule ccontr)
