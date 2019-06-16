@@ -2211,6 +2211,224 @@ lemma filter_list_set_not_contained :
 shows "x \<notin> set (filter P xs)"
   by (simp add: assms(1) assms(2))
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+lemma asdf_movie5: 
+  assumes "r_distinguishable M q1 q2"
+  shows "\<exists>k. r_distinguishable_k M q1 q2 k"
+proof (rule ccontr)
+  assume c_assm: "\<nexists>k. r_distinguishable_k M q1 q2 k"
+
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  (* use only transitions to non-r-distinguishable states *)
+  let ?f = "\<lambda> t . \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> \<not> (\<exists> k . r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k)"
+  let ?ft = "filter ?f (transitions ?P)"
+  let ?PC = "?P\<lparr> transitions := ?ft \<rparr>"   
+
+
+  have h_ft : "h ?PC = { t \<in> h ?P . ?f t }"
+  proof -
+    have wf_eq: "\<And> t . is_wf_transition ?PC t = is_wf_transition ?P t"
+      by (metis (no_types, lifting) FSM3.product.simps is_wf_transition.simps select_convs(2) select_convs(3) update_convs(4))
+    have "transitions ?PC = ?ft"
+        by (metis (mono_tags, lifting) select_convs(4) surjective update_convs(4))
+
+    have "\<And> t . t \<in> h ?PC \<Longrightarrow> t \<in> h ?P \<and> ?f t"
+      by (metis (no_types, lifting) \<open>transitions ?PC = ?ft\<close> filter_is_subset filter_list_set_not_contained product_simps(4) product_transitions_wf subsetCE wf_transitions.simps)
+    moreover have "\<And> t . t \<in> h ?P \<and> ?f t \<Longrightarrow> t \<in> h ?PC"
+    proof -
+      fix t assume "t \<in> h ?P \<and> ?f t"
+      then have "t \<in> set (transitions ?P)" and "(\<lambda> t . ?f t) t" and "is_wf_transition ?P t" 
+        by (metis filter_set member_filter wf_transitions.simps)+
+      have "t \<in> set ?ft"
+        using filter_list_set[OF \<open>t \<in> set (transitions ?P)\<close>, of "(\<lambda> t . ?f t)", OF \<open>(\<lambda> t . ?f t) t\<close>] by assumption
+      moreover have "is_wf_transition ?PC t"
+        using  wf_eq \<open>is_wf_transition ?P t\<close> by blast
+      moreover have "transitions ?PC = ?ft"
+        by (metis (mono_tags, lifting) select_convs(4) surjective update_convs(4))
+      ultimately have "t \<in> set (transitions ?PC)" and "is_wf_transition ?PC t" 
+        by metis+
+      show "t \<in> h ?PC" 
+        unfolding wf_transitions.simps using filter_list_set[OF \<open>t \<in> set (transitions ?PC)\<close>, of "is_wf_transition ?PC", OF \<open>is_wf_transition ?PC t\<close>] by assumption
+    qed
+
+    ultimately show ?thesis by blast
+  qed
+
+
+
+  have "\<And> k q . q \<in> reachable_k ?PC (q1,q2) k \<Longrightarrow> completely_specified_state ?PC q"  
+  proof -
+    fix k q assume "q \<in> reachable_k ?PC (q1,q2) k"
+    then show "completely_specified_state ?PC q"
+    proof (induction k)
+      case 0
+
+      have "reachable_k ?PC (q1,q2) 0 = {(q1,q2)}"
+        using reachable_k_0[of ?PC "(q1,q2)"] by assumption
+      then have "q = (q1,q2)" 
+        using "0.prems" by blast
+
+      moreover have "completely_specified_state ?PC (q1,q2)"
+      proof (rule ccontr)
+        assume "\<not> completely_specified_state ?PC (q1,q2)"
+        then obtain x where "x \<in> set (inputs ?PC)"
+                        and "\<not> (\<exists>t\<in>h ?PC. t_source t = (q1, q2) \<and> t_input t = x)" 
+          unfolding completely_specified_state.simps by blast
+
+        have "\<not> (\<exists>t\<in>h ?P. t_source t = (q1, q2) \<and> t_input t = x \<and> ?f t)"
+          using h_ft \<open>\<not> (\<exists>t\<in>h ?PC. t_source t = (q1, q2) \<and> t_input t = x)\<close> mem_Collect_eq
+          by blast
+
+        then have *: "\<nexists>t1 t2.
+                      t1 \<in> h M \<and>
+                      t2 \<in> h M \<and>
+                      t_source t1 = q1 \<and>
+                      t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2
+                      \<and> \<not> r_distinguishable_k M q1 q2 0 \<and> \<not> (\<exists> k . r_distinguishable_k M (t_target t1) (t_target t2) k)"
+          by (metis from_FSM_h fst_conv prod.exhaust_sel product_transition snd_conv)
+        then have  "\<And> t1 t2.
+                      (t1 \<in> h M \<and>
+                       t2 \<in> h M \<and>
+                       t_source t1 = q1 \<and>
+                       t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)
+                      \<Longrightarrow> r_distinguishable_k M q1 q2 0 \<or> (\<exists> k . r_distinguishable_k M (t_target t1) (t_target t2) k)"
+          by blast
+          
+        
+        have "\<exists> k . r_distinguishable_k M q1 q2 k"
+        proof (cases "r_distinguishable_k M q1 q2 0")
+          case True
+          then show ?thesis by blast
+        next
+          case False
+          
+
+          let ?tp = "{(t1,t2) | t1 t2 . t1 \<in> h M \<and>
+                                         t2 \<in> h M \<and>
+                                         t_source t1 = q1 \<and>
+                                         t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+
+          have "finite ?tp"
+          proof -
+            have "finite (h M)" by auto
+            then have "finite (h M \<times> h M)" by auto
+            moreover have "?tp \<subseteq> (h M \<times> h M)" by blast
+            ultimately  show ?thesis by (simp add: finite_subset) 
+          qed
+
+          have k_ex : "\<forall> t \<in> ?tp . \<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'"
+          proof 
+            fix t assume "t \<in> ?tp"
+
+            let ?t1 = "fst t"
+            let ?t2 = "snd t"
+            from \<open>t \<in> ?tp\<close> have "?t1 \<in> h M \<and>
+                                 ?t2 \<in> h M \<and>
+                                 t_source ?t1 = q1 \<and>
+                                 t_source ?t2 = q2 \<and> t_input ?t1 = x \<and> t_input ?t2 = x \<and> t_output ?t1 = t_output ?t2" by auto
+            then obtain k where "r_distinguishable_k M (t_target ?t1) (t_target ?t2) k"
+              using False * by blast
+            then have "\<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target ?t1) (t_target ?t2) k'"
+              using nat_induct_at_least by fastforce
+            then show "\<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'" by auto
+          qed
+
+            
+          
+          then obtain fk where fk_def : "\<forall> t \<in> ?tp . \<forall> k' . k' \<ge> fk t \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'" 
+          proof -
+            have "\<exists> f . \<forall> t \<in> ?tp . \<forall> k' . k' \<ge> f t \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'"
+            proof 
+              let ?fk = "\<lambda> t . SOME k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'"
+              show "\<forall> t \<in> ?tp . \<forall> k' . k' \<ge> ?fk t \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'"
+                using k_ex someI_ex by smt (* TODO *)
+            qed
+            then show ?thesis using that by blast
+          qed
+
+          obtain kMax where "\<forall> t \<in> ?tp . fk t \<le> kMax"
+          proof -
+            let ?kMax = "Max (image fk ?tp)"
+            have "\<forall> t \<in> ?tp . fk t \<le> ?kMax"
+              using \<open>finite ?tp\<close> by auto
+            then show ?thesis using that by blast
+          qed
+
+          then have "\<forall> (t1,t2) \<in> ?tp . r_distinguishable_k M (t_target t1) (t_target t2) kMax"
+            using fk_def by (metis (no_types, lifting) prod.case_eq_if) 
+
+          then have "\<And> t1 t2.
+                      (t1 \<in> h M \<and>
+                       t2 \<in> h M \<and>
+                       t_source t1 = q1 \<and>
+                       t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)
+                      \<Longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) kMax"
+            using * by blast
+          then have "r_distinguishable_k M q1 q2 (Suc kMax)"
+            unfolding r_distinguishable_k.simps
+            by (metis (no_types, lifting) FSM3.product.simps \<open>x \<in> set (inputs (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> (\<nexists>k. r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k)) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>))\<close> from_FSM_product_inputs select_convs(2) update_convs(4)) 
+          then show ?thesis by blast  
+        qed
+
+        then show "False" using c_assm by blast
+
+
+            
+            
+            
+
+          then have "\<exists> k . \<forall> t1 t2 . 
+                      (t1 \<in> h M \<and>
+                       t2 \<in> h M \<and>
+                       t_source t1 = q1 \<and>
+                       t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)
+                       \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k"
+            
+          then show ?thesis unfolding r_distinguishable_k.simps sorry
+        qed 
+          
+        then have "r_distinguishable_k M q1 q2 ( |?P| + 1 )"
+          by (smt FSM3.product.simps \<open>x \<in> set (inputs (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |product (from_FSM M q1) (from_FSM M q2)| ) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>))\<close> add.commute from_FSM_product_inputs plus_1_eq_Suc r_distinguishable_k.simps(2) select_convs(2) update_convs(4))
+          (* TODO*)
+        then show "False" using * by blast
+      qed
+
+
+      then show ?case sorry
+    next
+      case (Suc k)
+      then show ?case sorry
+    qed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 lemma asdf_movie4: 
   assumes "r_distinguishable M q1 q2"
   shows "\<exists>k. r_distinguishable_k M q1 q2 k"
