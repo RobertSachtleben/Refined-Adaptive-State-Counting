@@ -2266,6 +2266,26 @@ proof (rule ccontr)
     ultimately show ?thesis by blast
   qed
 
+  have nodes_non_r_d_k : "\<forall> q \<in> nodes ?PC . \<not> (\<exists> k . r_distinguishable_k M (fst q) (snd q) k)"
+  proof    
+    fix q assume "q \<in> nodes ?PC"
+    
+    have "q = initial ?PC \<or> (\<exists> t \<in> h ?PC . q = t_target t)"
+      by (metis (no_types, lifting) \<open>q \<in> nodes (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> (\<nexists>k. r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k)) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>)\<close> nodes.cases) 
+    then have "q = (q1,q2) \<or> (\<exists> t \<in> h ?PC . q = t_target t)"
+      by (metis (no_types, lifting) FSM3.product.simps from_FSM_product_initial select_convs(1) update_convs(4))
+    
+    show "\<not> (\<exists> k . r_distinguishable_k M (fst q) (snd q) k)"
+    proof (cases "q = (q1,q2)")
+      case True
+      then show ?thesis using c_assm by auto
+    next
+      case False
+      then obtain t where "t \<in> h ?PC" and "q = t_target t" using \<open>q = (q1,q2) \<or> (\<exists> t \<in> h ?PC . q = t_target t)\<close> by blast
+      then show ?thesis
+        using h_ft by blast 
+    qed
+  qed
 
 
   have "\<And> k q . q \<in> reachable_k ?PC (q1,q2) k \<Longrightarrow> completely_specified_state ?PC q"  
@@ -2383,30 +2403,9 @@ proof (rule ccontr)
         qed
 
         then show "False" using c_assm by blast
-
-
-            
-            
-            
-
-          then have "\<exists> k . \<forall> t1 t2 . 
-                      (t1 \<in> h M \<and>
-                       t2 \<in> h M \<and>
-                       t_source t1 = q1 \<and>
-                       t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)
-                       \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k"
-            
-          then show ?thesis unfolding r_distinguishable_k.simps sorry
-        qed 
-          
-        then have "r_distinguishable_k M q1 q2 ( |?P| + 1 )"
-          by (smt FSM3.product.simps \<open>x \<in> set (inputs (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) |product (from_FSM M q1) (from_FSM M q2)| ) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>))\<close> add.commute from_FSM_product_inputs plus_1_eq_Suc r_distinguishable_k.simps(2) select_convs(2) update_convs(4))
-          (* TODO*)
-        then show "False" using * by blast
       qed
 
-
-      then show ?case sorry
+      ultimately show ?case by metis
     next
       case (Suc k)
       then show ?case sorry
