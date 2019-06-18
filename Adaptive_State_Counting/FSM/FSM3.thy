@@ -988,21 +988,6 @@ fun completed_path :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a Transition list 
   "completed_path M q p = deadlock_state M (target p q)"
 
 
-(* type for designated fail-state *)
-datatype Fail = Fail
-fun test_case :: "('a + Fail) FSM \<Rightarrow> bool" where
-  "test_case U = (single_input U \<and> output_complete U \<and> deadlock_state U (Inr Fail))"
-
-fun test_suite :: "('a + Fail) FSM set \<Rightarrow> bool" where
-  "test_suite U = (\<forall> u \<in> U . test_case u)"
-
-fun pass :: "'a FSM \<Rightarrow> ('a + Fail) FSM \<Rightarrow> bool" where
-  "pass M U = (\<forall> q \<in> nodes (product M U). snd q \<noteq> Inr Fail)"
-
-fun test_case_concat :: "('a + Fail) FSM \<Rightarrow> 'a \<Rightarrow> ('a + Fail) FSM \<Rightarrow> ('a + Fail) FSM" where
-  "test_case_concat U1 t U2 = (if (deadlock_state U1 (Inl t))
-    then U1\<lparr> transitions := (transitions U1) @ (map () transitions U2)  \<rparr>
-    else U1)"
 
 
 
@@ -2542,8 +2527,58 @@ qed
 
 
 
+(* test cases *)
+
+(* type for designated fail-state *)
+datatype TC_state = S nat | Fail
+
+fun test_case :: "TC_state FSM \<Rightarrow> bool" where
+  "test_case U = (single_input U \<and> output_complete U \<and> deadlock_state U Fail)"
+
+fun test_suite :: "TC_state FSM set \<Rightarrow> bool" where
+  "test_suite U = (\<forall> u \<in> U . test_case u)"
+
+fun pass :: "'a FSM \<Rightarrow> TC_state FSM \<Rightarrow> bool" where
+  "pass M U = (\<forall> q \<in> nodes (product M U). snd q \<noteq> Fail)"
+
+fun tc_node_id :: "TC_state \<Rightarrow> nat" where
+  "tc_node_id Fail = 0" |
+  "tc_node_id (S k) = k"
+
+fun tc_next_node_id :: "TC_state FSM \<Rightarrow> nat" where
+  "tc_next_node_id U = Suc (sum_list ((tc_node_id (initial U)) # (map (\<lambda> t . tc_node_id (t_target t)) (transitions U))))"
+lemma tc_next_node_id_lt : 
+  assumes "q \<in> nodes U" 
+  shows "tc_node_id q < tc_next_node_id U"
+proof -
+  show ?thesis
+  proof (cases "q = initial U")
+    case True
+    then show ?thesis by auto
+  next
+    case False
+    then have "(\<exists> t \<in> h U . t_target t = q)"
+      by (metis assms nodes.cases)
+    then obtain t where "t\<in> set (transitions U)" and "t_target t = q" by auto
+    then have "tc_node_id q \<in> set (map (\<lambda> t . tc_node_id (t_target t)) (transitions U))"
+      by auto
+    then have "sum_list (map (\<lambda> t . tc_node_id (t_target t)) (transitions U)) \<ge> tc_node_id q" 
+      using member_le_sum_list by blast
+    then show ?thesis 
+      by auto
+  qed
+qed
 
 
+fun tc_shift_id :: "nat \<Rightarrow> nat \<Rightarrow> TC_state \<Rightarrow> TC_state" where
+  "tc_shift_id t k' Fail = Fail" |
+  "tc_shift_id t k' (S k) = (if (t = k) then S k else S (k + k'))"
+fun tc_shift_transition :: "nat \<Rightarrow> nat \<Rightarrow> TC_state Transition \<Rightarrow> TC_state Transition" where
+  "tc_shift_transition t k' tr = (tc_shift_id t k' (t_source tr), t_input tr, t_output tr, tc_shift_id t k' (t_target tr))"
+fun test_case_concat :: "TC_state FSM \<Rightarrow> nat \<Rightarrow> TC_state FSM \<Rightarrow> TC_state FSM" where
+  "test_case_concat U1 t U2 = (if (deadlock_state U1 (S t))
+    then U1\<lparr> transitions := (transitions U1) @ (map (tc_shift_transition t (tc_next_node_id U1)) (transitions U2)) \<rparr>
+    else U1)"
         
 
 
