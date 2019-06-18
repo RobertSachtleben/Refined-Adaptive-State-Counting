@@ -2580,6 +2580,11 @@ fun test_case_concat :: "TC_state FSM \<Rightarrow> nat \<Rightarrow> TC_state F
     then U1\<lparr> transitions := (transitions U1) @ (map (tc_shift_transition t (tc_next_node_id U1)) (transitions U2)) \<rparr>
     else U1)"
         
+(* TODO: rev *)
+lemma tc_concat_pass :
+  assumes "pass M (test_case_concat U1 t U2)"
+  shows "pass M U1"
+    and "\<forall> p . path (product M U1) (initial (product M U1)) p \<and> snd (target p (initial (product M U1))) = S t \<longrightarrow> pass (from_FSM M (fst (target p (initial (product M U1))))) U2" 
 
 
 end
