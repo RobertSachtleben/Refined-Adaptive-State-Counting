@@ -984,7 +984,26 @@ proof
   qed
 qed
 
-  
+fun completed_path :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
+  "completed_path M q p = deadlock_state M (target p q)"
+
+
+(* type for designated fail-state *)
+datatype Fail = Fail
+fun test_case :: "('a + Fail) FSM \<Rightarrow> bool" where
+  "test_case U = (single_input U \<and> output_complete U \<and> deadlock_state U (Inr Fail))"
+
+fun test_suite :: "('a + Fail) FSM set \<Rightarrow> bool" where
+  "test_suite U = (\<forall> u \<in> U . test_case u)"
+
+fun pass :: "'a FSM \<Rightarrow> ('a + Fail) FSM \<Rightarrow> bool" where
+  "pass M U = (\<forall> q \<in> nodes (product M U). snd q \<noteq> Inr Fail)"
+
+fun test_case_concat :: "('a + Fail) FSM \<Rightarrow> 'a \<Rightarrow> ('a + Fail) FSM \<Rightarrow> ('a + Fail) FSM" where
+  "test_case_concat U1 t U2 = (if (deadlock_state U1 (Inl t))
+    then U1\<lparr> transitions := (transitions U1) @ (map () transitions U2)  \<rparr>
+    else U1)"
+
 
 
 fun io_in :: "(Input \<times> Output) list \<Rightarrow> Input list" where
@@ -2520,6 +2539,10 @@ proof
     qed
   qed
 qed
+
+
+
+
 
         
 
