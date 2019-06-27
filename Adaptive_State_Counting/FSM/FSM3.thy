@@ -955,7 +955,8 @@ lemma output_complete_alt_def : "output_complete M = output_completeH M" by (rul
 
 
 fun acyclic :: "'a FSM \<Rightarrow> bool" where
-  "acyclic M = finite (L M)"
+  "acyclic M = (\<forall> p . path M (initial M) p \<longrightarrow> distinct (visited_states (initial M) p))"
+  (* original formulation: "acyclic M = finite (L M)" - this follows from the path-distinctness property, as repetitions along paths allow for infinite loops *)
 
 fun deadlock_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where 
   "deadlock_state M q = (\<not>(\<exists> t \<in> h M . t_source t = q))"
@@ -2527,13 +2528,126 @@ qed
 
 
 
+(* experiments *)
+
+fun definitely_reachable :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
+  "definitely_reachable M q = (\<forall> S . completely_specified S \<and> is_submachine S M \<longrightarrow> q \<in> nodes S)"
+
+fun is_preamble :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
+  "is_preamble S M q = (acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
+
+lemma definitely_reachable_alt_def :
+  "definitely_reachable M q = (\<exists> S . acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
+  sorry
+
+(* variation using only maximal sequences 
+fun is_preamble_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "is_preamble_set M q P = (
+    P \<subseteq> L M
+    \<and> (\<forall> p . (path M q p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states (initial M) p))
+    \<and> (\<forall> xys xy1 xys1 xy2 xys2 . (xys@[xy1]@xys1 \<in> P \<and> xys@[xy2]@xys2 \<in> P) \<longrightarrow> fst xy1 = fst xy2)
+    \<and> (\<forall> xys xy xys' y . (xys@[xy]@xys' \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> (\<exists> xys'' . xys@[(fst xy,y)]@xys'' \<in> P))
+    \<and> (\<forall> xys \<in> P . io_target M xys (initial M) = q)
+  )"                                                                    
+*)
+(* variation closed under prefix relation *)
+fun is_preamble_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "is_preamble_set M q P = (
+    P \<subseteq> L M
+    \<and> (\<forall> p . (path M (initial M) p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states (initial M) p))
+    \<and> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> P \<and> xys@[xy2] \<in> P) \<longrightarrow> fst xy1 = fst xy2)
+    \<and> (\<forall> xys xy y . (xys@[xy] \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> P)
+    \<and> (\<forall> xys \<in> P . io_target M xys (initial M) = q 
+                    \<or> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys))
+  )"   
+
+
+lemma submachine_language :
+  assumes "is_submachine S M"
+  shows "L S \<subseteq> L M"
+  by (meson assms is_io_reduction_state.elims(2) submachine_reduction) 
+
+lemma submachine_observable :
+  assumes "is_submachine S M"
+  and     "observable M"
+shows "observable S"
+  using assms unfolding is_submachine.simps observable.simps
+  by blast 
+
+(* the language of a preamble is a preamble-set *)
+lemma preamble_has_preamble_set :
+  assumes "observable M"
+  and     "is_preamble S M q"
+(*  shows "is_preamble_set M q {io \<in> L S . \<not> (\<exists> io' \<in> L S . length io < length io' \<and> take (length io) io' = io)}" *)
+  shows "is_preamble_set M q (L S)"
+proof (rule ccontr)
+  assume "\<not> is_preamble_set M q (L S)"
+  then consider
+    (f1) "\<not> (L S \<subseteq> L M)" |
+    (f2) "\<not> (\<forall> p . (path M (initial M) p \<and> p_io p \<in> L S) \<longrightarrow> distinct (visited_states (initial M) p))" |
+    (f3) "\<not> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> L S \<and> xys@[xy2] \<in> L S) \<longrightarrow> fst xy1 = fst xy2)" |
+    (f4) "\<not> (\<forall> xys xy y . (xys@[xy] \<in> L S \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> L S)" |
+    (f5) "\<not> (\<forall> xys \<in> L S . io_target M xys (initial M) = q 
+                    \<or> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys))"
+    unfolding is_preamble_set.simps by blast
+  then show "False"
+  proof cases
+    case f1 (* violates submachine property *)
+    moreover have "L S \<subseteq> L M"  
+      using assms(2) unfolding is_preamble.simps by (metis submachine_language)
+    ultimately show ?thesis by simp 
+  next
+    case f2 (* violates acyclicness property (for observable M) *)
+    then obtain p where "path M (initial M) p" and "p_io p \<in> L S" and "\<not> distinct (visited_states (initial M) p)"
+      by blast
+    from \<open>p_io p \<in> L S\<close> obtain p' where "path S (initial S) p'" and "p_io p' = p_io p"
+      using LS.elims by auto 
+    then have "path M (initial M) p'" 
+      using assms(2) unfolding is_preamble.simps
+      by (metis is_submachine.elims(2) submachine_path) 
+
+    have "observable S"  
+      using assms unfolding is_preamble.simps by (metis submachine_observable)
+    
+
+    have "p' = p"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) p\<close> \<open>path M (initial M) p'\<close>] using \<open>p_io p' = p_io p\<close> by auto
+    then have "\<not> distinct (visited_states (initial M) p)"
+    
+
+    (*
+
+    observable_path_unique
+
+    then show ?thesis sorry
+  next
+    case f3 (* violates single-input property (for observable M) *)
+    then show ?thesis sorry
+  next
+    case f4 (* misses transition in M (for observable M) *)
+    then show ?thesis sorry
+  next
+    case f5 (* violates property that q is the only deadlock state *)
+    then show ?thesis sorry
+  qed
+qed
+
+lemma preamble_set_implies_preamble :
+  assumes "is_preamble_set M q P"
+  shows "\<exists> S . is_preamble S M q"
+  sorry
+  (* Proof idea: create preamble by using exactly those transitions used in P *)
+
+
+
+
 (* test cases *)
 
 (* type for designated fail-state *)
-datatype TC_state = S nat | Fail
+datatype TC_state = TS nat | Fail
 
 fun test_case :: "TC_state FSM \<Rightarrow> bool" where
-  "test_case U = (single_input U \<and> output_complete U \<and> deadlock_state U Fail)"
+  "test_case U = (acyclic U \<and> single_input U \<and> output_complete U \<and> deadlock_state U Fail)"
 
 fun test_suite :: "TC_state FSM set \<Rightarrow> bool" where
   "test_suite U = (\<forall> u \<in> U . test_case u)"
@@ -2543,7 +2657,7 @@ fun pass :: "'a FSM \<Rightarrow> TC_state FSM \<Rightarrow> bool" where
 
 fun tc_node_id :: "TC_state \<Rightarrow> nat" where
   "tc_node_id Fail = 0" |
-  "tc_node_id (S k) = k"
+  "tc_node_id (TS k) = k"
 
 fun tc_next_node_id :: "TC_state FSM \<Rightarrow> nat" where
   "tc_next_node_id U = Suc (sum_list ((tc_node_id (initial U)) # (map (\<lambda> t . tc_node_id (t_target t)) (transitions U))))"
@@ -2572,11 +2686,11 @@ qed
 
 fun tc_shift_id :: "nat \<Rightarrow> nat \<Rightarrow> TC_state \<Rightarrow> TC_state" where
   "tc_shift_id t k' Fail = Fail" |
-  "tc_shift_id t k' (S k) = (if (t = k) then S k else S (k + k'))"
+  "tc_shift_id t k' (TS k) = (if (t = k) then TS k else TS (k + k'))"
 fun tc_shift_transition :: "nat \<Rightarrow> nat \<Rightarrow> TC_state Transition \<Rightarrow> TC_state Transition" where
   "tc_shift_transition t k' tr = (tc_shift_id t k' (t_source tr), t_input tr, t_output tr, tc_shift_id t k' (t_target tr))"
 fun test_case_concat :: "TC_state FSM \<Rightarrow> nat \<Rightarrow> TC_state FSM \<Rightarrow> TC_state FSM" where
-  "test_case_concat U1 t U2 = (if (deadlock_state U1 (S t))
+  "test_case_concat U1 t U2 = (if (deadlock_state U1 (TS t))
     then U1\<lparr> transitions := (transitions U1) @ (map (tc_shift_transition t (tc_next_node_id U1)) (transitions U2)) \<rparr>
     else U1)"
         
@@ -2585,6 +2699,25 @@ lemma tc_concat_pass :
   assumes "pass M (test_case_concat U1 t U2)"
   shows "pass M U1"
     and "\<forall> p . path (product M U1) (initial (product M U1)) p \<and> snd (target p (initial (product M U1))) = S t \<longrightarrow> pass (from_FSM M (fst (target p (initial (product M U1))))) U2" 
+  sorry
 
+
+fun definitely_reachable :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
+  "definitely_reachable M q = (\<forall> S . completely_specified S \<and> is_submachine S M \<longrightarrow> q \<in> nodes S)"
+
+fun is_preamble :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
+  "is_preamble S M q = (acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
+
+lemma definitely_reachable_alt_def :
+  "definitely_reachable M q = (\<exists> S . acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
+  sorry
+
+fun get_output_complete_transition :: "TC_state FSM \<Rightarrow> TC_state \<Rightarrow> Input \<Rightarrow> Output \<Rightarrow> TC_state Transition" where
+  "get_output_complete_transition U q x y = (if (\<exists> t . t \<in> h U \<and> t_source t = q \<and> t_input t = x \<and> t_output t = y)
+    then (SOME t . t \<in> h U \<and> t_source t = q \<and> t_input t = x \<and> t_output t = y)
+    else (q,x,y,Fail))"
+
+fun make_output_complete :: "TC_state FSM \<Rightarrow> TC_state FSM" where
+  "make_output_complete U = U \<lparr> transitions := transitions U @ map  \<rparr>" 
 
 end
