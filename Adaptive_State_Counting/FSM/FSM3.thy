@@ -2851,6 +2851,19 @@ proof -
       then have "io \<in> L ?S" using language_prefix[of io "[xy]" ?S "initial ?S"] by auto
       then have "io \<in> P" using snoc.IH by auto
 
+      from \<open>io@[xy] \<in> L ?S\<close> obtain p where "path ?S (initial ?S) p" and "p_io p = io@[xy]" by auto
+      let ?hp = "butlast p"
+      let ?t = "last p"
+      have "?t \<in> h ?S"
+        by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys \<in> P \<and> xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys \<in> P \<and> xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p\<close> append_is_Nil_conv contra_subsetD last_in_set not_Cons_self2 path_h) 
+      then have "?is_preamble_transition ?t" 
+        by auto
+      then obtain xys xy where "
+       xys \<in> P \<and>
+       xys @ [xy] \<in> P \<and>
+       t_source ?t = io_target M xys (initial M) \<and>
+       t_input ?t = fst xy \<and> t_output (last p) = snd xy"
+      
        
 
 
