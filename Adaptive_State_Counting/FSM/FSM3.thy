@@ -941,8 +941,8 @@ lemma observable_alt_def : "observable M = observableH M" by auto
 
 
 fun single_input :: "'a FSM \<Rightarrow> bool" where
-  "single_input M = (\<forall> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = t_source t2 \<longrightarrow> t_input t1 = t_input t2)" 
-abbreviation "single_inputH M \<equiv> (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x',y',q1'') \<in> h M \<longrightarrow> x = x')"
+  "single_input M = (\<forall> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<longrightarrow> t_input t1 = t_input t2)" 
+abbreviation "single_inputH M \<equiv> (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x',y',q1'') \<in> h M \<and> q1 \<in> nodes M \<longrightarrow> x = x')"
 
 lemma single_input_alt_def : "single_input M = single_inputH M" by force 
 
@@ -2551,8 +2551,17 @@ fun is_preamble_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Ou
     \<and> (\<forall> xys \<in> P . io_target M xys (initial M) = q 
                     \<or> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys))
     \<and> (\<exists> xys \<in> P . io_target M xys (initial M) = q)
+    \<and> (\<forall> xys1 xys2 . xys1@xys2 \<in> P \<longrightarrow> xys1 \<in> P)
   )"   
 
+lemma preamble_set_contains_empty_sequence :
+  assumes "is_preamble_set M q P"
+  shows "[] \<in> P" 
+proof -
+  from assms obtain xys where "xys \<in> P \<and> io_target M xys (initial M) = q" unfolding is_preamble_set.simps by blast
+  then have "[] @ xys \<in> P" by auto
+  then show ?thesis using assms unfolding is_preamble_set.simps by blast
+qed
 
 lemma submachine_language :
   assumes "is_submachine S M"
@@ -2616,7 +2625,8 @@ proof (rule ccontr)
     (f4) "\<not> (\<forall> xys xy y . (xys@[xy] \<in> L S \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> L S)" |
     (f5) "\<not> (\<forall> xys \<in> L S . io_target M xys (initial M) = q 
                     \<or> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys))" |
-    (f6) "\<not> (\<exists> xys \<in> L S . io_target M xys (initial M) = q)"
+    (f6) "\<not> (\<exists> xys \<in> L S . io_target M xys (initial M) = q)" |
+    (f7) "\<not> (\<forall> xys1 xys2 . xys1@xys2 \<in> L S \<longrightarrow> xys1 \<in> L S)"
     unfolding is_preamble_set.simps by blast
   then show "False"
   proof cases
@@ -2691,6 +2701,8 @@ proof (rule ccontr)
     then have "t1 \<in> h S" and "t2 \<in> h S" and "t_source t1 = t_source t2" by auto
     moreover have "t_input t1 \<noteq> t_input t2" 
       using \<open>fst xy1 \<noteq> fst xy2\<close> \<open>p_io [t1] = [xy1]\<close> \<open>p_io [t2] = [xy2]\<close> by auto 
+    moreover have "t_source t1 \<in> nodes S"
+      using \<open>butlast p1 = butlast p2\<close> \<open>path S (initial S) (butlast p1 @ [t1])\<close> nodes_path_initial by fastforce
     ultimately show "False" using assms(2) unfolding is_preamble.simps single_input.simps
       by blast 
   next
@@ -2807,14 +2819,102 @@ proof (rule ccontr)
     qed
         
     then show "False" using assms(2) unfolding is_preamble.simps by blast
+  next
+    case f7 (* violates path-prefix properties *)
+    then obtain xys1 xys2 where "xys1@xys2 \<in> L S" and "\<not> xys1 \<in> L S" by blast
+    then show "False" by (meson language_prefix) 
   qed
 qed
 
 
 
+lemma transition_filter_submachine :
+  "is_submachine (M\<lparr> transitions := filter P (transitions M)\<rparr>) M"
+  by auto
+
 lemma preamble_set_implies_preamble :
-  assumes "is_preamble_set M q P"
-  shows "\<exists> S . is_preamble S M q"
+  assumes "observable M" and "is_preamble_set M q P"
+  shows "\<exists> S . is_preamble S M q \<and> L S = P"
+proof -
+  let ?is_preamble_transition = "\<lambda> t . \<exists> xys xy . xys \<in> P \<and> xys@[xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy"
+  let ?S = "M\<lparr> transitions := filter ?is_preamble_transition (transitions M) \<rparr>"
+
+  have "\<And> io . io \<in> L ?S \<Longrightarrow> io \<in> P"
+  proof -
+    fix io assume "io \<in> L ?S"
+    then show "io \<in> P"
+    proof (induction io rule: rev_induct)
+      case Nil
+      then show ?case using preamble_set_contains_empty_sequence[OF assms(2)] by simp
+    next
+      case (snoc xy io)
+      then have "io \<in> L ?S" using language_prefix[of io "[xy]" ?S "initial ?S"] by auto
+      then have "io \<in> P" using snoc.IH by auto
+
+       
+
+
+      then show ?case sorry
+    qed
+
+
+
+end (*
+
+  have "\<And> t . t \<in> h ?S \<Longrightarrow> ?is_preamble_transition t" by auto
+  
+
+  have "is_submachine ?S M" by auto
+  then have "L ?S \<subseteq> L M" 
+    using submachine_language[of ?S M] by blast
+
+  have "single_input ?S"  
+  proof (rule ccontr)
+    assume "\<not> single_input ?S"
+    then obtain t1 t2 where "t1 \<in> h ?S" and "t2 \<in> h ?S" and "t_source t1 = t_source t2" and "t_source t1 \<in> nodes ?S" and "t_input t1 \<noteq> t_input t2"
+      unfolding single_input.simps by blast
+    moreover from \<open>t_source t1 \<in> nodes ?S\<close> obtain p where "path ?S (initial ?S) p" and "target p (initial ?S) = t_source t1"
+      by (metis (no_types, lifting) path_to_nodes)
+
+    ultimately have "path ?S (initial ?S) (p@[t1])" and "path ?S (initial ?S) (p@[t2])"
+      by (metis (no_types, lifting) cons nil path_append)+
+    let ?xy1 = "(t_input t1, t_output t1)"
+    let ?xy2 = "(t_input t2, t_output t2)"
+
+    have "p_io (p@[t1]) = (p_io p)@[?xy1]" by auto
+    have "p_io (p@[t2]) = (p_io p)@[?xy2]" by auto
+
+    have "(p_io p)@[?xy1] \<in> L ?S"
+      using \<open>path ?S (initial ?S) (p@[t1])\<close> \<open>p_io (p@[t1]) = (p_io p)@[?xy1]\<close> unfolding LS.simps
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
+    moreover have "(p_io p)@[?xy2] \<in> L ?S"
+      using \<open>path ?S (initial ?S) (p@[t2])\<close> \<open>p_io (p@[t2]) = (p_io p)@[?xy2]\<close> unfolding LS.simps
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
+    ultimately have "(p_io p)@[?xy1] \<in> L ?S \<and> (p_io p)@[?xy2] \<in> L ?S \<and> fst ?xy1 \<noteq> fst ?xy2" 
+      using \<open>t_input t1 \<noteq> t_input t2\<close> by auto
+    then have "(p_io p)@[?xy1] \<in> L M \<and> (p_io p)@[?xy2] \<in> L M \<and> fst ?xy1 \<noteq> fst ?xy2" 
+      using \<open>L ?S \<subseteq> L M\<close> by blast
+    then have "\<not> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> L M \<and> xys@[xy2] \<in> L M) \<longrightarrow> fst xy1 = fst xy2)"
+      by blast
+    then show "False" using assms(2) unfolding is_preamble_set.simps 
+      
+
+    
+(*      \<not> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> L S \<and> xys@[xy2] \<in> L S) \<longrightarrow> fst xy1 = fst xy2)*)
+    
+  
+  have "is_preamble ?S M q"
+  proof -
+    have "single_input ?S"
+    
+  (* acyclic S 
+    \<and> single_input S 
+    \<and> is_submachine S M 
+    \<and> q \<in> nodes S 
+    \<and> deadlock_state S q 
+    \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') 
+        \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S)))) 
+   *)
   sorry
   (* Proof idea: create preamble by using exactly those transitions used in P *)
 
