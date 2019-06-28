@@ -2540,16 +2540,7 @@ lemma definitely_reachable_alt_def :
   "definitely_reachable M q = (\<exists> S . acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
   sorry
 
-(* variation using only maximal sequences 
-fun is_preamble_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
-  "is_preamble_set M q P = (
-    P \<subseteq> L M
-    \<and> (\<forall> p . (path M q p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states (initial M) p))
-    \<and> (\<forall> xys xy1 xys1 xy2 xys2 . (xys@[xy1]@xys1 \<in> P \<and> xys@[xy2]@xys2 \<in> P) \<longrightarrow> fst xy1 = fst xy2)
-    \<and> (\<forall> xys xy xys' y . (xys@[xy]@xys' \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> (\<exists> xys'' . xys@[(fst xy,y)]@xys'' \<in> P))
-    \<and> (\<forall> xys \<in> P . io_target M xys (initial M) = q)
-  )"                                                                    
-*)
+
 (* variation closed under prefix relation *)
 fun is_preamble_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "is_preamble_set M q P = (
@@ -2559,6 +2550,7 @@ fun is_preamble_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Ou
     \<and> (\<forall> xys xy y . (xys@[xy] \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> P)
     \<and> (\<forall> xys \<in> P . io_target M xys (initial M) = q 
                     \<or> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys))
+    \<and> (\<exists> xys \<in> P . io_target M xys (initial M) = q)
   )"   
 
 
@@ -2574,11 +2566,46 @@ shows "observable S"
   using assms unfolding is_submachine.simps observable.simps
   by blast 
 
+lemma language_prefix : 
+  assumes "io1@io2 \<in> LS M q"
+  shows "io1 \<in> LS M q"
+proof -
+  obtain p where "path M q p" and "p_io p = io1@io2" 
+    using assms by auto
+  let ?tp = "take (length io1) p"
+  have "path M q ?tp"
+    by (metis (no_types) \<open>path M q p\<close> append_take_drop_id path_prefix) 
+  moreover have "p_io ?tp = io1"
+    using \<open>p_io p = io1@io2\<close> by (metis append_eq_conv_conj take_map) 
+  ultimately show ?thesis
+    by force 
+qed
+
+lemma observable_submachine_io_target :
+  assumes "observable M"
+  and     "is_submachine S M"
+  and     "io \<in> L S"
+shows "io_target S io (initial S) = io_target M io (initial M)"
+proof - (* TODO: refactor auto-generated code *)
+  have f1: "initial S = initial M \<and> h S \<subseteq> h M \<and> inputs S = inputs M \<and> outputs S = outputs M"
+    using assms(2) is_submachine.simps by blast
+  obtain pps :: "(nat \<times> nat) list \<Rightarrow> 'a \<Rightarrow> 'a FSM \<Rightarrow> ('a \<times> nat \<times> nat \<times> 'a) list" where
+        "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
+    by moura
+  then have f2: "io = p_io (pps io (initial M) S) \<and> path S (initial M) (pps io (initial M) S)"
+    using f1 assms(3) by force
+  then have "target (pps io (initial M) S) (initial M) = io_target M (p_io (pps io (initial M) S)) (initial M)"
+    by (metis (no_types) assms(1) assms(2) observable_path_io_target submachine_path)
+  then show ?thesis
+    using f2 f1 by (metis (no_types) assms(1) assms(2) observable_path_io_target submachine_observable)
+qed
+
+
+
 (* the language of a preamble is a preamble-set *)
 lemma preamble_has_preamble_set :
   assumes "observable M"
   and     "is_preamble S M q"
-(*  shows "is_preamble_set M q {io \<in> L S . \<not> (\<exists> io' \<in> L S . length io < length io' \<and> take (length io) io' = io)}" *)
   shows "is_preamble_set M q (L S)"
 proof (rule ccontr)
   assume "\<not> is_preamble_set M q (L S)"
@@ -2588,14 +2615,15 @@ proof (rule ccontr)
     (f3) "\<not> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> L S \<and> xys@[xy2] \<in> L S) \<longrightarrow> fst xy1 = fst xy2)" |
     (f4) "\<not> (\<forall> xys xy y . (xys@[xy] \<in> L S \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> L S)" |
     (f5) "\<not> (\<forall> xys \<in> L S . io_target M xys (initial M) = q 
-                    \<or> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys))"
+                    \<or> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys))" |
+    (f6) "\<not> (\<exists> xys \<in> L S . io_target M xys (initial M) = q)"
     unfolding is_preamble_set.simps by blast
   then show "False"
   proof cases
     case f1 (* violates submachine property *)
     moreover have "L S \<subseteq> L M"  
       using assms(2) unfolding is_preamble.simps by (metis submachine_language)
-    ultimately show ?thesis by simp 
+    ultimately show "False" by simp 
   next
     case f2 (* violates acyclicness property (for observable M) *)
     then obtain p where "path M (initial M) p" and "p_io p \<in> L S" and "\<not> distinct (visited_states (initial M) p)"
@@ -2608,29 +2636,181 @@ proof (rule ccontr)
 
     have "observable S"  
       using assms unfolding is_preamble.simps by (metis submachine_observable)
-    
-
     have "p' = p"
       using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) p\<close> \<open>path M (initial M) p'\<close>] using \<open>p_io p' = p_io p\<close> by auto
-    then have "\<not> distinct (visited_states (initial M) p)"
-    
-
-    (*
-
-    observable_path_unique
-
-    then show ?thesis sorry
+    then have "\<not> distinct (visited_states (initial S) p')"
+      using \<open>\<not> distinct (visited_states (initial M) p)\<close> assms(2) unfolding is_preamble.simps is_submachine.simps by simp
+    then show "False"
+      using assms(2) unfolding is_preamble.simps by (meson \<open>path S (initial S) p'\<close> acyclic.elims(2))
   next
     case f3 (* violates single-input property (for observable M) *)
-    then show ?thesis sorry
+    then obtain xys xy1 xy2 where "xys@[xy1] \<in> L S" and "xys@[xy2] \<in> L S" and "fst xy1 \<noteq> fst xy2"
+      by blast
+    then obtain p1 p2 where "path S (initial S) p1" and "p_io p1 = xys@[xy1]"
+                        and "path S (initial S) p2" and "p_io p2 = xys@[xy2]" 
+      by auto
+    let ?hp1 = "butlast p1"
+    let ?hp2 = "butlast p2"
+
+    have "observable S"
+      by (meson assms(1) assms(2) is_preamble.simps submachine_observable)
+
+    have "path S (initial S) ?hp1" 
+      by (metis (no_types, lifting) \<open>p_io p1 = xys @ [xy1]\<close> \<open>path S (initial S) p1\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
+    moreover have "path S (initial S) ?hp2" 
+      by (metis (no_types, lifting) \<open>p_io p2 = xys @ [xy2]\<close> \<open>path S (initial S) p2\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
+    moreover have "p_io ?hp1 = p_io ?hp2"
+      by (simp add: \<open>p_io p1 = xys @ [xy1]\<close> \<open>p_io p2 = xys @ [xy2]\<close> map_butlast)
+    ultimately have "?hp1 = ?hp2"
+      using observable_path_unique[OF \<open>observable S\<close>] by auto
+    
+    then obtain t1 t2 where "path S (initial S) (?hp1@[t1])" and "p_io [t1] = [xy1]"
+                        and "path S (initial S) (?hp1@[t2])" and "p_io [t2] = [xy2]"
+    proof - (* TODO: refactor auto-generated code *)
+      assume a1: "\<And>t1 t2. \<lbrakk>path S (initial S) (butlast p1 @ [t1]); p_io [t1] = [xy1]; path S (initial S) (butlast p1 @ [t2]); p_io [t2] = [xy2]\<rbrakk> \<Longrightarrow> thesis"
+      have f2: "\<forall>ps. ps = [] \<or> butlast ps @ [last ps::'a \<times> nat \<times> nat \<times> 'a] = ps"
+        using append_butlast_last_id by blast
+      have f3: "p1 \<noteq> []"
+        using \<open>p_io p1 = xys @ [xy1]\<close> by force
+      then have "butlast p1 @ [last p1] = p1"
+        using f2 by blast
+      then have f4: "xys @ [xy1] = p_io (butlast p2 @ [last p1])"
+        by (simp add: \<open>butlast p1 = butlast p2\<close> \<open>p_io p1 = xys @ [xy1]\<close>)
+      have f5: "p2 \<noteq> []"
+        using \<open>p_io p2 = xys @ [xy2]\<close> by fastforce
+        then have f6: "xys @ [xy2] = p_io (butlast p2 @ [last p2])"
+          using \<open>p_io p2 = xys @ [xy2]\<close> by fastforce
+        have f7: "path S (initial S) (butlast p1 @ [last p1])"
+          using f3 \<open>path S (initial S) p1\<close> by force
+      have "path S (initial S) (butlast p1 @ [last p2])"
+        using f5 by (simp add: \<open>butlast p1 = butlast p2\<close> \<open>path S (initial S) p2\<close>)
+      then show ?thesis
+        using f7 f6 f4 a1 by simp
+    qed
+
+    then have "t1 \<in> h S" and "t2 \<in> h S" and "t_source t1 = t_source t2" by auto
+    moreover have "t_input t1 \<noteq> t_input t2" 
+      using \<open>fst xy1 \<noteq> fst xy2\<close> \<open>p_io [t1] = [xy1]\<close> \<open>p_io [t2] = [xy2]\<close> by auto 
+    ultimately show "False" using assms(2) unfolding is_preamble.simps single_input.simps
+      by blast 
   next
     case f4 (* misses transition in M (for observable M) *)
-    then show ?thesis sorry
+    then obtain xys xy y where "xys@[xy] \<in> L S" and "[(fst xy,y)] \<in> LS M (io_target M xys (initial M))" and  "\<not> xys@[(fst xy,y)] \<in> L S"
+      by blast
+
+    then obtain p where "path S (initial S) p" and "p_io p = xys@[xy]" 
+      by auto
+    let ?hp = "butlast p"
+    let ?t = "last p"
+    have "path S (initial S) ?hp" 
+      using \<open>path S (initial S) p\<close>
+      by (metis append_butlast_last_id butlast.simps(1) path_prefix) 
+    then have "path M (initial M) ?hp"
+      by (metis assms(2) is_preamble.simps is_submachine.elims(2) submachine_path)
+
+    have "p_io ?hp = xys"
+      using \<open>p_io p = xys@[xy]\<close>
+      by (simp add: map_butlast)
+
+    have "?t \<in> h S" 
+      by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys @ [xy]\<close> \<open>path S (initial S) p\<close> contra_subsetD last_in_set path_h snoc_eq_iff_butlast) 
+    have "fst xy \<in> set (inputs S)" and "t_source ?t = target ?hp (initial S) \<and> t_input ?t = fst xy"
+      by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys @ [xy]\<close> \<open>path S (initial S) p\<close> fst_conv last_map path_cons_elim path_suffix snoc_eq_iff_butlast)+
+      
+    have "target ?hp (initial M) \<in> nodes S"
+      by (metis \<open>path S (initial S) (butlast p)\<close> assms(2) is_preamble.simps is_submachine.elims(2) nodes_path_initial) 
+      
+    have "target ?hp (initial M) = io_target M xys (initial M)"
+      using observable_path_io_target[OF assms(1) \<open>path M (initial M) ?hp\<close>] \<open>p_io ?hp = xys\<close> by auto
+
+    obtain tf where "tf \<in> h M" and "t_source tf = io_target M xys (initial M)" and "t_input tf = fst xy" and "t_output tf = y"
+      using \<open>[(fst xy, y)] \<in> LS M (io_target M xys (initial M))\<close> by auto
+    
+    have "\<not> tf \<in> h S"
+    proof 
+      assume "tf \<in> h S"
+      moreover have "t_source tf = target ?hp (initial S)"
+        using \<open>t_source tf = io_target M xys (initial M)\<close> \<open>target (butlast p) (initial M) = io_target M xys (initial M)\<close> assms(2) by auto
+      ultimately have "path S (initial S) (?hp@[tf])"
+        by (metis \<open>path S (initial S) (butlast p)\<close> cons nil path_append)
+      then have "xys@[(fst xy,y)] \<in> L S"
+      proof -
+        have "xys @ [(fst xy, y)] = p_io (butlast p @ [tf])"
+          by (simp add: \<open>p_io (butlast p) = xys\<close> \<open>t_input tf = fst xy\<close> \<open>t_output tf = y\<close>)
+        then have "\<exists>ps. xys @ [(fst xy, y)] = p_io ps \<and> path S (initial S) ps"
+          by (meson \<open>path S (initial S) (butlast p @ [tf])\<close>)
+        then show ?thesis
+          by simp
+      qed
+        
+      then show "False" using  \<open>\<not> xys@[(fst xy,y)] \<in> L S\<close> by auto
+    qed
+
+    show "False" using assms(2) unfolding is_preamble.simps
+      by (metis (no_types, lifting) \<open>fst xy \<in> set (inputs S)\<close> \<open>last p \<in> h S\<close> \<open>t_input tf = fst xy\<close> \<open>t_source (last p) = target (butlast p) (initial S) \<and> t_input (last p) = fst xy\<close> \<open>t_source tf = io_target M xys (initial M)\<close> \<open>target (butlast p) (initial M) = io_target M xys (initial M)\<close> \<open>target (butlast p) (initial M) \<in> nodes S\<close> \<open>tf \<in> h M\<close> \<open>tf \<notin> h S\<close> is_submachine.elims(2)) 
   next
     case f5 (* violates property that q is the only deadlock state *)
-    then show ?thesis sorry
+    then obtain xys where "xys \<in> L S" and "\<not> io_target M xys (initial M) = q" and "\<not> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys)"
+      by blast
+    then obtain p where "path S (initial S) p" and "p_io p = xys"
+      by auto
+    then have "path M (initial M) p"
+      by (metis assms(2) is_preamble.simps is_submachine.elims(2) submachine_path)
+    then have "io_target M xys (initial M) = target p (initial M)"
+      using observable_path_io_target[OF assms(1)] \<open>p_io p = xys\<close> by auto
+    moreover have "io_target S xys (initial S) = io_target M xys (initial M)"
+      using observable_submachine_io_target[OF assms(1) _ \<open>xys \<in> L S\<close>]
+      by (metis assms(2) is_preamble.simps)
+    ultimately have "io_target S xys (initial S) = target p (initial S)"
+      using assms(2) by auto
+      
+    
+    
+    have "deadlock_state S (target p (initial S))"
+      unfolding deadlock_state.simps proof 
+      assume "\<exists>t\<in>h S. t_source t = target p (initial S)"  
+      then obtain t where "t\<in>h S" and "t_source t = target p (initial S)"
+        by blast
+      then have "path S (initial S) (p@[t])" 
+        using \<open>path S (initial S) p\<close> by (metis path.simps path_append) 
+      then have "xys@[(t_input t,t_output t)] \<in> L S" 
+        using \<open>p_io p = xys\<close>
+      proof -
+        have "xys @ [(t_input t, t_output t)] = p_io (p @ [t])"
+          by (simp add: \<open>p_io p = xys\<close>)
+        then have "\<exists>ps. xys @ [(t_input t, t_output t)] = p_io ps \<and> path S (initial S) ps"
+          by (meson \<open>path S (initial S) (p @ [t])\<close>)
+        then show ?thesis
+          by simp
+      qed 
+      moreover have "length xys < length (xys @ [(t_input t, t_output t)]) \<and> take (length xys) (xys @ [(t_input t, t_output t)]) = xys"
+        by simp
+        
+      ultimately show "False" 
+        using \<open>\<not> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys)\<close> by blast
+    qed
+      
+    show "False" using assms(2) unfolding is_preamble.simps
+      by (metis \<open>deadlock_state S (target p (initial S))\<close> \<open>io_target M xys (initial M) \<noteq> q\<close> \<open>io_target S xys (initial S) = io_target M xys (initial M)\<close> \<open>io_target S xys (initial S) = target p (initial S)\<close> \<open>path S (initial S) p\<close> nodes_path_initial)
+  next
+    case f6 (* violates property that q must be a reachable state *)
+    have "\<not> q \<in> nodes S"
+    proof 
+      assume "q \<in> nodes S"
+      then obtain p where "path S (initial S) p" and "target p (initial S) = q"
+        by (metis path_to_nodes)
+      then have "p_io p \<in> L S" 
+        by auto
+      moreover have "io_target M (p_io p) (initial M) = q"
+        by (metis (no_types) \<open>path S (initial S) p\<close> \<open>target p (initial S) = q\<close> assms(1) assms(2) is_preamble.simps is_submachine.elims(2) observable_path_io_target submachine_path)
+      ultimately show "False" using f6 by blast
+    qed
+        
+    then show "False" using assms(2) unfolding is_preamble.simps by blast
   qed
 qed
+
+
 
 lemma preamble_set_implies_preamble :
   assumes "is_preamble_set M q P"
