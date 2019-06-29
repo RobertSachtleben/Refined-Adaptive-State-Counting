@@ -2546,7 +2546,7 @@ fun is_preamble_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Ou
   "is_preamble_set M q P = (
     P \<subseteq> L M
     \<and> (\<forall> p . (path M (initial M) p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states (initial M) p))
-    \<and> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> P \<and> xys@[xy2] \<in> P) \<longrightarrow> fst xy1 = fst xy2)
+    \<and> (\<forall> xys1 xys2 xy1 xy2 . (xys1@[xy1] \<in> P \<and> xys2@[xy2] \<in> P \<and> io_target M xys1 (initial M) = io_target M xys2 (initial M)) \<longrightarrow> fst xy1 = fst xy2)
     \<and> (\<forall> xys xy y . (xys@[xy] \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> P)
     \<and> (\<forall> xys \<in> P . ((io_target M xys (initial M) = q 
                      \<and> \<not> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys)))
@@ -2623,7 +2623,7 @@ proof (rule ccontr)
   then consider
     (f1) "\<not> (L S \<subseteq> L M)" |
     (f2) "\<not> (\<forall> p . (path M (initial M) p \<and> p_io p \<in> L S) \<longrightarrow> distinct (visited_states (initial M) p))" |
-    (f3) "\<not> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> L S \<and> xys@[xy2] \<in> L S) \<longrightarrow> fst xy1 = fst xy2)" |
+    (f3) "\<not> (\<forall> xys1 xys2 xy1 xy2 . (xys1@[xy1] \<in> L S \<and> xys2@[xy2] \<in> L S \<and> io_target M xys1 (initial M) = io_target M xys2 (initial M)) \<longrightarrow> fst xy1 = fst xy2)" |
     (f4) "\<not> (\<forall> xys xy y . (xys@[xy] \<in> L S \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> L S)" |
     (f5) "\<not> (\<forall> xys \<in> L S . ((io_target M xys (initial M) = q 
                      \<and> \<not> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys)))
@@ -2658,6 +2658,39 @@ proof (rule ccontr)
       using assms(2) unfolding is_preamble.simps by (meson \<open>path S (initial S) p'\<close> acyclic.elims(2))
   next
     case f3 (* violates single-input property (for observable M) *)
+    then obtain xys1 xys2 xy1 xy2 where "xys1@[xy1] \<in> L S" 
+                                    and "xys2@[xy2] \<in> L S" 
+                                    and "io_target M xys1 (initial M) = io_target M xys2 (initial M)"
+                                    and "fst xy1 \<noteq> fst xy2" 
+      by blast
+
+    then obtain p1 p2 where "path S (initial S) p1" and "p_io p1 = xys1@[xy1]"
+                        and "path S (initial S) p2" and "p_io p2 = xys2@[xy2]" 
+      by auto
+    let ?hp1 = "butlast p1"
+    let ?hp2 = "butlast p2"
+
+    have "observable S"
+      by (meson assms(1) assms(2) is_preamble.simps submachine_observable)
+
+    have "path S (initial S) ?hp1" 
+      by (metis (no_types, lifting) \<open>p_io p1 = xys1 @ [xy1]\<close> \<open>path S (initial S) p1\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
+    moreover have "path S (initial S) ?hp2" 
+      by (metis (no_types, lifting) \<open>p_io p2 = xys2 @ [xy2]\<close> \<open>path S (initial S) p2\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
+
+    (* TODO: 
+        - hp1 hp2 reach same state
+        - fst xy1 = fst xy2, otherwise not single input
+        - for later proof: apply output-completeness property
+    *)
+
+
+
+
+
+
+
+
     then obtain xys xy1 xy2 where "xys@[xy1] \<in> L S" and "xys@[xy2] \<in> L S" and "fst xy1 \<noteq> fst xy2"
       by blast
     then obtain p1 p2 where "path S (initial S) p1" and "p_io p1 = xys@[xy1]"
@@ -2890,6 +2923,23 @@ lemma preamble_set_shared_continuations :
   and     "observable M"
 shows "xys2@[xy] \<in> P"
 proof -
+  have "xys1 \<in> P" using assms(1,2) unfolding is_preamble_set.simps by blast 
+  moreover have "\<exists> xys' \<in> P. length xys1 < length xys' \<and> take (length xys1) xys' = xys1" 
+    using assms(2) append_eq_conv_conj by fastforce 
+  ultimately have "io_target M xys1 (initial M) \<noteq> q"
+    using assms(1) unfolding is_preamble_set.simps by blast
+  then have "io_target M xys2 (initial M) \<noteq> q"
+    using assms(4) by auto
+  then obtain xys2' where "xys2' \<in> P" and "length xys2 < length xys2'" and "take (length xys2) xys2' = xys2"
+    using assms(1,3) unfolding is_preamble_set.simps by blast
+  let ?xy = "hd (drop (length xys2) xys2')"
+  have "xys2@[?xy]@(tl (drop (length xys2) xys2')) \<in> P"
+    by (metis \<open>length xys2 < length xys2'\<close> \<open>take (length xys2) xys2' = xys2\<close> \<open>xys2' \<in> P\<close> append_Cons append_self_conv2 append_take_drop_id drop_eq_Nil hd_Cons_tl leD)
+  then have "xys2@[?xy] \<in> P"
+    using assms(1) unfolding is_preamble_set.simps by (metis (mono_tags, lifting) append_assoc) 
+  
+
+
   have "xys1@[xy] \<in> L M" using assms(1,2) unfolding is_preamble_set.simps by blast
   then obtain p where "path M (initial M) p" and "p_io p = xys1@[xy]" by auto
   let ?hp = "butlast p"
