@@ -2669,79 +2669,45 @@ proof (rule ccontr)
       by auto
     let ?hp1 = "butlast p1"
     let ?hp2 = "butlast p2"
+    let ?t1 = "last p1"
+    let ?t2 = "last p2"
 
-    have "observable S"
-      by (meson assms(1) assms(2) is_preamble.simps submachine_observable)
+    have "path S (initial S) (?hp1@[?t1])" and "p_io (?hp1@[?t1]) = xys1@[xy1]"
+      using \<open>path S (initial S) p1\<close> \<open>p_io p1 = xys1@[xy1]\<close> by (metis (no_types, lifting) Nil_is_map_conv snoc_eq_iff_butlast)+
+    then have "path S (initial S) ?hp1" by blast
+    then have "path M (initial M) ?hp1"
+      by (metis assms(2) is_preamble.simps is_submachine.elims(2) submachine_path)
+    then have "target ?hp1 (initial M) = io_target M xys1 (initial M)"
+      by (metis (mono_tags, lifting) \<open>p_io p1 = xys1 @ [xy1]\<close> assms(1) butlast_snoc map_butlast observable_path_io_target)
+      
 
-    have "path S (initial S) ?hp1" 
-      by (metis (no_types, lifting) \<open>p_io p1 = xys1 @ [xy1]\<close> \<open>path S (initial S) p1\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
-    moreover have "path S (initial S) ?hp2" 
-      by (metis (no_types, lifting) \<open>p_io p2 = xys2 @ [xy2]\<close> \<open>path S (initial S) p2\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
+    have "path S (initial S) (?hp2@[?t2])" and "p_io (?hp2@[?t2]) = xys2@[xy2]"
+      using \<open>path S (initial S) p2\<close> \<open>p_io p2 = xys2@[xy2]\<close> by (metis (no_types, lifting) Nil_is_map_conv snoc_eq_iff_butlast)+
+    then have "path S (initial S) ?hp2" by blast
+    then have "path M (initial M) ?hp2"
+      by (metis assms(2) is_preamble.simps is_submachine.elims(2) submachine_path)
+    then have "target ?hp2 (initial M) = io_target M xys2 (initial M)"
+      by (metis (mono_tags, lifting) \<open>p_io p2 = xys2 @ [xy2]\<close> assms(1) butlast_snoc map_butlast observable_path_io_target)
 
-    (* TODO: 
-        - hp1 hp2 reach same state
-        - fst xy1 = fst xy2, otherwise not single input
-        - for later proof: apply output-completeness property
-    *)
-
-
-
-
-
-
-
-
-    then obtain xys xy1 xy2 where "xys@[xy1] \<in> L S" and "xys@[xy2] \<in> L S" and "fst xy1 \<noteq> fst xy2"
-      by blast
-    then obtain p1 p2 where "path S (initial S) p1" and "p_io p1 = xys@[xy1]"
-                        and "path S (initial S) p2" and "p_io p2 = xys@[xy2]" 
-      by auto
-    let ?hp1 = "butlast p1"
-    let ?hp2 = "butlast p2"
-
-    have "observable S"
-      by (meson assms(1) assms(2) is_preamble.simps submachine_observable)
-
-    have "path S (initial S) ?hp1" 
-      by (metis (no_types, lifting) \<open>p_io p1 = xys @ [xy1]\<close> \<open>path S (initial S) p1\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
-    moreover have "path S (initial S) ?hp2" 
-      by (metis (no_types, lifting) \<open>p_io p2 = xys @ [xy2]\<close> \<open>path S (initial S) p2\<close> list.map(1) path_prefix snoc_eq_iff_butlast)
-    moreover have "p_io ?hp1 = p_io ?hp2"
-      by (simp add: \<open>p_io p1 = xys @ [xy1]\<close> \<open>p_io p2 = xys @ [xy2]\<close> map_butlast)
-    ultimately have "?hp1 = ?hp2"
-      using observable_path_unique[OF \<open>observable S\<close>] by auto
-    
-    then obtain t1 t2 where "path S (initial S) (?hp1@[t1])" and "p_io [t1] = [xy1]"
-                        and "path S (initial S) (?hp1@[t2])" and "p_io [t2] = [xy2]"
-    proof - (* TODO: refactor auto-generated code *)
-      assume a1: "\<And>t1 t2. \<lbrakk>path S (initial S) (butlast p1 @ [t1]); p_io [t1] = [xy1]; path S (initial S) (butlast p1 @ [t2]); p_io [t2] = [xy2]\<rbrakk> \<Longrightarrow> thesis"
-      have f2: "\<forall>ps. ps = [] \<or> butlast ps @ [last ps::'a \<times> nat \<times> nat \<times> 'a] = ps"
-        using append_butlast_last_id by blast
-      have f3: "p1 \<noteq> []"
-        using \<open>p_io p1 = xys @ [xy1]\<close> by force
-      then have "butlast p1 @ [last p1] = p1"
-        using f2 by blast
-      then have f4: "xys @ [xy1] = p_io (butlast p2 @ [last p1])"
-        by (simp add: \<open>butlast p1 = butlast p2\<close> \<open>p_io p1 = xys @ [xy1]\<close>)
-      have f5: "p2 \<noteq> []"
-        using \<open>p_io p2 = xys @ [xy2]\<close> by fastforce
-        then have f6: "xys @ [xy2] = p_io (butlast p2 @ [last p2])"
-          using \<open>p_io p2 = xys @ [xy2]\<close> by fastforce
-        have f7: "path S (initial S) (butlast p1 @ [last p1])"
-          using f3 \<open>path S (initial S) p1\<close> by force
-      have "path S (initial S) (butlast p1 @ [last p2])"
-        using f5 by (simp add: \<open>butlast p1 = butlast p2\<close> \<open>path S (initial S) p2\<close>)
-      then show ?thesis
-        using f7 f6 f4 a1 by simp
-    qed
-
-    then have "t1 \<in> h S" and "t2 \<in> h S" and "t_source t1 = t_source t2" by auto
-    moreover have "t_input t1 \<noteq> t_input t2" 
-      using \<open>fst xy1 \<noteq> fst xy2\<close> \<open>p_io [t1] = [xy1]\<close> \<open>p_io [t2] = [xy2]\<close> by auto 
-    moreover have "t_source t1 \<in> nodes S"
-      using \<open>butlast p1 = butlast p2\<close> \<open>path S (initial S) (butlast p1 @ [t1])\<close> nodes_path_initial by fastforce
-    ultimately show "False" using assms(2) unfolding is_preamble.simps single_input.simps
-      by blast 
+    have "target ?hp1 (initial M) = target ?hp2 (initial M)"
+      using \<open>io_target M xys1 (initial M) = io_target M xys2 (initial M)\<close> \<open>target (butlast p1) (initial M) = io_target M xys1 (initial M)\<close> \<open>target (butlast p2) (initial M) = io_target M xys2 (initial M)\<close> by presburger
+    moreover have "t_source ?t1 = target ?hp1 (initial M)"
+      by (metis (no_types) \<open>path S (initial S) (butlast p1 @ [last p1])\<close> assms(2) is_preamble.simps is_submachine.elims(2) path_append_elim path_cons_elim)
+    moreover have "t_source ?t2 = target ?hp2 (initial M)"
+      by (metis (no_types) \<open>path S (initial S) (butlast p2 @ [last p2])\<close> assms(2) is_preamble.simps is_submachine.elims(2) path_append_elim path_cons_elim)
+    ultimately have "t_source ?t1 = t_source ?t2" by auto
+    moreover have "?t1 \<in> h S"
+      by (metis (no_types, lifting) \<open>path S (initial S) (butlast p1 @ [last p1])\<close> assms(2) contra_subsetD is_preamble.simps is_submachine.elims(2) last_in_set path_h snoc_eq_iff_butlast)
+    moreover have "?t2 \<in> h S"
+      by (metis (no_types, lifting) \<open>path S (initial S) (butlast p2 @ [last p2])\<close> assms(2) contra_subsetD is_preamble.simps is_submachine.elims(2) last_in_set path_h snoc_eq_iff_butlast)
+    moreover have "t_source ?t1 \<in> nodes S"
+      by (metis (no_types, hide_lams) \<open>path S (initial S) (butlast p1)\<close> \<open>t_source (last p1) = target (butlast p1) (initial M)\<close> assms(2) is_preamble.simps is_submachine.elims(2) nodes.initial nodes_path)    
+    ultimately have "t_input ?t1 = t_input ?t2"
+      using assms(2) unfolding is_preamble.simps single_input.simps by blast
+      
+    then have "fst xy1 = fst xy2"
+      using \<open>p_io (butlast p1 @ [last p1]) = xys1 @ [xy1]\<close> \<open>p_io (butlast p2 @ [last p2]) = xys2 @ [xy2]\<close> by auto
+    then show "False" using \<open>fst xy1 \<noteq> fst xy2\<close> by simp
   next
     case f4 (* misses transition in M (for observable M) *)
     then obtain xys xy y where "xys@[xy] \<in> L S" and "[(fst xy,y)] \<in> LS M (io_target M xys (initial M))" and  "\<not> xys@[(fst xy,y)] \<in> L S"
