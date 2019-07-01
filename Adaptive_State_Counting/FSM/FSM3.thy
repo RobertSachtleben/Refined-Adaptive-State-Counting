@@ -2881,7 +2881,7 @@ lemma transition_filter_submachine :
   "is_submachine (M\<lparr> transitions := filter P (transitions M)\<rparr>) M"
   by auto
 
-lemma preamble_set_shared_continuations :
+lemma preamble_set_shared_suffix :
   assumes "is_preamble_set M q P"
   and     "xys1@[xy] \<in> P"
   and     "xys2 \<in> P"
@@ -2903,25 +2903,49 @@ proof -
     by (metis \<open>length xys2 < length xys2'\<close> \<open>take (length xys2) xys2' = xys2\<close> \<open>xys2' \<in> P\<close> append_Cons append_self_conv2 append_take_drop_id drop_eq_Nil hd_Cons_tl leD)
   then have "xys2@[?xy] \<in> P"
     using assms(1) unfolding is_preamble_set.simps by (metis (mono_tags, lifting) append_assoc) 
-  
+  then have "fst ?xy = fst xy"
+    using assms(1,2,4) unfolding is_preamble_set.simps by (metis (no_types, lifting)) 
 
 
-  have "xys1@[xy] \<in> L M" using assms(1,2) unfolding is_preamble_set.simps by blast
-  then obtain p where "path M (initial M) p" and "p_io p = xys1@[xy]" by auto
+  have "xys1@[xy] \<in> L M"
+    using assms(1,2) by auto
+  then obtain p where "path M (initial M) p" and "p_io p = xys1@[xy]" 
+    by auto
   let ?hp = "butlast p"
   let ?t = "last p"
-
-  have 
-
-
-
-
-
-  have "xys1 \<in> P" using assms(1,2) unfolding is_preamble_set.simps by blast
+  have "path M (initial M) ?hp"
+    by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys1 @ [xy]\<close> \<open>path M (initial M) p\<close> path_prefix snoc_eq_iff_butlast) 
+  moreover have  "p_io ?hp = xys1"
+    by (simp add: \<open>p_io p = xys1 @ [xy]\<close> map_butlast)
+  ultimately have "target ?hp (initial M) = io_target M xys1 (initial M)"
+    using assms(5) by (metis (mono_tags, lifting) observable_path_io_target) 
+  then have "t_source ?t = io_target M xys1 (initial M)"
+    by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys1 @ [xy]\<close> \<open>path M (initial M) p\<close> path_cons_elim path_suffix snoc_eq_iff_butlast) 
+  then have "path M (io_target M xys1 (initial M)) [?t]"
+    by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys1 @ [xy]\<close> \<open>path M (initial M) p\<close> \<open>target (butlast p) (initial M) = io_target M xys1 (initial M)\<close> path_suffix snoc_eq_iff_butlast)
+  have "p_io [?t] = [(fst xy, snd xy)]"
+    by (metis (mono_tags, lifting) \<open>p_io p = xys1 @ [xy]\<close> last_map list.simps(8) list.simps(9) prod.collapse snoc_eq_iff_butlast)
   
+  have "[(fst xy, snd xy)] \<in> LS M (io_target M xys1 (initial M))"
+  proof -
+    have "\<exists>ps. [(fst xy, snd xy)] = p_io ps \<and> path M (io_target M xys1 (initial M)) ps"
+      by (metis (no_types) \<open>p_io [last p] = [(fst xy, snd xy)]\<close> \<open>path M (io_target M xys1 (initial M)) [last p]\<close>)
+    then show ?thesis
+      by simp
+  qed
+  then have "[(fst xy, snd xy)] \<in> LS M (io_target M xys2 (initial M))"
+    using assms(1) unfolding is_preamble_set.simps by (metis assms(4))
 
-  moreover have "[(fst xy, snd xy)] \<in> LS M (io_target M xys1 (initial M))" 
-  then show ?thesis 
+  then have "[(fst ?xy, snd xy)] \<in> LS M (io_target M xys2 (initial M))"
+    using \<open>fst ?xy = fst xy\<close> by auto
+
+  then have "xys2@[(fst xy, snd xy)] \<in> P" 
+    using \<open>xys2@[?xy] \<in> P\<close> assms(1) unfolding is_preamble_set.simps
+    by (metis (no_types, lifting) \<open>fst (hd (drop (length xys2) xys2')) = fst xy\<close>) 
+  then show "xys2@[xy] \<in> P"
+    by simp
+qed
+
 
 lemma preamble_set_implies_preamble :
   assumes "observable M" and "is_preamble_set M q P"
