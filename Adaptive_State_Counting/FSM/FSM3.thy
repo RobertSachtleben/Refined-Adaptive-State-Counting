@@ -2951,8 +2951,12 @@ lemma preamble_set_implies_preamble :
   assumes "observable M" and "is_preamble_set M q P"
   shows "\<exists> S . is_preamble S M q \<and> L S = P"
 proof -
-  let ?is_preamble_transition = "\<lambda> t . \<exists> xys xy . xys \<in> P \<and> xys@[xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy"
+  let ?is_preamble_transition = "\<lambda> t . \<exists> xys xy . xys@[xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy"
   let ?S = "M\<lparr> transitions := filter ?is_preamble_transition (transitions M) \<rparr>"
+
+  have "is_submachine ?S M" by auto
+  then have "L ?S \<subseteq> L M" 
+    using submachine_language[of ?S M] by blast
 
   have "\<And> io . io \<in> L ?S \<longleftrightarrow> io \<in> P"
   proof -
@@ -2975,11 +2979,10 @@ proof -
         let ?hp = "butlast p"
         let ?t = "last p"
         have "?t \<in> h ?S"
-          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys \<in> P \<and> xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys \<in> P \<and> xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p\<close> append_is_Nil_conv contra_subsetD last_in_set not_Cons_self2 path_h) 
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path (M\<lparr>transitions := filter ?is_preamble_transition (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter ?is_preamble_transition (transitions M)\<rparr>)) p\<close> append_is_Nil_conv contra_subsetD last_in_set not_Cons_self2 path_h) 
         then have "?is_preamble_transition ?t" 
           by auto
-        then obtain xys xy' where "xys \<in> P" 
-                              and "xys @ [xy'] \<in> P" 
+        then obtain xys xy' where "xys @ [xy'] \<in> P" 
                               and "t_source ?t = io_target M xys (initial M)" 
                               and "t_input ?t = fst xy'" 
                               and "t_output (last p) = snd xy'"
@@ -2988,13 +2991,83 @@ proof -
           by (metis (mono_tags, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> append_is_Nil_conv last_map last_snoc not_Cons_self prod.collapse) 
 
         have "t_source ?t = target ?hp (initial ?S)"
-          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys \<in> P \<and> xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys \<in> P \<and> xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p\<close> path_append_elim path_cons_elim snoc_eq_iff_butlast) 
-
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p\<close> path_append_elim path_cons_elim snoc_eq_iff_butlast) 
         
+        
+        have "path ?S (initial ?S) ?hp" 
+          using \<open>path ?S (initial ?S) p\<close>
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> append_butlast_last_id append_is_Nil_conv not_Cons_self2 path_prefix) 
+        then have "path M (initial M) ?hp"
+          using submachine_path[OF \<open>is_submachine ?S M\<close>] by auto
+        then have "io_target M io (initial M) = target ?hp (initial M)"
+          by (metis (mono_tags, lifting) \<open>p_io p = io @ [xy]\<close> assms(1) butlast_snoc map_butlast observable_path_io_target)
+          
+        then have "io_target M xys (initial M) = io_target M io (initial M)"
+          using \<open>t_source (last p) = io_target M xys (initial M)\<close> \<open>t_source (last p) = target (butlast p) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>))\<close> by auto 
+          
+        then show "io@[xy] \<in> P"
+          using preamble_set_shared_suffix[OF assms(2) \<open>xys @ [xy'] \<in> P\<close> \<open>io \<in> P\<close> _ assms(1)] \<open>xy' = xy\<close> by auto
+      qed
 
-        show "io@[xy] \<in> P"
-      then show ?case sorry
+      moreover have "io@[xy] \<in> P \<Longrightarrow> io@[xy] \<in> L ?S"
+      proof -
+        assume "io@[xy] \<in> P"
+        then have "io \<in> P" and "io@[xy] \<in> L M" using assms(2) unfolding is_preamble_set.simps by blast+
+        then have "io \<in> L ?S" using snoc.IH by auto
+
+        from \<open>io@[xy] \<in> L M\<close> obtain p where "path M (initial M) p" and "p_io p = io@[xy]" by auto
+        let ?hp = "butlast p"
+        let ?t = "last p"
+
+        have "t_source ?t = io_target M io (initial M) \<and> t_input ?t = fst xy \<and> t_output ?t = snd xy"
+        proof - (* TODO: refactor auto-generated code *)
+          have f1: "\<forall>ps p psa. (ps @ [p::nat \<times> nat] = psa) = (psa \<noteq> [] \<and> butlast psa = ps \<and> last psa = p)"
+            using snoc_eq_iff_butlast by blast
+          have f2: "p \<noteq> []"
+            using \<open>p_io p = io @ [xy]\<close> by force
+          then have f3: "butlast p @ [last p] = p"
+            using append_butlast_last_id by blast
+          then have f4: "path M (initial M) (butlast p)"
+            by (metis (no_types) \<open>path M (initial M) p\<close> path_prefix)
+          have f5: "p_io (butlast p) = io"
+            by (simp add: \<open>p_io p = io @ [xy]\<close> map_butlast)
+          have "\<forall>ps f. ps = [] \<or> last (map f ps) = (f (last ps::'a \<times> nat \<times> nat \<times> 'a)::nat \<times> nat)"
+            using last_map by blast
+          then have f6: "(t_input (last p), t_output (last p)) = last (p_io p)"
+            using f2 by force
+          have "io @ [xy] \<noteq> [] \<and> butlast (io @ [xy]) = io \<and> last (io @ [xy]) = xy"
+            using f1 by blast
+          then show ?thesis
+            using f6 f5 f4 f3 by (metis (no_types) \<open>p_io p = io @ [xy]\<close> \<open>path M (initial M) p\<close> assms(1) fst_conv observable_path_io_target path_cons_elim path_suffix snd_conv)
+        qed 
+
+        then have "?is_preamble_transition ?t"
+          using \<open>io@[xy] \<in> P\<close> by blast
+        moreover have "?t \<in> h M"
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path M (initial M) p\<close> contra_subsetD last_in_set path_h snoc_eq_iff_butlast)
+        ultimately have "?t \<in> h ?S"
+          by simp 
+          
+
+        from \<open>io \<in> L ?S\<close> obtain pS where "path ?S (initial ?S) pS" and "p_io pS = io" by auto
+        then have "path M (initial M) pS"
+          using submachine_path[OF \<open>is_submachine ?S M\<close>] by auto
+        then have "target pS (initial M) = io_target M io (initial M)"
+          by (metis (mono_tags, lifting) \<open>p_io pS = io\<close> assms(1) observable_path_io_target)
+        then have "path ?S (initial ?S) (pS@[?t])"
+          by (metis (no_types, lifting) \<open>is_submachine (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) M\<close> \<open>last p \<in> h (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) pS\<close> \<open>t_source (last p) = io_target M io (initial M) \<and> t_input (last p) = fst xy \<and> t_output (last p) = snd xy\<close> cons is_submachine.elims(2) nil path_append)
+        moreover have "p_io (pS@[?t]) = io@[xy]"
+          by (simp add: \<open>p_io pS = io\<close> \<open>t_source (last p) = io_target M io (initial M) \<and> t_input (last p) = fst xy \<and> t_output (last p) = snd xy\<close>)  
+        ultimately show "io@[xy] \<in> L ?S"
+          unfolding LS.simps by (metis (mono_tags, lifting) mem_Collect_eq) 
+      qed
+
+      ultimately show ?case by blast
     qed
+  qed
+
+  
+
 
   have "\<And> io . io \<in> L ?S \<Longrightarrow> io \<in> P"
   proof -
