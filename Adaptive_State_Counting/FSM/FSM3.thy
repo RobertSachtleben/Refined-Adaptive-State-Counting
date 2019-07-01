@@ -3263,36 +3263,65 @@ proof -
       proof 
         assume "(\<exists> t \<in> h ?S . t_source t = q' \<and> t_input t = x)"
         then obtain t where "t \<in> h ?S" and "t_source t = q'" and "t_input t = x" by blast
-        have "\<And> t' . t' \<in> h M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> h ?S"
-        proof
-          fix t' assume "t' \<in> h M" and "t_source t' = q'" and "t_input t' = x" 
+        then have "path ?S (initial ?S) (p'@[t])" 
+          using \<open>path ?S (initial ?S) p'\<close> \<open>target p' (initial M) = q'\<close> by fastforce
+        moreover have "p_io (p'@[t]) = ?ioq'@[(x,t_output t)]"
+          using \<open>t_input t = x\<close> by auto
+        ultimately have "?ioq'@[(x,t_output t)] \<in> L ?S"
+        proof -
+          have "\<exists>ps. p_io (p' @ [t]) = p_io ps \<and> path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) ps"
+            by (metis (lifting) \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) (p' @ [t])\<close>)
+          then show ?thesis
+            using \<open>p_io (p' @ [t]) = p_io p' @ [(x, t_output t)]\<close> by auto
+        qed
+        then have "?ioq'@[(x,t_output t)] \<in> P"
+          using \<open>L ?S = P\<close> by auto
           
+        have "\<And> t' . t' \<in> h M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> h ?S"
+        proof -
+          fix t' assume "t' \<in> h M" and "t_source t' = q'" and "t_input t' = x" 
+          then have "path M q' [t']" by auto
+          then have "[(x, t_output t')] \<in> LS M q'"
+            using \<open>t_input t' = x\<close> by force 
+          then have "[(fst (x,t_output t), t_output t')] \<in> LS M (io_target M ?ioq' (initial M))"
+            using \<open>io_target M ?ioq' (initial M) = q'\<close> by auto
+          then have "?ioq'@[(x, t_output t')] \<in> P"
+            using \<open>?ioq'@[(x,t_output t)] \<in> P\<close> assms(2) unfolding is_preamble_set.simps
+            by (metis (no_types, lifting) fst_conv) 
 
-          show "t' \<in> h ?S"
-
-
-
+          have "?is_preamble_transition t'"
+            using \<open>io_target M (p_io p') (initial M) = q'\<close> \<open>p_io p' @ [(x, t_output t')] \<in> P\<close> \<open>t_input t' = x\<close> \<open>t_source t' = q'\<close> by auto
+          then show "t' \<in> h ?S"
+            using \<open>t' \<in> h M\<close> by auto
+        qed
         then show "(\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S)" by blast
+      qed
+    qed
+
+    ultimately show "(q = q' \<or> \<not> deadlock_state ?S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h ?S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S))"
+      by blast
+  qed
+
+  ultimately have "is_preamble ?S M q" 
+    unfolding is_preamble.simps by blast
+  then show ?thesis 
+    using \<open>L ?S = P\<close> by blast
+qed
       
 
 
-(*      \<not> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> L S \<and> xys@[xy2] \<in> L S) \<longrightarrow> fst xy1 = fst xy2)*)
-    
-  
-  have "is_preamble ?S M q"
-  proof -
-    have "single_input ?S"
-    
-  (* acyclic S 
-    \<and> single_input S 
-    \<and> is_submachine S M 
-    \<and> q \<in> nodes S 
-    \<and> deadlock_state S q 
-    \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') 
-        \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S)))) 
-   *)
-  sorry
-  (* Proof idea: create preamble by using exactly those transitions used in P *)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
