@@ -3323,14 +3323,95 @@ qed
 fun output_completion :: "(Input \<times> Output) list set \<Rightarrow> Output set \<Rightarrow> (Input \<times> Output) list set" where
   "output_completion P Out = P \<union> {io@[(fst xy, y)] | io xy y . y \<in> Out \<and> io@[xy] \<in> P \<and> io@[(fst xy, y)] \<notin> P}"
 
+fun output_complete_sequences :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "output_complete_sequences M P = (\<forall> io xy y . io@[xy] \<in> P \<and> y \<in> set (outputs M) \<longrightarrow> io@[(fst xy, y)] \<in> P)"
 
+fun acyclic_sequences :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "acyclic_sequences M P = (\<forall> p . (path M (initial M) p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states (initial M) p))"
 
+fun single_input_sequences :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "single_input_sequences M P = (\<forall> xys1 xys2 xy1 xy2 . (xys1@[xy1] \<in> P \<and> xys2@[xy2] \<in> P \<and> io_target M xys1 (initial M) = io_target M xys2 (initial M)) \<longrightarrow> fst xy1 = fst xy2)"
 
+fun output_complete_for_FSM_sequences :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "output_complete_for_FSM_sequences M P = (\<forall> io xy t . io@[xy] \<in> P \<and> t \<in> h M \<and> t_source t = io_target M io (initial M) \<and> t_input t = fst xy \<longrightarrow> io@[(fst xy, t_output t)] \<in> P)"
+lemma output_complete_for_FSM_sequences_alt_def :
+  shows "output_complete_for_FSM_sequences M P = (\<forall> xys xy y . (xys@[xy] \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> P)"
+proof -
+  have "\<And> xys (xy :: (Input \<times> Output)) y .[(fst xy,y)] \<in> LS M (io_target M xys (initial M)) \<Longrightarrow> \<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
+  proof -
+    fix xys y 
+    fix xy :: "(Input \<times> Output)"
+    assume "[(fst xy,y)] \<in> LS M (io_target M xys (initial M))"
+    then obtain p where "path M (io_target M xys (initial M)) p" and "p_io p = [(fst xy,y)]"
+      unfolding LS.simps mem_Collect_eq by (metis (no_types, lifting)) 
+    let ?t = "hd p"
+    have "?t \<in> h M \<and> t_source ?t = io_target M xys (initial M) \<and> t_input ?t = fst xy \<and> t_output ?t = y"
+      using \<open>p_io p = [(fst xy, y)]\<close> \<open>path M (io_target M xys (initial M)) p\<close> path'.simps(2) by auto
+    
+    then show "\<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
+      by blast
+  qed
+  have "\<And> xys (xy :: (Input \<times> Output)) y . \<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y \<Longrightarrow> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))"
+  proof -
+    fix xys y 
+    fix xy :: "(Input \<times> Output)"
+    assume "\<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
+    then obtain t where "t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
+      by blast
+    then have "path M (io_target M xys (initial M)) [t] \<and> p_io [t] = [(fst xy, y)]"
+      by (metis (no_types, lifting) list.simps(8) list.simps(9) path.simps)
+      
 
+    then show "[(fst xy,y)] \<in> LS M (io_target M xys (initial M))"
+      unfolding LS.simps by (metis (mono_tags, lifting) mem_Collect_eq) 
+  qed
 
+  show ?thesis
+  proof -
+    have "\<forall>f P. output_complete_for_FSM_sequences f P = (\<forall>ps p pa. (ps @ [p] \<notin> P \<or> pa \<notin> h f \<or> (t_source pa::'a) \<noteq> io_target f ps (initial f) \<or> t_input pa \<noteq> fst p) \<or> ps @ [(fst p, t_output pa)] \<in> P)"
+      by (meson output_complete_for_FSM_sequences.simps)
+  then have "(\<not> output_complete_for_FSM_sequences M P) \<noteq> (\<forall>ps p n. (ps @ [p] \<notin> P \<or> [(fst p, n)] \<notin> LS M (io_target M ps (initial M))) \<or> ps @ [(fst p, n)] \<in> P)"
+  by (metis (full_types) \<open>\<And>y xys xy. [(fst xy, y)] \<in> LS M (io_target M xys (initial M)) \<Longrightarrow> \<exists>t. t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y\<close> \<open>\<And>y xys xy. \<exists>t. t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y \<Longrightarrow> [(fst xy, y)] \<in> LS M (io_target M xys (initial M))\<close>)
+    then show ?thesis
+      by blast
+  qed 
+qed
 
+  
 
+fun deadlock_states_sequences :: "'a FSM \<Rightarrow> 'a set \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "deadlock_states_sequences M Q P = (\<forall> xys \<in> P . ((io_target M xys (initial M) \<in> Q 
+                                       \<and> \<not> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys)))
+                                     \<or> (\<not> io_target M xys (initial M) \<in> Q 
+                                          \<and> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys)))" 
 
+fun reachable_states_sequences :: "'a FSM \<Rightarrow> 'a set \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "reachable_states_sequences M Q P = (\<forall> q \<in> Q . \<exists> xys \<in> P . io_target M xys (initial M) = q)"
+
+fun prefix_closed_sequences :: "(Input \<times> Output) list set \<Rightarrow> bool" where
+  "prefix_closed_sequences P = (\<forall> xys1 xys2 . xys1@xys2 \<in> P \<longrightarrow> xys1 \<in> P)"
+
+lemma is_preamble_set_alt_def :
+  "is_preamble_set M q P = (
+    P \<subseteq> L M
+    \<and> acyclic_sequences M P
+    \<and> single_input_sequences M P
+    \<and> output_complete_for_FSM_sequences M P
+    \<and> deadlock_states_sequences M {q} P
+    \<and> reachable_states_sequences M {q} P
+    \<and> prefix_closed_sequences P)"
+(is "?P1 = ?P2")
+  using output_complete_for_FSM_sequences_alt_def[of M P]
+  unfolding is_preamble_set.simps 
+            acyclic_sequences.simps 
+            single_input_sequences.simps
+            deadlock_states_sequences.simps
+            reachable_states_sequences.simps
+            prefix_closed_sequences.simps 
+  by blast
+  
+
+            
 
 (* test cases *)
 
