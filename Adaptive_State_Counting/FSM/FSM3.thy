@@ -2528,17 +2528,22 @@ qed
 
 
 
-(* experiments *)
+(* definitely-reachable & state preambles *)
 
+(* TODO: use actual definition
 fun definitely_reachable :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
   "definitely_reachable M q = (\<forall> S . completely_specified S \<and> is_submachine S M \<longrightarrow> q \<in> nodes S)"
+
+lemma definitely_reachable_alt_def :
+  "definitely_reachable M q = (\<exists> S . is_preamble S M q)"
+  sorry
+*)
 
 fun is_preamble :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
   "is_preamble S M q = (acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
 
-lemma definitely_reachable_alt_def :
-  "definitely_reachable M q = (\<exists> S . acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
-  sorry
+fun definitely_reachable :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
+  "definitely_reachable M q = (\<exists> S . is_preamble S M q)"
 
 
 (* variation closed under prefix relation *)
@@ -3315,7 +3320,8 @@ qed
 
 
 
-
+fun output_completion :: "(Input \<times> Output) list set \<Rightarrow> Output set \<Rightarrow> (Input \<times> Output) list set" where
+  "output_completion P Out = P \<union> {io@[(fst xy, y)] | io xy y . y \<in> Out \<and> io@[xy] \<in> P \<and> io@[(fst xy, y)] \<notin> P}"
 
 
 
