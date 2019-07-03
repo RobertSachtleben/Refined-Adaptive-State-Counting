@@ -3400,7 +3400,6 @@ lemma is_preamble_set_alt_def :
     \<and> deadlock_states_sequences M {q} P
     \<and> reachable_states_sequences M {q} P
     \<and> prefix_closed_sequences P)"
-(is "?P1 = ?P2")
   using output_complete_for_FSM_sequences_alt_def[of M P]
   unfolding is_preamble_set.simps 
             acyclic_sequences.simps 
