@@ -147,6 +147,11 @@ inductive path :: "'state FSM \<Rightarrow> 'state \<Rightarrow> 'state Transiti
 
 inductive_cases path_cons_elim[elim!]: "path M q (t#ts)"
 
+fun visited_states :: "'state \<Rightarrow> 'state Transition list \<Rightarrow> 'state list" where
+  "visited_states q p = (q # map t_target p)"
+
+fun target :: "'state Transition list \<Rightarrow> 'state \<Rightarrow> 'state" where
+  "target p q = last (visited_states q p)"
 
 fun path' :: "'state FSM \<Rightarrow> 'state \<Rightarrow> 'state Transition list \<Rightarrow> bool" where
   "path' M q [] = True" |
@@ -173,6 +178,23 @@ definition "M_ex = (\<lparr>
                                       (4,0,10,3),
                                       (4,2,20,2),
                                       (5,2,30,3)]\<rparr>)"
+
+(* example FSM of Hieron's paper *)
+definition "M_ex_H = (\<lparr> 
+                      initial = 1::nat, 
+                      inputs = [0,1], 
+                      outputs = [0,1], 
+                      transitions = [ (1,0,0,2),
+                                      (1,0,1,4),
+                                      (1,1,1,4),
+                                      (2,0,0,2),
+                                      (2,1,1,4),
+                                      (3,0,1,4),
+                                      (3,1,0,1),
+                                      (3,1,1,3),
+                                      (4,0,0,3),
+                                      (4,1,0,1)
+                                      ]\<rparr>)"
 
 definition "M_ex' = (\<lparr> 
                       initial = 1000::nat, 
@@ -217,6 +239,7 @@ qed
 
 
 
+
 lemma lists_of_length_length :
   assumes "xs \<in> set (lists_of_length T n)"
   shows "length xs = n"
@@ -235,7 +258,8 @@ proof -
   then show ?thesis using assms by blast
 qed
   
-
+lemma lists_of_length_list_set : "set (lists_of_length xs k) = {xs' . length xs' = k \<and> set xs' \<subseteq> set xs}"
+  using lists_of_length_containment[of _ xs k] lists_of_length_length[of _ xs k] lists_of_length_elems[of _ xs k] by blast
     
 
 value "lists_of_length [1,2,3::nat] 3"
@@ -272,8 +296,48 @@ lemma paths_of_length_path_set :
   "set (paths_of_length M q k) = { p . path M q p \<and> length p = k }"
 using paths_of_length_is_path[of _ M q k] paths_of_length_containment[of M q] by blast
 
+(* ++++++++ alternative path generation function, equality not yet proven ++++++++ *)
+fun extend_path :: "'a FSM \<Rightarrow> 'a Transition list \<Rightarrow> 'a Transition list list" where
+  "extend_path M p = map (\<lambda> t . p@[t]) (filter (\<lambda>t . t_source t = target p (initial M)) (wf_transitions M))"
 
-fun paths_up_to_length (* TODO *)
+fun paths_up_to_length' :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a Transition list list \<times> 'a Transition list list)" where
+  "paths_up_to_length' M q 0 = ([[]],[])" |
+  "paths_up_to_length' M q (Suc n) = (case paths_up_to_length' M q n of
+    (maxPaths,shorterPaths) \<Rightarrow> ((filter (\<lambda>p . p \<notin> set (shorterPaths@maxPaths)) (concat (map (\<lambda> p . extend_path M p) maxPaths))),shorterPaths@maxPaths))" 
+
+fun paths_up_to_length'' :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
+  "paths_up_to_length'' M q n = (case paths_up_to_length' M q n of (mP,sP) \<Rightarrow> sP@mP)"
+
+value "paths_up_to_length'' M_ex 2 0"
+value[code] "paths_up_to_length'' M_ex 2 15"
+value[code] "paths_up_to_length'' M_ex_H 2 5"
+(* ++++++++++++++++ *)
+
+fun paths_up_to_length :: "'state FSM \<Rightarrow> 'state \<Rightarrow> nat \<Rightarrow> 'state Transition list list" where
+  "paths_up_to_length M q 0 = [[]]" |
+  "paths_up_to_length M q (Suc n) = (paths_up_to_length M q n) @ (paths_of_length M q (Suc n))"
+
+value[code] "paths_up_to_length M_ex 2 8"
+value[code] "paths_up_to_length M_ex_H 2 4"
+
+lemma paths_up_to_length_path_set :
+  "set (paths_up_to_length M q k) = { p . path M q p \<and> length p \<le> k }"
+proof (induction k)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+
+  have "set (paths_up_to_length M q (Suc k)) = set (paths_up_to_length M q k) \<union> set (paths_of_length M q (Suc k))"
+    using paths_up_to_length.simps(2) by (metis set_append) 
+  
+  moreover have "{p. path M q p \<and> length p \<le> Suc k} = {p. path M q p \<and> length p \<le> k} \<union> {p. path M q p \<and> length p = Suc k}"
+    by auto
+
+  ultimately show ?case using Suc.IH
+    by (metis paths_of_length_path_set) 
+qed
+
 
 
 
@@ -438,11 +502,7 @@ lemma LS\<^sub>i\<^sub>n_code[code] : "LS\<^sub>i\<^sub>n M q (set xss) = set (l
 value "LS\<^sub>i\<^sub>n M_ex 2 {[1]}"
 
 
-fun visited_states :: "'state \<Rightarrow> 'state Transition list \<Rightarrow> 'state list" where
-  "visited_states q p = (q # map t_target p)"
 
-fun target :: "'state Transition list \<Rightarrow> 'state \<Rightarrow> 'state" where
-  "target p q = last (visited_states q p)"
 
 
 
@@ -3558,8 +3618,123 @@ lemma list_max_is_max : "q \<in> set xs \<Longrightarrow> q \<le> list_max xs"
   by (metis List.finite_set Max_ge length_greater_0_conv length_pos_if_in_set list_max.elims) 
 
 
-lemma language_subset_code[code] : "((set P) \<subseteq> L M) = ((set P) \<subseteq> (set (map p_io (paths_of_length M (initial M) (list_max (map length P))))))"
-            
+
+
+lemma language_contains_code : "(io \<in> L M) = (io \<in> (set (map p_io (paths_up_to_length M (initial M) (length io)))))"
+proof -
+  have "io \<in> L M \<Longrightarrow> \<exists>p. io = p_io p \<and> path M (initial M) p \<and> length p \<le> length io"
+  proof -
+    assume "io \<in> L M"
+    then obtain p where "io = p_io p" and "path M (initial M) p" by auto
+    then have "length p = length io" by auto
+    show "\<exists>p. io = p_io p \<and> path M (initial M) p \<and> length p \<le> length io"
+      using \<open>io = p_io p\<close> \<open>length p = length io\<close> \<open>path M (initial M) p\<close> eq_refl by blast      
+  qed
+  then have "(io \<in> L M) = (io \<in> image p_io {p . path M (initial M) p \<and> length p \<le> length io})"
+    unfolding LS.simps by blast
+  then show ?thesis 
+    using paths_up_to_length_path_set[of M "initial M" "length io"] by simp 
+qed
+  
+lemma language_subset_code : "((set P) \<subseteq> L M) = ((set P) \<subseteq> (set (map p_io (paths_up_to_length M (initial M) (list_max (map length P))))))"
+proof -
+  have "\<And>x. x \<in> set P \<Longrightarrow> x \<in> L M \<Longrightarrow> \<exists>p. x = p_io p \<and> path M (initial M) p \<and> length p \<le> list_max (map length P)"
+  proof -
+    fix x assume "x \<in> set P" and "x \<in> L M"
+    then obtain p where "x = p_io p" and "path M (initial M) p" by auto
+    then have "length p = length x" by auto
+    moreover have "length x \<in> set (map length P)"
+      using \<open>x \<in> set P\<close> by auto
+    ultimately have "length p \<le> list_max (map length P)" 
+      using list_max_is_max by auto
+    show "\<exists>p. x = p_io p \<and> path M (initial M) p \<and> length p \<le> list_max (map length P)"
+      using \<open>length p \<le> list_max (map length P)\<close> \<open>path M (initial M) p\<close> \<open>x = p_io p\<close> by auto 
+  qed
+
+  then have "((set P) \<subseteq> L M) = ((set P) \<subseteq> image p_io {p . path M (initial M) p \<and> length p \<le> (list_max (map length P))})"
+    unfolding LS.simps by blast
+  then show ?thesis 
+    using paths_up_to_length_path_set[of M "initial M" "list_max (map length P)"] by simp 
+qed
+
+lemma is_preamble_set_code[code] :
+  "is_preamble_set M q (set P) = (
+    ((set P) \<subseteq> (set (map p_io (paths_up_to_length M (initial M) (list_max (map length P))))))
+    \<and> acyclic_sequences M (set P)
+    \<and> single_input_sequences M (set P)
+    \<and> output_complete_for_FSM_sequences M (set P)
+    \<and> deadlock_states_sequences M {q} (set P)
+    \<and> reachable_states_sequences M {q} (set P)
+    \<and> prefix_closed_sequences (set P))"
+  by (metis (mono_tags, lifting) is_preamble_set_alt_def language_subset_code)
+
+
+
+
+
+
+
+
+
+
+fun generate_selector_lists :: "nat \<Rightarrow> bool list list" where
+  "generate_selector_lists k = lists_of_length [True,False] k"
+
+value "generate_selector_lists 4"
+
+lemma "set (generate_selector_lists k) = {(bs :: bool list) . length bs = k}"
+  using lists_of_length_list_set[of "[False,True]" k]
+  by auto 
+  
+fun generate_sublist :: "'a list \<Rightarrow> bool list \<Rightarrow> 'a list" where
+  "generate_sublist xs bs = map fst (filter snd (zip xs bs))"
+
+value "generate_sublist [1::nat,2,3,4] [True,True,False,True]"
+
+fun sublists_of_lists_of_length :: "'a list \<Rightarrow> nat \<Rightarrow> 'a list list list" where
+  "sublists_of_lists_of_length xs k = map (generate_sublist (lists_of_length xs k)) (generate_selector_lists (length (lists_of_length xs k)))"
+
+value "(lists_of_length [1::nat] 3)"
+value "generate_selector_lists (length (lists_of_length [1::nat] 3))"
+value "sublists_of_lists_of_length [1::nat] 3"
+
+value "(lists_of_length [1::nat,2] 3)"
+value "generate_selector_lists (length (lists_of_length [1::nat,2] 3))"
+value "sublists_of_lists_of_length [1::nat,2] 3"
+
+
+fun sublists_of_language_of_length :: "'a FSM \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list list" where
+  "sublists_of_language_of_length M k = (let PS = paths_up_to_length M (initial M) k 
+    in (map (\<lambda> sl . map p_io (generate_sublist PS sl)) (generate_selector_lists (length PS))))"
+
+value "paths_up_to_length M_ex (initial M_ex) 7"
+value "sublists_of_language_of_length M_ex 0"
+value[code] "sublists_of_language_of_length M_ex 3"
+value[code] "sublists_of_language_of_length M_ex_H 1"
+
+(* TODO: sequences in preamble have max length |M|-1 *)
+fun calculate_preamble_naive :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
+  "calculate_preamble_naive M q = (case (filter (\<lambda> P . is_preamble_set M q (set P)) (sublists_of_language_of_length M  ( |M| - 1 ) )) of
+    [] \<Rightarrow> None |
+    PS \<Rightarrow> (Some (set (hd PS))))" 
+
+value[code] "calculate_preamble_naive M_ex 2"
+value[code] "calculate_preamble_naive M_ex 3"
+value[code] "calculate_preamble_naive M_ex 4"
+value[code] "calculate_preamble_naive M_ex 5"
+
+export_code sublists_of_language_of_length M_ex M_ex_H in Haskell module_name TestExport 
+end
+(*
+value[code] "calculate_preamble_naive M_ex_H 1"
+(*
+value[code] "calculate_preamble_naive M_ex_H 2"
+value[code] "calculate_preamble_naive M_ex_H 3"
+value[code] "calculate_preamble_naive M_ex_H 4"
+*)
+
+
+
 
 (* test cases *)
 
