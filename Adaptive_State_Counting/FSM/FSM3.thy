@@ -1779,7 +1779,13 @@ notation
   
 (* extends Petrenko's definition to explicitly require same inputs and outputs *)
 fun is_submachine :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> bool" where 
-  "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B)"
+  "is_submachine A B = (initial A = initial B \<and> set (transitions A) \<subseteq> set (transitions B) \<and> inputs A = inputs B \<and> outputs A = outputs B)"
+  (* "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B)" *)
+
+lemma submachine_h :
+  assumes "is_submachine A B"
+  shows "h A \<subseteq> h B"
+  using assms by auto
 
 lemma submachine_path :
   assumes "is_submachine A B"
@@ -2031,12 +2037,16 @@ proof -
   
   then have "product_transitions (from_FSM M q1) (from_FSM M q2) = product_transitions (from_FSM M q1') (from_FSM M q2')" 
     unfolding product_transitions.simps  by fastforce
+  then have **: "set (transitions ?F) \<subseteq> set (transitions ?P')"
+    by (metis (no_types, lifting) assms(1) from_FSM.simps is_submachine.elims(2) product_simps(4) select_convs(4))
+
+  (*
   then have "h ?P = h ?P'" 
     unfolding product.simps
     by (metis FSM3.product.simps \<open>inputs (from_FSM M q1) = inputs (from_FSM M q1')\<close> \<open>inputs (from_FSM M q2) = inputs (from_FSM M q2')\<close> \<open>outputs (from_FSM M q1) = outputs (from_FSM M q1')\<close> \<open>outputs (from_FSM M q2) = outputs (from_FSM M q2')\<close> from_FSM.simps from_FSM_h product_simps(2) product_simps(3) product_simps(4))  
   then have **: "h ?F \<subseteq> h ?P'"
-    by (metis (no_types, lifting) assms(1) from_FSM_h is_submachine.simps) 
-
+    by (metis (no_types, lifting) assms(1) submachine_h from_FSM_h) 
+  *)
 
   have *: "initial ?F = initial ?P'" 
     by auto
@@ -2522,16 +2532,20 @@ proof
   
     moreover have "is_submachine ?PC ?P"
       unfolding is_submachine.simps
-      proof -
-        have f1: "\<forall>f fa. outputs (transitions_update fa (f::('a \<times> 'a) FSM)) = outputs f"
-          by simp
-        have f2: "\<forall>f fa. inputs (transitions_update fa (f::('a \<times> 'a) FSM)) = inputs f"
-          by auto
-        have "\<forall>f fa. initial (transitions_update fa (f::('a \<times> 'a) FSM)) = initial f"
-          by auto
-        then show "initial ?PC = initial ?P \<and> h ?PC \<subseteq> h ?P \<and> inputs ?PC = inputs ?P \<and> outputs ?PC = outputs ?P"
-          using f2 f1 by (metis (no_types) filter_is_subset h_ft set_filter)
-      qed
+    proof -
+      have f1: "\<forall>f fa. \<lparr>initial = initial fa::'a \<times> 'a, inputs = inputs fa, outputs = outputs fa, transitions = f (transitions fa), \<dots> = more fa::unit\<rparr> = transitions_update f fa"
+        by simp
+      have f2: "\<forall>f fa. outputs (transitions_update fa (f::('a \<times> 'a) FSM)) = outputs f"
+        by auto
+      have f3: "\<forall>f fa. inputs (transitions_update fa (f::('a \<times> 'a) FSM)) = inputs f"
+        using f1 by (metis select_convs(2))
+      have f4: "\<forall>f fa. initial (transitions_update fa (f::('a \<times> 'a) FSM)) = initial f"
+        using f1 by (metis select_convs(1))
+      have "\<forall>f fa. transitions (transitions_update fa (f::('a \<times> 'a) FSM)) = fa (transitions f)"
+        by simp
+      then show "initial (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>p. \<not> r_distinguishable_k M (fst (t_source p)) (snd (t_source p)) 0 \<and> \<not> Ex (r_distinguishable_k M (fst (t_target p)) (snd (t_target p)))) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>) = initial (product (from_FSM M q1) (from_FSM M q2)) \<and> set (transitions (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>p. \<not> r_distinguishable_k M (fst (t_source p)) (snd (t_source p)) 0 \<and> \<not> Ex (r_distinguishable_k M (fst (t_target p)) (snd (t_target p)))) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>)) \<subseteq> set (transitions (product (from_FSM M q1) (from_FSM M q2))) \<and> inputs (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>p. \<not> r_distinguishable_k M (fst (t_source p)) (snd (t_source p)) 0 \<and> \<not> Ex (r_distinguishable_k M (fst (t_target p)) (snd (t_target p)))) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>) = inputs (product (from_FSM M q1) (from_FSM M q2)) \<and> outputs (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>p. \<not> r_distinguishable_k M (fst (t_source p)) (snd (t_source p)) 0 \<and> \<not> Ex (r_distinguishable_k M (fst (t_target p)) (snd (t_target p)))) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>) = outputs (product (from_FSM M q1) (from_FSM M q2))"
+        using f4 f3 f2 by (metis filter_is_subset)
+    qed
   
     ultimately have "r_compatible M q1 q2"
       unfolding r_compatible.simps by blast
@@ -2583,7 +2597,7 @@ proof
           using \<open>completely_specified S\<close> using nodes.initial by fastforce 
         then have "((q1,q2),x,y,(q1',q2')) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
           using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
-          by (meson contra_subsetD is_submachine.elims(2)) 
+          using submachine_h by blast
         then have "(q1, x, y, q1') \<in> h M" and "(q2, x, y, q2') \<in> h M"
           by (metis (no_types) \<open>((q1, q2), x, y, q1', q2') \<in> h (product (from_FSM M q1) (from_FSM M q2))\<close> from_FSM_h product_transition)+ 
         then have "r_distinguishable_k M q1' q2' k" 
@@ -2655,7 +2669,7 @@ lemma submachine_observable :
   and     "observable M"
 shows "observable S"
   using assms unfolding is_submachine.simps observable.simps
-  by blast 
+  by (meson assms(1) contra_subsetD submachine_h)
 
 lemma language_prefix : 
   assumes "io1@io2 \<in> LS M q"
@@ -2677,18 +2691,20 @@ lemma observable_submachine_io_target :
   and     "is_submachine S M"
   and     "io \<in> L S"
 shows "io_target S io (initial S) = io_target M io (initial M)"
-proof - (* TODO: refactor auto-generated code *)
-  have f1: "initial S = initial M \<and> h S \<subseteq> h M \<and> inputs S = inputs M \<and> outputs S = outputs M"
-    using assms(2) is_submachine.simps by blast
+proof -
   obtain pps :: "(nat \<times> nat) list \<Rightarrow> 'a \<Rightarrow> 'a FSM \<Rightarrow> ('a \<times> nat \<times> nat \<times> 'a) list" where
-        "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
+    "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
     by moura
-  then have f2: "io = p_io (pps io (initial M) S) \<and> path S (initial M) (pps io (initial M) S)"
-    using f1 assms(3) by force
-  then have "target (pps io (initial M) S) (initial M) = io_target M (p_io (pps io (initial M) S)) (initial M)"
-    by (metis (no_types) assms(1) assms(2) observable_path_io_target submachine_path)
+  then have f1: "io = p_io (pps io (initial M) S) \<and> path S (initial M) (pps io (initial M) S)"
+    using assms(2) assms(3) by auto
+  have f2: "\<forall>f a ps. \<not> observable f \<or> \<not> path f (a::'a) ps \<or> target ps a = io_target f (p_io ps) a"
+    by (metis (no_types) observable_path_io_target)
+  then have f3: "target (pps io (initial M) S) (initial M) = io_target S io (initial S)"
+    using f1 by (metis (no_types) assms(1) assms(2) is_submachine.simps submachine_observable)
+  have "target (pps io (initial M) S) (initial M) = io_target M (p_io (pps io (initial M) S)) (initial M)"
+    using f2 f1 by (meson assms(1) assms(2) submachine_path)
   then show ?thesis
-    using f2 f1 by (metis (no_types) assms(1) assms(2) observable_path_io_target submachine_observable)
+    using f3 f1 by auto
 qed
 
 
@@ -3308,7 +3324,7 @@ proof -
       obtain t where "t \<in> h ?S" and "t_source t = q'" and "t_input t = fst ?xy'" and "t_output t = snd ?xy'"
       proof - (* TODO: refactor auto-generated code *)
         assume a1: "\<And>t. \<lbrakk>t \<in> h (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>); t_source t = q'; t_input t = fst (hd (drop (length (p_io p')) xys')); t_output t = snd (hd (drop (length (p_io p')) xys'))\<rbrakk> \<Longrightarrow> thesis"
-        have f2: "\<forall>f fa. is_submachine f fa = ((initial f::'a) = initial fa \<and> h f \<subseteq> h fa \<and> inputs f = inputs fa \<and> outputs f = outputs fa)"
+        have f2: "\<forall>f fa. is_submachine f fa = ((initial f::'a) = initial fa \<and> set (transitions f) \<subseteq> set (transitions fa) \<and> inputs f = inputs fa \<and> outputs f = outputs fa)"
           using is_submachine.simps by blast
         have f3: "p'' \<noteq> []"
           using \<open>p_io p'' = p_io p' @ [hd (drop (length (p_io p')) xys')]\<close> by force
@@ -3682,9 +3698,228 @@ fun generate_selector_lists :: "nat \<Rightarrow> bool list list" where
 
 value "generate_selector_lists 4"
 
-lemma "set (generate_selector_lists k) = {(bs :: bool list) . length bs = k}"
-  using lists_of_length_list_set[of "[False,True]" k]
+lemma generate_selector_lists_set : "set (generate_selector_lists k) = {(bs :: bool list) . length bs = k}"
+  using lists_of_length_list_set[of "[True,False]" k]
   by auto 
+
+fun generate_submachine :: "'a FSM \<Rightarrow> bool list \<Rightarrow> 'a FSM" where
+  "generate_submachine M bs = M\<lparr> transitions := map fst (filter snd (zip (transitions M) bs)) \<rparr>"
+
+lemma generate_submachine_is_submachine : "is_submachine (generate_submachine M bs) M" 
+proof -
+  have "\<And> x . x \<in> set (map fst (filter snd (zip (transitions M) bs))) \<Longrightarrow> x \<in> set (transitions M)"
+    by (metis (no_types, lifting) filter_eq_nths in_set_takeD map_fst_zip_take notin_set_nthsI nths_map)
+  then show ?thesis  
+    using generate_submachine.simps is_submachine.simps by fastforce
+qed
+
+
+
+lemma selector_list_index_set:
+  assumes "length ms = length bs"
+  shows "set (map fst (filter snd (zip ms bs))) = { ms ! i | i . i < length bs \<and> bs ! i}"
+using assms proof (induction bs arbitrary: ms rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc b bs)
+  let ?ms = "butlast ms"
+  let ?m = "last ms"
+
+  have "length ?ms = length bs" using snoc.prems by auto
+
+  have "map fst (filter snd (zip ms (bs @ [b]))) = (map fst (filter snd (zip ?ms bs))) @ (map fst (filter snd (zip [?m] [b])))"
+    by (metis \<open>length (butlast ms) = length bs\<close> append_eq_conv_conj filter_append length_0_conv map_append snoc.prems snoc_eq_iff_butlast zip_append2)
+  then have *: "set (map fst (filter snd (zip ms (bs @ [b])))) = set (map fst (filter snd (zip ?ms bs))) \<union> set (map fst (filter snd (zip [?m] [b])))"
+    by simp
+    
+
+  have "{ms ! i |i. i < length (bs @ [b]) \<and> (bs @ [b]) ! i} = {ms ! i |i. i \<le> (length bs) \<and> (bs @ [b]) ! i}"
+    by auto
+  moreover have "{ms ! i |i. i \<le> (length bs) \<and> (bs @ [b]) ! i} = {ms ! i |i. i < length bs \<and> (bs @ [b]) ! i} \<union> {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+    by fastforce
+  moreover have "{ms ! i |i. i < length bs \<and> (bs @ [b]) ! i} = {?ms ! i |i. i < length bs \<and> bs ! i}"
+    using \<open>length ?ms = length bs\<close> by (metis butlast_snoc nth_butlast)  
+  ultimately have **: "{ms ! i |i. i < length (bs @ [b]) \<and> (bs @ [b]) ! i} = {?ms ! i |i. i < length bs \<and> bs ! i} \<union> {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+    by simp
+  
+
+  have "set (map fst (filter snd (zip [?m] [b]))) = {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+  proof (cases b)
+    case True
+    then have "set (map fst (filter snd (zip [?m] [b]))) = {?m}" by fastforce
+    moreover have "{ms ! i |i. i = length bs \<and> (bs @ [b]) ! i} = {?m}" 
+    proof -
+      have "(bs @ [b]) ! length bs"
+        by (simp add: True) 
+      moreover have "ms ! length bs = ?m"
+        by (metis last_conv_nth length_0_conv length_butlast snoc.prems snoc_eq_iff_butlast) 
+      ultimately show ?thesis by fastforce
+    qed
+    ultimately show ?thesis by auto
+  next
+    case False
+    then show ?thesis by auto
+  qed
+
+  then have "set (map fst (filter snd (zip (butlast ms) bs))) \<union> set (map fst (filter snd (zip [?m] [b])))
+             = {butlast ms ! i |i. i < length bs \<and> bs ! i} \<union> {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+    using snoc.IH[OF \<open>length ?ms = length bs\<close>] by blast
+
+  then show ?case using * **
+    by simp 
+qed
+    
+    
+    
+  
+ 
+    
+    
+
+    
+
+lemma generate_submachine_transition_set_equality :
+  assumes "set xs \<subseteq> set ms"
+  shows "\<exists> bs . length bs = length ms \<and> set xs = set (map fst (filter snd (zip ms bs)))"
+using assms proof (induction xs rule: rev_induct)
+  case Nil
+  let ?bs = "replicate (length ms) False"
+  have "set [] = set (map fst (filter snd (zip ms ?bs)))"
+    by (metis filter_False in_set_zip length_replicate list.simps(8) nth_replicate)
+  moreover have "length ?bs = length ms" by auto
+  ultimately show ?case by blast
+next
+  case (snoc a xs)
+  then have "set xs \<subseteq> set ms" and "a \<in> set ms" by auto
+  then obtain bs where "length bs = length ms" and "set xs = set (map fst (filter snd (zip ms bs)))" using snoc.IH by auto
+
+  from \<open>a \<in> set ms\<close> obtain i where "i < length ms" and "ms ! i = a"
+    by (meson in_set_conv_nth) 
+
+  let ?bs = "list_update bs i True"
+  have "length ms = length ?bs" using \<open>length bs = length ms\<close> by auto
+  have "length ?bs = length bs" by auto
+
+  have "set (map fst (filter snd (zip ms ?bs))) = {ms ! i |i. i < length ?bs \<and> ?bs ! i}"
+    using selector_list_index_set[OF \<open>length ms = length ?bs\<close>] by assumption
+
+  have "\<And> j . j < length ?bs \<Longrightarrow> j \<noteq> i \<Longrightarrow> ?bs ! j = bs ! j"
+    by auto
+  then have "{ms ! j |j. j < length bs \<and> j \<noteq> i \<and> bs ! j} = {ms ! j |j. j < length ?bs \<and> j \<noteq> i \<and> ?bs ! j}"
+    using \<open>length ?bs = length bs\<close> by fastforce
+  
+  
+  
+  have "{ms ! j |j. j < length ?bs \<and> j = i \<and> ?bs ! j} = {a}"
+    using \<open>length bs = length ms\<close> \<open>i < length ms\<close> \<open>ms ! i = a\<close> by auto
+  then have "{ms ! i |i. i < length ?bs \<and> ?bs ! i} = insert a {ms ! j |j. j < length ?bs \<and> j \<noteq> i \<and> ?bs ! j}"
+    by fastforce
+  
+
+  have "{ms ! j |j. j < length bs \<and> j = i \<and> bs ! j} \<subseteq> {ms ! j |j. j < length ?bs \<and> j = i \<and> ?bs ! j}"
+    by (simp add: Collect_mono)
+  then have "{ms ! j |j. j < length bs \<and> j = i \<and> bs ! j} \<subseteq> {a}"
+    using \<open>{ms ! j |j. j < length ?bs \<and> j = i \<and> ?bs ! j} = {a}\<close> by auto
+  moreover have "{ms ! j |j. j < length bs \<and> bs ! j} = {ms ! j |j. j < length bs \<and> j = i \<and> bs ! j} \<union> {ms ! j |j. j < length bs \<and> j \<noteq> i \<and> bs ! j}"
+    by fastforce
+
+  ultimately have "{ms ! i |i. i < length ?bs \<and> ?bs ! i} = insert a {ms ! i |i. i < length bs \<and> bs ! i}"
+    using \<open>{ms ! j |j. j < length bs \<and> j \<noteq> i \<and> bs ! j} = {ms ! j |j. j < length ?bs \<and> j \<noteq> i \<and> ?bs ! j}\<close>
+    using \<open>{ms ! ia |ia. ia < length (bs[i := True]) \<and> bs[i := True] ! ia} = insert a {ms ! j |j. j < length (bs[i := True]) \<and> j \<noteq> i \<and> bs[i := True] ! j}\<close> by auto 
+
+  moreover have "set (map fst (filter snd (zip ms bs))) = {ms ! i |i. i < length bs \<and> bs ! i}"
+    using selector_list_index_set[of ms bs] \<open>length bs = length ms\<close> by auto
+
+  ultimately have "set (a#xs) = set (map fst (filter snd (zip ms ?bs)))"
+    using \<open>set (map fst (filter snd (zip ms ?bs))) = {ms ! i |i. i < length ?bs \<and> ?bs ! i}\<close> \<open>set xs = set (map fst (filter snd (zip ms bs)))\<close> by auto
+  then show ?case
+    using \<open>length ms = length ?bs\<close>
+    by (metis Un_commute insert_def list.set(1) list.simps(15) set_append singleton_conv) 
+qed
+
+
+fun generate_submachines :: "'a FSM \<Rightarrow> 'a FSM list" where
+  "generate_submachines M = map (generate_submachine M) (generate_selector_lists (length (transitions M)))"
+
+lemma generate_submachines_containment :
+  assumes "is_submachine S M"
+  shows "\<exists> S' \<in> set (generate_submachines M) . (h S = h S')"
+proof -
+  have "set (transitions S) \<subseteq> set (transitions M)" using assms by auto
+  then obtain bs where "length bs = length (transitions M)"  and "set (transitions S) = set (map fst (filter snd (zip (transitions M) bs)))" 
+    using generate_submachine_transition_set_equality[of "transitions S" "transitions M"] by blast
+  then have "bs \<in> set (generate_selector_lists (length (transitions M)))"
+    using generate_selector_lists_set[of "length (transitions M)"] by blast
+  then have *: "generate_submachine M bs \<in> set (generate_submachines M)" 
+    by auto
+  
+  have "set (transitions S) = set (transitions (generate_submachine M bs))"
+    using \<open>set (transitions S) = set (map fst (filter snd (zip (transitions M) bs)))\<close> unfolding generate_submachine.simps by auto
+  moreover have "inputs S = inputs (generate_submachine M bs)"
+    using assms by auto
+  moreover have "outputs S = outputs (generate_submachine M bs)"
+    using assms by auto
+  ultimately have **: "h S = h (generate_submachine M bs)"
+    by auto
+
+  show ?thesis using * ** by blast
+qed
+    
+value "generate_submachines M_ex"
+
+
+fun language_up_to_length :: "'a FSM \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list" where
+  "language_up_to_length M k = map p_io (paths_up_to_length M (initial M) k)"
+
+lemma language_up_to_length_set : "set (language_up_to_length M k) = { io \<in> L M . length io \<le> k }"
+  using paths_up_to_length_path_set[of M "initial M" k] unfolding LS.simps language_up_to_length.simps by auto
+
+lemma language_uo_to_length_entire_language :
+  assumes "language_up_to_length S (Suc n) = language_up_to_length S n"
+  shows "L S = set (language_up_to_length S n)"
+proof (rule ccontr)
+  assume "L S \<noteq> set (language_up_to_length S n)"
+  then obtain io where "io \<in> L S" and "io \<notin> set (language_up_to_length S n)" using language_up_to_length_set by blast
+  then have "length io > n"
+    using language_up_to_length_set leI by blast 
+  then have "take (Suc n) io \<in> L S"
+    by (metis \<open>io \<in> L S\<close> append_take_drop_id language_prefix)
+  then have "take (Suc n) io \<in> set (language_up_to_length S (Suc n))"
+    by (metis (no_types, lifting) Suc_leI \<open>n < length io\<close> language_contains_code language_up_to_length.simps length_take min.absorb2) 
+  moreover have "take (Suc n) io \<notin> set (language_up_to_length S n)"
+    by (metis (no_types, lifting) \<open>n < length io\<close> language_up_to_length_set length_take less_eq_Suc_le less_not_refl2 mem_Collect_eq min.absorb2)
+  ultimately show "False" using assms by metis
+qed
+  
+
+
+value "language_up_to_length M_ex 1"
+value "language_up_to_length M_ex 5"
+
+(*
+
+fun calculate_preamble_naive :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
+  "calculate_preamble_naive M q = (let n = |M| - 1 in
+    (case 
+      (filter 
+        (\<lambda> S . language_up_to_length S (Suc n) = language_up_to_length S n \<and>  is_preamble_set M q (set (language_up_to_length S n))) 
+        (generate_submachines M)) of
+    [] \<Rightarrow> None |
+    SS \<Rightarrow> (Some (set (language_up_to_length (hd SS) n)))))" 
+
+value[code] "calculate_preamble_naive M_ex 2"
+value[code] "calculate_preamble_naive M_ex 3"
+value[code] "calculate_preamble_naive M_ex 4"
+value[code] "calculate_preamble_naive M_ex 5"
+
+value[code] "calculate_preamble_naive M_ex_H 1"
+value[code] "calculate_preamble_naive M_ex_H 2"
+value[code] "calculate_preamble_naive M_ex_H 3"
+value[code] "calculate_preamble_naive M_ex_H 4"
+
+
+
   
 fun generate_sublist :: "'a list \<Rightarrow> bool list \<Rightarrow> 'a list" where
   "generate_sublist xs bs = map fst (filter snd (zip xs bs))"
