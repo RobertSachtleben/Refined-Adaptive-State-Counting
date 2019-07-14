@@ -3875,7 +3875,7 @@ fun language_up_to_length :: "'a FSM \<Rightarrow> nat \<Rightarrow> (Input \<ti
 lemma language_up_to_length_set : "set (language_up_to_length M k) = { io \<in> L M . length io \<le> k }"
   using paths_up_to_length_path_set[of M "initial M" k] unfolding LS.simps language_up_to_length.simps by auto
 
-lemma language_uo_to_length_entire_language :
+lemma language_up_to_length_finite_language_fixpoint :
   assumes "language_up_to_length S (Suc n) = language_up_to_length S n"
   shows "L S = set (language_up_to_length S n)"
 proof (rule ccontr)
