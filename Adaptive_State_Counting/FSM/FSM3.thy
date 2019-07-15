@@ -4090,8 +4090,9 @@ qed
 
 lemma calculate_preamble_set_naive_correctness : 
   assumes "observable M"
-  shows "(\<exists> P . is_preamble_set M q P) = (calculate_preamble_set_naive M q \<noteq> None)"
+  shows "(\<exists> P . is_preamble_set M q P) = (\<exists> P . calculate_preamble_set_naive M q = Some P \<and> is_preamble_set M q P)"
   using calculate_preamble_set_naive_soundness[of M q] calculate_preamble_set_naive_exhaustiveness[OF assms, of q] by blast 
+
 
 value[code] "calculate_preamble_set_naive M_ex 2"
 value[code] "calculate_preamble_set_naive M_ex 3"
@@ -4147,11 +4148,67 @@ value[code] "calculate_preamble_naive M_ex 5"
 
 
 
+(* state separator sets *)
+type_synonym IO = "(Input \<times> Output)"
+type_synonym 'a Separator_set = "(IO list set \<times> (IO list \<Rightarrow> 'a option))" (* second value maps io sequences to their reached deadlock state, if any *)
+datatype 'a Separator_state = NonSep nat | Sep 'a
 
+fun isNonSep :: "'a Separator_state \<Rightarrow> bool" where
+  "isNonSep (NonSep x) = True" |
+  "isNonSep (Sep x) = False"
+
+fun is_state_separator :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a Separator_state) FSM \<Rightarrow> bool" where
+  "is_state_separator M q1 q2 S = (
+    single_input S
+    \<and> acyclic S
+    \<and> deadlock_state S (Sep q1)
+    \<and> deadlock_state S (Sep q2)
+    \<and> (\<forall> q \<in> nodes S . (q \<noteq> Sep q1 \<and> q \<noteq> Sep q2) \<longrightarrow> (isNonSep q \<and> \<not> deadlock_state S q))
+    \<and> (\<forall> io \<in> L S . ((io_target S io (initial S) = Sep q1) \<longrightarrow> io \<in> (LS M q1 - LS M q2)))
+    \<and> (\<forall> io \<in> L S . ((io_target S io (initial S) = Sep q2) \<longrightarrow> io \<in> (LS M q2 - LS M q1)))
+    (*\<and> (\<forall> io \<in> L S . \<forall> t \<in> h S . (t_source t = (io_target S io (initial S)) \<longrightarrow> ([(t_input t, t_output t)] \<in> (LS M (io_target M io q1) \<union> LS M (io_target M io q2))))) *)
+    \<and> (L S \<subseteq> LS M q1 \<union> LS M q2)
+)"
+
+
+(* TODO: express state_separators as submachines of (product (from_FSM M q1) (from_FSM M q2)) *)
+
+fun deadlock_sequences :: "'a FSM \<Rightarrow> ((Input \<times> Output) list \<Rightarrow> bool) \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "deadlock_sequences M isDL P = (\<forall> io \<in> P . 
+                                        (isDL io \<and> \<not> (\<exists> io' \<in> P . length io < length io' \<and> take (length io) io' = io))
+                                      \<or> (\<not> isDL io \<and> (\<exists> io' \<in> P . length io < length io' \<and> take (length io) io' = io)))" 
+
+fun is_state_separator_set :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a Separator_set \<Rightarrow> bool" where
+  "is_state_separator_set M q1 q2 P = (
+    (*acyclic_sequences M (fst P)*)
+    (\<forall> p . (path M (initial M) p \<and> p_io p \<in> {io \<in> fst P . \<exists> io' \<in> fst P . length io < length io' \<and> take (length io) io' = io}) \<longrightarrow> distinct (visited_states (initial M) p))
+    (*\<and> single_input_sequences M (fst P)*)
+    \<and> single_input_sequences (product (from_FSM M q1) (from_FSM M q2)) {io \<in> fst P . \<exists> io' \<in> fst P . length io < length io' \<and> take (length io) io' = io}
+    \<and> deadlock_sequences M (\<lambda> io . (snd P) io \<noteq> None) (fst P)
+    \<and> (\<forall> io \<in> (fst P) . (snd P) io = Some q1 \<or> (snd P) io = Some q2 \<or> (snd P) io = None)
+    \<and> (\<forall> io \<in> (fst P) . ((snd P) io = Some q1) \<longrightarrow> io \<in> (LS M q1 - LS M q2))
+    \<and> (\<forall> io \<in> (fst P) . ((snd P) io = Some q2) \<longrightarrow> io \<in> (LS M q2 - LS M q1))
+    (*\<and> (\<forall> io \<in> (fst P) . io = [] \<or> ([last io] \<in> (LS M (io_target M (butlast io) q1) \<union> LS M (io_target M (butlast io) q2))))*)    
+    \<and> (fst P \<subseteq> LS M q1 \<union> LS M q2)
+    \<and> prefix_closed_sequences (fst P)
+)"
+
+
+(*
+lemma acyclic_sequences_of_acyclic_FSM :
+  "acyclic S = acyclic_sequences S (L S)"
+  unfolding acyclic.simps acyclic_sequences.simps LS.simps by blast
+
+lemma single_input_sequences_of_single_input_FSM :
+  "single_input S = single_input_sequences S (L S)"
+  unfolding single_input.simps single_input_sequences.simps LS.simps
+*)  
 
 
 
 end (*
+
+
 
 (* test cases *)
 
@@ -4166,6 +4223,18 @@ fun test_suite :: "TC_state FSM set \<Rightarrow> bool" where
 
 fun pass :: "'a FSM \<Rightarrow> TC_state FSM \<Rightarrow> bool" where
   "pass M U = (\<forall> q \<in> nodes (product M U). snd q \<noteq> Fail)"
+
+
+type_synonym IO = "(Input \<times> Output)"
+type_synonym TC_set = "(IO list set \<times> (IO list \<Rightarrow> bool))" (* second value maps io sequences to whether they reach the fail deadlock state *)
+type_synonym 'a separator_set = "(IO list set \<times> (IO list \<Rightarrow> 'a option))" (* second value maps io sequences to their reached deadlock state, if any *)
+
+fun is_test_case_set :: "'a FSM \<Rightarrow> 
+
+
+
+end (*
+
 
 fun tc_node_id :: "TC_state \<Rightarrow> nat" where
   "tc_node_id Fail = 0" |
