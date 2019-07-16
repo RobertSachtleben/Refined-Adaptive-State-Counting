@@ -1533,9 +1533,21 @@ fun minimal :: "'a FSM \<Rightarrow> bool" where
   "minimal M = (\<forall> q \<in> nodes M . \<forall> q' \<in> nodes M . q \<noteq> q' \<longrightarrow> LS M q \<noteq> LS M q')"
 
 
-abbreviation "size_FSM M \<equiv> card (nodes M)" 
-notation 
-  size_FSM ("(|_|)")
+
+(*
+instantiation FSM_ext  :: (type,type) size 
+begin
+
+definition size_FSM where [simp, code]: "size (m::('a, 'b) FSM_ext) = card (nodes m)"
+
+instance ..
+
+end
+*)
+
+abbreviation "size_FSM M \<equiv> card (nodes M)"
+notation
+  size_FSM ("(#_#)")
 
 
 lemma visited_states_prefix :
@@ -1693,7 +1705,7 @@ lemma distinct_path_length_reachable :
   and     "q1 \<in> nodes M"
   obtains p where "path M q1 p"
               and "target p q1 = q2"
-              and "length p < |M|"
+              and "length p < #M#"
 proof -
   obtain p where "path M q1 p"
              and "target p q1 = q2"
@@ -1703,14 +1715,14 @@ proof -
   have "set (visited_states q1 p) \<subseteq> nodes M"
     using visited_states_are_nodes
     by (metis \<open>path M q1 p\<close> assms(2))
-  then have "length (visited_states q1 p) \<le> |M|"
+  then have "length (visited_states q1 p) \<le> #M#"
     using nodes_finite
     by (metis \<open>distinct (visited_states q1 p)\<close> card_mono distinct_card) 
-  then have "length p < |M|"
+  then have "length p < #M#"
     by simp 
 
   show ?thesis
-    using \<open>length p < |M|\<close> \<open>path M q1 p\<close> \<open>target p q1 = q2\<close> that by blast
+    using \<open>length p < #M#\<close> \<open>path M q1 p\<close> \<open>target p q1 = q2\<close> that by blast
 qed
 
 lemma reachable_path : 
@@ -1745,7 +1757,7 @@ lemma distinct_path_length :
   and     "q \<in> nodes M"
 obtains p' where "path M q p'"
              and "target p' q = target p q"
-             and "length p' < |M|"
+             and "length p' < #M#"
   by (meson assms distinct_path_length_reachable reachable_path) 
 
 
@@ -1870,22 +1882,22 @@ fun reachable_k :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a s
 lemma reachable_k_0 : "reachable_k M q 0 = {q}" 
   by auto
 
-lemma reachable_k_nodes : "nodes M = reachable_k M (initial M) ( |M| - 1)"
+lemma reachable_k_nodes : "nodes M = reachable_k M (initial M) ( #M# - 1)"
 proof -
-  have "\<And>q. q \<in> nodes M \<Longrightarrow> q \<in> reachable_k M (initial M) ( |M| - 1)"
+  have "\<And>q. q \<in> nodes M \<Longrightarrow> q \<in> reachable_k M (initial M) ( #M# - 1)"
   proof -
     fix q assume "q \<in> nodes M"
     then obtain p where "path M (initial M) p" and "target p (initial M) = q"
       by (metis path_to_nodes) 
     then obtain p' where "path M (initial M) p'"
                      and "target p' (initial M) = target p (initial M)" 
-                     and "length p' < |M|"
+                     and "length p' < #M#"
       using distinct_path_length[of M "initial M" p] by auto
-    then show "q \<in> reachable_k M (initial M) ( |M| - 1)"
+    then show "q \<in> reachable_k M (initial M) ( #M# - 1)"
       using \<open>target p (initial M) = q\<close> list.size(3) mem_Collect_eq not_less_eq_eq reachable_k.simps by auto
   qed
 
-  moreover have "\<And>x. x \<in> reachable_k M (initial M) ( |M| - 1) \<Longrightarrow> x \<in> nodes M"
+  moreover have "\<And>x. x \<in> reachable_k M (initial M) ( #M# - 1) \<Longrightarrow> x \<in> nodes M"
     using nodes_path_initial by auto
   
   ultimately show ?thesis by blast
@@ -3913,27 +3925,27 @@ qed
 lemma distinct_io_path_length :
   assumes "path M (initial M) p"
   and     "distinct (visited_states (initial M) p)"
-shows "length p < |M|"
+shows "length p < #M#"
   by (metis (no_types, lifting) Suc_less_SucD assms(1) assms(2) card_mono distinct_card le_simps(2) length_Cons length_map nodes.initial nodes_finite visited_states.simps visited_states_are_nodes)
 
 lemma is_preamble_set_length :
   assumes "is_preamble_set M q P"
-  shows "P \<subseteq> set (language_up_to_length M ( |M| - 1 ))" 
+  shows "P \<subseteq> set (language_up_to_length M ( #M# - 1 ))" 
 proof 
   fix x assume "x \<in> P"
   then have "x \<in> L M" using assms by auto
   then obtain p where "p_io p = x" and "path M (initial M) p" by auto
   then have "distinct (visited_states (initial M) p)" using is_preamble_set_alt_def[of M q P] assms acyclic_sequences.simps
     using \<open>x \<in> P\<close> by blast 
-  then have "length p < |M|" using distinct_io_path_length[OF \<open>path M (initial M) p\<close>] by auto
-  then have "p_io p \<in> { io \<in> L M . length io < |M| }"
+  then have "length p < #M#" using distinct_io_path_length[OF \<open>path M (initial M) p\<close>] by auto
+  then have "p_io p \<in> { io \<in> L M . length io < #M# }"
     using \<open>p_io p = x\<close> \<open>x \<in> L M\<close> by fastforce 
-  moreover have "|M| > 0"
-    using \<open>length p < |M|\<close> by auto 
-  ultimately have "x \<in> { io \<in> L M . length io \<le> |M| - 1 }"
+  moreover have "#M# > 0"
+    using \<open>length p < #M#\<close> by auto 
+  ultimately have "x \<in> { io \<in> L M . length io \<le> #M# - 1 }"
     using \<open>p_io p = x\<close> by auto
-  then show "x \<in> set (language_up_to_length M ( |M| - 1 ))"
-    using language_up_to_length_set[of M "|M| - 1"]  by auto
+  then show "x \<in> set (language_up_to_length M ( #M# - 1 ))"
+    using language_up_to_length_set[of M "#M# - 1"]  by auto
 qed
 
 
@@ -3945,7 +3957,7 @@ value "language_up_to_length M_ex 5"
 
 
 fun calculate_preamble_set_naive :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
-  "calculate_preamble_set_naive M q = (let n = |M| - 1 in
+  "calculate_preamble_set_naive M q = (let n = #M# - 1 in
     (case 
       (filter 
         (\<lambda> S . language_up_to_length S (Suc n) = language_up_to_length S n \<and>  is_preamble_set M q (set (language_up_to_length S n))) 
@@ -3959,10 +3971,10 @@ fun calculate_preamble_set_naive :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Inpu
   "calculate_preamble_set_naive M q = 
     (case 
       (filter 
-        (\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))) 
+        (\<lambda> S . language_up_to_length S (Suc ( #M# - 1 )) = language_up_to_length S ( #M# - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( #M# - 1 )))) 
         (generate_submachines M)) of
     [] \<Rightarrow> None |
-    S#SS \<Rightarrow> (Some (set (language_up_to_length S ( |M| - 1 )))))"
+    S#SS \<Rightarrow> (Some (set (language_up_to_length S ( #M# - 1 )))))"
 *)
 
 lemma calculate_preamble_set_naive_soundness :
@@ -3971,19 +3983,19 @@ lemma calculate_preamble_set_naive_soundness :
 proof -
   have P_prop : "P = set (language_up_to_length (hd 
               (filter 
-                (\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))) 
+                (\<lambda> S . language_up_to_length S (Suc ( #M# - 1 )) = language_up_to_length S ( #M# - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( #M# - 1 )))) 
                 (generate_submachines M))
-              ) ( |M| - 1 ))"
+              ) ( #M# - 1 ))"
     using assms unfolding calculate_preamble_set_naive.simps
     by (metis (no_types, lifting) hd_Cons_tl list.case_eq_if option.discI option.inject)
 
   have *: "filter 
-        (\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))) 
+        (\<lambda> S . language_up_to_length S (Suc ( #M# - 1 )) = language_up_to_length S ( #M# - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( #M# - 1 )))) 
         (generate_submachines M) \<noteq> []"
     by (metis (mono_tags, lifting) assms calculate_preamble_set_naive.simps list.case_eq_if option.discI)
 
   let ?S = "hd (filter 
-        (\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))) 
+        (\<lambda> S . language_up_to_length S (Suc ( #M# - 1 )) = language_up_to_length S ( #M# - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( #M# - 1 )))) 
         (generate_submachines M))"
 
   have "?S \<in> set (generate_submachines M)"
@@ -3991,19 +4003,19 @@ proof -
   then have "is_submachine ?S M"
     using generate_submachines_are_submachines[of ?S M] by fastforce
   
-  have "(\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and> is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))) ?S"
-    using filter_list_set_not_contained[OF \<open>?S \<in> set (generate_submachines M)\<close>, of "(\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and> is_preamble_set M q (set (language_up_to_length S ( |M| - 1 ))))"] hd_in_set[OF *] by fastforce
-  then have "language_up_to_length ?S (Suc ( |M| - 1 )) = language_up_to_length ?S ( |M| - 1 )" and "is_preamble_set M q (set (language_up_to_length ?S ( |M| - 1 )))"
+  have "(\<lambda> S . language_up_to_length S (Suc ( #M# - 1 )) = language_up_to_length S ( #M# - 1 ) \<and> is_preamble_set M q (set (language_up_to_length S ( #M# - 1 )))) ?S"
+    using filter_list_set_not_contained[OF \<open>?S \<in> set (generate_submachines M)\<close>, of "(\<lambda> S . language_up_to_length S (Suc ( #M# - 1 )) = language_up_to_length S ( #M# - 1 ) \<and> is_preamble_set M q (set (language_up_to_length S ( #M# - 1 ))))"] hd_in_set[OF *] by fastforce
+  then have "language_up_to_length ?S (Suc ( #M# - 1 )) = language_up_to_length ?S ( #M# - 1 )" and "is_preamble_set M q (set (language_up_to_length ?S ( #M# - 1 )))"
     by fastforce+
   
-  have "set (language_up_to_length ?S ( |M| - 1 )) = L ?S"
-    using sym[OF language_up_to_length_finite_language_fixpoint[OF \<open>language_up_to_length ?S (Suc ( |M| - 1 )) = language_up_to_length ?S ( |M| - 1 )\<close>]] by assumption
-  moreover have "P = set (language_up_to_length ?S ( |M| - 1 ))"
+  have "set (language_up_to_length ?S ( #M# - 1 )) = L ?S"
+    using sym[OF language_up_to_length_finite_language_fixpoint[OF \<open>language_up_to_length ?S (Suc ( #M# - 1 )) = language_up_to_length ?S ( #M# - 1 )\<close>]] by assumption
+  moreover have "P = set (language_up_to_length ?S ( #M# - 1 ))"
     using P_prop by fastforce
   ultimately have "P = L ?S"
     by metis
   moreover have "is_preamble_set M q (L ?S)"
-    using \<open>is_preamble_set M q (set (language_up_to_length ?S ( |M| - 1 )))\<close> sym[OF language_up_to_length_finite_language_fixpoint[OF \<open>language_up_to_length ?S (Suc ( |M| - 1 )) = language_up_to_length ?S ( |M| - 1 )\<close>]] by metis
+    using \<open>is_preamble_set M q (set (language_up_to_length ?S ( #M# - 1 )))\<close> sym[OF language_up_to_length_finite_language_fixpoint[OF \<open>language_up_to_length ?S (Suc ( #M# - 1 )) = language_up_to_length ?S ( #M# - 1 )\<close>]] by metis
   ultimately show ?thesis by metis
 qed
 
@@ -4031,56 +4043,56 @@ proof -
     by (metis (no_types, lifting) h_equivalence_path) 
   then have "L S = P"
     using \<open>L SP = P\<close> by simp
-  then have "L S \<subseteq> set (language_up_to_length M ( |M| - 1) )"
+  then have "L S \<subseteq> set (language_up_to_length M ( #M# - 1) )"
     using is_preamble_set_length[OF assms(2)] by auto
-  then have "L S \<subseteq> {io \<in> L M. length io \<le> |M| - 1}"
-    using language_up_to_length_set[of M "|M| - 1"] by blast
-  moreover have "L S \<inter> {io \<in> L M. length io \<le> |M| - 1} = {io \<in> L S. length io \<le> |M| - 1}"
+  then have "L S \<subseteq> {io \<in> L M. length io \<le> #M# - 1}"
+    using language_up_to_length_set[of M "#M# - 1"] by blast
+  moreover have "L S \<inter> {io \<in> L M. length io \<le> #M# - 1} = {io \<in> L S. length io \<le> #M# - 1}"
     using \<open>L S \<subseteq> L M\<close> by blast
-  ultimately have "L S \<subseteq> {io \<in> L S. length io \<le> |M| - 1}"
+  ultimately have "L S \<subseteq> {io \<in> L S. length io \<le> #M# - 1}"
     by blast
-  then have "L S = {io \<in> L S. length io \<le> |M| - 1}"
+  then have "L S = {io \<in> L S. length io \<le> #M# - 1}"
     by auto
-  then have "P = set (language_up_to_length S ( |M| - 1) )"
-    using language_up_to_length_set[of S "|M| - 1"] \<open>L S = P\<close> by blast
-  then have "is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))"
+  then have "P = set (language_up_to_length S ( #M# - 1) )"
+    using language_up_to_length_set[of S "#M# - 1"] \<open>L S = P\<close> by blast
+  then have "is_preamble_set M q (set (language_up_to_length S ( #M# - 1 )))"
     using assms(2) by metis
   
-  have "language_up_to_length S (Suc ( |M| - 1 )) = (language_up_to_length S ( |M| - 1 )) @ (map p_io (paths_of_length S (initial S) (Suc ( |M| - 1 ))))"
+  have "language_up_to_length S (Suc ( #M# - 1 )) = (language_up_to_length S ( #M# - 1 )) @ (map p_io (paths_of_length S (initial S) (Suc ( #M# - 1 ))))"
   proof -
-    have "language_up_to_length S (Suc ( |M| - 1)) = map p_io (paths_up_to_length S (initial S) ( |M| - 1)) @ map p_io (paths_of_length S (initial S) (Suc ( |M| - 1)))"
+    have "language_up_to_length S (Suc ( #M# - 1)) = map p_io (paths_up_to_length S (initial S) ( #M# - 1)) @ map p_io (paths_of_length S (initial S) (Suc ( #M# - 1)))"
       by (metis (no_types) language_up_to_length.simps map_append paths_up_to_length.simps(2))
     then show ?thesis
       by (metis (no_types) language_up_to_length.simps)
   qed
-  moreover have "map p_io (paths_of_length S (initial S) (Suc ( |M| - 1))) = []"
+  moreover have "map p_io (paths_of_length S (initial S) (Suc ( #M# - 1))) = []"
   proof (rule ccontr)
-    assume "map p_io (paths_of_length S (initial S) (Suc ( |M| - 1))) \<noteq> []"
-    then have "(paths_of_length S (initial S) (Suc ( |M| - 1))) \<noteq> []"
+    assume "map p_io (paths_of_length S (initial S) (Suc ( #M# - 1))) \<noteq> []"
+    then have "(paths_of_length S (initial S) (Suc ( #M# - 1))) \<noteq> []"
       by fastforce
-    then obtain p where "p \<in> set (paths_of_length S (initial S) (Suc ( |M| - 1)))" 
-      using hd_in_set[of "paths_of_length S (initial S) (Suc ( |M| - 1))"] by blast
-    have "path S (initial S) p" and "length p = (Suc ( |M| - 1))"
-      using paths_of_length_is_path[OF \<open>p \<in> set (paths_of_length S (initial S) (Suc ( |M| - 1)))\<close>] by auto
-    then have "p_io p \<in> {io \<in> L S. length io = Suc ( |M| - 1 )}" unfolding LS.simps by fastforce
-    moreover have "{io \<in> L S. length io = Suc ( |M| - 1 )} = {}"
-      using \<open>L S \<subseteq> {io \<in> L S. length io \<le> |M| - 1}\<close> by fastforce 
+    then obtain p where "p \<in> set (paths_of_length S (initial S) (Suc ( #M# - 1)))" 
+      using hd_in_set[of "paths_of_length S (initial S) (Suc ( #M# - 1))"] by blast
+    have "path S (initial S) p" and "length p = (Suc ( #M# - 1))"
+      using paths_of_length_is_path[OF \<open>p \<in> set (paths_of_length S (initial S) (Suc ( #M# - 1)))\<close>] by auto
+    then have "p_io p \<in> {io \<in> L S. length io = Suc ( #M# - 1 )}" unfolding LS.simps by fastforce
+    moreover have "{io \<in> L S. length io = Suc ( #M# - 1 )} = {}"
+      using \<open>L S \<subseteq> {io \<in> L S. length io \<le> #M# - 1}\<close> by fastforce 
     ultimately show "False" by blast
   qed
-  ultimately have "(language_up_to_length S (Suc ( |M| - 1 ))) = (language_up_to_length S ( |M| - 1 ))"
+  ultimately have "(language_up_to_length S (Suc ( #M# - 1 ))) = (language_up_to_length S ( #M# - 1 ))"
     by simp
 
 
-  let ?f = "(\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( |M| - 1 ))))"
+  let ?f = "(\<lambda> S . language_up_to_length S (Suc ( #M# - 1 )) = language_up_to_length S ( #M# - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( #M# - 1 ))))"
 
   have "?f S"
-    using \<open>(language_up_to_length S (Suc ( |M| - 1 ))) = (language_up_to_length S ( |M| - 1 ))\<close> \<open>is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))\<close> by metis
-  then have "(filter 
-          (\<lambda> S . language_up_to_length S (Suc ( |M| - 1 )) = language_up_to_length S ( |M| - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( |M| - 1 )))) 
-          (generate_submachines M)) \<noteq> []"
+    using \<open>(language_up_to_length S (Suc ( #M# - 1 ))) = (language_up_to_length S ( #M# - 1 ))\<close> \<open>is_preamble_set M q (set (language_up_to_length S ( #M# - 1 )))\<close> by metis
+  then have "(filter ?f (generate_submachines M)) \<noteq> []"
     using \<open>S \<in> set (generate_submachines M)\<close> filter_empty_conv[of ?f "generate_submachines M"] by blast
+
   then show "calculate_preamble_set_naive M q \<noteq> None"
-    unfolding calculate_preamble_set_naive.simps using list.case_eq_if[of None "\<lambda> S SA . (Some (set (language_up_to_length S ( |M| - 1 ))))" "filter ?f (generate_submachines M)"] option.distinct(1) by metis
+    unfolding calculate_preamble_set_naive.simps
+    by (metis (mono_tags, lifting) list.case_eq_if option.distinct(1))   
 qed
 
 
@@ -4135,7 +4147,7 @@ value[code] "sublists_of_language_of_length M_ex_H 1"
 
 
 fun calculate_preamble_naive :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
-  "calculate_preamble_naive M q = (case (filter (\<lambda> P . is_preamble_set M q (set P)) (sublists_of_language_of_length M  ( |M| - 1 ) )) of
+  "calculate_preamble_naive M q = (case (filter (\<lambda> P . is_preamble_set M q (set P)) (sublists_of_language_of_length M  ( #M# - 1 ) )) of
     [] \<Rightarrow> None |
     PS \<Rightarrow> (Some (set (hd PS))))" 
 
