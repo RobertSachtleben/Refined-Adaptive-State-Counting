@@ -4000,16 +4000,6 @@ fun calculate_preamble_set_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Righ
     SS \<Rightarrow> (Some (set (language_up_to_length (hd SS) n)))))" 
 
 
-(*
-fun calculate_preamble_set_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
-  "calculate_preamble_set_naive M q = 
-    (case 
-      (filter 
-        (\<lambda> S . language_up_to_length S (Suc ( size M - 1 )) = language_up_to_length S ( size M - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( size M - 1 )))) 
-        (generate_submachines M)) of
-    [] \<Rightarrow> None |
-    S#SS \<Rightarrow> (Some (set (language_up_to_length S ( size M - 1 )))))"
-*)
 
 lemma calculate_preamble_set_naive_soundness :
   assumes "calculate_preamble_set_naive M q = Some P"
@@ -4195,6 +4185,122 @@ value[code] "calculate_preamble_naive M_ex 5"
 
 
 (* state separator sets *)
+
+fun canonical_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme" where
+  "canonical_separator M q1 q2 = 
+    (let PM = (product (from_FSM M q1) (from_FSM M q2)) in
+    (let tPM = map (\<lambda> t . (Inl (t_source t), t_input t, t_output t, Inl (t_target t)) :: (('a \<times> 'a) + 'a) Transition) (transitions PM) in
+    (let tq1 = filter (\<lambda> t . \<exists> t1 \<in> set (transitions M) . t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> \<not> (\<exists> t2 \<in> set (transitions M) . t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t)) (transitions PM) in
+    (let tq2 = filter (\<lambda> t . \<exists> t2 \<in> set (transitions M) . t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> \<not> (\<exists> t1 \<in> set (transitions M) . t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t)) (transitions PM) in
+
+      \<lparr> initial = Inl (initial PM),
+        inputs = inputs M,
+        outputs = outputs M,
+        transitions = tPM @ (map (\<lambda> t . (Inl (t_source t), t_input t, t_output t, Inr q1)) tq1) @ (map (\<lambda> t . (Inl (t_source t), t_input t, t_output t, Inr q2)) tq2),
+        \<dots> = FSM.more M \<rparr> :: (('a \<times> 'a) + 'a,'b) FSM_scheme))))"
+
+value "canonical_separator M_ex 2 3"
+value "canonical_separator M_ex_H 1 2"
+value "language_up_to_length (canonical_separator M_ex_H 1 2) 2"
+
+(*
+(acyclic S \<and> single_input S \<and> is_submachine S M \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (\<forall> q' \<in> nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h S))))"
+*)
+
+fun is_Inl :: "'a + 'b \<Rightarrow> bool" where
+  "is_Inl (Inl x) = True" |
+  "is_Inl (Inr x) = False"
+
+fun is_state_separator_from_canonical_separator :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> bool" where
+  "is_state_separator_from_canonical_separator CSep q1 q2 S = (
+    is_submachine S CSep 
+    \<and> single_input S
+    (*\<and> acyclic S*)
+    \<and> language_up_to_length S (size CSep) = language_up_to_length S (size CSep - 1)
+    \<and> deadlock_state S (Inr q1)
+    \<and> deadlock_state S (Inr q2)
+    \<and> (\<forall> q \<in> nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (is_Inl q \<and> \<not> deadlock_state S q))
+    \<and> (\<forall> q \<in> nodes S . \<forall> x \<in> set (inputs CSep) . (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))
+)"
+
+(*
+definition calculate_state_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
+  "calculate_state_separator_naive M q1 q2 = (let CSep = canonical_separator M q1 q2 in
+    (case filter (\<lambda> S . is_state_separator_from_canonical_separator CSep q1 q2 S) (generate_submachines CSep) of
+      [] \<Rightarrow> None |
+      S#SS \<Rightarrow> Some S))"
+
+value "calculate_state_separator_naive M_ex 5 2"
+*)
+
+
+fun calculate_state_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
+  "calculate_state_separator_naive M q1 q2 = 
+    (case filter (\<lambda> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S) (generate_submachines (canonical_separator M q1 q2)) of
+      [] \<Rightarrow> None |
+      S#SS \<Rightarrow> Some S)"
+
+
+
+
+function calculate_state_separator_naive :: "(nat, nat) FSM_scheme \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ((nat \<times> nat) + nat,nat) FSM_scheme option" where
+  "calculate_state_separator_naive M q1 q2 = 
+    (case generate_submachines (canonical_separator M q1 q2) of
+      [] \<Rightarrow> None |
+      S#SS \<Rightarrow> Some S)"
+  sorry 
+termination
+  using "termination" by blast 
+
+
+
+function calculate_state_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
+  "calculate_state_separator_naive M q1 q2 = (let CSep = canonical_separator M q1 q2 in
+    (case filter (\<lambda> S . is_state_separator_from_canonical_separator CSep q1 q2 S) (generate_submachines CSep) of
+      [] \<Rightarrow> None |
+      S#SS \<Rightarrow> Some S))"
+using Product_Type.prod_cases3
+proof -
+  fix P :: bool and x :: "('a, 'b) FSM_scheme \<times> 'a \<times> 'a"
+  assume "\<And>M q1 q2. x = (M, q1, q2) \<Longrightarrow> P"
+  then show P
+    using prod_cases3 by blast
+next 
+  fix M :: "('a, 'b) FSM_scheme"
+  fix q1 :: "'a"
+  fix q2 :: "'a"
+  fix Ma q1a q2a 
+  assume "(M, q1, q2) = (Ma, q1a, q2a)"
+  then show "(let CSep = canonical_separator M q1 q2
+        in case filter (is_state_separator_from_canonical_separator CSep q1 q2)
+                 (generate_submachines CSep) of
+           [] \<Rightarrow> None | S # SS \<Rightarrow> Some S) =
+       (let CSep = canonical_separator Ma q1a q2a
+        in case filter (is_state_separator_from_canonical_separator CSep q1a q2a)
+                 (generate_submachines CSep) of
+           [] \<Rightarrow> None | S # SS \<Rightarrow> Some S)" by blast
+qed
+termination 
+  
+  
+proof -
+
+fun calculate_state_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
+  "calculate_state_separator_naive M q1 q2 = (let CSep = canonical_separator M q1 q2 in
+    (case filter (\<lambda> S . is_state_separator_from_canonical_separator CSep q1 q2 S) (generate_submachines CSep) of
+      [] \<Rightarrow> None |
+      S#SS \<Rightarrow> Some S))
+    
+lemma asdf: "2 = 3"
+
+
+end (*
+
+
+
+
+
+
 type_synonym IO = "(Input \<times> Output)"
 type_synonym 'a Separator_set = "(IO list set \<times> (IO list \<Rightarrow> 'a option))" (* second value maps io sequences to their reached deadlock state, if any *)
 datatype 'a Separator_state = NonSep nat | Sep 'a
