@@ -850,6 +850,16 @@ inductive_set nodes :: "('state, 'b) FSM_scheme \<Rightarrow> 'state set" for M 
   initial[intro!]: "initial M \<in> nodes M" |
   step[intro!]: "t \<in> h M \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_target t \<in> nodes M"
 
+
+instantiation FSM_ext  :: (type,type) size 
+begin
+
+definition size where [simp, code]: "size (m::('a, 'b) FSM_ext) = card (nodes m)"
+
+instance ..
+
+end
+
 lemma nodes_path : 
   assumes "q \<in> nodes M"
   and     "path M q p"
@@ -1228,6 +1238,28 @@ proof (rule ccontr)
   then show "False" using assms(2) by auto
 qed
 
+lemma distinct_path_length_limit_nodes :
+  assumes "path M q p"
+  and     "q \<in> nodes M"
+  and     "distinct (visited_states q p)"
+shows "length p < size M"
+proof (rule ccontr)
+  assume *: "\<not> length p < size M"
+
+  have "length (visited_states q p) = Suc (length p)"
+    by simp
+  then have "length (visited_states q p) \<ge> size M"
+    using "*" by linarith
+  moreover have "set (visited_states q p) \<subseteq> nodes M"
+    by (metis assms(1) assms(2) nodes_path path_prefix subsetI visited_states_prefix)
+  moreover have "finite (nodes M)"
+    by (metis List.finite_set finite.simps nodes'.simps nodes_nodes')
+  ultimately have "\<not>distinct (visited_states q p)"
+    unfolding size_def
+    by (metis "*" Suc_le_lessD \<open>length (visited_states q p) = Suc (length p)\<close> card_mono distinct_card size_def)
+  then show "False" using assms(3) by auto
+qed
+
 lemma nodes_code[code]: "nodes M = set (nodes_from_distinct_paths M)"
 proof -
   have "set (nodes_from_distinct_paths M) = image (\<lambda>p . target p (initial M)) {p. path M (initial M) p \<and> distinct (visited_states (initial M) p) \<and> length p \<le> length (wf_transitions M)}"
@@ -1434,6 +1466,58 @@ value "output_complete M_ex"
 fun acyclic :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
   "acyclic M = (\<forall> p . path M (initial M) p \<longrightarrow> distinct (visited_states (initial M) p))"
   (* original formulation: "acyclic M = finite (L M)" - this follows from the path-distinctness property, as repetitions along paths allow for infinite loops *)
+
+fun contains_cyclic_path :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "contains_cyclic_path M = (\<exists> p \<in> set (distinct_paths_up_to_length M (initial M) (size M)) . \<exists> t \<in> h M . path M (initial M) (p@[t]) \<and> \<not>distinct (visited_states (initial M) (p@[t]))) "
+
+
+lemma acyclic_code[code] : "acyclic M = (\<not>contains_cyclic_path M)"
+proof 
+  show "FSM3.acyclic M \<Longrightarrow> \<not> contains_cyclic_path M"
+    by (meson acyclic.elims(2) contains_cyclic_path.elims(2))
+
+  have "\<not> FSM3.acyclic M \<Longrightarrow> contains_cyclic_path M"
+  proof -
+    assume "\<not> FSM3.acyclic M"
+    then obtain p where "path M (initial M) p" and "\<not>distinct (visited_states (initial M) p)" by auto
+    
+
+    let ?paths = "{ p' . path M (initial M) p' \<and> \<not>distinct (visited_states (initial M) p') \<and> length p' \<le> length p}"
+    let ?minPath = "arg_min length (\<lambda> io . io \<in> ?paths)" 
+  
+    have "?paths \<noteq> empty" 
+      using \<open>path M (initial M) p\<close> \<open>\<not>distinct (visited_states (initial M) p)\<close> by auto
+    moreover have "finite ?paths" 
+      using paths_finite[of M "initial M" "length p"]
+      by (metis (no_types, lifting) Collect_mono rev_finite_subset)
+    ultimately have minPath_def : "?minPath \<in> ?paths \<and> (\<forall> p' \<in> ?paths . length ?minPath \<le> length p')" 
+      by (meson arg_min_nat_lemma equals0I)
+    then have "path M (initial M) ?minPath" and "\<not>distinct (visited_states (initial M) ?minPath)" 
+      by auto
+
+    then have "length ?minPath > 0"
+      by auto
+    then have "length (butlast ?minPath) < length ?minPath"
+      by auto
+    moreover have "path M (initial M) (butlast ?minPath)"
+      using \<open>path M (initial M) ?minPath\<close>
+      by (metis (no_types, lifting) \<open>0 < length (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> append_butlast_last_id length_greater_0_conv path_prefix) 
+    ultimately have "distinct (visited_states (initial M) (butlast ?minPath))"
+      using dual_order.strict_implies_order dual_order.strict_trans1 minPath_def by blast
+
+    then have "(butlast ?minPath) \<in> set (distinct_paths_up_to_length M (initial M) (size M))"
+      using \<open>path M (initial M) (butlast ?minPath)\<close> distinct_path_length_limit_nodes
+      by (metis (no_types, lifting) distinct_paths_up_to_length_path_set less_imp_le mem_Collect_eq nodes.initial)
+    moreover have "(last ?minPath) \<in> h M"
+      by (metis (no_types, lifting) \<open>0 < length (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> \<open>path M (initial M) (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> contra_subsetD last_in_set length_greater_0_conv path_h) 
+    moreover have "path M (initial M) ((butlast ?minPath)@[(last ?minPath)]) \<and> \<not>distinct (visited_states (initial M) ((butlast ?minPath)@[(last ?minPath)]))"
+      using \<open>0 < length (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> \<open>\<not> distinct (visited_states (initial M) (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p}))\<close> \<open>path M (initial M) (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> by auto
+    ultimately show "contains_cyclic_path M"
+      unfolding contains_cyclic_path.simps
+      by meson 
+  qed
+  then show "\<not> contains_cyclic_path M \<Longrightarrow> FSM3.acyclic M" by blast
+qed
 
 
 
@@ -1926,14 +2010,6 @@ fun minimal :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
 
 
 
-instantiation FSM_ext  :: (type,type) size 
-begin
-
-definition size where [simp, code]: "size (m::('a, 'b) FSM_ext) = card (nodes m)"
-
-instance ..
-
-end
 
 
 
@@ -4021,13 +4097,14 @@ lemma is_preamble_set_code[code] :
 
 
 fun generate_selector_lists :: "nat \<Rightarrow> bool list list" where
-  "generate_selector_lists k = lists_of_length [True,False] k"
+  "generate_selector_lists k = lists_of_length [False,True] k"
+  (*"generate_selector_lists k = lists_of_length [True,False] k"*)
+  
 
 value "generate_selector_lists 4"
 
 lemma generate_selector_lists_set : "set (generate_selector_lists k) = {(bs :: bool list) . length bs = k}"
-  using lists_of_length_list_set[of "[True,False]" k]
-  by auto 
+  using lists_of_length_list_set by auto 
 
 fun generate_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> bool list \<Rightarrow> ('a, 'b) FSM_scheme" where
   "generate_submachine M bs = M\<lparr> transitions := map fst (filter snd (zip (transitions M) bs)) \<rparr>"
@@ -4539,8 +4616,7 @@ fun is_state_separator_from_canonical_separator :: "(('a \<times> 'a) + 'a,'b) F
   "is_state_separator_from_canonical_separator CSep q1 q2 S = (
     is_submachine S CSep 
     \<and> single_input S
-    (*\<and> acyclic S*)
-    \<and> language_up_to_length S (size CSep) = language_up_to_length S (size CSep - 1)
+    \<and> acyclic S
     \<and> deadlock_state S (Inr q1)
     \<and> deadlock_state S (Inr q2)
     \<and> ((Inr q1) \<in> nodes S)
@@ -4548,11 +4624,12 @@ fun is_state_separator_from_canonical_separator :: "(('a \<times> 'a) + 'a,'b) F
     \<and> (\<forall> q \<in> nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (is_Inl q \<and> \<not> deadlock_state S q))
     \<and> (\<forall> q \<in> nodes S . \<forall> x \<in> set (inputs CSep) . (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))
 )"
+
 fun calculate_state_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
-  "calculate_state_separator_naive M q1 q2 = 
-    (case filter (\<lambda> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S) (generate_submachines (canonical_separator M q1 q2)) of
+  "calculate_state_separator_naive M q1 q2 = (let CSep = canonical_separator M q1 q2 in
+    (case filter (\<lambda> S . is_state_separator_from_canonical_separator CSep q1 q2 S) (map trim_transitions (generate_submachines CSep)) of
       [] \<Rightarrow> None |
-      S#SS \<Rightarrow> Some S)"
+      S#SS \<Rightarrow> Some S))"
 
 export_code calculate_state_separator_naive canonical_separator M_ex M_ex_H in Haskell module_name Main
 
