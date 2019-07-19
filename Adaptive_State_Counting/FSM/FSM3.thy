@@ -4697,10 +4697,15 @@ proof (induction k arbitrary: q1 q2)
   case 0
   then show ?case 
     unfolding r_distinguishable_k.simps r_distinguishable_k_witness.simps 
-    using find_None_iff option.case_eq_if option.distinct(1) 
+    using find_None_iff[of "(\<lambda>x. \<not> (\<exists>t1\<in>h M.
+                        \<exists>t2\<in>h M.
+                           t_source t1 = q1 \<and>
+                           t_source t2 = q2 \<and>
+                           t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" "(inputs M)"] by fastforce    
 next
   case (Suc k)
   then show ?case sorry
+    
 qed
 
 
