@@ -2180,9 +2180,14 @@ abbreviation "r_distinguishable M q1 q2 \<equiv> \<not> r_compatible M q1 q2"
 
 
 fun r_distinguishable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
-  "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" |
+  "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" |
   "r_distinguishable_k M q1 q2 (Suc k) = (r_distinguishable_k M q1 q2 k 
-                                          \<or> (\<exists> x \<in> set (inputs M) . \<forall> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
+                                          \<or> (\<exists> x \<in> set (inputs M) . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
+
+
+
+
+
 
 lemma r_distinguishable_k_0_alt_def : 
   "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not>(\<exists> y q1' q2' . (q1,x,y,q1') \<in> h M \<and> (q2,x,y,q2') \<in> h M))"
@@ -2191,7 +2196,7 @@ lemma r_distinguishable_k_0_alt_def :
 lemma r_distinguishable_k_Suc_k_alt_def :
   "r_distinguishable_k M q1 q2 (Suc k) = (r_distinguishable_k M q1 q2 k 
                                           \<or> (\<exists> x \<in> set (inputs M) . \<forall> y q1' q2' . ((q1,x,y,q1') \<in> h M \<and> (q2,x,y,q2') \<in> h M) \<longrightarrow> r_distinguishable_k M q1' q2' k))" 
-  by auto
+  unfolding r_distinguishable_k.simps by fastforce
 
 
 
@@ -2597,7 +2602,7 @@ next
     proof 
       fix x assume "x \<in> set (inputs M)"
   
-      have "\<not>(\<exists> x \<in> set (inputs M) . \<forall> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k)"
+      have "\<not>(\<exists> x \<in> set (inputs M) . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k)"
         using Suc.prems by auto
       then have "\<forall> x \<in> set (inputs M) . \<exists> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<and> \<not> r_distinguishable_k M (t_target t1) (t_target t2) k)"
         by blast
@@ -2942,7 +2947,7 @@ proof
         case False
         then obtain x where "x \<in> set (inputs M)"
                         and "\<forall>y q1' q2'. (q1, x, y, q1') \<in> h M \<and> (q2, x, y, q2') \<in> h M \<longrightarrow> r_distinguishable_k M q1' q2' k"
-          using Suc.prems(1) by auto
+          using Suc.prems(1) by fastforce
 
         from Suc obtain S where "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
                             and "completely_specified S"
@@ -4649,6 +4654,124 @@ definition "M_ex_I = (\<lparr>
                                       (4,2,20,2),
                                       (5,2,30,3)]\<rparr>) "
 export_code calculate_state_separator_naive canonical_separator M_ex M_ex_H M_ex_I in Haskell module_name Main
+
+
+
+
+
+
+
+
+
+fun these_list :: "'a option list \<Rightarrow> 'a list" where
+  "these_list [] = []" |
+  "these_list (x#xs) = (case x of
+    None \<Rightarrow> these_list xs |
+    Some x' \<Rightarrow> x'#(these_list xs))"
+
+lemma these_list_set : "set (these_list xs) = Option.these (set xs)" 
+proof (induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  then show ?case 
+     unfolding these_list.simps using Option.these_def[of "set xs"] by(cases "a = None"; auto)
+qed
+
+fun r_distinguishable_k_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a) \<times> Input) list option" where
+  "r_distinguishable_k_witness M q1 q2 0 = (case (find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M)) of
+    None \<Rightarrow> None |
+    Some x \<Rightarrow> Some [((q1,q2),x)])" |
+  "r_distinguishable_k_witness M q1 q2 (Suc k) = (case r_distinguishable_k_witness M q1 q2 0 of 
+    None \<Rightarrow> (case find (\<lambda> xr . \<not>(None \<in> set (snd xr))) (map (\<lambda> x . (x,(map (\<lambda>tt . r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt)) k) (filter (\<lambda>tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt)) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))))))) (inputs M)) of
+              None \<Rightarrow> None |
+              Some (x,rs) \<Rightarrow> Some (((q1,q2),x)#(concat (these_list rs)))) |
+    Some w \<Rightarrow> Some w)"
+                    
+value "r_distinguishable_k_witness M_ex_H 1 3 (size (product (from_FSM M_ex_H 1) (from_FSM M_ex_H 3)))"
+
+lemma r_distinguishable_k_witness_ex : 
+  "r_distinguishable_k M q1 q2 k = (r_distinguishable_k_witness M q1 q2 k \<noteq> None)"
+proof (induction k arbitrary: q1 q2)
+  case 0
+  then show ?case 
+    unfolding r_distinguishable_k.simps r_distinguishable_k_witness.simps 
+    using find_None_iff option.case_eq_if option.distinct(1) 
+next
+  case (Suc k)
+  then show ?case sorry
+qed
+
+
+lemma r_distinguishable_k_witnesses :
+  assumes "r_distinguishable_k_witness M q1 q2 k = Some wt"
+  and     "w \<in> set wt"
+  shows   "\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = fst (fst w) \<and> t_source t2 = snd (fst w) \<and> t_input t1 = snd x \<and> t_input t2 = snd x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k"
+
+
+
+
+
+
+
+
+
+
+fun construct_r_distinguishing_set_from_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a  \<Rightarrow> (('a \<times> 'a) \<times> Input) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme" where
+  "construct_r_distinguishing_set_from_witness M q1 q2 w = (let CSep = canonical_separator M q1 q2 in
+    CSep\<lparr> transitions := filter (\<lambda> t . (t_source t, t_input t) \<in> set (map (\<lambda> wt . (Inl (fst wt),snd wt))  w)) (transitions CSep)\<rparr>)"     
+
+fun construct_r_distinguishing_set_by_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme option" where
+  "construct_r_distinguishing_set_by_witness M q1 q2 = (case r_distinguishable_k_witness M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) of
+    None \<Rightarrow> None |
+    Some w \<Rightarrow> Some (construct_r_distinguishing_set_from_witness M q1 q2 w))"
+
+value "construct_r_distinguishing_set_by_witness M_ex_H 1 3"
+
+end (*
+
+\<lparr> initial = Inl (q1,q2),
+      inputs = inputs M,
+      outputs = outputs M,
+      transitions := (map (\<lambda>t . (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (filter (\<lambda> t . (t_source t, t_input t, False) \<in> set w) (transitions PM)))
+                     @                       
+@ (map (\<lambda>t . (Inl (t_source t), t_input t, t_output t, Inr q1)) (filter (\<lambda> t . (t_source t, t_input t, True) \<in> set w) (transitions PM)))
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
