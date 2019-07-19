@@ -3,8 +3,8 @@ imports Main
 begin
 
 (*type_synonym State = nat*)
-type_synonym Input = nat
-type_synonym Output = nat
+type_synonym Input = integer
+type_synonym Output = integer
 (*type_synonym Transition = "(nat \<times> nat \<times> nat \<times> nat)"*)
 type_synonym 'state Transition = "('state \<times> Input \<times> Output \<times> 'state)"
 
@@ -170,7 +170,7 @@ lemma path_h :
 
 (* Example FSM *)
 definition "M_ex = (\<lparr> 
-                      initial = 2::nat, 
+                      initial = 2::integer, 
                       inputs = [0,1,2], 
                       outputs = [10,20,30], 
                       transitions = [ (2,1,20,3),
@@ -178,11 +178,11 @@ definition "M_ex = (\<lparr>
                                       (3,1,10,5),
                                       (4,0,10,3),
                                       (4,2,20,2),
-                                      (5,2,30,3)]\<rparr>)"
+                                      (5,2,30,3)]\<rparr>) "
 
 (* example FSM of Hieron's paper *)
 definition "M_ex_H = (\<lparr> 
-                      initial = 1::nat, 
+                      initial = 1::integer, 
                       inputs = [0,1], 
                       outputs = [0,1], 
                       transitions = [ (1,0,0,2),
@@ -198,7 +198,7 @@ definition "M_ex_H = (\<lparr>
                                       ]\<rparr>)"
 
 definition "M_ex' = (\<lparr> 
-                      initial = 1000::nat, 
+                      initial = 1000::int, 
                       inputs = [0,1,2], 
                       outputs = [10,20,30], 
                       transitions = [ (1000,1,20,1003),
@@ -3027,12 +3027,12 @@ lemma submachine_language :
   assumes "is_submachine S M"
   shows "L S \<subseteq> L M"
 proof - (* TODO: format auto-generated code *)
-obtain pps :: "(nat \<times> nat) list set \<Rightarrow> (nat \<times> nat) list set \<Rightarrow> (nat \<times> nat) list" where
+obtain pps :: "(integer \<times> integer) list set \<Rightarrow> (integer \<times> integer) list set \<Rightarrow> (integer \<times> integer) list" where
   f1: "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
   by moura
   have f2: "initial S = initial M \<and> set (transitions S) \<subseteq> set (transitions M) \<and> inputs S = inputs M \<and> outputs S = outputs M"
     using assms is_submachine.simps by blast
-  obtain ppsa :: "(nat \<times> nat) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> nat \<times> nat \<times> 'a) list" where
+  obtain ppsa :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
     f3: "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (ppsa x0 x1 x2) \<and> path x2 x1 (ppsa x0 x1 x2))"
 by moura
   { assume "path M (initial M) (ppsa (pps (L M) (L S)) (initial M) S)"
@@ -3087,7 +3087,7 @@ lemma observable_submachine_io_target :
   and     "io \<in> L S"
 shows "io_target S io (initial S) = io_target M io (initial M)"
 proof -
-  obtain pps :: "(nat \<times> nat) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> nat \<times> nat \<times> 'a) list" where
+  obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
     "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
     by moura
   then have f1: "io = p_io (pps io (initial M) S) \<and> path S (initial M) (pps io (initial M) S)"
@@ -3512,7 +3512,7 @@ proof -
 
         have "t_source ?t = io_target M io (initial M) \<and> t_input ?t = fst xy \<and> t_output ?t = snd xy"
         proof - (* TODO: refactor auto-generated code *)
-          have f1: "\<forall>ps p psa. (ps @ [p::nat \<times> nat] = psa) = (psa \<noteq> [] \<and> butlast psa = ps \<and> last psa = p)"
+          have f1: "\<forall>ps p psa. (ps @ [p::integer \<times> integer] = psa) = (psa \<noteq> [] \<and> butlast psa = ps \<and> last psa = p)"
             using snoc_eq_iff_butlast by blast
           have f2: "p \<noteq> []"
             using \<open>p_io p = io @ [xy]\<close> by force
@@ -3522,7 +3522,7 @@ proof -
             by (metis (no_types) \<open>path M (initial M) p\<close> path_prefix)
           have f5: "p_io (butlast p) = io"
             by (simp add: \<open>p_io p = io @ [xy]\<close> map_butlast)
-          have "\<forall>ps f. ps = [] \<or> last (map f ps) = (f (last ps::'a \<times> nat \<times> nat \<times> 'a)::nat \<times> nat)"
+          have "\<forall>ps f. ps = [] \<or> last (map f ps) = (f (last ps::'a \<times> integer \<times> integer \<times> 'a)::integer \<times> integer)"
             using last_map by blast
           then have f6: "(t_input (last p), t_output (last p)) = last (p_io p)"
             using f2 by force
@@ -3733,7 +3733,7 @@ proof -
           by (meson path_h)
         then have f5: "last p'' \<in> h (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)"
           using f3 \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p''\<close> last_in_set by blast
-        have f6: "\<forall>ps f. ps = [] \<or> last (map f ps) = (f (last ps::'a \<times> nat \<times> nat \<times> 'a)::nat \<times> nat)"
+        have f6: "\<forall>ps f. ps = [] \<or> last (map f ps) = (f (last ps::'a \<times> integer \<times> integer \<times> 'a)::integer \<times> integer)"
           by (meson last_map)
         then have "last (p_io p'') = (t_input (last p''), t_output (last p''))"
           using f3 by blast
@@ -4527,7 +4527,7 @@ value[code] "calculate_preamble_naive M_ex 5"
 *)
 
 fun trim_transitions :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme" where
-  "trim_transitions M = M\<lparr> transitions := filter (\<lambda> t . t_source t \<in> nodes M) (transitions M)\<rparr>"
+  "trim_transitions M = M\<lparr> transitions := filter (\<lambda> t . t_source t \<in> nodes M) (wf_transitions M)\<rparr>"
 
 lemma trim_transitions_paths : "path M (initial M) p = path (trim_transitions M) (initial (trim_transitions M)) p"
 proof -
@@ -4564,9 +4564,15 @@ qed
 lemma trim_transitions_language : "L M = L (trim_transitions M)"
   using trim_transitions_paths unfolding LS.simps by blast
 
+
+lemma is_submachine_from_filtering_wf_transitions :
+  "is_submachine (M\<lparr>transitions := filter P (wf_transitions M)\<rparr>) M"
+  by auto
+
 lemma trim_transitions_nodes : "nodes M = nodes (trim_transitions M)"
   using trim_transitions_paths[of M] path_to_nodes[of _ M] path_to_nodes[of _ "trim_transitions M"]
-  by (metis is_submachine.elims(2) nodes.initial nodes_path subsetI subset_antisym transition_filter_submachine trim_transitions.simps) 
+  using is_submachine.elims(2) nodes.initial nodes_path subsetI subset_antisym is_submachine_from_filtering_wf_transitions trim_transitions.simps by metis
+  
 
 
 
@@ -4631,7 +4637,135 @@ fun calculate_state_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<R
       [] \<Rightarrow> None |
       S#SS \<Rightarrow> Some S))"
 
-export_code calculate_state_separator_naive canonical_separator M_ex M_ex_H in Haskell module_name Main
+
+definition "M_ex_I = (\<lparr> 
+                      initial = 2::integer, 
+                      inputs = [0,1,2], 
+                      outputs = [10,20,30], 
+                      transitions = [ (2,1,20,3),
+                                      (2,1,30,4),
+                                      (3,1,10,5),
+                                      (4,0,10,3),
+                                      (4,2,20,2),
+                                      (5,2,30,3)]\<rparr>) "
+export_code calculate_state_separator_naive canonical_separator M_ex M_ex_H M_ex_I in Haskell module_name Main
+
+
+
+fun generate_sublists :: "'a list \<Rightarrow> 'a list list" where
+  "generate_sublists xs = map (\<lambda> bs . map fst (filter snd (zip xs bs))) (generate_selector_lists (length xs))"
+
+value "generate_sublists [1,2,3,4::nat]"
+
+
+lemma apply_selector_list_result: 
+  shows "set (map fst (filter snd (zip xs bs))) \<subseteq> set xs"
+proof (induction xs rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc a xs)
+
+  have *:"(map fst (filter snd (zip (xs @ [a]) bs)) = (map fst (filter snd (zip xs bs)))) 
+        \<or> (map fst (filter snd (zip (xs @ [a]) bs)) = (map fst (filter snd (zip xs bs)))@[a])"
+  proof (cases "length bs \<le> length xs")
+    case True
+    then have "(zip (xs @ [a]) bs) = (zip xs bs)"
+      by (simp add: zip_append1)
+    then have "(map fst (filter snd (zip (xs @ [a]) bs)) = (map fst (filter snd (zip xs bs))))" by simp
+    then show ?thesis by auto
+  next
+    case False
+    then have "length xs = length (take (length xs) bs)" by auto
+
+    let ?bs = "take (length (xs@[a])) bs"
+    
+
+    have "(zip (xs @ [a]) bs) = (zip (xs@[a]) ?bs)"
+      by (metis append_Nil2 zip_Nil zip_append1) 
+    moreover have "length (xs@[a]) = length ((butlast ?bs)@[last ?bs])" using False by auto
+    ultimately have "(zip (xs @ [a]) bs) = (zip xs (butlast ?bs))@(zip [a] [last ?bs])"
+      by (metis False One_nat_def append_butlast_last_id butlast.simps(1) butlast_snoc eq_iff length_append_singleton length_butlast less_numeral_extra(1) less_numeral_extra(3) list.size(3) take_eq_Nil zip_append)
+    then have "(map fst (filter snd (zip (xs @ [a]) bs)) = (map fst (filter snd ((zip xs (butlast ?bs))@(zip [a] [last ?bs])))))"
+      by auto
+    then have "(map fst (filter snd (zip (xs @ [a]) bs)) = (map fst (filter snd ((zip xs (butlast ?bs)))))@(map fst (filter snd ((zip [a] [last ?bs])))))"
+      by auto
+    moreover have "zip xs (butlast ?bs) = zip xs bs"
+      by (metis False append_Nil2 butlast_take diff_Suc_1 length_append_singleton not_less_eq_eq zip_Nil zip_append1)
+    moreover have "(map fst (filter snd ((zip [a] [last ?bs])))) = [] \<or> (map fst (filter snd ((zip [a] [last ?bs])))) = [a]"
+      by auto
+    ultimately show ?thesis 
+      by auto 
+  qed
+
+  then show ?case using snoc.IH by (cases "(map fst (filter snd (zip (xs @ [a]) bs)) = (map fst (filter snd (zip xs bs))))"; fastforce)
+qed 
+
+
+lemma "set (map set (generate_sublists xs)) = {xs' . xs' \<subseteq> set xs}"
+proof -
+  have "\<And> x . x \<in> set (map set (generate_sublists xs)) \<Longrightarrow> x \<subseteq> set xs"
+    unfolding generate_sublists.simps using apply_selector_list_result[of xs] by fastforce
+  moreover have "\<And> x . x \<subseteq> set xs \<Longrightarrow> x \<in> set (map set (generate_sublists xs))"
+  proof -
+    fix x assume "x \<subseteq> set xs"
+    then have "finite x"
+      using infinite_super by auto 
+    then obtain x' where "set x' = x" 
+      using List.finite_list by blast
+    then have "set x' \<subseteq> set xs"
+      using \<open>x \<subseteq> set xs\<close> by blast
+    then obtain bs where "length bs = length xs" and "set x' = set (map fst (filter snd (zip xs bs)))"
+      using generate_submachine_transition_set_equality[of x' xs] by auto
+    then have "bs \<in> set (generate_selector_lists (length xs))" 
+      using generate_selector_lists_set[of "length xs"] by auto
+    then show "x \<in> set (map set (generate_sublists xs))"
+      unfolding generate_sublists.simps using \<open>set x' = set (map fst (filter snd (zip xs bs)))\<close> \<open>set x' = x\<close> by fastforce
+  qed
+  ultimately show ?thesis by blast
+qed
+
+
+
+(* state preamble calculation as given by Petrenko & Yevtushenko *)
+fun construct_state_preamble_data :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a Transition list \<Rightarrow> ('a list \<times> 'a Transition list) option" where
+  "construct_state_preamble_data M 0 q r hs = Some (r,hs)" |
+  "construct_state_preamble_data M (Suc n) q r hs = 
+    (case 
+      (find 
+        (\<lambda> qI . snd qI \<noteq> [] \<and> (\<forall> t \<in> h M . t_source t = fst qI \<and> t_input t \<in> set (snd qI) \<longrightarrow> t_target t \<in> set r)) 
+        (concat (map (\<lambda>q . map (\<lambda>x . (q,x)) (generate_sublists (inputs M))) (filter (\<lambda> q . \<not>(q \<in> set r)) (nodes_from_distinct_paths M))))) of
+      None \<Rightarrow> (if (initial M \<in> set r) then Some (r,hs) else None) |
+      Some qI \<Rightarrow> construct_state_preamble_data M n q (r@[fst qI]) (hs@(filter (\<lambda> t . t_source t = fst qI \<and> t_input t \<in> set (snd qI)) (wf_transitions M))))" 
+
+fun construct_state_preamble_from_data :: "('a,'b) FSM_scheme \<Rightarrow> 'a list \<Rightarrow> 'a Transition list \<Rightarrow> ('a,'b) FSM_scheme" where
+  "construct_state_preamble_from_data M r hs = 
+    (let qi = map (\<lambda>q . (q, (find (\<lambda> x . \<exists> t \<in> set hs . t_source t = q \<and> t_input t = x) (inputs M)))) r in 
+    (let hs' = filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set qi) hs in
+    trim_transitions (M\<lparr> transitions := hs' \<rparr>)))"
+
+
+
+fun construct_state_preamble :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a,'b) FSM_scheme option" where
+  "construct_state_preamble M q = 
+    (if q = initial M 
+      then Some (M\<lparr> transitions := [] \<rparr>)
+      else (if \<not>(q \<in> nodes M)
+        then None
+        else (case construct_state_preamble_data M (size M) q [q] [] of
+          None \<Rightarrow> None |
+          Some (r,hs) \<Rightarrow> Some (construct_state_preamble_from_data M r hs))))"
+
+
+value "construct_state_preamble_data M_ex_H (size M_ex_H) 3 [3] []"
+value "construct_state_preamble M_ex_H 3"
+value "calculate_preamble_set_naive M_ex_H 3"
+
+
+
+
+
+
 
 
 value[code] "calculate_state_separator_naive M_ex 2 3"
