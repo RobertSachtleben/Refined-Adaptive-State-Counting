@@ -4783,7 +4783,7 @@ next
   qed
 qed
 
-lemma "r_distinguishable_k M q1 q2 k = r_distinguishable_k' M q1 q2 k"
+lemma r_distinguishable_k'_eq : "r_distinguishable_k M q1 q2 k = r_distinguishable_k' M q1 q2 k"
 proof (induct k arbitrary: q1 q2)
   case 0
   then show ?case by auto
@@ -4843,8 +4843,8 @@ lemma r_distinguishable_k_witness_ex_find_helper : "((case find P XS of None \<R
   by (simp add: option.case_eq_if) 
   
 
-lemma r_distinguishable_k_witness_ex : 
-  "r_distinguishable_k' M q1 q2 k = (r_distinguishable_k_witness M q1 q2 k \<noteq> None)"
+lemma r_distinguishable_k_witness_ex' : 
+  shows  "r_distinguishable_k' M q1 q2 k = (r_distinguishable_k_witness M q1 q2 k \<noteq> None)"
 proof (induction k arbitrary: q1 q2 rule: less_induct)
   case (less k')
   then show ?case proof (cases k')
@@ -4967,9 +4967,10 @@ proof (induction k arbitrary: q1 q2 rule: less_induct)
   qed
 qed
 
+lemma r_distinguishable_k_witness_ex : 
+  "r_distinguishable_k M q1 q2 k = (r_distinguishable_k_witness M q1 q2 k \<noteq> None)"
+  using r_distinguishable_k_witness_ex' r_distinguishable_k'_eq by metis
 
-
-end (*
 
 
 
@@ -4978,15 +4979,120 @@ end (*
 lemma r_distinguishable_k_witnesses :
   assumes "r_distinguishable_k_witness M q1 q2 k = Some wt"
   and     "w \<in> set wt"
-  shows   "\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = fst (fst w) \<and> t_source t2 = snd (fst w) \<and> t_input t1 = snd x \<and> t_input t2 = snd x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k"
+shows     "\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = fst (fst w) \<and> t_source t2 = snd (fst w) \<and> t_input t1 = snd w \<and> t_input t2 = snd w \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k"
+  and     "\<not>(\<exists> w' \<in> set wt . w' \<noteq> w \<and> fst w' = fst w)"
+proof -
+  have "(\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = fst (fst w) \<and> t_source t2 = snd (fst w) \<and> t_input t1 = snd w \<and> t_input t2 = snd w \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k) \<and> \<not>(\<exists> w' \<in> set wt . w' \<noteq> w \<and> fst w' = fst w)"
+    using assms proof (induct k arbitrary: q1 q2 wt w rule: less_induct)
+    case (less k')
+    assume a1: "r_distinguishable_k_witness M q1 q2 k' = Some wt"
+       and a2: "w \<in> set wt"
+
+    
+
+    then show ?case proof (cases k')
+      case 0
+      then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x"
+        using a1 a2 unfolding r_distinguishable_k_witness.simps
+        by fastforce
+      then have "wt = [((q1, q2), x)]"
+        using \<open>r_distinguishable_k_witness M q1 q2 k' = Some wt\<close> 0 by fastforce
+      then have "w = ((q1,q2),x)"
+        using \<open>w \<in> set wt\<close> by auto
+    
+      have "x \<in> set (inputs M)"
+        using \<open>find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x\<close>
+        by (simp add: find_set)
+      have "\<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"
+        using \<open>find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x\<close>
+        using find_condition by fastforce
+      then have "\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = fst (fst w) \<and> t_source t2 = snd (fst w) \<and> t_input t1 = snd w \<and> t_input t2 = snd w \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) 0" 
+        using \<open>w = ((q1,q2),x)\<close> by fastforce
+      moreover have "\<not>(\<exists> w' \<in> set wt . w' \<noteq> w \<and> fst w' = fst w)"
+        using \<open>wt = [((q1, q2), x)]\<close> \<open>w = ((q1,q2),x)\<close> by auto
+      ultimately show ?thesis using 0 by blast
+    next
+      case (Suc k)
+      then have "k < k'" and "0 < k'" by auto
+
+      have "r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt" 
+        using Suc a1 by auto
+
+      then show ?thesis  
+      proof (cases "r_distinguishable_k_witness M q1 q2 0")
+        case None
+        then show ?thesis using a1 sorry
 
 
 
 
 
+      next
+        case (Some a)
+        then have "wt = a" 
+          using \<open>r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt\<close> unfolding r_distinguishable_k_witness.simps(2) by auto
+        then have "w \<in> set a"
+          using \<open>w \<in> set wt\<close> by auto
+        
+        
+        show ?thesis 
+          using less.hyps[OF \<open>0 < k'\<close> Some \<open>w \<in> set a\<close>] \<open>wt = a\<close> r_distinguishable_0[of M _ _ k']  by blast
+          
+      qed
+
+
+      
+    qed
+  qed
+    
+
+    case 0
+    assume "r_distinguishable_k_witness M q1 q2 0 = Some wt"
+       and "w \<in> set wt"
+  
+    then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x"
+      unfolding r_distinguishable_k_witness.simps
+      by fastforce
+    then have "wt = [((q1, q2), x)]"
+      using \<open>r_distinguishable_k_witness M q1 q2 0 = Some wt\<close> by fastforce
+    then have "w = ((q1,q2),x)"
+      using \<open>w \<in> set wt\<close> by auto
+  
+    have "x \<in> set (inputs M)"
+      using \<open>find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x\<close>
+      by (simp add: find_set)
+    have "\<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"
+      using \<open>find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x\<close>
+      using find_condition by fastforce
+    then have "\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = fst (fst w) \<and> t_source t2 = snd (fst w) \<and> t_input t1 = snd w \<and> t_input t2 = snd w \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) 0" 
+      using \<open>w = ((q1,q2),x)\<close> by fastforce
+    moreover have "\<not>(\<exists> w' \<in> set wt . w' \<noteq> w \<and> fst w' = fst w)"
+      using \<open>wt = [((q1, q2), x)]\<close> \<open>w = ((q1,q2),x)\<close> by auto
+    ultimately show ?case by blast 
+      
+  next
+    case (Suc k)
+    assume a1: "r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt"
+       and a2: "w \<in> set wt"
+    
+  
+  
+    then show ?case 
+    proof (cases "r_distinguishable_k_witness M q1 q2 0")
+      case None
+      then show ?thesis using a1 
+    next
+      case (Some a)
+      then show ?thesis sorry
+    qed
+  qed
+  
 
 
 
+
+
+end (*
 
 
 fun construct_r_distinguishing_set_from_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a  \<Rightarrow> (('a \<times> 'a) \<times> Input) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme" where
