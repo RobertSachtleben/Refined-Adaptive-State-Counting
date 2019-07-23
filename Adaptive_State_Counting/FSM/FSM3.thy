@@ -4972,6 +4972,34 @@ lemma r_distinguishable_k_witness_ex :
   using r_distinguishable_k_witness_ex' r_distinguishable_k'_eq by metis
 
 
+(*
+(* note: k is off-by-one w.r.t. standard definition *)
+fun r_distinguishable_k'' ::  "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
+  "r_distinguishable_k'' M q1 q2 0 = False" |
+  "r_distinguishable_k'' M q1 q2 (Suc k) = (\<exists> x \<in> set (inputs M) . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k'' M (t_target t1) (t_target t2) k)"
+
+value "r_distinguishable_k'' M_ex_H 1 3 10"
+*)
+
+lemma r_distinguishable_k_witness_hd: 
+  assumes "r_distinguishable_k_witness M q1 q2 k = Some wt"
+  shows   "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> snd (hd wt) \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k' M (t_target t1) (t_target t2) (k-1))" 
+using assms proof (induction k arbitrary: q1 q2 wt rule: less_induct)
+  case (less k')
+  then show ?case proof (cases k')
+    case 0
+    then show ?thesis sorry
+  next
+    case (Suc nat)
+    then show ?thesis sorry
+  qed
+  
+qed
+
+
+
+
+end (*
 
 (*
 fun r_distinguishable_k' :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
