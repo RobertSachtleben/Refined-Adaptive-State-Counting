@@ -4981,17 +4981,152 @@ fun r_distinguishable_k'' ::  "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow
 value "r_distinguishable_k'' M_ex_H 1 3 10"
 *)
 
+
+
 lemma r_distinguishable_k_witness_hd: 
   assumes "r_distinguishable_k_witness M q1 q2 k = Some wt"
-  shows   "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> snd (hd wt) \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k' M (t_target t1) (t_target t2) (k-1))" 
+  shows   "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> snd (hd wt) \<in> set (inputs M) \<and> 
+            (\<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2) 
+            \<or> (k > 0 \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (k-1))))" 
 using assms proof (induction k arbitrary: q1 q2 wt rule: less_induct)
   case (less k')
   then show ?case proof (cases k')
     case 0
-    then show ?thesis sorry
+    then obtain x where x_ob : "find (\<lambda>x. \<not> (\<exists>t1\<in>h M. \<exists>t2\<in>h M. t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x"
+      using less.prems r_distinguishable_k_witness.simps(1)[of M q1 q2]
+      by fastforce
+    then have *: "\<not> (\<exists>t1\<in>h M.
+                       \<exists>t2\<in>h M.
+                          t_source t1 = q1 \<and>
+                          t_source t2 = q2 \<and>
+                          t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" and "x \<in> set (inputs M)"
+      using find_condition[OF x_ob] find_set[OF x_ob] by linarith+
+    
+
+    have "wt = [((q1, q2), x)]"
+      using x_ob 0 less.prems r_distinguishable_k_witness.simps(1)[of M q1 q2] by simp
+    then have "wt \<noteq> [] \<and>
+                fst (fst (hd wt)) = q1 \<and>
+                snd (fst (hd wt)) = q2 \<and>
+                snd (hd wt) \<in> set (inputs M)" and "snd (hd wt) = x" using \<open>x \<in> set (inputs M)\<close> by simp+
+    then show ?thesis using * by auto
   next
-    case (Suc nat)
-    then show ?thesis sorry
+    case (Suc k)
+    then have "0 < k'" and "k < k'" and "Suc k = k'" and "0-1 \<le> k'-1" and "k' - 1 = k"  by auto
+    then have "r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt" using less.prems by auto
+
+    show ?thesis proof (cases "r_distinguishable_k_witness M q1 q2 0 \<noteq> None")
+      case True
+      then have "r_distinguishable_k_witness M q1 q2 0 = Some wt"
+        using \<open>r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt\<close> unfolding r_distinguishable_k_witness.simps(2) by auto
+      show ?thesis
+        using less.IH[OF \<open>0 < k'\<close> \<open>r_distinguishable_k_witness M q1 q2 0 = Some wt\<close>] 
+              r_distinguishable_inc'[OF _ \<open>0-1 \<le> k'-1\<close>,of M]  by blast
+    next
+      case False
+
+      let ?tts = "(concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M)))"
+      let ?ttsf = "\<lambda> x . (filter (\<lambda>tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt)) ?tts)"
+      let ?ttsfd = "\<lambda> x . map (\<lambda>tt . r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt)) k) (?ttsf x)"
+      let ?xtt = "map (\<lambda> x . (x,?ttsfd x)) (inputs M)"
+      let ?fxtt = "find (\<lambda> xr . \<not>(None \<in> set (snd xr))) ?xtt"
+
+      (* TODO: refactor code-duplication *)
+      have "set ?tts = {(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M}"
+        by (metis (no_types) cartesian_product_list.simps cartesian_product_list_set)
+      then have "\<And> x . set (?ttsf x) = {(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+        by auto
+      then have "\<And> x . set (?ttsfd x) = image (\<lambda>tt . r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt)) k) {(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+        by auto
+      then have ***: "\<And> x . set (?ttsfd x) = {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+      proof -
+        fix x     
+        have "set (?ttsfd x) = image (\<lambda>tt . r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt)) k) {(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+          using \<open>\<And> x . set (?ttsfd x) = image (\<lambda>tt . r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt)) k) {(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }\<close> by blast
+        also have "\<dots> = {r_distinguishable_k_witness M (t_target (fst (t1,t2))) (t_target (snd (t1,t2))) k | t1 t2 . (t1,t2) \<in> {(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }}"
+          by blast
+        also have "\<dots> = {r_distinguishable_k_witness M (t_target (fst (t1,t2))) (t_target (snd (t1,t2))) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+          by blast
+        also have "\<dots> = {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+          by force
+        finally show "set (?ttsfd x) = {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+          by fast
+      qed
+
+      have ****: "set ?xtt = {(x,?ttsfd x) | x . x \<in> set (inputs M)}"      
+        by auto
+
+
+      from False have "r_distinguishable_k_witness M q1 q2 (Suc k) = (case ?fxtt of
+                        None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs) # concat (these_list (snd xrs))))"
+        using \<open>r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt\<close> unfolding r_distinguishable_k_witness.simps(2) by auto
+      then have *: "(case ?fxtt of
+                        None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs) # concat (these_list (snd xrs)))) = Some wt"
+        using \<open>r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt\<close> by auto
+      then obtain xrs where **: "?fxtt = Some xrs"
+        by (metis (no_types, lifting) option.case_eq_if option.collapse option.distinct(1)) 
+      
+      have "None \<notin> set (snd xrs)" and "xrs \<in> set ?xtt"
+        using find_condition[OF **] find_set[OF **] by fast+
+      then have "xrs \<in> {(x,?ttsfd x) | x . x \<in> set (inputs M)}"
+        using **** by metis
+      then have "xrs = (fst xrs, ?ttsfd (fst xrs))" and "fst xrs \<in> set (inputs M)"  by fastforce+
+      have "snd xrs = ?ttsfd (fst xrs)" 
+        using BNF_Def.sndI[OF \<open>xrs = (fst xrs, ?ttsfd (fst xrs))\<close>] by assumption
+      then have "set (snd xrs) = {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2 }"  
+        using *** by metis      
+      then have "None \<notin> {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2 }"
+        using \<open>None \<notin> set (snd xrs)\<close> by auto
+
+      have "wt = ((q1, q2), fst xrs) # concat (these_list (snd xrs))"
+        using * ** by fastforce
+      then have "snd (hd wt) = fst xrs" by auto
+
+
+      have "\<And> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2) \<Longrightarrow> (r_distinguishable_k_witness M (t_target t1) (t_target t2) k \<noteq> None)"
+        using FSM3.image_elem_2[OF \<open>None \<notin> {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2 }\<close>] by blast
+      
+      then have "\<And> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2) \<Longrightarrow> (r_distinguishable_k' M (t_target t1) (t_target t2) k)"
+        using r_distinguishable_k_witness_ex'[of M _ _ k] by blast
+      then have p2 : "(\<forall>t1\<in>h M. \<forall>t2\<in>h M. t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2 \<longrightarrow> r_distinguishable_k' M (t_target t1) (t_target t2) (k' - 1))"
+        using \<open>k' - 1 = k\<close> \<open>snd (hd wt) = fst xrs\<close> by fastforce
+      then have p2 : "(\<forall>t1\<in>h M. \<forall>t2\<in>h M. t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2 \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (k' - 1))"
+        using r_distinguishable_k'_eq by fast
+      
+      have p1:  "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> snd (hd wt) \<in> set (inputs M)"
+        using \<open>wt = ((q1, q2), fst xrs) # concat (these_list (snd xrs))\<close> \<open>fst xrs \<in> set (inputs M)\<close> by auto
+ 
+      
+      show ?thesis using p1 p2 \<open>0 < k'\<close> by auto
+    qed
+  qed
+qed
+      
+      
+      
+      
+
+      
+
+          
+
+
+
+
+
+
+
+
+
+
+
+      then show ?thesis sorry
+    qed
+    
+
+    
+    
+    
   qed
   
 qed
