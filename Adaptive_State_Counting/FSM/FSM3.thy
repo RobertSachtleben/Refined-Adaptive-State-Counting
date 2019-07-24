@@ -197,6 +197,27 @@ definition "M_ex_H = (\<lparr>
                                       (4,1,0,1)
                                       ]\<rparr>)"
 
+(* example FSM of TA exercise 09 *)
+definition "M_ex_9 = (\<lparr> 
+                      initial = 0::integer, 
+                      inputs = [0,1], 
+                      outputs = [0,1,2,3], 
+                      transitions = [ 
+                                      (0,0,2,2),
+                                      (0,0,3,2),
+                                      (0,1,0,3),
+                                      (0,1,1,3),
+                                      (1,0,3,2),
+                                      (1,1,1,3),
+                                      (2,0,2,2),
+                                      (2,1,3,3),
+                                      (3,0,2,2),
+                                      (3,1,0,2),
+                                      (3,1,1,1)
+                                      ]\<rparr>)"
+
+
+
 definition "M_ex' = (\<lparr> 
                       initial = 1000::int, 
                       inputs = [0,1,2], 
@@ -4618,8 +4639,6 @@ definition canonical_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightar
 value[code] "(canonical_separator M_ex 2 3)"
 value[code] "trim_transitions (canonical_separator M_ex 2 3)"
 
-
-
 fun is_Inl :: "'a + 'b \<Rightarrow> bool" where
   "is_Inl (Inl x) = True" |
   "is_Inl (Inr x) = False"
@@ -4635,6 +4654,203 @@ fun is_state_separator_from_canonical_separator :: "(('a \<times> 'a) + 'a,'b) F
     \<and> (\<forall> q \<in> nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (is_Inl q \<and> \<not> deadlock_state S q))
     \<and> (\<forall> q \<in> nodes S . \<forall> x \<in> set (inputs CSep) . (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))
 )"
+
+
+fun generate_choices :: "('a \<times> ('b list)) list \<Rightarrow> ('a \<times> 'b option) list list" where
+  "generate_choices [] = [[]]" |
+  "generate_choices (xys#xyss) = concat (map (\<lambda> xy' . map (\<lambda> xys' . xy' # xys') (generate_choices xyss)) ((fst xys, None) # (map (\<lambda> y . (fst xys, Some y)) (snd xys))))"
+
+value "generate_choices [(0::nat,[0::nat,1,2])]"
+value "generate_choices [(0::nat,[0::nat,1,2]),(1,[10,20,30])]"
+
+lemma concat_map_hd_tl_elem: 
+  assumes "hd cs \<in> set P1"
+  and     "tl cs \<in> set P2"
+  and     "length cs > 0"
+shows "cs \<in> set (concat (map (\<lambda> xy' . map (\<lambda> xys' . xy' # xys') P2) P1))"
+proof -
+  have "hd cs # tl cs = cs" using assms(3) by auto
+  moreover have "hd cs # tl cs \<in> set (concat (map (\<lambda> xy' . map (\<lambda> xys' . xy' # xys') P2) P1))" using assms(1,2) by auto
+  ultimately show ?thesis by auto
+qed
+
+
+
+
+
+lemma generate_choices_hd_tl : "cs \<in> set (generate_choices (xys#xyss)) = (length cs = length (xys#xyss) \<and> fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) \<and> (tl cs \<in> set (generate_choices xyss)))"
+proof (induction xyss arbitrary: cs xys)
+  case Nil
+  have "(cs \<in> set (generate_choices [xys])) = (cs \<in> set ([(fst xys, None)] # map (\<lambda>y. [(fst xys, Some y)]) (snd xys)))" 
+    unfolding generate_choices.simps by auto
+  moreover have "(length cs = length [xys] \<and>
+     fst (hd cs) = fst xys \<and>
+     (snd (hd cs) = None \<or> snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)) \<and>
+     tl cs \<in> set (generate_choices [])) = (cs \<in> set ([(fst xys, None)] # map (\<lambda>y. [(fst xys, Some y)]) (snd xys)))"
+    (* TODO: smt *)
+    by (smt Suc_length_conv fst_conv generate_choices.simps(1) imageE image_eqI length_0_conv list.sel(1) list.sel(3) list.set_intros(1) list.set_sel(2) list.size(4) option.collapse option.sel prod.collapse set_ConsD set_map snd_conv tl_Nil)
+    
+  ultimately show ?case by blast
+next
+  case (Cons a xyss)
+
+  have "length cs = length (xys#a#xyss) \<Longrightarrow> fst (hd cs) = fst xys \<Longrightarrow> (snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys))) \<Longrightarrow> (tl cs \<in> set (generate_choices (a#xyss))) \<Longrightarrow> cs \<in> set (generate_choices (xys#a#xyss)) "
+  proof -
+    assume "length cs = length (xys#a#xyss)" and "fst (hd cs) = fst xys" and "(snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))" and "(tl cs \<in> set (generate_choices (a#xyss)))"
+    then have "length cs > 0" by auto
+
+    have "(hd cs) \<in> set ((fst xys, None) # (map (\<lambda> y . (fst xys, Some y)) (snd xys)))"
+      using \<open>fst (hd cs) = fst xys\<close> \<open>(snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))\<close>
+      by (metis (no_types, lifting) image_eqI list.set_intros(1) list.set_intros(2) option.collapse prod.collapse set_map)  
+    
+    show "cs \<in> set (generate_choices ((xys#(a#xyss))))"
+      using generate_choices.simps(2)[of xys "a#xyss"] using concat_map_hd_tl_elem[OF \<open>(hd cs) \<in> set ((fst xys, None) # (map (\<lambda> y . (fst xys, Some y)) (snd xys)))\<close> \<open>(tl cs \<in> set (generate_choices (a#xyss)))\<close> \<open>length cs > 0\<close>] by auto
+  qed
+
+  moreover have "cs \<in> set (generate_choices (xys#a#xyss)) \<Longrightarrow> length cs = length (xys#a#xyss) \<and> fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) \<and> (tl cs \<in> set (generate_choices (a#xyss)))"
+  proof -
+    assume "cs \<in> set (generate_choices (xys#a#xyss))"
+    then have p3: "tl cs \<in> set (generate_choices (a#xyss))"
+      using generate_choices.simps(2)[of xys "a#xyss"] by fastforce
+    then have "length (tl cs) = length (a # xyss)" using Cons.IH[of "tl cs" "a"] by simp
+    then have p1: "length cs = length (xys#a#xyss)" by auto
+
+    have p2 : "fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys))))"
+      using \<open>cs \<in> set (generate_choices (xys#a#xyss))\<close> generate_choices.simps(2)[of xys "a#xyss"] by fastforce
+    
+    show ?thesis using p1 p2 p3 by simp
+  qed
+
+  ultimately show ?case by blast
+qed 
+
+
+lemma generate_choices_idx : "cs \<in> set (generate_choices xyss) = (length cs = length xyss \<and> (\<forall> i < length cs . (fst (cs ! i)) = (fst (xyss ! i)) \<and> ((snd (cs ! i)) = None \<or> ((snd (cs ! i)) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd (xyss ! i))))))"
+proof (induction xyss arbitrary: cs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons xys xyss)
+
+
+  have "(\<forall>i<length (tl cs).
+                    fst (tl cs ! i) = fst (xyss ! i) \<and>
+                    (snd (tl cs ! i) = None \<or> snd (tl cs ! i) \<noteq> None \<and> the (snd (tl cs ! i)) \<in> set (snd (xyss ! i))))
+              = (\<forall>i<length (tl cs).
+                    fst (cs ! (Suc i)) = fst ((xys#xyss) ! (Suc i)) \<and>
+                    (snd (cs ! (Suc i)) = None \<or> snd (cs ! (Suc i)) \<noteq> None \<and> the (snd (cs ! (Suc i))) \<in> set (snd ((xys#xyss) ! (Suc i)))))" 
+    using nth_tl by fastforce
+  then have *: "(\<forall>i<length (tl cs).
+                    fst (tl cs ! i) = fst (xyss ! i) \<and>
+                    (snd (tl cs ! i) = None \<or> snd (tl cs ! i) \<noteq> None \<and> the (snd (tl cs ! i)) \<in> set (snd (xyss ! i))))
+               = (\<forall>i<length cs. i > 0 \<longrightarrow>
+                    (fst (cs ! i) = fst ((xys#xyss) ! i) \<and>
+                      (snd (cs ! i) = None \<or> snd (cs ! i) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd ((xys#xyss) ! i)))))"
+    (* TODO: smt *)
+    by (smt Nitpick.size_list_simp(2) Suc_lessD Suc_mono Suc_pred less_SucE tl_Nil zero_less_Suc)
+
+  have "cs \<in> set (generate_choices (xys#xyss)) = (length cs = length (xys#xyss) \<and> fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) \<and> (tl cs \<in> set (generate_choices xyss)))"
+    using generate_choices_hd_tl by metis
+
+  then have "cs \<in> set (generate_choices (xys#xyss)) 
+    = (length cs = length (xys#xyss) 
+      \<and> fst (hd cs) = fst xys 
+      \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) 
+      \<and> (length (tl cs) = length xyss \<and>
+        (\<forall>i<length (tl cs).
+          fst (tl cs ! i) = fst (xyss ! i) \<and>
+          (snd (tl cs ! i) = None \<or> snd (tl cs ! i) \<noteq> None \<and> the (snd (tl cs ! i)) \<in> set (snd (xyss ! i))))))"
+    using Cons.IH[of "tl cs"] by blast
+  then have "cs \<in> set (generate_choices (xys#xyss)) 
+    = (length cs = length (xys#xyss) 
+      \<and> fst (hd cs) = fst xys 
+      \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) 
+      \<and> (\<forall>i<length (tl cs).
+          fst (tl cs ! i) = fst (xyss ! i) \<and>
+          (snd (tl cs ! i) = None \<or> snd (tl cs ! i) \<noteq> None \<and> the (snd (tl cs ! i)) \<in> set (snd (xyss ! i)))))"
+    by auto
+
+  moreover have "length cs = length (xys#xyss) \<Longrightarrow> (fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys))))) = 
+          (fst (cs ! 0) = fst ((xys#xyss) ! 0) \<and> (snd (cs ! 0) = None \<or> snd (cs ! 0) \<noteq> None \<and> the (snd (cs ! 0)) \<in> set (snd ((xys#xyss) ! 0))))"
+    by (metis hd_conv_nth length_greater_0_conv list.simps(3) nth_Cons_0)
+    
+  ultimately have "cs \<in> set (generate_choices (xys#xyss)) 
+    = (length cs = length (xys#xyss)  
+      \<and> (fst (cs ! 0) = fst ((xys#xyss) ! 0) \<and> (snd (cs ! 0) = None \<or> snd (cs ! 0) \<noteq> None \<and> the (snd (cs ! 0)) \<in> set (snd ((xys#xyss) ! 0))))
+      \<and> (\<forall>i<length cs. i > 0 \<longrightarrow>
+                    (fst (cs ! i) = fst ((xys#xyss) ! i) \<and>
+                      (snd (cs ! i) = None \<or> snd (cs ! i) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd ((xys#xyss) ! i))))))"  
+    using * by blast
+
+  moreover have "length cs = length (xys#xyss) \<Longrightarrow> ((fst (cs ! 0) = fst ((xys#xyss) ! 0) \<and> (snd (cs ! 0) = None \<or> snd (cs ! 0) \<noteq> None \<and> the (snd (cs ! 0)) \<in> set (snd ((xys#xyss) ! 0))))
+        \<and> (\<forall>i<length cs. i > 0 \<longrightarrow>
+                      (fst (cs ! i) = fst ((xys#xyss) ! i) \<and>
+                        (snd (cs ! i) = None \<or> snd (cs ! i) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd ((xys#xyss) ! i))))))
+      = (\<forall>i<length cs.
+           fst (cs ! i) = fst ((xys # xyss) ! i) \<and>
+           (snd (cs ! i) = None \<or>
+            snd (cs ! i) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd ((xys # xyss) ! i))))" 
+    by fastforce
+
+  ultimately show ?case by blast
+qed
+
+
+
+fun generate_submachine_from_assignment :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> Input option) list \<Rightarrow> ('a, 'b) FSM_scheme" where
+  "generate_submachine_from_assignment M assn = M\<lparr> transitions := filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set assn) (transitions M)\<rparr>"
+
+fun calculate_state_separator_from_canonical_separator :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
+  "calculate_state_separator_from_canonical_separator M q1 q2 = 
+    (let CSep = canonical_separator M q1 q2 in
+      find 
+        (\<lambda> S . is_state_separator_from_canonical_separator CSep q1 q2 S) 
+        (map 
+          (\<lambda> assn . generate_submachine_from_assignment CSep assn) 
+          (generate_choices 
+            (map 
+              (\<lambda>q . (q, filter 
+                          (\<lambda>x . \<exists> t \<in> h CSep . t_source t = q \<and> t_input t = x) 
+                          (inputs CSep))) 
+              (nodes_from_distinct_paths CSep)))))"
+
+value "(nodes_from_distinct_paths (canonical_separator M_ex_H 1 3))"
+value "h (canonical_separator M_ex_H 1 3)"
+value "(map (\<lambda>q . (q, filter (\<lambda>x . \<exists> t \<in> h (canonical_separator M_ex_H 1 3) . t_source t = q \<and> t_input t = x) (inputs (canonical_separator M_ex_H 1 3)))) (nodes_from_distinct_paths (canonical_separator M_ex_H 1 3)))"
+value "generate_choices (map (\<lambda>q . (q, filter (\<lambda>x . \<exists> t \<in> h (canonical_separator M_ex_H 1 3) . t_source t = q \<and> t_input t = x) (inputs (canonical_separator M_ex_H 1 3)))) (nodes_from_distinct_paths (canonical_separator M_ex_H 1 3)))"
+value "calculate_state_separator_from_canonical_separator M_ex_H 1 4"
+
+lemma calculate_state_separator_from_canonical_separator_soundness :
+  assumes "calculate_state_separator_from_canonical_separator M q1 q2 = Some S"
+shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+  using assms unfolding calculate_state_separator_from_canonical_separator.simps 
+  using find_condition[of "(is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2)"
+                          "(map (generate_submachine_from_assignment (canonical_separator M q1 q2))
+                             (generate_choices
+                               (map (\<lambda>q. (q, filter (\<lambda>x. \<exists>t\<in>h (canonical_separator M q1 q2). t_source t = q \<and> t_input t = x) (inputs (canonical_separator M q1 q2))))
+                                 (nodes_from_distinct_paths (canonical_separator M q1 q2)))))", of S] 
+  by metis 
+
+lemma calculate_state_separator_from_canonical_sepatator_correctness :
+  assumes "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+  shows "\<exists> S' . calculate_state_separator_from_canonical_separator M q1 q2 = Some S'"
+proof -
+  (* Idea: 
+    - get choice from state_separator
+    - show that choice is contained in generated choices
+    - show that "equivalent" FSM is in generated submachines  
+    *)
+
+
+
+
+
+
+
+
+end (*
+
+
 
 fun calculate_state_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
   "calculate_state_separator_naive M q1 q2 = (let CSep = canonical_separator M q1 q2 in
@@ -4680,14 +4896,14 @@ next
 qed
 
 
-fun r_distinguishable_k_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a) \<times> Input) list option" where
+fun r_distinguishable_k_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a) \<times> Input \<times> nat) list option" where
   "r_distinguishable_k_witness M q1 q2 0 = (case (find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M)) of
     None \<Rightarrow> None |
-    Some x \<Rightarrow> Some [((q1,q2),x)])" |
+    Some x \<Rightarrow> Some [((q1,q2),x,0)])" |
   "r_distinguishable_k_witness M q1 q2 (Suc k) = (case r_distinguishable_k_witness M q1 q2 0 of 
     None \<Rightarrow> (case find (\<lambda> xr . \<not>(None \<in> set (snd xr))) (map (\<lambda> x . (x,(map (\<lambda>tt . r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt)) k) (filter (\<lambda>tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt)) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))))))) (inputs M)) of
               None \<Rightarrow> None |
-              Some xrs \<Rightarrow> Some (((q1,q2), fst xrs)#(concat (these_list (snd xrs))))) |
+              Some xrs \<Rightarrow> Some (((q1,q2), fst xrs,(Suc k))#(concat (these_list (snd xrs))))) |
     Some w \<Rightarrow> Some w)"
                     
 value "r_distinguishable_k_witness M_ex_H 1 3 (size (product (from_FSM M_ex_H 1) (from_FSM M_ex_H 3)))"
@@ -4883,7 +5099,7 @@ proof (induction k arbitrary: q1 q2 rule: less_induct)
                                       (concat
                                         (map (\<lambda>t1. map (Pair t1) (wf_transitions M)) (wf_transitions M))))))
                        (inputs M)) of
-                    None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs) # concat (these_list (snd xrs))))" 
+                    None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs, (Suc k)) # concat (these_list (snd xrs))))" 
         using r_distinguishable_k_witness.simps(2)[of M q1 q2 k] by auto
 
       let ?tts = "(concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M)))"
@@ -4946,7 +5162,7 @@ proof (induction k arbitrary: q1 q2 rule: less_induct)
         using \<open>set ?xtt = {(x,?ttsfd x) | x . x \<in> set (inputs M)}\<close> r_distinguishable_k_witness_ex_set_helper[of ?ttsfd "set (inputs M)" "\<lambda> sd . None \<notin> set sd"] by blast
 
       moreover have "(r_distinguishable_k_witness M q1 q2 (Suc k) = None) = (?fxtt = None)"
-        using r_distinguishable_k_witness_ex_find_helper[of "\<lambda> xrs . Some (((q1, q2), fst xrs) # concat (these_list (snd xrs)))" "(\<lambda>xr. None \<notin> set (snd xr))"  "(map (\<lambda>x. (x, map (\<lambda>tt. r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt))
+        using r_distinguishable_k_witness_ex_find_helper[of "\<lambda> xrs . Some (((q1, q2), fst xrs, Suc k) # concat (these_list (snd xrs)))" "(\<lambda>xr. None \<notin> set (snd xr))"  "(map (\<lambda>x. (x, map (\<lambda>tt. r_distinguishable_k_witness M (t_target (fst tt)) (t_target (snd tt))
                                     k)
                           (filter
                             (\<lambda>tt. t_source (fst tt) = q1 \<and>
@@ -4985,9 +5201,9 @@ value "r_distinguishable_k'' M_ex_H 1 3 10"
 
 lemma r_distinguishable_k_witness_hd: 
   assumes "r_distinguishable_k_witness M q1 q2 k = Some wt"
-  shows   "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> snd (hd wt) \<in> set (inputs M) \<and> 
-            (\<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2) 
-            \<or> (k > 0 \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (k-1))))" 
+  shows   "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> fst (snd (hd wt)) \<in> set (inputs M) \<and> snd (snd (hd wt)) \<le> k \<and>
+            (\<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst (snd (hd wt)) \<and> t_input t2 = fst (snd (hd wt)) \<and> t_output t1 = t_output t2) 
+            \<or> (k > 0 \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst (snd (hd wt)) \<and> t_input t2 = fst (snd (hd wt)) \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (snd (snd (hd wt)) - 1))))"
 using assms proof (induction k arbitrary: q1 q2 wt rule: less_induct)
   case (less k')
   then show ?case proof (cases k')
@@ -5003,12 +5219,12 @@ using assms proof (induction k arbitrary: q1 q2 wt rule: less_induct)
       using find_condition[OF x_ob] find_set[OF x_ob] by linarith+
     
 
-    have "wt = [((q1, q2), x)]"
+    have "wt = [((q1, q2), x, 0)]"
       using x_ob 0 less.prems r_distinguishable_k_witness.simps(1)[of M q1 q2] by simp
     then have "wt \<noteq> [] \<and>
                 fst (fst (hd wt)) = q1 \<and>
                 snd (fst (hd wt)) = q2 \<and>
-                snd (hd wt) \<in> set (inputs M)" and "snd (hd wt) = x" using \<open>x \<in> set (inputs M)\<close> by simp+
+                fst (snd (hd wt)) \<in> set (inputs M) \<and> snd (snd (hd wt)) \<le> k'" and "fst (snd (hd wt)) = x" using \<open>x \<in> set (inputs M)\<close> by simp+
     then show ?thesis using * by auto
   next
     case (Suc k)
@@ -5020,8 +5236,7 @@ using assms proof (induction k arbitrary: q1 q2 wt rule: less_induct)
       then have "r_distinguishable_k_witness M q1 q2 0 = Some wt"
         using \<open>r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt\<close> unfolding r_distinguishable_k_witness.simps(2) by auto
       show ?thesis
-        using less.IH[OF \<open>0 < k'\<close> \<open>r_distinguishable_k_witness M q1 q2 0 = Some wt\<close>] 
-              r_distinguishable_inc'[OF _ \<open>0-1 \<le> k'-1\<close>,of M]  by blast
+        using less.IH[OF \<open>0 < k'\<close> \<open>r_distinguishable_k_witness M q1 q2 0 = Some wt\<close>] \<open>0 < k'\<close> by auto
     next
       case False
 
@@ -5058,10 +5273,10 @@ using assms proof (induction k arbitrary: q1 q2 wt rule: less_induct)
 
 
       from False have "r_distinguishable_k_witness M q1 q2 (Suc k) = (case ?fxtt of
-                        None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs) # concat (these_list (snd xrs))))"
+                        None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs, Suc k) # concat (these_list (snd xrs))))"
         using \<open>r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt\<close> unfolding r_distinguishable_k_witness.simps(2) by auto
       then have *: "(case ?fxtt of
-                        None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs) # concat (these_list (snd xrs)))) = Some wt"
+                        None \<Rightarrow> None | Some xrs \<Rightarrow> Some (((q1, q2), fst xrs, Suc k) # concat (these_list (snd xrs)))) = Some wt"
         using \<open>r_distinguishable_k_witness M q1 q2 (Suc k) = Some wt\<close> by auto
       then obtain xrs where **: "?fxtt = Some xrs"
         by (metis (no_types, lifting) option.case_eq_if option.collapse option.distinct(1)) 
@@ -5078,26 +5293,29 @@ using assms proof (induction k arbitrary: q1 q2 wt rule: less_induct)
       then have "None \<notin> {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2 }"
         using \<open>None \<notin> set (snd xrs)\<close> by auto
 
-      have "wt = ((q1, q2), fst xrs) # concat (these_list (snd xrs))"
+      have "wt = ((q1, q2), fst xrs, Suc k) # concat (these_list (snd xrs))"
         using * ** by fastforce
-      then have "snd (hd wt) = fst xrs" by auto
+      then have "fst (snd (hd wt)) = fst xrs" and "snd (snd (hd wt)) = Suc k" by auto
 
+      have p2: "snd (snd (hd wt)) \<le> k'" and "k' - 1 = snd (snd (hd wt)) - 1"
+        using \<open>snd (snd (hd wt)) = Suc k\<close>  \<open>Suc k = k'\<close> by auto
 
       have "\<And> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2) \<Longrightarrow> (r_distinguishable_k_witness M (t_target t1) (t_target t2) k \<noteq> None)"
         using FSM3.image_elem_2[OF \<open>None \<notin> {r_distinguishable_k_witness M (t_target t1) (t_target t2) k | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2 }\<close>] by blast
       
       then have "\<And> t1 t2 . (t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst xrs \<and> t_input t2 = fst xrs \<and> t_output t1 = t_output t2) \<Longrightarrow> (r_distinguishable_k' M (t_target t1) (t_target t2) k)"
         using r_distinguishable_k_witness_ex'[of M _ _ k] by blast
-      then have p2 : "(\<forall>t1\<in>h M. \<forall>t2\<in>h M. t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2 \<longrightarrow> r_distinguishable_k' M (t_target t1) (t_target t2) (k' - 1))"
-        using \<open>k' - 1 = k\<close> \<open>snd (hd wt) = fst xrs\<close> by fastforce
-      then have p2 : "(\<forall>t1\<in>h M. \<forall>t2\<in>h M. t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = snd (hd wt) \<and> t_input t2 = snd (hd wt) \<and> t_output t1 = t_output t2 \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (k' - 1))"
-        using r_distinguishable_k'_eq by fast
+      then have "(\<forall>t1\<in>h M. \<forall>t2\<in>h M. t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst (snd (hd wt)) \<and> t_input t2 = fst (snd (hd wt)) \<and> t_output t1 = t_output t2 \<longrightarrow> r_distinguishable_k' M (t_target t1) (t_target t2) (k' - 1))"
+        using \<open>k' - 1 = k\<close> \<open>fst (snd (hd wt)) = fst xrs\<close> by fastforce
+      then have p3 : "(\<forall>t1\<in>h M. \<forall>t2\<in>h M. t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = fst (snd (hd wt)) \<and> t_input t2 = fst (snd (hd wt)) \<and> t_output t1 = t_output t2 \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (snd (snd (hd wt)) - 1))"
+        using r_distinguishable_k'_eq \<open>k' - 1 = snd (snd (hd wt)) - 1\<close> by fastforce
       
-      have p1:  "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> snd (hd wt) \<in> set (inputs M)"
-        using \<open>wt = ((q1, q2), fst xrs) # concat (these_list (snd xrs))\<close> \<open>fst xrs \<in> set (inputs M)\<close> by auto
- 
+      have p1:  "wt \<noteq> [] \<and> fst (fst (hd wt)) = q1 \<and> snd (fst (hd wt)) = q2 \<and> fst (snd (hd wt)) \<in> set (inputs M)"
+        using \<open>wt = ((q1, q2), fst xrs, Suc k) # concat (these_list (snd xrs))\<close> \<open>fst xrs \<in> set (inputs M)\<close> by auto
+
       
-      show ?thesis using p1 p2 \<open>0 < k'\<close> by auto
+      
+      show ?thesis using p1 p2 \<open>0 < k'\<close> p3 by auto
     qed
   qed
 qed
@@ -5108,28 +5326,28 @@ qed
 
       
 
+fun construct_r_distinguishing_set_from_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a  \<Rightarrow> (('a \<times> 'a) \<times> Input \<times> nat) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme" where
+  "construct_r_distinguishing_set_from_witness M q1 q2 w = (let CSep = canonical_separator M q1 q2 in
+    CSep\<lparr> transitions := filter (\<lambda> t . (t_source t, t_input t) \<in> set (map (\<lambda> wt . (Inl (fst wt),fst (snd wt)))  w)) (transitions CSep)\<rparr>)"     
+
+fun construct_r_distinguishing_set_by_witness :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme option" where
+  "construct_r_distinguishing_set_by_witness M q1 q2 = (case r_distinguishable_k_witness M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) of
+    None \<Rightarrow> None |
+    Some w \<Rightarrow> Some (construct_r_distinguishing_set_from_witness M q1 q2 w))"
+
+value "construct_r_distinguishing_set_by_witness M_ex_H 1 1"
+value "construct_r_distinguishing_set_by_witness M_ex_H 1 3"
+value "construct_r_distinguishing_set_by_witness M_ex_9 0 3"
           
 
 
+lemma x: 
+  assumes "construct_r_distinguishing_set_by_witness M q1 q2 = Some S"
+  shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
 
 
 
 
-
-
-
-
-
-      then show ?thesis sorry
-    qed
-    
-
-    
-    
-    
-  qed
-  
-qed
 
 
 
