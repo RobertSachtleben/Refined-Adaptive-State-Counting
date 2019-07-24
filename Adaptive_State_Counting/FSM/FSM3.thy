@@ -4800,8 +4800,8 @@ qed
 fun generate_submachine_from_assignment :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> Input option) list \<Rightarrow> ('a, 'b) FSM_scheme" where
   "generate_submachine_from_assignment M assn = M\<lparr> transitions := filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set assn) (transitions M)\<rparr>"
 
-fun calculate_state_separator_from_canonical_separator :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
-  "calculate_state_separator_from_canonical_separator M q1 q2 = 
+fun calculate_state_separator_from_canonical_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
+  "calculate_state_separator_from_canonical_separator_naive M q1 q2 = 
     (let CSep = canonical_separator M q1 q2 in
       find 
         (\<lambda> S . is_state_separator_from_canonical_separator CSep q1 q2 S) 
@@ -4817,13 +4817,12 @@ fun calculate_state_separator_from_canonical_separator :: "('a, 'b) FSM_scheme \
 value "(nodes_from_distinct_paths (canonical_separator M_ex_H 1 3))"
 value "h (canonical_separator M_ex_H 1 3)"
 value "(map (\<lambda>q . (q, filter (\<lambda>x . \<exists> t \<in> h (canonical_separator M_ex_H 1 3) . t_source t = q \<and> t_input t = x) (inputs (canonical_separator M_ex_H 1 3)))) (nodes_from_distinct_paths (canonical_separator M_ex_H 1 3)))"
-value "generate_choices (map (\<lambda>q . (q, filter (\<lambda>x . \<exists> t \<in> h (canonical_separator M_ex_H 1 3) . t_source t = q \<and> t_input t = x) (inputs (canonical_separator M_ex_H 1 3)))) (nodes_from_distinct_paths (canonical_separator M_ex_H 1 3)))"
-value "calculate_state_separator_from_canonical_separator M_ex_H 1 4"
+value[code] "calculate_state_separator_from_canonical_separator_naive M_ex_H 1 4"
 
-lemma calculate_state_separator_from_canonical_separator_soundness :
-  assumes "calculate_state_separator_from_canonical_separator M q1 q2 = Some S"
+lemma calculate_state_separator_from_canonical_separator_naive_soundness :
+  assumes "calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S"
 shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-  using assms unfolding calculate_state_separator_from_canonical_separator.simps 
+  using assms unfolding calculate_state_separator_from_canonical_separator_naive.simps 
   using find_condition[of "(is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2)"
                           "(map (generate_submachine_from_assignment (canonical_separator M q1 q2))
                              (generate_choices
@@ -4831,10 +4830,92 @@ shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2)
                                  (nodes_from_distinct_paths (canonical_separator M q1 q2)))))", of S] 
   by metis 
 
-lemma calculate_state_separator_from_canonical_sepatator_correctness :
+lemma calculate_state_separator_from_canonical_separator_naive_correctness :
   assumes "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-  shows "\<exists> S' . calculate_state_separator_from_canonical_separator M q1 q2 = Some S'"
+  shows "\<exists> S' . calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S'"
 proof -
+  let ?CSep = "(canonical_separator M q1 q2)"
+  from assms obtain S where "is_state_separator_from_canonical_separator ?CSep q1 q2 S" by blast
+
+  then have "is_submachine S ?CSep"
+        and "single_input S"
+        and "acyclic S"
+        and "deadlock_state S (Inr q1)"
+        and "deadlock_state S (Inr q2)"
+        and "Inr q1 \<in> nodes S"
+        and "Inr q2 \<in> nodes S"
+        and "(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state S q)"
+        and "(\<forall>q\<in>nodes S.
+              \<forall>x\<in>set (inputs ?CSep).
+                 (\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow>
+                 (\<forall>t'\<in>h ?CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
+    unfolding is_state_separator_from_canonical_separator.simps by linarith+
+
+  let ?ncs = "nodes_from_distinct_paths ?CSep"
+  let ?ns = "nodes_from_distinct_paths S"
+
+  let ?cbc = "map (\<lambda>q. (q, filter (\<lambda>x. \<exists>t\<in>h ?CSep. t_source t = q \<and> t_input t = x) (inputs ?CSep)))"
+  let ?cbs = "map (\<lambda>q. (q, filter (\<lambda>x. \<exists>t\<in>h S. t_source t = q \<and> t_input t = x) (inputs S)))"
+
+  have "\<And> NS . finite NS \<Longrightarrow> NS \<subseteq> nodes ?CSep 
+        \<Longrightarrow> \<exists> f . \<forall> q \<in> NS . (q \<notin> nodes S \<and> f q = None) \<or> (q \<in> nodes S \<and> deadlock_state S q) \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+  proof -
+    fix NS assume "finite NS" and "NS \<subseteq> nodes ?CSep"
+    then show "\<exists> f . \<forall> q \<in> NS . (q \<notin> nodes S \<and> f q = None) \<or> (q \<in> nodes S \<and> deadlock_state S q) \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+    proof (induction)
+      case empty
+      then show ?case by auto
+    next
+      case (insert s NS)
+      then have "NS \<subseteq> nodes (canonical_separator M q1 q2)" by auto
+      then obtain f where f_def : "\<forall> q \<in> NS . (q \<notin> nodes S \<and> f q = None) 
+                                              \<or> (q \<in> nodes S \<and> deadlock_state S q) 
+                                              \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+        using insert.IH by blast
+      
+      show ?case proof (cases "s \<in> nodes S")
+        case True
+        then show ?thesis proof (cases "deadlock_state S s")
+          case True
+          let ?f = "f( s := None)"
+          have "\<forall>q\<in>insert s NS.(q \<notin> nodes S \<and> ?f q = None) 
+                              \<or> (q \<in> nodes S \<and> deadlock_state S q) 
+                              \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> ?f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+          using \<open>s \<in> nodes S\<close> True f_def by auto
+          then show ?thesis by blast
+        next
+          case False
+          then obtain t where "t\<in>h S" and "t_source t = s"
+            unfolding deadlock_state.simps by blast
+          then have "\<exists>t'\<in>h S. t_source t' = s \<and> t_input t' = t_input t" by blast
+          moreover have "\<forall> t' \<in> h S . t_source t' = s \<longrightarrow> t_input t' = t_input t"
+            using \<open>single_input S\<close> \<open>t_source t = s\<close> \<open>s \<in> nodes S\<close> unfolding single_input.simps 
+          ultimately have "t_input t = (THE x .  \<exists>t'\<in>h S. t_source t' = s \<and> t_source t' \<in> nodes S \<and> t_input t' = x)"
+            
+          then have "t\<in>h S \<and> t_source t = s \<and> t_input t = t_input t" by auto
+          then have "t_input t = (THE x .  \<exists>t\<in>h S. t_source t = s \<and> t_input t = x)"
+            using \<open>single_input S\<close> \<open>s \<in> nodes S\<close> unfolding single_input.simps 
+
+          then show ?thesis sorry
+        qed
+      next
+        case False
+        let ?f = "f( x := None)"
+        have "\<forall>q\<in>insert x NS.(q \<notin> nodes S \<and> ?f q = None) 
+                              \<or> (q \<in> nodes S \<and> deadlock_state S q) 
+                              \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> ?f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+          using False f_def by auto
+        then show ?thesis by blast
+      qed
+    qed
+  proof 
+
+  have "  
+
+  have 
+  
+  
+
   (* Idea: 
     - get choice from state_separator
     - show that choice is contained in generated choices
