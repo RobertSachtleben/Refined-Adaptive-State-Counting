@@ -4925,6 +4925,82 @@ proof -
   from p1 p2 p3 show ?thesis unfolding  is_state_separator_from_canonical_separator.simps by blast
 qed
 
+lemma transitions_reorder :  
+  assumes     "initial S' = initial S"
+  and     "inputs S' = inputs S"
+  and     "outputs S' = outputs S"
+  and     "set (transitions S') = set (transitions S)"
+shows "h S' = h S"
+  and "path S' q p = path S q p"
+  and "nodes S' = nodes S"
+proof-
+  show "h S' = h S"
+    using assms by auto
+
+  show "path S' q p = path S q p"
+  proof (induction p rule: rev_induct)
+    case Nil
+    then show ?case by auto
+  next
+    case (snoc a p)
+    then show ?case using assms(1-3) \<open>h S' = h S\<close>
+      by (meson h_equivalence_path) 
+  qed
+
+  show "nodes S' = nodes S"
+    by (metis (no_types, hide_lams) \<open>h S' = h S\<close> assms(1) h_subset_path nodes.initial nodes_code nodes_path path_to_nodes subset_antisym subset_code(1))
+
+qed
+
+lemma transition_reorder_is_state_separator_from_canonical_separator : 
+  assumes "is_state_separator_from_canonical_separator CSep q1 q2 S"
+  and     "initial S' = initial S"
+  and     "inputs S' = inputs S"
+  and     "outputs S' = outputs S"
+  and     "set (transitions S') = set (transitions S)"
+shows "is_state_separator_from_canonical_separator CSep q1 q2 S'"
+proof -
+  have "is_submachine S CSep"
+        and "single_input S"
+        and "acyclic S"
+        and "deadlock_state S (Inr q1)"
+        and "deadlock_state S (Inr q2)"
+        and "Inr q1 \<in> nodes S"
+        and "Inr q2 \<in> nodes S"
+        and "(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state S q)"
+        and "(\<forall>q\<in>nodes S.
+              \<forall>x\<in>set (inputs CSep).
+                 (\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow>
+                 (\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
+    using assms(1) unfolding is_state_separator_from_canonical_separator.simps by linarith+
+
+  note transitions_reorder[OF assms(2-5)]
+
+  have "is_submachine S' CSep" 
+    using \<open>is_submachine S CSep\<close> assms(2-5) unfolding is_submachine.simps by auto
+  moreover have "single_input S' " 
+    using \<open>single_input S\<close>  unfolding single_input.simps \<open>h S' = h S\<close> \<open>nodes S' = nodes S\<close> by blast
+  moreover have "acyclic S'"
+    using \<open>acyclic S\<close> assms(2) transitions_reorder(2)[OF assms(2-5)] unfolding acyclic.simps by simp
+  moreover have "deadlock_state S' (Inr q1)"
+    using \<open>deadlock_state S (Inr q1)\<close> \<open>h S' = h S\<close> unfolding deadlock_state.simps by blast
+  moreover have "deadlock_state S' (Inr q2)"
+    using \<open>deadlock_state S (Inr q2)\<close> \<open>h S' = h S\<close> unfolding deadlock_state.simps by blast
+  moreover have "Inr q1 \<in> nodes S'" and "Inr q2 \<in> nodes S'"
+    using \<open>Inr q1 \<in> nodes S\<close> \<open>Inr q2 \<in> nodes S\<close> \<open>nodes S' = nodes S\<close> by blast+
+  moreover have "(\<forall>q\<in>nodes S'. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state S' q)"
+    using \<open>(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state S q)\<close> \<open>nodes S' = nodes S\<close> \<open>h S' = h S\<close> unfolding deadlock_state.simps by blast
+  moreover have "(\<forall>q\<in>nodes S'.
+              \<forall>x\<in>set (inputs CSep).
+                 (\<exists>t\<in>h S'. t_source t = q \<and> t_input t = x) \<longrightarrow>
+                 (\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S'))"
+    using \<open>(\<forall>q\<in>nodes S.
+              \<forall>x\<in>set (inputs CSep).
+                 (\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow>
+                 (\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))\<close> 
+          \<open>h S' = h S\<close> \<open>nodes S' = nodes S\<close> by blast
+  ultimately show ?thesis unfolding is_state_separator_from_canonical_separator.simps by linarith
+qed
 
 lemma generate_submachine_for_contained_assn: "assn \<in> set assns \<Longrightarrow> generate_submachine_from_assignment CSep assn \<in> set (map (\<lambda> assn . generate_submachine_from_assignment CSep assn) assns)"
     by simp
@@ -4942,7 +5018,7 @@ shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2)
                                  (nodes_from_distinct_paths (canonical_separator M q1 q2)))))", of S] 
   by metis 
 
-lemma calculate_state_separator_from_canonical_separator_naive_correctness :
+lemma calculate_state_separator_from_canonical_separator_naive_exhaustiveness :
   assumes "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
   shows "\<exists> S' . calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S'"
 proof -
@@ -5207,63 +5283,49 @@ proof -
 
   moreover have "set (transitions ?S') = set (?filtered_transitions)" 
     unfolding generate_submachine_from_assignment.simps by fastforce
-  ultimately have "set (transitions ?S) = set (transitions ?S')"
+  ultimately have "set (transitions ?S') = set (transitions ?S)"
     by blast
-  then have "h ?S = h ?S'"
-    using trim_transitions_transitions[of S] by fastforce
+  
 
 
   
 
-  have "?S' \<in> set (map (\<lambda> assn . generate_submachine_from_assignment ?CSep assn) (generate_choices ?possible_choices))"
+  
+
+  have "initial ?S' = initial ?S \<and> inputs ?S' = inputs ?S \<and> outputs ?S' = outputs ?S"
+    using \<open>is_submachine ?S ?CSep\<close> unfolding is_submachine.simps generate_submachine_from_assignment.simps
+  proof -
+    assume a1: "initial (trim_transitions S) = initial (canonical_separator M q1 q2) \<and> set (transitions (trim_transitions S)) \<subseteq> set (transitions (canonical_separator M q1 q2)) \<and> inputs (trim_transitions S) = inputs (canonical_separator M q1 q2) \<and> outputs (trim_transitions S) = outputs (canonical_separator M q1 q2)"
+    have f2: "\<forall>f p. outputs (f\<lparr>transitions := filter p (wf_transitions (f::('a \<times> 'a + 'a, 'b) FSM_scheme))\<rparr>) = outputs f"
+      by (metis (no_types) is_submachine.elims(2) is_submachine_from_filtering_wf_transitions)
+    have f3: "\<forall>f p. inputs (f\<lparr>transitions := filter p (wf_transitions (f::('a \<times> 'a + 'a, 'b) FSM_scheme))\<rparr>) = inputs f"
+      by (metis (full_types) is_submachine.elims(2) is_submachine_from_filtering_wf_transitions)
+    have "\<forall>f p. initial (f\<lparr>transitions := filter p (wf_transitions (f::('a \<times> 'a + 'a, 'b) FSM_scheme))\<rparr>) = initial f"
+      by (metis is_submachine.elims(2) is_submachine_from_filtering_wf_transitions)
+    then show "initial (canonical_separator M q1 q2 \<lparr>transitions := filter (\<lambda>p. (t_source p, Some (t_input p)) \<in> set (map (\<lambda>s. (s, f s)) (nodes_from_distinct_paths (canonical_separator M q1 q2)))) (wf_transitions (canonical_separator M q1 q2))\<rparr>) = initial (trim_transitions S) \<and> inputs (canonical_separator M q1 q2 \<lparr>transitions := filter (\<lambda>p. (t_source p, Some (t_input p)) \<in> set (map (\<lambda>s. (s, f s)) (nodes_from_distinct_paths (canonical_separator M q1 q2)))) (wf_transitions (canonical_separator M q1 q2))\<rparr>) = inputs (trim_transitions S) \<and> outputs (canonical_separator M q1 q2 \<lparr>transitions := filter (\<lambda>p. (t_source p, Some (t_input p)) \<in> set (map (\<lambda>s. (s, f s)) (nodes_from_distinct_paths (canonical_separator M q1 q2)))) (wf_transitions (canonical_separator M q1 q2))\<rparr>) = outputs (trim_transitions S)"
+      using f3 f2 a1 by presburger
+  qed 
+  
+  then have "is_state_separator_from_canonical_separator ?CSep q1 q2 ?S'"
+    using transition_reorder_is_state_separator_from_canonical_separator[OF \<open>is_state_separator_from_canonical_separator ?CSep q1 q2 ?S\<close> _ _ _ \<open>set (transitions ?S') = set (transitions ?S)\<close>] by metis
+  moreover have "?S' \<in> set (map (\<lambda> assn . generate_submachine_from_assignment ?CSep assn) (generate_choices ?possible_choices))"
     using generate_submachine_for_contained_assn[OF \<open>?assn \<in> set (generate_choices ?possible_choices)\<close>] by assumption
-
-
-  have "is_state_separator_from_canonical_separator ?CSep q1 q2 ?S'"
-    using \<open>is_state_separator_from_canonical_separator ?CSep q1 q2 ?S\<close>
-
-  
-  
-  have "calculate_state_separator_from_canonical_separator_naive M q1 q2\<noteq> None"
-  
-
+  ultimately have "calculate_state_separator_from_canonical_separator_naive M q1 q2 \<noteq> None"
+    unfolding calculate_state_separator_from_canonical_separator_naive.simps
+    using find_None_iff[of "(is_state_separator_from_canonical_separator ?CSep q1 q2)" "(map (generate_submachine_from_assignment ?CSep) (generate_choices ?possible_choices))"]
+    by meson
+  then show "\<exists> S' . calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S'"
+    by blast
+qed
 
 
 
-   
-
-  ultimately have "?S \<in> set (map 
-          (\<lambda> assn . generate_submachine_from_assignment ?CSep assn) 
-          (generate_choices 
-            (map 
-              (\<lambda>q . (q, filter 
-                          (\<lambda>x . \<exists> t \<in> h ?CSep . t_source t = q \<and> t_input t = x) 
-                          (inputs ?CSep))) 
-              (nodes_from_distinct_paths ?CSep))))"
-        
-
-
-
-
-
-  moreover have "?S = generate_submachine_from_assignment ?CSep ?assn"
-    unfolding generate_submachine_from_assignment.simps
-
-  have "  
-
-  have 
-  
-  
-
-  (* Idea: 
-    - get choice from state_separator
-    - show that choice is contained in generated choices
-    - show that "equivalent" FSM is in generated submachines  
-    *)
-
-
-
-
+lemma calculate_state_separator_from_canonical_separator_naive_ex :
+  "(\<exists>S. is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S) 
+    = (\<exists> S' . calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S')"
+  using calculate_state_separator_from_canonical_separator_naive_soundness
+        calculate_state_separator_from_canonical_separator_naive_exhaustiveness
+  by metis
 
 
 
