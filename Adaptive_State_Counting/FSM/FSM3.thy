@@ -5327,7 +5327,7 @@ lemma calculate_state_separator_from_canonical_separator_naive_ex :
         calculate_state_separator_from_canonical_separator_naive_exhaustiveness
   by metis
 
-
+value "image (\<lambda> qq . (qq, (case calculate_state_separator_from_canonical_separator_naive M_ex_9 (fst qq) (snd qq) of None \<Rightarrow> None | Some wt \<Rightarrow> Some (transitions wt)))) {qq \<in> {(q1,q2) | q1 q2 . q1 \<in> nodes M_ex_9 \<and> q2 \<in> nodes M_ex_9} . fst qq < snd qq}"
 
 
 end (*
