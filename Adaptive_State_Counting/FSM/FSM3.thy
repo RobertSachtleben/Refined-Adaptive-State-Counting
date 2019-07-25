@@ -4599,7 +4599,8 @@ lemma trim_transitions_nodes : "nodes M = nodes (trim_transitions M)"
   using trim_transitions_paths[of M] path_to_nodes[of _ M] path_to_nodes[of _ "trim_transitions M"]
   using is_submachine.elims(2) nodes.initial nodes_path subsetI subset_antisym is_submachine_from_filtering_wf_transitions trim_transitions.simps by metis
   
-
+lemma trim_transitions_h : "h (trim_transitions M) \<subseteq> h M"
+  unfolding trim_transitions.simps by auto
 
 
     
@@ -4798,7 +4799,7 @@ qed
 
 
 fun generate_submachine_from_assignment :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> Input option) list \<Rightarrow> ('a, 'b) FSM_scheme" where
-  "generate_submachine_from_assignment M assn = M\<lparr> transitions := filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set assn) (transitions M)\<rparr>"
+  "generate_submachine_from_assignment M assn = M\<lparr> transitions := filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set assn) (wf_transitions M)\<rparr>"
 
 fun calculate_state_separator_from_canonical_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
   "calculate_state_separator_from_canonical_separator_naive M q1 q2 = 
@@ -4819,6 +4820,117 @@ value "h (canonical_separator M_ex_H 1 3)"
 value "(map (\<lambda>q . (q, filter (\<lambda>x . \<exists> t \<in> h (canonical_separator M_ex_H 1 3) . t_source t = q \<and> t_input t = x) (inputs (canonical_separator M_ex_H 1 3)))) (nodes_from_distinct_paths (canonical_separator M_ex_H 1 3)))"
 value[code] "calculate_state_separator_from_canonical_separator_naive M_ex_H 1 4"
 
+
+
+lemma trim_transitions_submachine : "is_submachine S M \<Longrightarrow> is_submachine (trim_transitions S) M"
+  unfolding trim_transitions.simps is_submachine.simps by auto
+
+lemma trim_transitions_single_input : "single_input S \<Longrightarrow> single_input (trim_transitions S)"
+  using trim_transitions_nodes[of S] trim_transitions_h[of S] unfolding trim_transitions.simps single_input.simps by blast
+
+lemma trim_transitions_acyclic : "acyclic S \<Longrightarrow> acyclic (trim_transitions S)"
+  using trim_transitions_paths[of S]  unfolding trim_transitions.simps acyclic.simps by simp
+
+lemma trim_transitions_deadlock_state : "deadlock_state S q \<Longrightarrow> deadlock_state (trim_transitions S) q"
+  using trim_transitions_h[of S] unfolding trim_transitions.simps deadlock_state.simps by blast
+
+lemma trim_transitions_deadlock_state_nodes : assumes "q \<in> nodes S" shows "deadlock_state S q = deadlock_state (trim_transitions S) q"
+proof -
+  have "deadlock_state S q \<Longrightarrow> deadlock_state (trim_transitions S) q"
+    using trim_transitions_deadlock_state by auto
+  moreover have "deadlock_state (trim_transitions S) q \<Longrightarrow> deadlock_state S q" 
+  proof (rule ccontr)
+    assume "deadlock_state (trim_transitions S) q"  and "\<not> deadlock_state S q"
+    then obtain t where "t\<in>h S" and "t_source t = q"
+      unfolding deadlock_state.simps by blast
+    then have "t \<in> h (trim_transitions S)"
+      unfolding trim_transitions.simps using assms by auto
+    then have "\<not>deadlock_state (trim_transitions S) q"
+      unfolding deadlock_state.simps using \<open>t_source t = q\<close> by blast
+    then show "False" 
+      using \<open>deadlock_state (trim_transitions S) q\<close> by blast
+  qed
+  ultimately show ?thesis by blast
+qed
+
+lemma trim_transitions_t_source' : "t \<in> set (transitions (trim_transitions S)) \<Longrightarrow> t_source t \<in> nodes S"
+  unfolding trim_transitions.simps by auto
+
+lemma trim_transitions_t_source : "t \<in> set (transitions (trim_transitions S)) \<Longrightarrow> t_source t \<in> nodes (trim_transitions S)"
+  using trim_transitions_nodes[of S] trim_transitions_t_source'[of t S] by blast
+
+lemma trim_transitions_t_source_h : "t \<in> h (trim_transitions S) \<Longrightarrow> t_source t \<in> nodes (trim_transitions S)"
+  using trim_transitions_t_source[of t S] unfolding wf_transitions.simps by auto
+
+lemma trim_transitions_transitions : "h (trim_transitions S) = set (transitions (trim_transitions S))"
+  unfolding trim_transitions.simps by auto
+
+
+  
+
+lemma trim_transitions_state_separator_from_canonical_separator : 
+  assumes "is_state_separator_from_canonical_separator CSep q1 q2 S"
+  shows   "is_state_separator_from_canonical_separator CSep q1 q2 (trim_transitions S)"  
+proof -
+  have p1: "is_submachine (trim_transitions S) CSep \<and>
+    single_input (trim_transitions S) \<and>
+    FSM3.acyclic (trim_transitions S) \<and>
+    deadlock_state (trim_transitions S) (Inr q1) \<and>
+    deadlock_state (trim_transitions S) (Inr q2) \<and>
+    Inr q1 \<in> nodes (trim_transitions S) \<and>
+    Inr q2 \<in> nodes (trim_transitions S)"
+    using assms unfolding is_state_separator_from_canonical_separator.simps  
+    using trim_transitions_submachine[of S CSep]
+    using trim_transitions_single_input[of S]
+    using trim_transitions_acyclic[of S]
+    using trim_transitions_deadlock_state[of S]
+    using trim_transitions_nodes[of S] 
+    by blast
+
+  have "(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state S q)"
+    using assms unfolding is_state_separator_from_canonical_separator.simps by blast
+  then have p2: "(\<forall>q\<in>nodes (trim_transitions S). q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state (trim_transitions S) q)"
+    using trim_transitions_nodes[of S]  trim_transitions_deadlock_state_nodes[of _ S] by blast
+
+  have *: "(\<forall>q\<in>nodes S.
+      \<forall>x\<in>set (inputs CSep).
+         (\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
+    using assms unfolding is_state_separator_from_canonical_separator.simps by blast
+  have p3: "\<And> q x . q\<in>nodes (trim_transitions S) \<Longrightarrow> x\<in>set (inputs CSep) \<Longrightarrow>
+           (\<exists>t\<in>h (trim_transitions S). t_source t = q \<and> t_input t = x) \<Longrightarrow>
+           (\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h (trim_transitions S))"
+    using trim_transitions_nodes[of S] trim_transitions_h[of S]
+  proof -
+    fix q x assume "q\<in>nodes (trim_transitions S)" and "x\<in>set (inputs CSep)" and "\<exists>t\<in>h (trim_transitions S). t_source t = q \<and> t_input t = x"
+    then have "q \<in> nodes S" using  trim_transitions_nodes[of S]  by blast
+    then have **: "(\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S)"
+      using \<open>x \<in> set (inputs CSep)\<close> * by blast
+    
+    obtain t where "t\<in>h (trim_transitions S)" and "t_source t = q" and "t_input t = x"
+      using \<open>\<exists>t\<in>h (trim_transitions S). t_source t = q \<and> t_input t = x\<close> by blast
+    then have "(\<exists>t\<in>h S. t_source t = q \<and> t_input t = x)" using trim_transitions_h[of S]  by blast
+    then have "(\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S)" using ** by blast
+    
+    have "\<And> t' . t'\<in>h CSep \<Longrightarrow> t_source t' = q \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> h (trim_transitions S)"
+    proof - 
+      fix t' assume "t'\<in>h CSep" and "t_source t' = q" and "t_input t' = x"
+      then have "t' \<in> h S"
+        using \<open>(\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S)\<close> by blast
+      then show "t' \<in> h (trim_transitions S)"
+        unfolding trim_transitions.simps using \<open>t_source t' = q\<close> \<open>q \<in> nodes S\<close> \<open>t_input t' = x\<close> by auto
+    qed
+    then show "(\<forall>t'\<in>h CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h (trim_transitions S))" by blast
+  qed
+
+  from p1 p2 p3 show ?thesis unfolding  is_state_separator_from_canonical_separator.simps by blast
+qed
+
+
+lemma generate_submachine_for_contained_assn: "assn \<in> set assns \<Longrightarrow> generate_submachine_from_assignment CSep assn \<in> set (map (\<lambda> assn . generate_submachine_from_assignment CSep assn) assns)"
+    by simp
+
+
+
 lemma calculate_state_separator_from_canonical_separator_naive_soundness :
   assumes "calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S"
 shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
@@ -4836,79 +4948,306 @@ lemma calculate_state_separator_from_canonical_separator_naive_correctness :
 proof -
   let ?CSep = "(canonical_separator M q1 q2)"
   from assms obtain S where "is_state_separator_from_canonical_separator ?CSep q1 q2 S" by blast
+  let ?S = "trim_transitions S"
 
-  then have "is_submachine S ?CSep"
-        and "single_input S"
-        and "acyclic S"
-        and "deadlock_state S (Inr q1)"
-        and "deadlock_state S (Inr q2)"
-        and "Inr q1 \<in> nodes S"
-        and "Inr q2 \<in> nodes S"
-        and "(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state S q)"
-        and "(\<forall>q\<in>nodes S.
+  have "is_state_separator_from_canonical_separator ?CSep q1 q2 ?S"
+    using trim_transitions_state_separator_from_canonical_separator[OF \<open>is_state_separator_from_canonical_separator ?CSep q1 q2 S\<close>] by assumption
+
+  then have "is_submachine ?S ?CSep"
+        and "single_input ?S"
+        and "acyclic ?S"
+        and "deadlock_state ?S (Inr q1)"
+        and "deadlock_state ?S (Inr q2)"
+        and "Inr q1 \<in> nodes ?S"
+        and "Inr q2 \<in> nodes ?S"
+        and "(\<forall>q\<in>nodes ?S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> is_Inl q \<and> \<not> deadlock_state ?S q)"
+        and "(\<forall>q\<in>nodes ?S.
               \<forall>x\<in>set (inputs ?CSep).
-                 (\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow>
-                 (\<forall>t'\<in>h ?CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
+                 (\<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x) \<longrightarrow>
+                 (\<forall>t'\<in>h ?CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S))"
     unfolding is_state_separator_from_canonical_separator.simps by linarith+
 
   let ?ncs = "nodes_from_distinct_paths ?CSep"
-  let ?ns = "nodes_from_distinct_paths S"
+  let ?ns = "nodes_from_distinct_paths ?S"
 
   let ?cbc = "map (\<lambda>q. (q, filter (\<lambda>x. \<exists>t\<in>h ?CSep. t_source t = q \<and> t_input t = x) (inputs ?CSep)))"
-  let ?cbs = "map (\<lambda>q. (q, filter (\<lambda>x. \<exists>t\<in>h S. t_source t = q \<and> t_input t = x) (inputs S)))"
+  let ?cbs = "map (\<lambda>q. (q, filter (\<lambda>x. \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x) (inputs ?S)))"
 
-  have "\<And> NS . finite NS \<Longrightarrow> NS \<subseteq> nodes ?CSep 
-        \<Longrightarrow> \<exists> f . \<forall> q \<in> NS . (q \<notin> nodes S \<and> f q = None) \<or> (q \<in> nodes S \<and> deadlock_state S q) \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+  have "finite (nodes ?S)"
+    by (simp add: nodes_finite) 
+  moreover have "nodes ?S \<subseteq> nodes ?CSep"
+    using submachine_nodes[OF \<open>is_submachine ?S ?CSep\<close>] by assumption
+  moreover have "\<And> NS . finite NS \<Longrightarrow> NS \<subseteq> nodes ?CSep 
+        \<Longrightarrow> \<exists> f . (\<forall> q . (q \<notin> NS \<longrightarrow> f q = None) \<and> (q \<in> NS \<longrightarrow> ((q \<notin> nodes ?S \<and> f q = None) \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> f q = None) \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
   proof -
     fix NS assume "finite NS" and "NS \<subseteq> nodes ?CSep"
-    then show "\<exists> f . \<forall> q \<in> NS . (q \<notin> nodes S \<and> f q = None) \<or> (q \<in> nodes S \<and> deadlock_state S q) \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+    then show "\<exists> f . (\<forall> q . (q \<notin> NS \<longrightarrow> f q = None) \<and> (q \<in> NS \<longrightarrow> ((q \<notin> nodes ?S \<and> f q = None) \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> f q = None) \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
     proof (induction)
       case empty
       then show ?case by auto
     next
       case (insert s NS)
       then have "NS \<subseteq> nodes (canonical_separator M q1 q2)" by auto
-      then obtain f where f_def : "\<forall> q \<in> NS . (q \<notin> nodes S \<and> f q = None) 
-                                              \<or> (q \<in> nodes S \<and> deadlock_state S q) 
-                                              \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
+      then obtain f where f_def : "(\<forall> q . (q \<notin> NS \<longrightarrow> f q = None) \<and> (q \<in> NS \<longrightarrow> ((q \<notin> nodes ?S \<and> f q = None) \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> f q = None) \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
         using insert.IH by blast
       
-      show ?case proof (cases "s \<in> nodes S")
+      show ?case proof (cases "s \<in> nodes ?S")
         case True
-        then show ?thesis proof (cases "deadlock_state S s")
+        then show ?thesis proof (cases "deadlock_state ?S s")
           case True
           let ?f = "f( s := None)"
-          have "\<forall>q\<in>insert s NS.(q \<notin> nodes S \<and> ?f q = None) 
-                              \<or> (q \<in> nodes S \<and> deadlock_state S q) 
-                              \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> ?f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
-          using \<open>s \<in> nodes S\<close> True f_def by auto
+          have "(\<forall> q . (q \<notin> (insert s NS) \<longrightarrow> f q = None) \<and> (q \<in> (insert s NS) \<longrightarrow> ((q \<notin> nodes ?S \<and> f q = None) \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> f q = None) \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
+          using \<open>s \<in> nodes ?S\<close> True f_def by auto
           then show ?thesis by blast
         next
           case False
-          then obtain t where "t\<in>h S" and "t_source t = s"
+          then obtain t where "t\<in>h ?S" and "t_source t = s"
             unfolding deadlock_state.simps by blast
-          then have "\<exists>t'\<in>h S. t_source t' = s \<and> t_input t' = t_input t" by blast
-          moreover have "\<forall> t' \<in> h S . t_source t' = s \<longrightarrow> t_input t' = t_input t"
-            using \<open>single_input S\<close> \<open>t_source t = s\<close> \<open>s \<in> nodes S\<close> unfolding single_input.simps 
-          ultimately have "t_input t = (THE x .  \<exists>t'\<in>h S. t_source t' = s \<and> t_source t' \<in> nodes S \<and> t_input t' = x)"
-            
-          then have "t\<in>h S \<and> t_source t = s \<and> t_input t = t_input t" by auto
-          then have "t_input t = (THE x .  \<exists>t\<in>h S. t_source t = s \<and> t_input t = x)"
-            using \<open>single_input S\<close> \<open>s \<in> nodes S\<close> unfolding single_input.simps 
+          then have theEx: "\<exists>t'\<in>h ?S. t_source t' = s \<and> t_input t' = t_input t" 
+            using \<open>t_source t = s\<close> \<open>s \<in> nodes ?S\<close> by blast
+          
+          have "\<forall> t' \<in> h ?S . (t_source t' = s) \<longrightarrow> t_input t' = t_input t"
+            using \<open>single_input ?S\<close> \<open>t_source t = s\<close> \<open>s \<in> nodes ?S\<close> unfolding single_input.simps
+            by (metis \<open>t \<in> h ?S\<close>) 
+          then have theAll: "\<And>x . (\<exists>t'\<in>h ?S. t_source t' = s \<and> t_input t' = x) \<Longrightarrow> x = t_input t"
+            by blast
 
-          then show ?thesis sorry
+
+          let ?f = "f( s := Some (t_input t))"
+          have "t_input t = (THE x .  \<exists>t'\<in>h ?S. t_source t' = s \<and> t_input t' = x)"
+            using the_equality[of "\<lambda> x . \<exists>t'\<in>h ?S. t_source t' = s \<and> t_input t' = x" "t_input t", OF theEx theAll] by simp
+
+
+          then have "(\<forall> q . (q \<notin> (insert s NS) \<longrightarrow> ?f q = None) \<and> (q \<in> (insert s NS) \<longrightarrow> ((q \<notin> nodes ?S \<and> ?f q = None) \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> ?f q = None) \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> ?f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
+            using \<open>s \<in> nodes ?S\<close> False f_def by auto
+          then show ?thesis by blast
         qed
       next
         case False
-        let ?f = "f( x := None)"
-        have "\<forall>q\<in>insert x NS.(q \<notin> nodes S \<and> ?f q = None) 
-                              \<or> (q \<in> nodes S \<and> deadlock_state S q) 
-                              \<or> (q \<in> nodes S \<and> \<not> deadlock_state S q \<and> ?f q = Some (THE x .  \<exists>t\<in>h S. t_source t = q \<and> t_input t = x))"
-          using False f_def by auto
+        let ?f = "f( s := None)"
+        have "(\<forall> q . (q \<notin> (insert s NS) \<longrightarrow> ?f q = None) \<and> (q \<in> (insert s NS) \<longrightarrow> ((q \<notin> nodes ?S \<and> ?f q = None) \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> ?f q = None) \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> ?f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
+            using False f_def by auto
         then show ?thesis by blast
       qed
     qed
-  proof 
+  qed
+  
+  ultimately obtain f where f_def : "(\<forall> q . 
+                                        (q \<notin> nodes ?S \<longrightarrow> f q = None) 
+                                        \<and> (q \<in> nodes ?S \<longrightarrow> ((q \<notin> nodes ?S \<and> f q = None) 
+                                                            \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> f q = None) 
+                                                            \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
+    by blast
+
+  let ?assn = "map (\<lambda>q . (q,f q)) (nodes_from_distinct_paths ?CSep)"
+  let ?possible_choices = "(map 
+              (\<lambda>q . (q, filter 
+                          (\<lambda>x . \<exists> t \<in> h ?CSep . t_source t = q \<and> t_input t = x) 
+                          (inputs ?CSep))) 
+              (nodes_from_distinct_paths ?CSep))"
+  let ?filtered_transitions = "filter
+        (\<lambda>t. (t_source t, Some (t_input t))
+             \<in> set (map (\<lambda>q. (q, f q)) (nodes_from_distinct_paths ?CSep)))
+        (wf_transitions ?CSep)"
+
+  (* FSM equivalent to S but possibly with a different order of transitions *)
+  let ?S' = "generate_submachine_from_assignment ?CSep ?assn"
+  
+  have p1: "length ?assn = length ?possible_choices" by auto
+
+  have p2a: "(\<forall> i < length ?assn . (fst (?assn ! i)) = (fst (?possible_choices ! i)))"
+    by auto
+  have p2b: "(\<And> i . i < length ?assn \<Longrightarrow> ((snd (?assn ! i)) = None \<or> ((snd (?assn ! i)) \<noteq> None \<and> the (snd (?assn ! i)) \<in> set (snd (?possible_choices ! i)))))"
+  proof -
+    fix i assume "i < length ?assn"
+    let ?q = "(fst (?assn ! i))"
+    have "(fst (?possible_choices ! i)) = ?q" using p2a \<open>i < length ?assn\<close> by auto
+    
+    have "snd (?assn ! i) = f ?q"
+      using \<open>i < length ?assn\<close> by auto 
+    have "snd (?possible_choices ! i) = filter (\<lambda>x . \<exists> t \<in> h ?CSep . t_source t = ?q \<and> t_input t = x) (inputs ?CSep)"
+       using \<open>i < length ?assn\<close> p2a by auto 
+    
+     show "((snd (?assn ! i)) = None \<or> ((snd (?assn ! i)) \<noteq> None \<and> the (snd (?assn ! i)) \<in> set (snd (?possible_choices ! i))))" 
+     proof (cases "?q \<in> nodes ?S")
+      case True
+      then show ?thesis proof (cases "deadlock_state ?S ?q")
+        case True
+        then have "f ?q = None" using f_def \<open>?q \<in> nodes ?S\<close> by blast
+        then have "snd (?assn ! i) = None" using \<open>snd (?assn ! i) = f ?q\<close> by auto
+        then show ?thesis by blast
+      next
+        case False
+        then obtain x where "\<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x"
+          unfolding deadlock_state.simps by blast
+        then have "\<exists>! x . \<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x"
+          using \<open>single_input ?S\<close> unfolding single_input.simps
+          by (metis (mono_tags, lifting) True) 
+        then have "(THE x .  \<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x) = x"
+          using the1_equality[of "\<lambda> x . \<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x"] \<open>\<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x\<close> by blast
+        moreover have "f ?q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x)"
+          using False \<open>?q \<in> nodes ?S\<close> f_def by blast
+        ultimately have "f ?q = Some x" 
+          by auto
+
+        moreover have "x \<in> set (filter (\<lambda>x . \<exists> t \<in> h ?CSep . t_source t = ?q \<and> t_input t = x) (inputs ?CSep))"
+          using \<open>is_submachine ?S ?CSep\<close>
+        proof -
+          obtain pp :: "('a \<times> 'a + 'a) \<times> integer \<times> integer \<times> ('a \<times> 'a + 'a)" where
+            f1: "pp \<in> h ?S \<and> t_source pp = fst (map (\<lambda>s. (s, f s)) (nodes_from_distinct_paths (canonical_separator M q1 q2)) ! i) \<and> t_input pp = x"
+            using \<open>\<exists>t\<in>h ?S. t_source t = fst (map (\<lambda>q. (q, f q)) (nodes_from_distinct_paths (canonical_separator M q1 q2)) ! i) \<and> t_input t = x\<close> by blast
+          then have "(\<exists>p. p \<in> h (canonical_separator M q1 q2) \<and> t_source p = t_source pp \<and> t_input p = x) \<and> x \<in> set (inputs (canonical_separator M q1 q2))"
+            by (metis (no_types) True \<open>is_submachine ?S (canonical_separator M q1 q2)\<close> \<open>nodes ?S \<subseteq> nodes (canonical_separator M q1 q2)\<close> h_contents(2) submachine_h subset_iff)
+          then show ?thesis
+            using f1 by auto
+        qed 
+
+        ultimately have "the (snd (?assn ! i)) \<in> set (snd (?possible_choices ! i))"
+          using \<open>snd (?possible_choices ! i) = filter (\<lambda>x . \<exists> t \<in> h ?CSep . t_source t = ?q \<and> t_input t = x) (inputs ?CSep)\<close> \<open>snd (?assn ! i) = f ?q\<close> by fastforce 
+
+        then show ?thesis by auto
+      qed
+    next
+      case False
+      then have "snd (?assn ! i) = None" using \<open>snd (?assn ! i) = f ?q\<close> f_def by auto
+      then show ?thesis by auto
+    qed
+  qed
+
+  then have "?assn \<in> set (generate_choices ?possible_choices)"    
+    using generate_choices_idx[of ?assn ?possible_choices] by auto
+
+
+  have "set (transitions ?S) = set ?filtered_transitions"
+  proof -
+    have "\<And> t . t \<in> set (transitions ?S) \<Longrightarrow> t \<in> set (?filtered_transitions)"
+    proof -
+      fix t assume "t \<in> set (transitions ?S)"
+      then have "t \<in> set (wf_transitions ?CSep)"
+        using \<open>is_submachine ?S ?CSep\<close> unfolding is_submachine.simps by auto
+
+      have "t \<in> h ?S"
+        using trim_transitions_transitions \<open>t \<in> set (transitions ?S)\<close> by auto
+
+      have "t_source t \<in> nodes ?S"
+        using trim_transitions_t_source[OF \<open>t \<in> set (transitions ?S)\<close>] by assumption
+      have "\<not> deadlock_state ?S (t_source t)"
+        unfolding deadlock_state.simps using \<open>t \<in> h ?S\<close> by blast
+      
+      have the1: "\<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = t_input t"
+        using \<open>t \<in> h ?S\<close> by blast
+      then have the2: "\<exists>! x . \<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = x"
+        using \<open>single_input ?S\<close> unfolding single_input.simps
+        by (metis (mono_tags, lifting) \<open>t_source t \<in> nodes ?S\<close>) 
+
+      
+      have "f (t_source t) = Some (t_input t)"
+        using f_def \<open>t_source t \<in> nodes ?S\<close> \<open>\<not> deadlock_state ?S (t_source t)\<close> the1_equality[OF the2 the1] by fastforce 
+      moreover have "t_source t \<in> nodes ?CSep"
+        using \<open>t_source t \<in> nodes ?S\<close> submachine_nodes[OF \<open>is_submachine ?S ?CSep\<close>] by blast
+      ultimately have "(t_source t, Some (t_input t)) \<in> set (map (\<lambda>q. (q, f q)) (nodes_from_distinct_paths ?CSep))"
+        using nodes_code[of ?CSep] by fastforce
+      
+      then show "t \<in> set (?filtered_transitions)"
+        using filter_list_set[OF \<open>t \<in> set (wf_transitions ?CSep)\<close>, of "(\<lambda> t . (t_source t, Some (t_input t)) \<in> set (map (\<lambda>q. (q, f q)) (nodes_from_distinct_paths ?CSep)))"] by blast
+    qed
+
+    moreover have "\<And> t . t \<in> set (?filtered_transitions) \<Longrightarrow> t \<in> set (transitions ?S)"
+    proof -
+      fix t assume a: "t\<in>set (?filtered_transitions)"
+      then have "t \<in> set (wf_transitions ?CSep)" 
+            and "(t_source t, Some (t_input t))
+                        \<in> set (map (\<lambda>q. (q, f q)) (nodes_from_distinct_paths ?CSep))"
+        by auto
+      then have "f (t_source t) = Some (t_input t)" by auto 
+      then have "f (t_source t) \<noteq> None" by auto
+      moreover have "t_source t \<in> nodes ?S"
+        using calculation f_def by auto
+      moreover have "\<not>deadlock_state ?S (t_source t)"
+      proof -
+        show ?thesis
+          by (meson calculation(1) f_def)
+      qed
+      ultimately have "f (t_source t) = Some (THE x. \<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = x)"
+        using f_def by auto
+      then have "t_input t = (THE x. \<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = x)"
+        using \<open>f (t_source t) = Some (t_input t)\<close> by auto
+
+
+      have "\<exists> x . \<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = x"
+        using \<open>\<not>deadlock_state ?S (t_source t)\<close> unfolding deadlock_state.simps by blast
+      then obtain x where the1: \<open>\<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = x\<close> by blast
+      then have the2: "\<exists>! x . \<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = x"
+        using \<open>single_input ?S\<close> unfolding single_input.simps
+        by (metis (mono_tags, lifting) \<open>t_source t \<in> nodes ?S\<close>) 
+
+      
+
+      have "x = t_input t"
+        using \<open>t_input t = (THE x. \<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = x)\<close> the1_equality[OF the2 the1] by auto
+      then have "(\<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = t_input t)"
+        using the1 by blast
+
+      have "t_input t \<in> set (inputs ?CSep)"
+        using \<open>t \<in> set (wf_transitions ?CSep)\<close> by auto
+      
+      have "(\<forall>t'\<in>h ?CSep. t_source t' = t_source t \<and> t_input t' = t_input t \<longrightarrow> t' \<in> h ?S)"
+        using \<open>is_state_separator_from_canonical_separator ?CSep q1 q2 ?S\<close> unfolding is_state_separator_from_canonical_separator.simps
+        using \<open>t_source t \<in> nodes ?S\<close>
+              \<open>t_input t \<in> set (inputs ?CSep)\<close>
+              \<open>\<exists>t'\<in>h ?S. t_source t' = t_source t \<and> t_input t' = t_input t\<close> by blast
+      then have "t \<in> h ?S"
+        using \<open>t \<in> set (wf_transitions ?CSep)\<close> by blast
+      then show "t \<in> set (transitions ?S)"
+        using trim_transitions_transitions[of S] by blast
+    qed
+
+    ultimately show ?thesis by blast
+  qed
+
+  moreover have "set (transitions ?S') = set (?filtered_transitions)" 
+    unfolding generate_submachine_from_assignment.simps by fastforce
+  ultimately have "set (transitions ?S) = set (transitions ?S')"
+    by blast
+  then have "h ?S = h ?S'"
+    using trim_transitions_transitions[of S] by fastforce
+
+
+  
+
+  have "?S' \<in> set (map (\<lambda> assn . generate_submachine_from_assignment ?CSep assn) (generate_choices ?possible_choices))"
+    using generate_submachine_for_contained_assn[OF \<open>?assn \<in> set (generate_choices ?possible_choices)\<close>] by assumption
+
+
+  have "is_state_separator_from_canonical_separator ?CSep q1 q2 ?S'"
+    using \<open>is_state_separator_from_canonical_separator ?CSep q1 q2 ?S\<close>
+
+  
+  
+  have "calculate_state_separator_from_canonical_separator_naive M q1 q2\<noteq> None"
+  
+
+
+
+
+   
+
+  ultimately have "?S \<in> set (map 
+          (\<lambda> assn . generate_submachine_from_assignment ?CSep assn) 
+          (generate_choices 
+            (map 
+              (\<lambda>q . (q, filter 
+                          (\<lambda>x . \<exists> t \<in> h ?CSep . t_source t = q \<and> t_input t = x) 
+                          (inputs ?CSep))) 
+              (nodes_from_distinct_paths ?CSep))))"
+        
+
+
+
+
+
+  moreover have "?S = generate_submachine_from_assignment ?CSep ?assn"
+    unfolding generate_submachine_from_assignment.simps
 
   have "  
 
