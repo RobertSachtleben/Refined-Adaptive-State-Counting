@@ -106,4 +106,25 @@ lemma set_map_subset :
 shows "t \<in> set (map f xs)"
   using assms by auto
 
+lemma rev_induct2[consumes 1, case_names Nil snoc]: 
+  assumes "length xs = length ys" 
+      and "P [] []"
+      and "(\<And>x xs y ys. length xs = length ys \<Longrightarrow> P xs ys \<Longrightarrow> P (xs@[x]) (ys@[y]))"
+    shows "P xs ys"
+using assms proof (induct xs arbitrary: ys rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc x xs)
+  then show ?case proof (cases ys)
+    case Nil
+    then show ?thesis
+      using snoc.prems(1) by auto 
+  next
+    case (Cons a list)
+    then show ?thesis
+      by (metis append_butlast_last_id diff_Suc_1 length_append_singleton list.distinct(1) snoc.hyps snoc.prems) 
+  qed
+qed
+
 end
