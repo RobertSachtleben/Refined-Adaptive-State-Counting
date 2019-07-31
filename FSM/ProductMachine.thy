@@ -839,87 +839,19 @@ lemma submachine_transition_product_from :
       and "((q1,q2),x,y,(q1',q2')) \<in> h S"
  shows "is_submachine (from_FSM S (q1',q2')) (product (from_FSM M q1') (from_FSM M q2'))"
 proof -
-  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
-  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
-  let ?F = "(from_FSM S (q1',q2'))"  
-
-  
-
-  have "inputs (from_FSM M q1) = inputs (from_FSM M q1')"
-   and "inputs (from_FSM M q2) = inputs (from_FSM M q2')"
-   and "outputs (from_FSM M q1) = outputs (from_FSM M q1')"
-   and "outputs (from_FSM M q2) = outputs (from_FSM M q2')"
-    by auto
-
-  have "transitions (from_FSM M q1) = transitions (from_FSM M q1')" and "transitions (from_FSM M q2) = transitions (from_FSM M q2')"
-    by auto
-  
-
-  have "((q1,q2),x,y,(q1',q2')) \<in> h ?P"
+  have "((q1,q2),x,y,(q1',q2')) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
     using submachine_h[OF assms(1)] assms(2) by blast
-  have "(q1,x,y,q1') \<in> h (from_FSM M q1)" and "(q2,x,y,q2') \<in> h (from_FSM M q2)"
-    using product_transition_split[OF \<open>((q1,q2),x,y,(q1',q2')) \<in> h ?P\<close>] by auto
-
   have "(q1',q2') \<in> nodes S" using wf_transition_target[OF assms(2)] by auto 
-  have "is_submachine (from_FSM S (q1', q2')) (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))"
-    using submachine_from[OF assms(1) \<open>(q1',q2') \<in> nodes S\<close>]
-
-end (*
-    
-
-  have "h (from_FSM M q1') \<subseteq> h (from_FSM M q1)" 
-    using from_FSM_next_h[OF \<open>(q1,x,y,q1') \<in> h (from_FSM M q1)\<close>] by auto
-  moreover have "h (from_FSM M q2') \<subseteq> h (from_FSM M q2)" 
-    using from_FSM_next_h[OF \<open>(q2,x,y,q2') \<in> h (from_FSM M q2)\<close>] by auto
-
-  ultimately have "set (cartesian_product_list (wf_transitions (from_FSM M q1')) (wf_transitions (from_FSM M q2')))
-                   \<subseteq> set (cartesian_product_list (wf_transitions (from_FSM M q1)) (wf_transitions (from_FSM M q2)))"
-    using cartesian_product_list_set by auto 
-
-
-  then have "set (product_transitions (from_FSM M q1') (from_FSM M q2')) \<subseteq> set (product_transitions (from_FSM M q1) (from_FSM M q2))"
-    using product_transitions_alt1 by blast 
-  then have **: "set (transitions ?F) \<subseteq> set (transitions ?P')"
-
-  have "wf_transitions (from_FSM M q1) = wf_transitions (from_FSM M q1')" 
-   and "wf_transitions (from_FSM M q2) = wf_transitions (from_FSM M q2')"
-    unfolding wf_transitions.simps by auto
-  
-  then have "product_transitions (from_FSM M q1) (from_FSM M q2) = product_transitions (from_FSM M q1') (from_FSM M q2')" 
-    unfolding product_transitions.simps  by fastforce
-  then have **: "set (transitions ?F) \<subseteq> set (transitions ?P')"
-    by (metis (no_types, lifting) assms(1) from_FSM.simps is_submachine.elims(2) product_simps(4) select_convs(4))
-
-  (*
-  then have "h ?P = h ?P'" 
-    unfolding product.simps
-    by (metis FSM3.product.simps \<open>inputs (from_FSM M q1) = inputs (from_FSM M q1')\<close> \<open>inputs (from_FSM M q2) = inputs (from_FSM M q2')\<close> \<open>outputs (from_FSM M q1) = outputs (from_FSM M q1')\<close> \<open>outputs (from_FSM M q2) = outputs (from_FSM M q2')\<close> from_FSM.simps from_FSM_h product_simps(2) product_simps(3) product_simps(4))  
-  then have **: "h ?F \<subseteq> h ?P'"
-    by (metis (no_types, lifting) assms(1) submachine_h from_FSM_h) 
-  *)
-
-  have *: "initial ?F = initial ?P'" 
-    by auto
-
-  have ***: "inputs ?F = inputs ?P'"
+  show ?thesis 
+    using product_from_next[OF \<open>((q1,q2),x,y,(q1',q2')) \<in> h (product (from_FSM M q1) (from_FSM M q2))\<close>]
+          submachine_from[OF assms(1) \<open>(q1',q2') \<in> nodes S\<close>]
   proof -
-    have "inputs (from_FSM M q1) @ inputs (from_FSM M q2) = inputs S"
-      by (metis (no_types) assms(1) is_submachine.simps product_simps(2))
+    have "initial (from_FSM S (q1', q2')) = initial (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) \<and> set (wf_transitions (from_FSM S (q1', q2'))) \<subseteq> set (wf_transitions (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))) \<and> inputs (from_FSM S (q1', q2')) = inputs (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) \<and> outputs (from_FSM S (q1', q2')) = outputs (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))"
+      using \<open>is_submachine (from_FSM S (q1', q2')) (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))\<close> is_submachine.simps by blast
     then show ?thesis
-      by (metis (no_types) from_FSM.simps product_simps(2) select_convs(2))
-  qed 
-
-  have ****: "outputs ?F = outputs ?P'"
-  proof -
-    have "outputs (from_FSM M q1) @ outputs (from_FSM M q2) = outputs S"
-      by (metis (no_types) assms(1) is_submachine.simps product_simps(3))
-    then show ?thesis
-      by (metis (no_types) from_FSM.simps product_simps(3) select_convs(3))
+      by (metis (no_types) \<open>set (wf_transitions (product (from_FSM M q1') (from_FSM M q2'))) = set (wf_transitions (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')))\<close> from_FSM_simps(1) from_FSM_simps(2) from_FSM_simps(3) is_submachine.simps product_simps(1) product_simps(2) product_simps(3))
   qed
+qed
 
-
-  show "is_submachine ?F ?P'" 
-    using is_submachine.simps[of ?F ?P'] * ** *** **** by blast 
-qed    
 
 end
