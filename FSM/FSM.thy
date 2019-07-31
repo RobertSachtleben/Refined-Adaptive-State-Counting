@@ -171,6 +171,7 @@ lemma hIO_alt_def : "hIO M = { t . t \<in> set (transitions M) \<and> t_input t 
 lemma h_alt_def : "h M = { t . t \<in> set (transitions M) \<and> t_source t \<in> nodes M \<and> t_input t \<in> set (inputs M) \<and> t_output t \<in> set (outputs M)}"
   by auto
 
+lemma wf_transition_target : "t \<in> h M \<Longrightarrow> t_target t \<in> nodes M" by auto
 
 
 
@@ -183,13 +184,19 @@ inductive path :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 's
 
 inductive_cases path_nil_elim[elim!]: "path M q []"
 inductive_cases path_consIO_elim[elim!]: "path M q (t#ts)"
-
+ (* TODO: remove? *)
 inductive path' :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 'state Transition list \<Rightarrow> bool" where
   nil[intro!] : "q \<in> nodes M \<Longrightarrow> path' M q []" |
   cons[intro!] : "t \<in> h M \<Longrightarrow> path' M (t_target t) ts \<Longrightarrow> path' M (t_source t) (t#ts)"
-
 inductive_cases path'_nil_elim[elim!]: "path' M q []"
 inductive_cases path'_consIO_elim[elim!]: "path' M q (t#ts)"
+
+
+lemma path_cons[intro!] : "t \<in> h M \<Longrightarrow> path M (t_target t) ts \<Longrightarrow> path M (t_source t) (t#ts)"
+  by auto
+
+
+
 
 lemma path_alt_def : "path M q p = path' M q p" 
   by (induction p arbitrary: q; auto)
@@ -301,6 +308,14 @@ next
 qed
 
 
+lemma path_prepend_t : "path M q' p \<Longrightarrow> (q,x,y,q') \<in> h M \<Longrightarrow> path M q ((q,x,y,q')#p)" 
+  by (metis (mono_tags, lifting) fst_conv mem_Collect_eq path.intros(2) prod.sel(2) set_filter wf_transitions.simps) 
+lemma path_append_last : "path M q p \<Longrightarrow> t \<in> h M \<Longrightarrow> t_source t = target p q \<Longrightarrow> path M q (p@[t])"
+  by (metis consIO path.nil path_append wf_transition_simp wf_transition_target) 
+
+
+
+
 subsection \<open> Nodes and Paths \<close>
 
 lemma nodes_path : 
@@ -340,8 +355,6 @@ next
   ultimately show "\<exists>p. path M (initial M) p \<and> t_target t = target p (initial M)"
     by meson 
 qed
-
-
 
 
 
@@ -577,6 +590,16 @@ proof (rule ccontr)
     by (metis "*" Suc_le_lessD \<open>length (visited_states q p) = Suc (length p)\<close> card_mono distinct_card size_def)
   then show "False" using assms(2) by auto
 qed
+
+lemma distinct_path_length :
+  assumes "path M q p"
+obtains p' where "path M q p'"
+             and "target p' q = target p q"
+             and "length p' < size M"
+  using distinct_path_length_limit_nodes
+        distinct_path_from_nondistinct_path[OF assms]
+  by (metis assms)
+  
 
 
 
@@ -1143,6 +1166,13 @@ lemma completely_specified_alt_def : "completely_specified M = (\<forall> q \<in
 
 value "completely_specified M_ex"
 value "completely_specified M_ex_9"
+
+fun completely_specified_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> bool" where
+  "completely_specified_state M q = (\<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x)"
+
+lemma completely_specified_states :
+  "completely_specified M = (\<forall> q \<in> nodes M . completely_specified_state M q)"
+  unfolding completely_specified.simps completely_specified_state.simps by force
 
 
 fun deterministic :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
@@ -1786,7 +1816,19 @@ proof -
     by (metis (mono_tags, lifting) LS.simps assms(2) mem_Collect_eq singletonD) 
 qed
 
+lemma io_targets_are_nodes :
+  assumes "q' \<in> io_targets M io q"
+      and "q \<in> nodes M"
+  shows "q' \<in> nodes M"              
+  by (meson assms contra_subsetD io_targets_nodes)
+  
 
+
+lemma completely_specified_io_targets : 
+  assumes "completely_specified M"
+  shows "\<forall> q \<in> io_targets M io (initial M) . \<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x"
+  by (meson assms completely_specified.elims(2) io_targets_are_nodes nodes.initial)
+  
 
 
 
@@ -1812,8 +1854,11 @@ notation
 subsection \<open>Submachines\<close>
 
 (* extends Petrenko's definition to explicitly require same inputs and outputs *)
+(* TODO: restore original ? (based on transitions, not h) *)
+(*fun is_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> bool" where 
+  "is_submachine A B = (initial A = initial B \<and> set (transitions A) \<subseteq> set (transitions B) \<and> inputs A = inputs B \<and> outputs A = outputs B)"*)
 fun is_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> bool" where 
-  "is_submachine A B = (initial A = initial B \<and> set (transitions A) \<subseteq> set (transitions B) \<and> inputs A = inputs B \<and> outputs A = outputs B)"
+  "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B)"
   
 
 lemma submachine_path_initial :
@@ -1827,7 +1872,7 @@ next
   case (snoc a p)
   then show ?case
   proof -
-    have f1: "initial A = initial B \<and> set (transitions A) \<subseteq> set (transitions B) \<and> inputs A = inputs B \<and> outputs A = outputs B"
+    have f1: "initial A = initial B \<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B"
       using assms(1) is_submachine.simps by blast
     then have f2: "t_source a = target p (initial B) \<and> a \<in> set (transitions A) \<and> t_source a \<in> nodes A \<and> t_input a \<in> set (inputs A) \<and> t_output a \<in> set (outputs A) \<and> path A (t_target a) []"
       using snoc.prems(2) by force
@@ -1858,7 +1903,7 @@ shows "path B q p"
 lemma submachine_h :
   assumes "is_submachine A B"
   shows "h A \<subseteq> h B" 
-  using assms submachine_nodes by auto
+  using assms by auto
 
 lemma submachine_reduction : 
   assumes "is_submachine A B"
@@ -1866,12 +1911,182 @@ lemma submachine_reduction :
   using submachine_path[OF assms] assms by auto 
 
 
+lemma complete_submachine_initial :
+  assumes "is_submachine A B"
+      and "completely_specified A"
+  shows "completely_specified_state B (initial B)"
+proof -
+  have "initial B = initial A"
+    using assms(1) by auto
+
+  moreover have "completely_specified_state A (initial A)"
+    using assms(2) by (meson completely_specified_states nodes.initial) 
+
+  moreover have "inputs A = inputs B"
+    using assms(1) by auto
+
+  moreover have "h A \<subseteq> h B"
+    using submachine_h[OF assms(1)] by assumption
+
+  ultimately show ?thesis 
+    unfolding completely_specified_state.simps by fastforce
+qed
+
 
 subsection \<open>Changing Initial States\<close>
 
 fun from_FSM :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme" where
   "from_FSM M q = \<lparr> initial = q, inputs = inputs M, outputs = outputs M, transitions = transitions M, \<dots> = FSM.more M \<rparr>"
 
+lemma from_FSM_simps[simp]:
+  "initial (from_FSM M q) = q"  
+  "inputs (from_FSM M q) = inputs M"
+  "outputs (from_FSM M q) = outputs M"
+  "transitions (from_FSM M q) = transitions M"
+  by simp+
 
+
+lemma from_FSM_path_initial :
+  assumes "q \<in> nodes M"
+  shows "path M q p = path (from_FSM M q) (initial (from_FSM M q)) p"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by blast 
+next
+  case (snoc x xs)
+  then have *: "path M q xs = path (from_FSM M q) (initial (from_FSM M q)) xs" by auto
+
+  have "path M q (xs @ [x]) \<Longrightarrow> path (from_FSM M q) (initial (from_FSM M q)) (xs @ [x])"
+  proof -
+    assume "path M q (xs @ [x])"
+    then have "path (from_FSM M q) (initial (from_FSM M q)) xs" using * by auto
+    then show ?thesis
+    proof -
+      have f1: "\<forall>f a p ps. is_path (f::('a, 'b) FSM_scheme) a (p # ps) = (t_source p = a \<and> p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f) \<and> path f (t_target p) ps)"
+        using is_path.simps(2) by blast
+      have f2: "t_source x = target xs q \<and> x \<in> set (transitions M) \<and> t_source x \<in> nodes M \<and> t_input x \<in> set (inputs M) \<and> t_output x \<in> set (outputs M) \<and> path M (t_target x) []"
+        using \<open>path M q (xs @ [x])\<close> by force
+      then have "x \<in> set (transitions (from_FSM M q))"
+        by simp
+      then have "is_path (from_FSM M q) (target xs q) [x]"
+        using f2 f1 by (metis \<open>path (from_FSM M q) (initial (from_FSM M q)) xs\<close> from_FSM_simps(1) from_FSM_simps(2) from_FSM_simps(3) nodes.step path.nil path_target_is_node)
+      then show ?thesis
+        by (metis \<open>path (from_FSM M q) (initial (from_FSM M q)) xs\<close> from_FSM_simps(1) path_append path_code)
+    qed
+  qed
+  moreover have "path (from_FSM M q) (initial (from_FSM M q)) (xs @ [x]) \<Longrightarrow> path M q (xs @ [x])"
+  proof -
+    assume "path (from_FSM M q) (initial (from_FSM M q)) (xs @ [x])"
+    then have "path M q xs" using * by auto
+    then show ?thesis
+    proof -
+      have f1: "\<forall>f a p ps. is_path (f::('a, 'b) FSM_scheme) a (p # ps) = (t_source p = a \<and> p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f) \<and> path f (t_target p) ps)"
+        using is_path.simps(2) by blast
+      have f2: "t_source x = target xs q \<and> x \<in> set (transitions (from_FSM M q)) \<and> t_source x \<in> nodes (from_FSM M q) \<and> t_input x \<in> set (inputs (from_FSM M q)) \<and> t_output x \<in> set (outputs (from_FSM M q)) \<and> path (from_FSM M q) (t_target x) []"
+        using \<open>path (from_FSM M q) (initial (from_FSM M q)) (xs @ [x])\<close> by force
+      then have "t_source x \<in> nodes M"
+        by (metis (full_types) \<open>path M q xs\<close> path_target_is_node)
+      then show ?thesis
+        using f2 f1 by (metis \<open>path M q xs\<close> from_FSM_simps(2) from_FSM_simps(3) from_FSM_simps(4) nodes.step path.nil path_append path_code)
+    qed 
+  qed
+  ultimately show ?case
+    by linarith 
+qed
+
+lemma from_FSM_nodes :
+  assumes "q \<in> nodes M"
+  shows "nodes (from_FSM M q) \<subseteq> nodes M"
+  by (metis assms distinct_path_to_node from_FSM_path_initial from_FSM_simps(1) path_target_is_node subsetI) 
+
+lemma from_FSM_path :
+  assumes "q \<in> nodes M"
+      and "path (from_FSM M q) q' p"
+    shows "path M q' p"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case
+    by (meson from_FSM_nodes path.nil path_begin_node subsetCE) 
+next
+  case (snoc x xs)
+  then show ?case
+    by (metis (no_types, lifting) from_FSM_simps(2) from_FSM_simps(3) from_FSM_simps(4) nodes.step path'.simps path_alt_def path_append path_consIO_elim path_prefix path_suffix path_target_is_node wf_transition_simp) 
+qed
+
+
+lemma from_FSM_h :
+  assumes "q \<in> nodes M"
+  shows "h (from_FSM M q) \<subseteq> h M"
+  using assms from_FSM_nodes by fastforce
+
+    
+lemma submachine_from :
+  assumes "is_submachine S M"
+      and "q \<in> nodes S"
+  shows "is_submachine (from_FSM S q) (from_FSM M q)"
+proof -
+  have "q \<in> nodes M" using submachine_nodes[OF assms(1)] assms(2) by blast
+
+  have "\<And> p . path (from_FSM S q) q p  \<Longrightarrow> path (from_FSM M q) q p" 
+  proof -
+    fix p assume "path (from_FSM S q) q p"
+    then show "path (from_FSM M q) q p"
+    proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case
+        by (metis from_FSM_simps(1) nodes.initial path.nil) 
+    next
+      case (snoc x xs)
+      then show ?case
+        by (metis (no_types, lifting) \<open>q \<in> nodes M\<close> assms(1) assms(2) from_FSM_path_initial from_FSM_simps(1) submachine_path) 
+    qed
+  qed
+  then have "nodes (from_FSM S q) \<subseteq> nodes (from_FSM M q)"
+    by (metis from_FSM_simps(1) nodes_path_initial path_to_node subsetI)
+    
+
+  then have "h (from_FSM S q) \<subseteq> h (from_FSM M q)"
+  proof -
+    have f1: "initial S = initial M \<and> set (wf_transitions S) \<subseteq> set (wf_transitions M) \<and> inputs S = inputs M \<and> outputs S = outputs M"
+      by (metis (no_types) assms(1) is_submachine.simps)
+    obtain aa :: "('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> 'a" and pp :: "('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> integer \<times> integer \<times> 'a" where
+      f2: "\<forall>x0 x1. (\<exists>v2 v3. (v2, v3) \<in> x1 \<and> (v2, v3) \<notin> x0) = ((aa x0 x1, pp x0 x1) \<in> x1 \<and> (aa x0 x1, pp x0 x1) \<notin> x0)"
+      by moura
+    have f3: "\<forall>p f. (p \<in> set (wf_transitions (f::('a, 'b) FSM_scheme))) = (p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f))"
+      by blast
+    moreover
+    { assume "(aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (transitions M)"
+      then have "(aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (transitions (from_FSM M q))"
+        by (metis from_FSM_simps(4))
+      moreover
+      { assume "t_input (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (inputs (from_FSM M q))"
+        then have "(aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (transitions (from_FSM S q)) \<or> t_source (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> nodes (from_FSM S q) \<or> t_input (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (inputs (from_FSM S q)) \<or> t_output (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (outputs (from_FSM S q))"
+          using f1 by (metis from_FSM_simps(2)) }
+        moreover
+        { assume "t_output (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (outputs (from_FSM M q))"
+          then have "(aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (transitions (from_FSM S q)) \<or> t_source (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> nodes (from_FSM S q) \<or> t_input (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (inputs (from_FSM S q)) \<or> t_output (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (outputs (from_FSM S q))"
+            using f1 by (metis (no_types) from_FSM_simps(3)) }
+        moreover
+        { assume "(aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (transitions (from_FSM M q)) \<and> t_source (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> nodes (from_FSM M q) \<and> t_input (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (inputs (from_FSM M q)) \<and> t_output (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (outputs (from_FSM M q))"
+          then have ?thesis
+            using f3 f2 by (metis (no_types) subrelI) }
+      ultimately have "set (wf_transitions (from_FSM S q)) \<subseteq> set (wf_transitions (from_FSM M q)) \<or> (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (wf_transitions (from_FSM S q)) \<or> (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (wf_transitions (from_FSM M q))"
+        using \<open>nodes (from_FSM S q) \<subseteq> nodes (from_FSM M q)\<close> by blast }
+    ultimately have "set (wf_transitions (from_FSM S q)) \<subseteq> set (wf_transitions (from_FSM M q)) \<or> (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<notin> set (wf_transitions (from_FSM S q)) \<or> (aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (wf_transitions (from_FSM M q))"
+      using f1 by (meson assms(2) from_FSM_h set_rev_mp)
+    then show ?thesis
+      using f2 by (meson subrelI)
+  qed
+
+  then show ?thesis using assms(1) by auto
+qed
+    
+   
+
+lemma from_FSM_next_h :
+  assumes "t \<in> h M"
+      and "t_source t = initial M"
+    shows "h (from_FSM M (t_target t)) \<subseteq> h M"
+  by (meson assms(1) from_FSM_h nodes.step wf_transition_simp)
 
 end

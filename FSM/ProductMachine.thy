@@ -622,5 +622,304 @@ proof
     by (metis (no_types, lifting) SigmaI \<open>q = target p (initial (product A B))\<close> nodes_path_initial)
 qed
 
+lemma product_transition_split_ob :
+  assumes "t \<in> h (product A B)"
+  obtains t1 t2 
+  where "t1 \<in> h A \<and> t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
+    and "t2 \<in> h B \<and> t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)"      
+proof -
+  have "t \<in> set (transitions (product A B))"
+    using assms by blast
+  
+  then have "t \<in> set (map (\<lambda>(t1, t2).
+                      ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2))
+               (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)
+                 (cartesian_product_list (wf_transitions A) (wf_transitions B))))"
+    by (metis product_simps(4) product_transitions.elims) 
+
+  then obtain t1 t2 where "t = ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2))"
+                 and "(t1,t2) \<in> set (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)
+                                      (cartesian_product_list (wf_transitions A) (wf_transitions B)))"
+    by (metis (no_types, lifting) case_prod_beta' imageE prod.collapse set_map)
+
+  then have *: "t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)" 
+    by auto
+  have **: "t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
+    by (simp add: \<open>t = ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)\<close>)
+
+  have "(t1,t2) \<in> h A \<times> h B"
+    using \<open>(t1,t2) \<in> set (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2) (cartesian_product_list (wf_transitions A) (wf_transitions B)))\<close> cartesian_product_list_set[of "(wf_transitions A)" "(wf_transitions B)"] by auto
+  then have "t1 \<in> h A" and "t2 \<in> h B" by auto
+
+  have "t1 \<in> h A \<and> t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
+   and "t2 \<in> h B \<and> t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)" 
+    using \<open>t1 : h A\<close> * \<open>t2 \<in> h B\<close> ** by auto
+
+  then show ?thesis
+    using that by blast 
+qed
+
+lemma product_transition_split :
+  assumes "t \<in> h (product A B)"
+  shows "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> h A"
+    and "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h B"      
+  using product_transition_split_ob[OF assms] prod.collapse by metis+
+
+
+
+subsection \<open>Other Lemmata\<close>
+
+(* TODO: move *)
+lemma nodes_set_alt_def : "nodes M = { target p (initial M) | p . path M (initial M) p }" 
+  using path_to_node[of _ M]  path_target_is_node[of M "initial M"] by blast
+
+lemma h_from_paths :
+  assumes "\<And> p . path A (initial A) p = path B (initial B) p"
+  shows "h A = h B"
+proof (rule ccontr)
+  assume "h A \<noteq> h B"
+  then consider  "(\<exists> tA \<in> h A . tA \<notin> h B)" | "(\<exists> tB \<in> h B . tB \<notin> h A)" by blast
+  then show "False" proof (cases)
+    case 1
+    then obtain tA where "tA \<in> h A" and "tA \<notin> h B" by blast
+    then have "t_source tA \<in> nodes A" by auto
+    then obtain p where "path A (initial A) p" and "target p (initial A) = t_source tA" 
+      using path_to_node by metis
+    then have "path A (initial A) (p@[tA])" using path_append_last \<open>tA \<in> h A\<close> by metis
+    moreover have "\<not> path B (initial B) (p@[tA])" using \<open>tA \<notin> h B\<close> by auto
+    ultimately show "False" using assms by metis
+  next
+    case 2
+    then obtain tB where "tB \<in> h B" and "tB \<notin> h A" by blast
+    then have "t_source tB \<in> nodes B" by auto
+    then obtain p where "path B (initial B) p" and "target p (initial B) = t_source tB" 
+      using path_to_node by metis
+    then have "path B (initial B) (p@[tB])" using path_append_last \<open>tB \<in> h B\<close> by metis
+    moreover have "\<not> path A (initial A) (p@[tB])" using \<open>tB \<notin> h A\<close> by auto
+    ultimately show "False" using assms by metis
+  qed
+qed
+
+lemma from_FSM_path_rev_initial :
+  assumes "path M q p"
+  shows "path (from_FSM M q) q p"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  have "q \<in> nodes M" using path_begin_node[OF assms] by assumption
+  have "initial (from_FSM M q) \<in> nodes (from_FSM M q)" using nodes.initial[of "from_FSM M q"] by assumption
+  show ?case using path.nil[OF nodes.initial[of "from_FSM M q"]] by simp
+next
+  case (snoc t p)
+  then have "path (from_FSM M q) q p" by auto
+
+  have "t \<in> h M" and "t_source t = target p q" using snoc.prems by auto
+
+  from \<open>t \<in> h M\<close> have "t \<in> hIO (from_FSM M q)" by auto
+  moreover have "t_source t \<in> nodes (from_FSM M q)"
+    using path_target_is_node[OF \<open>path (from_FSM M q) q p\<close>] \<open>t_source t = target p q\<close> by auto
+  ultimately have "t \<in> h (from_FSM M q)" by auto
+  then show ?case 
+    using \<open>path (from_FSM M q) q p\<close> \<open>t_source t = target p q\<close> path_append_last by metis
+qed
+
+
+lemma single_transitions_path : 
+  assumes "(q,x,y,q') \<in> h M" 
+  shows "path M q [(q,x,y,q')]" 
+  using  path_cons[OF assms path.nil[OF wf_transition_target[OF assms]]] by auto
+
+lemma product_from_next :
+  assumes "((q1,q2),x,y,(q1',q2')) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+  shows "h (product (from_FSM M q1') (from_FSM M q2')) = h (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))"
+proof -
+  let ?t = "((q1,q2),x,y,(q1',q2'))"
+
+
+  have "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    using wf_transition_target[OF assms] by simp
+  then have "q1' \<in> nodes (from_FSM M q1)" and "q2' \<in> nodes (from_FSM M q2)"
+    using product_nodes[of "from_FSM M q1" "from_FSM M q2"] by blast+
+
+  have "(q1,x,y,q1') \<in> h (from_FSM M q1)" and "(q2,x,y,q2') \<in> h (from_FSM M q2)"
+    using product_transition_split[OF assms] by auto
+
+  have s1[simp] : "initial (product (from_FSM M q1') (from_FSM M q2')) = (q1',q2')"
+    by auto
+  have s2[simp] : "initial (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) = (q1',q2')"
+    by auto
+
+
+  have *: "\<And> p . path (product (from_FSM M q1') (from_FSM M q2')) (q1',q2') p = path (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) (q1',q2') p"
+  proof -
+    fix p show "path (product (from_FSM M q1') (from_FSM M q2')) (q1',q2') p = path (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) (q1',q2') p"
+    proof  
+      show "path (product (from_FSM M q1') (from_FSM M q2')) (q1', q2') p \<Longrightarrow>
+              path (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) (q1', q2') p"
+      proof -
+        assume "path (product (from_FSM M q1') (from_FSM M q2')) (q1', q2') p"
+        then have "path (from_FSM M q1') q1' (left_path p)" and "path (from_FSM M q2') q2' (right_path p)"
+          using product_path[of "from_FSM M q1'" "from_FSM M q2'" q1' q2' p] by linarith+
+
+        have "path (from_FSM M q1) q1' (left_path p)"
+          using from_FSM_path[OF \<open>q1' \<in> nodes (from_FSM M q1)\<close>, of q1' "left_path p"] \<open>path (from_FSM M q1') q1' (left_path p)\<close> by auto
+        have "path (from_FSM M q2) q2' (right_path p)"
+          using from_FSM_path[OF \<open>q2' \<in> nodes (from_FSM M q2)\<close>, of q2' "right_path p"] \<open>path (from_FSM M q2') q2' (right_path p)\<close> by auto
+
+        have p3: "(\<exists>p1 p2.
+                         path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+                         path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+                         target p1 (initial (from_FSM M q1)) = q1' \<and>
+                         target p2 (initial (from_FSM M q2)) = q2' \<and> p_io p1 = p_io p2)" 
+        proof -
+          have "path (from_FSM M q1) (initial (from_FSM M q1)) [(q1, x, y, q1')]"
+            using single_transitions_path[OF \<open>(q1,x,y,q1') \<in> h (from_FSM M q1)\<close>] by auto
+          moreover have "path (from_FSM M q2) (initial (from_FSM M q2)) [(q2, x, y, q2')]"
+            using single_transitions_path[OF \<open>(q2,x,y,q2') \<in> h (from_FSM M q2)\<close>] by auto
+          moreover have "(target [(q1,x,y,q1')] (initial (from_FSM M q1)) = q1' \<and>
+                          target [(q2,x,y,q2')] (initial (from_FSM M q2)) = q2' \<and> 
+                          p_io [(q1,x,y,q1')] = p_io [(q2,x,y,q2')])" 
+            by auto
+          ultimately show ?thesis by meson
+        qed
+        
+        have "path (product (from_FSM M q1) (from_FSM M q2)) (q1',q2') p"
+          using product_path[of "from_FSM M q1" "from_FSM M q2" q1' q2' p] \<open>path (from_FSM M q1) q1' (left_path p)\<close> \<open>path (from_FSM M q2) q2' (right_path p)\<close> p3 by presburger
+
+        then show "path (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) (q1',q2') p"
+          using from_FSM_path_rev_initial by metis
+      qed
+      show "path (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) (q1', q2') p \<Longrightarrow>
+              path (product (from_FSM M q1') (from_FSM M q2')) (q1', q2') p"
+      proof -
+        assume "path (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) (q1', q2') p"
+        then have "path (product (from_FSM M q1) (from_FSM M q2)) (q1',q2') p"
+          using from_FSM_path[OF \<open>(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))\<close>] by metis
+        then have "path (from_FSM M q1) q1' (left_path p)" 
+              and "path (from_FSM M q2) q2' (right_path p)"
+              and "(\<exists>p1 p2.
+                     path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+                     path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+                     target p1 (initial (from_FSM M q1)) = q1' \<and>
+                     target p2 (initial (from_FSM M q2)) = q2' \<and> p_io p1 = p_io p2)"
+          using product_path[of "from_FSM M q1" "from_FSM M q2" q1' q2' p] by presburger+
+
+        have "path (from_FSM M q1') q1' (left_path p)"
+          using from_FSM_path_rev_initial[OF \<open>path (from_FSM M q1) q1' (left_path p)\<close>] by auto
+        moreover have "path (from_FSM M q2') q2' (right_path p)"
+          using from_FSM_path_rev_initial[OF \<open>path (from_FSM M q2) q2' (right_path p)\<close>] by auto
+        moreover have p3: "(\<exists>p1 p2.
+                         path (from_FSM M q1') (initial (from_FSM M q1')) p1 \<and>
+                         path (from_FSM M q2') (initial (from_FSM M q2')) p2 \<and>
+                         target p1 (initial (from_FSM M q1')) = q1' \<and>
+                         target p2 (initial (from_FSM M q2')) = q2' \<and> p_io p1 = p_io p2)" 
+        proof -
+          have "path (from_FSM M q1') (initial (from_FSM M q1')) []" 
+            using path.nil[OF nodes.initial] by metis
+          moreover have "path (from_FSM M q2') (initial (from_FSM M q2')) []"
+            using path.nil[OF nodes.initial] by metis
+          moreover have "(target [] (initial (from_FSM M q1')) = q1' \<and>
+                          target [] (initial (from_FSM M q2')) = q2' \<and> 
+                          p_io [] = p_io [])" 
+            by auto
+          ultimately show ?thesis by blast
+        qed
+        
+        ultimately show " path (product (from_FSM M q1') (from_FSM M q2')) (q1', q2') p"
+          using product_path[of "from_FSM M q1'" "from_FSM M q2'" q1' q2' p] by presburger        
+      qed
+    qed
+  qed
+
+  show ?thesis using * h_from_paths s1 s2 by metis
+qed
+   
+
+lemma submachine_transition_product_from :
+  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+      and "((q1,q2),x,y,(q1',q2')) \<in> h S"
+ shows "is_submachine (from_FSM S (q1',q2')) (product (from_FSM M q1') (from_FSM M q2'))"
+proof -
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
+  let ?F = "(from_FSM S (q1',q2'))"  
+
+  
+
+  have "inputs (from_FSM M q1) = inputs (from_FSM M q1')"
+   and "inputs (from_FSM M q2) = inputs (from_FSM M q2')"
+   and "outputs (from_FSM M q1) = outputs (from_FSM M q1')"
+   and "outputs (from_FSM M q2) = outputs (from_FSM M q2')"
+    by auto
+
+  have "transitions (from_FSM M q1) = transitions (from_FSM M q1')" and "transitions (from_FSM M q2) = transitions (from_FSM M q2')"
+    by auto
+  
+
+  have "((q1,q2),x,y,(q1',q2')) \<in> h ?P"
+    using submachine_h[OF assms(1)] assms(2) by blast
+  have "(q1,x,y,q1') \<in> h (from_FSM M q1)" and "(q2,x,y,q2') \<in> h (from_FSM M q2)"
+    using product_transition_split[OF \<open>((q1,q2),x,y,(q1',q2')) \<in> h ?P\<close>] by auto
+
+  have "(q1',q2') \<in> nodes S" using wf_transition_target[OF assms(2)] by auto 
+  have "is_submachine (from_FSM S (q1', q2')) (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))"
+    using submachine_from[OF assms(1) \<open>(q1',q2') \<in> nodes S\<close>]
+
+end (*
+    
+
+  have "h (from_FSM M q1') \<subseteq> h (from_FSM M q1)" 
+    using from_FSM_next_h[OF \<open>(q1,x,y,q1') \<in> h (from_FSM M q1)\<close>] by auto
+  moreover have "h (from_FSM M q2') \<subseteq> h (from_FSM M q2)" 
+    using from_FSM_next_h[OF \<open>(q2,x,y,q2') \<in> h (from_FSM M q2)\<close>] by auto
+
+  ultimately have "set (cartesian_product_list (wf_transitions (from_FSM M q1')) (wf_transitions (from_FSM M q2')))
+                   \<subseteq> set (cartesian_product_list (wf_transitions (from_FSM M q1)) (wf_transitions (from_FSM M q2)))"
+    using cartesian_product_list_set by auto 
+
+
+  then have "set (product_transitions (from_FSM M q1') (from_FSM M q2')) \<subseteq> set (product_transitions (from_FSM M q1) (from_FSM M q2))"
+    using product_transitions_alt1 by blast 
+  then have **: "set (transitions ?F) \<subseteq> set (transitions ?P')"
+
+  have "wf_transitions (from_FSM M q1) = wf_transitions (from_FSM M q1')" 
+   and "wf_transitions (from_FSM M q2) = wf_transitions (from_FSM M q2')"
+    unfolding wf_transitions.simps by auto
+  
+  then have "product_transitions (from_FSM M q1) (from_FSM M q2) = product_transitions (from_FSM M q1') (from_FSM M q2')" 
+    unfolding product_transitions.simps  by fastforce
+  then have **: "set (transitions ?F) \<subseteq> set (transitions ?P')"
+    by (metis (no_types, lifting) assms(1) from_FSM.simps is_submachine.elims(2) product_simps(4) select_convs(4))
+
+  (*
+  then have "h ?P = h ?P'" 
+    unfolding product.simps
+    by (metis FSM3.product.simps \<open>inputs (from_FSM M q1) = inputs (from_FSM M q1')\<close> \<open>inputs (from_FSM M q2) = inputs (from_FSM M q2')\<close> \<open>outputs (from_FSM M q1) = outputs (from_FSM M q1')\<close> \<open>outputs (from_FSM M q2) = outputs (from_FSM M q2')\<close> from_FSM.simps from_FSM_h product_simps(2) product_simps(3) product_simps(4))  
+  then have **: "h ?F \<subseteq> h ?P'"
+    by (metis (no_types, lifting) assms(1) submachine_h from_FSM_h) 
+  *)
+
+  have *: "initial ?F = initial ?P'" 
+    by auto
+
+  have ***: "inputs ?F = inputs ?P'"
+  proof -
+    have "inputs (from_FSM M q1) @ inputs (from_FSM M q2) = inputs S"
+      by (metis (no_types) assms(1) is_submachine.simps product_simps(2))
+    then show ?thesis
+      by (metis (no_types) from_FSM.simps product_simps(2) select_convs(2))
+  qed 
+
+  have ****: "outputs ?F = outputs ?P'"
+  proof -
+    have "outputs (from_FSM M q1) @ outputs (from_FSM M q2) = outputs S"
+      by (metis (no_types) assms(1) is_submachine.simps product_simps(3))
+    then show ?thesis
+      by (metis (no_types) from_FSM.simps product_simps(3) select_convs(3))
+  qed
+
+
+  show "is_submachine ?F ?P'" 
+    using is_submachine.simps[of ?F ?P'] * ** *** **** by blast 
+qed    
 
 end
