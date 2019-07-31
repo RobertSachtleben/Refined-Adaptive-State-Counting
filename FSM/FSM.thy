@@ -56,6 +56,27 @@ definition "M_ex' = (\<lparr>
                                       (1003,2,20,1002),
                                       (1005,2,30,1004)]\<rparr>)"
 
+definition "M_ex'' = (\<lparr> 
+                      initial = 2::integer, 
+                      inputs = [0,1,2], 
+                      outputs = [10,20,30], 
+                      transitions = [ (2,1,20,3),
+                                      (3,1,10,5),
+                                      (4,0,10,3),
+                                      (4,2,20,2),
+                                      (5,2,30,3)]\<rparr>) "
+
+definition "M_ex''' = (\<lparr> 
+                      initial = 2::integer, 
+                      inputs = [0,1,2], 
+                      outputs = [10,20,30], 
+                      transitions = [ (2,1,20,3),
+                                      (2,1,20,4),
+                                      (3,1,10,5),
+                                      (4,0,10,3),
+                                      (4,2,20,2),
+                                      (5,2,30,3)]\<rparr>) "
+
 
 (* example FSM of Hieron's paper *)
 definition "M_ex_H = (\<lparr> 
@@ -94,17 +115,6 @@ definition "M_ex_9 = (\<lparr>
                                       ]\<rparr>)"
 
 
-subsection \<open>Transition Filtering\<close>
-
-fun is_io_valid_transition :: "('state, 'b) FSM_scheme \<Rightarrow> 'state Transition \<Rightarrow> bool" where
-  "is_io_valid_transition M t = ((t_input t) \<in> set (inputs M) \<and> (t_output t) \<in> set (outputs M))"
-
-fun io_valid_transitions :: "('state, 'b) FSM_scheme \<Rightarrow> 'state Transition list" where
-  "io_valid_transitions M = filter (is_io_valid_transition M) (transitions M)"
-
-abbreviation(input) "hIO M \<equiv> set (io_valid_transitions M)"
-
-
 
 subsection \<open>Nodes\<close>
 
@@ -126,20 +136,27 @@ end
 
 subsection \<open>Transition Relation as a List of IO-Valid Transitions Originating From Nodes (Well-Formed Transitions)\<close>
 
-fun is_wf_transition :: "('state, 'b) FSM_scheme \<Rightarrow> 'state Transition \<Rightarrow> bool" where
-  "is_wf_transition M t = ((t_source t \<in> nodes M) \<and> (t_input t) \<in> set (inputs M) \<and> (t_output t) \<in> set (outputs M))"
+abbreviation(input) "is_io_valid_transition M t \<equiv> ((t_input t) \<in> set (inputs M) \<and> (t_output t) \<in> set (outputs M))"
+
+fun io_valid_transitions :: "('state, 'b) FSM_scheme \<Rightarrow> 'state Transition list" where
+  "io_valid_transitions M = filter (is_io_valid_transition M) (transitions M)"
+
+abbreviation(input) "hIO M \<equiv> set (io_valid_transitions M)"
+
+
+abbreviation(input) "is_wf_transition M t \<equiv> ((t_source t \<in> nodes M) \<and> (t_input t) \<in> set (inputs M) \<and> (t_output t) \<in> set (outputs M))"
 
 fun wf_transitions :: "('state, 'b) FSM_scheme \<Rightarrow> 'state Transition list" where
   "wf_transitions M = filter (is_wf_transition M) (transitions M)"
 
 lemma wf_transitions_alt_def : "wf_transitions M = filter (\<lambda>t . t_source t \<in> nodes M) (io_valid_transitions M)"
   using filter_filter[of "(\<lambda>t. t_source t \<in> nodes M)" "(\<lambda>t. t_input t \<in> set (inputs M) \<and> t_output t \<in> set (outputs M))" "transitions M"]
-  unfolding wf_transitions.simps io_valid_transitions.simps is_wf_transition.simps is_io_valid_transition.simps
+  unfolding wf_transitions.simps io_valid_transitions.simps 
   by (metis (no_types, lifting) filter_cong) 
-(*
+
 lemma wf_transition_iff[iff] : "t \<in> set (wf_transitions M) \<longleftrightarrow> (t \<in> set (transitions M) \<and> t_source t \<in> nodes M \<and> t_input t \<in> set (inputs M) \<and> t_output t \<in> set (outputs M))"
   by auto  
-*)
+
 
 lemma io_valid_transition_simp : "t \<in> set (io_valid_transitions M) = (t \<in> set (transitions M) \<and> t_input t \<in> set (inputs M) \<and> t_output t \<in> set (outputs M))"
   by auto  
@@ -241,7 +258,7 @@ fun paths_of_length :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarro
 lemma paths_of_length_containment : 
   assumes "path M q p"
   shows "p \<in> set (paths_of_length M q (length p))"
-  by (metis (no_types, lifting) assms dual_order.trans filter_is_subset filter_set lists_of_length_containment member_filter path_h paths_of_length.simps wf_transitions_alt_def)
+  by (metis (no_types, lifting) assms filter_set lists_of_length_containment member_filter path_h paths_of_length.simps)
 
 
 lemma paths_of_length_is_path :
@@ -355,6 +372,7 @@ next
   qed
 qed 
 
+
 lemma nondistinct_path_loop :
   assumes "path M q p"
   and     "\<not> distinct (visited_states q p)"
@@ -383,6 +401,49 @@ next
     then show ?thesis by blast    
   qed
 qed
+
+
+lemma nondistinct_path_pumping :
+  assumes "path M (initial M) p" 
+      and "\<not> distinct (visited_states (initial M) p)"
+  shows "\<exists> p . path M (initial M) p \<and> length p \<ge> n"
+proof -
+  from assms obtain p1 p2 p3 where "p = p1 @ p2 @ p3" and "p2 \<noteq> []" and "target p1 (initial M) = target (p1 @ p2) (initial M)"
+    using nondistinct_path_loop[of M "initial M" p] by blast
+  then have "path M (target p1 (initial M)) p3"
+    using path_suffix[of M "initial M" "p1@p2" p3] \<open>path M (initial M) p\<close> by auto
+  
+  have "path M (initial M) p1"
+    using path_prefix[of M "initial M" p1 "p2@p3"] \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> by auto
+  have "path M (initial M) ((p1@p2)@p3)"
+    using \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> by auto
+  have "path M (target p1 (initial M)) p2" 
+    using path_suffix[of M "initial M" p1 p2, OF path_prefix[of M "initial M" "p1@p2" p3, OF \<open>path M (initial M) ((p1@p2)@p3)\<close>]] by assumption
+  have "target p2 (target p1 (initial M)) = (target p1 (initial M))"
+    using path_append_target \<open>target p1 (initial M) = target (p1 @ p2) (initial M)\<close> by auto
+  
+  have "path M (initial M) (p1 @ (concat (replicate n p2)) @ p3)"  
+  proof (induction n)
+    case 0 
+    then show ?case using path_append[OF \<open>path M (initial M) p1\<close> \<open>path M (target p1 (initial M)) p3\<close>]  by auto
+  next
+    case (Suc n)
+    then show ?case
+      using \<open>path M (target p1 (initial M)) p2\<close> \<open>target p2 (target p1 (initial M)) = target p1 (initial M)\<close> by auto 
+  qed
+  moreover have "length (p1 @ (concat (replicate n p2)) @ p3) \<ge> n"
+  proof -
+    have "length (concat (replicate n p2)) = n * (length p2)" 
+      using concat_replicate_length by metis
+    moreover have "length p2 > 0"
+      using \<open>p2 \<noteq> []\<close> by auto
+    ultimately have "length (concat (replicate n p2)) \<ge> n"
+      by (simp add: Suc_leI)
+    then show ?thesis by auto
+  qed
+  ultimately show "\<exists> p . path M (initial M) p \<and> length p \<ge> n" by blast
+qed
+
 
 lemma nondistinct_path_shortening : 
   assumes "path M q p"
@@ -475,6 +536,10 @@ proof (rule ccontr)
   then show "False" using assms(2) by auto
 qed
 
+lemma visited_states_are_nodes :
+  assumes "path M q1 p"
+  shows "set (visited_states q1 p) \<subseteq> nodes M"
+  by (metis assms nodes_path path_prefix subsetI visited_states_prefix)
 
 lemma nodes_finite : "finite (nodes M)"
 proof -
@@ -493,9 +558,9 @@ proof -
 qed
 
 
+
 lemma distinct_path_length_limit_nodes :
   assumes "path M q p"
-  and     "q \<in> nodes M"
   and     "distinct (visited_states q p)"
 shows "length p < size M"
 proof (rule ccontr)
@@ -506,15 +571,12 @@ proof (rule ccontr)
   then have "length (visited_states q p) \<ge> size M"
     using "*" by linarith
   moreover have "set (visited_states q p) \<subseteq> nodes M"
-    by (metis assms(1) assms(2) nodes_path path_prefix subsetI visited_states_prefix)
+    by (metis assms(1) nodes_path path_prefix subsetI visited_states_prefix)
   ultimately have "\<not>distinct (visited_states q p)"
     using nodes_finite unfolding size_def
     by (metis "*" Suc_le_lessD \<open>length (visited_states q p) = Suc (length p)\<close> card_mono distinct_card size_def)
-  then show "False" using assms(3) by auto
+  then show "False" using assms(2) by auto
 qed
-
-
-
 
 
 
@@ -1071,618 +1133,744 @@ abbreviation(input) "L M \<equiv> LS M (initial M)"
 
 
 
+subsection \<open> Basic FSM properties \<close>
+
+fun completely_specified :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x)"
+
+lemma completely_specified_alt_def : "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<exists> q' y . (q,x,y,q') \<in> h M)"
+  by force
+
+value "completely_specified M_ex"
+value "completely_specified M_ex_9"
 
 
+fun deterministic :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "deterministic M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<longrightarrow> t_output t1 = t_output t2 \<and> t_target t1 = t_target t2)" 
+
+lemma deterministic_alt_def : "deterministic M = (\<forall> q1 x y' y''  q1' q1'' . (q1,x,y',q1') \<in> h M \<and> (q1,x,y'',q1'') \<in> h M \<longrightarrow> y' = y'' \<and> q1' = q1'')" 
+  by auto
+
+value "deterministic M_ex"
+value "deterministic M_ex''"
 
 
+fun observable :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "observable M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2 \<longrightarrow> t_target t1 = t_target t2)" 
+
+lemma observable_alt_def : "observable M = (\<forall> q1 x y q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x,y,q1'') \<in> h M \<longrightarrow> q1' = q1'')" 
+  by auto
+
+value "observable M_ex"
+value "observable M_ex'''"
 
 
+fun single_input :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "single_input M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<longrightarrow> t_input t1 = t_input t2)" 
 
-
-
-
-
-
-
-subsection \<open>Product Machine\<close>
-
-fun product_transitions :: "('state1, 'b) FSM_scheme \<Rightarrow> ('state2, 'c) FSM_scheme \<Rightarrow> ('state1 \<times> 'state2) Transition list" where
-  "product_transitions A B = map (\<lambda> (t1,t2). ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2))) (filter (\<lambda> (t1,t2) . t_input t1 = t_input t2 \<and> t_output t1 = t_output t2) (cartesian_product_list (wf_transitions A) (wf_transitions B)))"
-
-
-value "product_transitions M_ex M_ex'"
-
-
-
-
-
-    
-
-lemma product_transitions_alt1 : "set (product_transitions A B) = {((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1, t_target t2)) | t1 t2 . (t1,t2) \<in> set (cartesian_product_list (wf_transitions A) (wf_transitions B)) \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2}"
-proof 
-  show "set (product_transitions A B) \<subseteq> {((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1, t_target t2)) | t1 t2 . (t1,t2) \<in> set (cartesian_product_list (wf_transitions A) (wf_transitions B)) \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2}"
-  proof 
-    fix x assume "x \<in> set (product_transitions A B)"
-    then obtain t1 t2 where "x = ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2))"
-                        and "t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
-                        and "(t1,t2) \<in> set (cartesian_product_list (wf_transitions A) (wf_transitions B))"
-      by force
-    then show "x \<in> {((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1, t_target t2)) | t1 t2 . (t1,t2) \<in> set (cartesian_product_list (wf_transitions A) (wf_transitions B)) \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2}" by blast
-  qed
-
-  show "{((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1, t_target t2)) | t1 t2 . (t1,t2) \<in> set (cartesian_product_list (wf_transitions A) (wf_transitions B)) \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2} \<subseteq> set (product_transitions A B)"
-    by force
-qed
-
-lemma product_transitions_alt2 : "set (product_transitions A B) = {((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1, t_target t2)) | t1 t2 . t1 \<in> set (wf_transitions A) \<and> t2 \<in> set (wf_transitions B) \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2}"
-(is "?P = ?A2")
-proof -
-  have "?P = {((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1, t_target t2)) | t1 t2 . (t1,t2) \<in> set (cartesian_product_list (wf_transitions A) (wf_transitions B)) \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2}"
-    using product_transitions_alt1 by assumption
-  also have "... = ?A2" by force
-  finally show ?thesis by auto
-qed
-
-lemma product_transitions_alt3 : "set (product_transitions A B) = {((q1,q2),x,y,(q1',q2')) | q1 q2 x y q1' q2' . (q1,x,y,q1') \<in> set (wf_transitions A) \<and> (q2,x,y,q2') \<in> set (wf_transitions B)}"
-(is "?P = ?A3")
-proof -
-  have "?P = {((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1, t_target t2)) | t1 t2 . t1 \<in> set (wf_transitions A) \<and> t2 \<in> set (wf_transitions B) \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2}"
-    using product_transitions_alt2 by assumption
-  also have "... = ?A3" by force
-  finally show ?thesis by simp
-qed
-
-
-fun product :: "('state1, 'b) FSM_scheme \<Rightarrow> ('state2, 'c) FSM_scheme \<Rightarrow> (('state1 \<times> 'state2), 'b) FSM_scheme" where
-  "product A B =
-  \<lparr>
-    initial = (initial A, initial B),
-    inputs = (inputs A) @ (inputs B),
-    outputs = (outputs A) @ (outputs B),
-    transitions = product_transitions A B,
-    \<dots> = FSM.more A    
-  \<rparr>"
-
-
-value "product M_ex M_ex'"
-
-abbreviation(input) "left_path p \<equiv> map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p"
-abbreviation(input) "right_path p \<equiv> map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p"
-abbreviation(input) "zip_path p1 p2 \<equiv> (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))"
-
-
-lemma product_simps[simp]:
-  "initial (product A B) = (initial A, initial B)"  
-  "inputs (product A B) = inputs A @ inputs B"
-  "outputs (product A B) = outputs A @ outputs B"
-  "transitions (product A B) = product_transitions A B"
-unfolding product_def by simp+
-
-
-
-
-lemma product_transitions_io_valid :
-  "set (product_transitions A B) = hIO (product A B)"
-proof -
-  have "\<And> t . t \<in> set (product_transitions A B) \<Longrightarrow> t \<in> hIO (product A B)"
-  proof -
-    fix t assume *: "t \<in> set (product_transitions A B)"
-    then obtain t1 t2 where "t = ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)"
-                        and "t1 \<in> h A \<and> t2 \<in> h B \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
-      using product_transitions_alt2[of A B] by blast
-    then have "is_io_valid_transition (product A B) t"
-      unfolding is_io_valid_transition.simps by auto
-    then show "t \<in> hIO (product A B)" using *
-      by (metis filter_set member_filter product_simps(4) io_valid_transitions.simps) 
-  qed
-  moreover have "\<And> t . t \<in> hIO (product A B) \<Longrightarrow>  t \<in> set (product_transitions A B)"
-    by (metis filter_set member_filter product_simps(4) io_valid_transitions.simps) 
-  ultimately show ?thesis by blast
-qed
+lemma single_input_alt_def : "single_input M = (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x',y',q1'') \<in> h M \<and> q1 \<in> nodes M \<longrightarrow> x = x')"
+  unfolding single_input.simps by fastforce 
   
 
-lemma product_transition_hIO :
-  "((q1,q2),x,y,(q1',q2')) \<in> hIO (product A B) \<longleftrightarrow> (q1,x,y,q1') \<in> h A \<and> (q2,x,y,q2') \<in> h B"
-  using product_transitions_io_valid[of A B] product_transitions_alt3[of A B] by blast
+(* slightly more efficient method of deciding the single input property,
+   avoids checking the same pair of transitions twice *)
+fun single_input_by_transition_list :: "('a, 'b) FSM_scheme \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
+  "single_input_by_transition_list M [] = True" |
+  "single_input_by_transition_list M (t1#ts) = (case find (\<lambda> t2 . t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2) ts of
+    None \<Rightarrow> single_input_by_transition_list M ts | 
+    Some _ \<Rightarrow> False)"
 
 
+lemma single_input_by_transition_list_correctness :
+  assumes "set xs \<subseteq> h M"
+  shows "single_input_by_transition_list M xs = (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
+using assms proof (induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  then have "a \<in> h M" by auto
 
+  let ?P = "(\<forall> t1 \<in> set (a#xs) . \<not>(\<exists> t2 \<in> set (a#xs) .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
 
-
-lemma zip_path_last : "length xs = length ys \<Longrightarrow> (zip_path (xs @ [x]) (ys @ [y])) = (zip_path xs ys)@(zip_path [x] [y])"
-  by (induction xs ys rule: list_induct2; simp)
-
-lemma product_path_from_paths :
-  assumes "path A (initial A) p1"
-      and "path B (initial B) p2"
-      and "p_io p1 = p_io p2"
-    shows "path (product A B) (initial (product A B)) (zip_path p1 p2)"
-      and "target (zip_path p1 p2) (initial (product A B)) = (target p1 (initial A), target p2 (initial B))"
-proof -
-  have "initial (product A B) = (initial A, initial B)" by auto
-  then have "(initial A, initial B) \<in> nodes (product A B)"
-    by (metis nodes.initial) 
-
-  have "length p1 = length p2" using assms(3)
-    using map_eq_imp_length_eq by blast 
-  then have c: "path (product A B) (initial (product A B)) (zip_path p1 p2) \<and> target (zip_path p1 p2) (initial (product A B)) = (target p1 (initial A), target p2 (initial B))"
-    using assms proof (induction p1 p2 rule: rev_induct2)
-    case Nil
+  have "?P = (\<forall> t1 \<in> set (a#xs) . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
+    using set_subset_Cons by auto
+  then have *: "?P = ((\<not>(\<exists> t2 \<in> set xs .a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2)) \<and> (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2)))"
+    by auto
+  
+  
+  show ?case
+  proof (cases "find (\<lambda> t2 . a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2) xs")
+    case None
     
-    then have "path (product A B) (initial (product A B)) (zip_path [] [])" 
-      using \<open>initial (product A B) = (initial A, initial B)\<close> \<open>(initial A, initial B) \<in> nodes (product A B)\<close>
-      by (metis Nil_is_map_conv path.nil zip_Nil)
-    moreover have "target (zip_path [] []) (initial (product A B)) = (target [] (initial A), target [] (initial B))"
-      using \<open>initial (product A B) = (initial A, initial B)\<close> by auto
-    ultimately show ?case by fast
+    have "\<not>(\<exists> t2 \<in> set xs .a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2)"
+      using find_None_iff[of "(\<lambda> t2 . a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2)" xs] None by blast
+    then have "?P = (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
+      using * by blast
+    moreover have "single_input_by_transition_list M (a#xs) = single_input_by_transition_list M xs"
+      unfolding single_input_by_transition_list.simps None by auto
+    ultimately show ?thesis using Cons by auto
   next
-    case (snoc x xs y ys)
+    case (Some a2)
+    then have "a2 \<in> set xs" using find_result_props(1) by fast
+    moreover have "a \<noteq> a2 \<and> t_source a = t_source a2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input a2"
+      using find_result_props(2)[OF Some] by assumption
+    ultimately have "\<not>?P"
+      using \<open>(\<forall>t1\<in>set (a # xs). \<not> (\<exists>t2\<in>set (a # xs). t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2)) = (\<not> (\<exists>t2\<in>set xs. a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2) \<and> (\<forall>t1\<in>set xs. \<not> (\<exists>t2\<in>set xs. t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2)))\<close> \<open>a2 \<in> set xs\<close> by blast 
+    moreover have "\<not>(single_input_by_transition_list M (a#xs))"
+      using Some unfolding single_input_by_transition_list.simps by auto
+    ultimately show ?thesis by simp
+  qed
+qed
+
+lemma single_input_code[code] : "single_input M = single_input_by_transition_list M (remdups (wf_transitions M))"
+  unfolding single_input.simps using single_input_by_transition_list_correctness[of "remdups (wf_transitions M)" M]
+  using set_remdups[of "wf_transitions M"] 
+  by (metis order_refl)
+
+value "single_input M_ex"
+
+
+
+fun output_complete :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "output_complete M = (\<forall> t \<in> h M . \<forall> y \<in> set (outputs M) . \<exists> t' \<in> h M . t_source t = t_source t' \<and> t_input t = t_input t' \<and> t_output t' = y)" 
+
+lemma output_complete_alt_def : "output_complete M = (\<forall> q x . (\<exists> y q' . (q,x,y,q') \<in> h M) \<longrightarrow> (\<forall> y \<in> set (outputs M) . \<exists> q' . (q,x,y,q') \<in> h M))" by (rule; fastforce)
+
+value "output_complete M_ex"
+
+
+fun acyclic :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "acyclic M = (\<forall> p . path M (initial M) p \<longrightarrow> distinct (visited_states (initial M) p))"
+
+
+fun contains_cyclic_path :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "contains_cyclic_path M = (\<exists> p \<in> set (distinct_paths_up_to_length_from_initial M (size M)) . \<exists> t \<in> h M . path M (initial M) (p@[t]) \<and> \<not>distinct (visited_states (initial M) (p@[t]))) "
+
+
+lemma acyclic_code[code] : "acyclic M = (\<not>contains_cyclic_path M)"
+proof 
+  show "FSM.acyclic M \<Longrightarrow> \<not> contains_cyclic_path M"
+    by (meson acyclic.elims(2) contains_cyclic_path.elims(2))
+
+  have "\<not> FSM.acyclic M \<Longrightarrow> contains_cyclic_path M"
+  proof -
+    assume "\<not> FSM.acyclic M"
+    then obtain p where "path M (initial M) p" and "\<not>distinct (visited_states (initial M) p)" by auto
     
-    have "path A (initial A) xs" using snoc.prems(1) by auto
-    moreover have "path B (initial B) ys" using snoc.prems(2) by auto
-    moreover have "p_io xs = p_io ys" using snoc.prems(3) by auto
-    ultimately have *:"path (product A B) (initial (product A B)) (zip_path xs ys)" 
-                and **:"target (zip_path xs ys) (initial (product A B)) = (target xs (initial A), target ys (initial B))" 
-      using snoc.IH by blast+
-    then have "(target xs (initial A), target ys (initial B)) \<in> nodes (product A B)"
-      by (metis (no_types, lifting) path_target_is_node)
-    then have "(t_source x, t_source y) \<in> nodes (product A B)"
-      using snoc.prems(1-2)  by (metis path_consIO_elim path_suffix) 
 
-    have "x \<in> h A" using snoc.prems(1) by auto
-    moreover have "y \<in> h B" using snoc.prems(2) by auto
-    moreover have "t_input x = t_input y" using snoc.prems(3) by auto
-    moreover have "t_output x = t_output y" using snoc.prems(3) by auto
-    ultimately have "((t_source x, t_source y), t_input x, t_output x, (t_target x, t_target y)) \<in> hIO (product A B)"
-    proof -
-      have f1: "{((t_source p, t_source pa), t_input p, t_output p, t_target p, t_target pa) | p pa. p \<in> set (wf_transitions A) \<and> pa \<in> set (wf_transitions B) \<and> t_input p = t_input pa \<and> t_output p = t_output pa} = set (io_valid_transitions (product A B))"
-        using product_transitions_alt2[of A B] product_transitions_io_valid by blast
-      have "\<exists>p pa. ((t_source x, t_source y), t_input x, t_output x, t_target x, t_target y) = ((t_source p, t_source pa), t_input p, t_output p, t_target p, t_target pa) \<and> p \<in> set (wf_transitions A) \<and> pa \<in> set (wf_transitions B) \<and> t_input p = t_input pa \<and> t_output p = t_output pa"
-        using \<open>t_input x = t_input y\<close> \<open>t_output x = t_output y\<close> \<open>x \<in> set (wf_transitions A)\<close> \<open>y \<in> set (wf_transitions B)\<close> by blast
-      then show ?thesis
-        using f1 by blast
-    qed 
-    
-    moreover have "t_source x = target xs (initial A)" using snoc.prems(1) by auto
-    moreover have "t_source y = target ys (initial B)" using snoc.prems(2) by auto
-    ultimately have "((target xs (initial A), target ys (initial B)), t_input x, t_output x, (t_target x, t_target y)) \<in> h (product A B)"
-      using \<open>(t_source x, t_source y) \<in> nodes (product A B)\<close>
-      by (metis fst_conv io_valid_transition_simp wf_transition_simp)
-    then have ***: "path (product A B) (initial (product A B)) ((zip_path xs ys)@[((target xs (initial A), target ys (initial B)), t_input x, t_output x, (t_target x, t_target y))])"
-      using * **
-    proof -
-      have "\<forall>p f. p \<notin> nodes (f::('a \<times> 'c, 'b) FSM_scheme) \<or> path f p []"
-        by blast
-      then have "path (product A B) (t_source ((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)) [((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)]"
-        by (meson \<open>((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y) \<in> set (wf_transitions (product A B))\<close> consIO nodes.step wf_transition_simp)
-      then have "path (product A B) (target (map (\<lambda>p. ((t_source (fst p), t_source (snd p)), t_input (fst p), t_output (fst p), t_target (fst p), t_target (snd p))) (zip xs ys)) (initial (product A B))) [((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)]"
-        by (metis (no_types) "**" fst_conv)
-      then show ?thesis
-        using "*" by blast
-    qed     
-
-    have "t_target x = target (xs@[x]) (initial A)" by auto
-    moreover have "t_target y = target (ys@[y]) (initial B)" by auto
-    ultimately have ****: "target ((zip_path xs ys)@[((target xs (initial A), target ys (initial B)), t_input x, t_output x, (t_target x, t_target y))]) (initial (product A B)) = (target (xs@[x]) (initial A), target (ys@[y]) (initial B))"
-      by fastforce
-
-
-    have "(zip_path [x] [y]) = [((target xs (initial A), target ys (initial B)), t_input x, t_output x, (t_target x, t_target y))]"
-      using \<open>t_source x = target xs (initial A)\<close> \<open>t_source y = target ys (initial B)\<close> by auto
-    moreover have "(zip_path (xs @ [x]) (ys @ [y])) = (zip_path xs ys)@(zip_path [x] [y])"
-      using zip_path_last[of xs ys x y, OF snoc.hyps]  by assumption
-    ultimately have *****:"(zip_path (xs@[x]) (ys@[y])) = (zip_path xs ys)@[((target xs (initial A), target ys (initial B)), t_input x, t_output x, (t_target x, t_target y))]"
+    let ?paths = "{ p' . path M (initial M) p' \<and> \<not>distinct (visited_states (initial M) p') \<and> length p' \<le> length p}"
+    let ?minPath = "arg_min length (\<lambda> io . io \<in> ?paths)" 
+  
+    have "?paths \<noteq> empty" 
+      using \<open>path M (initial M) p\<close> \<open>\<not>distinct (visited_states (initial M) p)\<close> by auto
+    moreover have "finite ?paths" 
+      using paths_finite[of M "initial M" "length p"]
+      by (metis (no_types, lifting) Collect_mono rev_finite_subset)
+    ultimately have minPath_def : "?minPath \<in> ?paths \<and> (\<forall> p' \<in> ?paths . length ?minPath \<le> length p')" 
+      by (meson arg_min_nat_lemma equals0I)
+    then have "path M (initial M) ?minPath" and "\<not>distinct (visited_states (initial M) ?minPath)" 
       by auto
-    then have "path (product A B) (initial (product A B)) (zip_path (xs@[x]) (ys@[y]))"
-      using *** by presburger 
-    moreover have "target (zip_path (xs@[x]) (ys@[y])) (initial (product A B)) = (target (xs@[x]) (initial A), target (ys@[y]) (initial B))"
-      using **** ***** by auto
-    ultimately show ?case by linarith
+
+    then have "length ?minPath > 0"
+      by auto
+    then have "length (butlast ?minPath) < length ?minPath"
+      by auto
+    moreover have "path M (initial M) (butlast ?minPath)"
+      using \<open>path M (initial M) ?minPath\<close>
+      by (metis (no_types, lifting) \<open>0 < length (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> append_butlast_last_id length_greater_0_conv path_prefix) 
+    ultimately have "distinct (visited_states (initial M) (butlast ?minPath))"
+      using dual_order.strict_implies_order dual_order.strict_trans1 minPath_def by blast
+
+    then have "(butlast ?minPath) \<in> set (distinct_paths_up_to_length_from_initial M (size M))"
+      using \<open>path M (initial M) (butlast ?minPath)\<close> distinct_path_length_limit_nodes
+      by (metis (no_types, lifting) distinct_paths_up_to_length_path_set less_imp_le mem_Collect_eq)
+    moreover have "(last ?minPath) \<in> h M"
+      by (metis (no_types, lifting) \<open>0 < length (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> \<open>path M (initial M) (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> contra_subsetD last_in_set length_greater_0_conv path_h) 
+    moreover have "path M (initial M) ((butlast ?minPath)@[(last ?minPath)]) \<and> \<not>distinct (visited_states (initial M) ((butlast ?minPath)@[(last ?minPath)]))"
+      using \<open>0 < length (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> \<open>\<not> distinct (visited_states (initial M) (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p}))\<close> \<open>path M (initial M) (ARG_MIN length io. io \<in> {p'. path M (initial M) p' \<and> \<not> distinct (visited_states (initial M) p') \<and> length p' \<le> length p})\<close> by auto
+    ultimately show "contains_cyclic_path M"
+      unfolding contains_cyclic_path.simps
+      by meson 
+  qed
+  then show "\<not> contains_cyclic_path M \<Longrightarrow> FSM.acyclic M" by blast
+qed
+
+
+
+lemma acyclic_alt_def : "acyclic M = finite (L M)"
+proof 
+  show "acyclic M \<Longrightarrow> finite (L M)"
+  proof -
+    assume "acyclic M"
+    then have "{ p . path M (initial M) p} \<subseteq> set (paths_up_to_length M (initial M) (size M))"
+      using distinct_path_length_limit_nodes[of M "initial M"] paths_up_to_length_path_set[OF nodes.initial[of M], of "size M"]
+      by fastforce 
+    moreover have "finite (set (paths_up_to_length M (initial M) (size M)))"
+      by auto
+    ultimately have "finite { p . path M (initial M) p}"
+      using finite_subset by blast
+    then show "finite (L M)"
+      unfolding LS.simps by auto
   qed
 
-  from c show "path (product A B) (initial (product A B)) (zip_path p1 p2)" by auto
-  from c show "target (zip_path p1 p2) (initial (product A B)) = (target p1 (initial A), target p2 (initial B))" by auto
+  show "finite (L M) \<Longrightarrow> acyclic M"
+  proof (rule ccontr)
+    assume "finite (L M)"
+    assume "\<not> acyclic M"
+    
+    obtain max_io_len where "\<forall>io \<in> L M . length io < max_io_len"
+      using finite_maxlen[OF \<open>finite (L M)\<close>] by blast
+    then have "\<And> p . path M (initial M) p \<Longrightarrow> length p < max_io_len"
+    proof -
+      fix p assume "path M (initial M) p"
+      show "length p < max_io_len"
+      proof (rule ccontr)
+        assume "\<not> length p < max_io_len"
+        then have "\<not> length (p_io p) < max_io_len" by auto
+        moreover have "p_io p \<in> L M"
+          unfolding LS.simps using \<open>path M (initial M) p\<close> by blast
+        ultimately show "False"
+          using \<open>\<forall>io \<in> L M . length io < max_io_len\<close> by blast
+      qed
+    qed
+
+    obtain p where "path M (initial M) p" and "\<not> distinct (visited_states (initial M) p)"
+      using \<open>\<not> acyclic M\<close> unfolding acyclic.simps by blast
+    then obtain pL where "path M (initial M) pL" and "max_io_len \<le> length pL"
+      using nondistinct_path_pumping[of M p max_io_len] by blast
+    then show "False"
+      using \<open>\<And> p . path M (initial M) p \<Longrightarrow> length p < max_io_len\<close>
+      using not_le by blast 
+  qed
+qed
+
+    
+   
+fun deadlock_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> bool" where 
+  "deadlock_state M q = (q \<in> nodes M \<and> (\<not>(\<exists> t \<in> h M . t_source t = q)))"
+
+lemma deadlock_state_alt_def : "deadlock_state M q = (LS M q = {[]})" 
+proof 
+  show "deadlock_state M q \<Longrightarrow> LS M q = {[]}" 
+  proof (rule ccontr)
+    assume "deadlock_state M q" and "LS M q \<noteq> {[]}"
+    moreover have "[] \<in> LS M q" 
+      using \<open>deadlock_state M q\<close> by auto
+    ultimately obtain xy io where "xy#io \<in> LS M q"
+      by (metis all_not_in_conv is_singletonI' is_singleton_the_elem neq_Nil_conv singletonD)
+    then obtain t where "t \<in> h M" and "t_source t = q"
+      by auto
+    then show "False" 
+      using \<open>deadlock_state M q\<close> by (meson deadlock_state.elims(2)) 
+  qed
+  show "LS M q = {[]} \<Longrightarrow> deadlock_state M q"
+  proof (rule ccontr)
+    assume "LS M q = {[]}" and "\<not> deadlock_state M q"
+    then have "q \<in> nodes M" unfolding LS.simps by auto
+    then obtain t where "t \<in> h M \<and> t_source t = q" using \<open>\<not> deadlock_state M q\<close> by auto
+    then have "p_io [t] \<in> LS M q"
+    proof -
+      have "path M q [t]"
+        using \<open>t \<in> set (wf_transitions M) \<and> t_source t = q\<close> by blast
+      then have "path M q [t]"
+        by meson
+      then have "\<exists>ps. p_io [t] = p_io ps \<and> path M q ps"
+        by blast
+      then show ?thesis
+        by simp
+    qed
+    then show "False" using \<open>LS M q = {[]}\<close>
+      by blast
+  qed
+qed
+
+fun completed_path :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
+  "completed_path M q p = deadlock_state M (target p q)"
+
+fun minimal :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "minimal M = (\<forall> q \<in> nodes M . \<forall> q' \<in> nodes M . q \<noteq> q' \<longrightarrow> LS M q \<noteq> LS M q')"
+
+
+
+subsection \<open>IO Targets and Observability\<close>
+
+fun fst_io_target' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a option" where
+  "fst_io_target' M [] q = Some q" |
+  "fst_io_target' M (xy#io) q = (case (find (\<lambda> t' . t_source t' = q \<and> t_input t' = fst xy \<and> t_output t' = snd xy) (wf_transitions M)) of
+    None \<Rightarrow> None |
+    Some t' \<Rightarrow> fst_io_target' M io (t_target t'))"
+
+fun fst_io_target :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
+  "fst_io_target M io q = (case (fst_io_target' M io q) of 
+    None \<Rightarrow> {} |
+    Some t \<Rightarrow> {t})"
+
+lemma fst_io_target'_path :
+  assumes "fst_io_target' M io q = Some q'"
+      and "q \<in> nodes M"
+  obtains p
+  where "path M q p" 
+    and "target p q = q'"
+    and "p_io p = io"
+proof -
+  have "\<exists> p . path M q p \<and> target p q = q' \<and> p_io p = io"
+  using assms proof (induction io arbitrary: q)
+    case Nil 
+    then show ?case by auto
+  next
+    case (Cons a io)
+    from Cons.prems obtain t where *: "find (\<lambda> t' . t_source t' = q \<and> t_input t' = fst a \<and> t_output t' = snd a) (wf_transitions M) = Some t"
+                                  and **: "fst_io_target' M io (t_target t) = Some q'"
+      unfolding fst_io_target'.simps
+      by (metis (no_types, lifting) option.case_eq_if option.exhaust_sel option.simps(3))  
+  
+    from * have "t \<in> h M" 
+      by (meson find_set)
+    have "t_source t = q" 
+     and "t_input t = fst a" 
+     and "t_output t = snd a"
+      using find_condition[OF *] by auto  
+      
+    obtain p where "path M (t_target t) p" 
+               and "target p (t_target t) = q'"
+               and "p_io p = io"
+      using "**" Cons.IH \<open>t \<in> set (wf_transitions M)\<close> by blast
+  
+  
+    have "path M q (t#p)"
+      using \<open>path M (t_target t) p\<close> \<open>t \<in> h M\<close> \<open>t_source t = q\<close> by blast 
+    moreover have "target (t#p) q = q'" 
+      using \<open>target p (t_target t) = q'\<close> by auto
+    moreover have "p_io (t#p) = a#io"
+      by (simp add: \<open>p_io p = io\<close> \<open>t_input t = fst a\<close> \<open>t_output t = snd a\<close>)
+    ultimately show ?case
+      by (metis (no_types, lifting))  
+  qed
+  then show ?thesis using that by blast
 qed
 
 
-lemma product_transitions_elem :
-  assumes "t \<in> set (product_transitions A B)"
-  shows "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> h A"
-    and "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h B"
-proof -
-  obtain t1 t2 where *:   "t = ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)" 
-                 and **:  "t1 \<in> h A"
-                 and ***: "t2 \<in> h B"
-                 and ****: "t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
-    using assms product_transitions_alt2[of A B] by blast
- 
-  from * ** show "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> h A" by auto
-  from * *** **** show "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h B" by auto
-qed
 
+fun is_io_target :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+  "is_io_target M [] q q' = (q = q')" |
+  "is_io_target M (xy#io) q q' = (\<exists> t \<in> h M . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target M io (t_target t) q')"
 
-lemma paths_from_product_path :
-  assumes "path (product A B) (initial (product A B)) p"
-  shows   "path A (initial A) (left_path p)"
-      and "path B (initial B) (right_path p)"
-      and "target (left_path p) (initial A) = fst (target p (initial (product A B)))"
-      and "target (right_path p) (initial B) = snd (target p (initial (product A B)))"
-proof -
-  have "path A (initial A) (left_path p)
-            \<and> path B (initial B) (right_path p)
-            \<and> target (left_path p) (initial A) = fst (target p (initial (product A B)))
-            \<and> target (right_path p) (initial B) = snd (target p (initial (product A B)))"
-  using assms proof (induction p rule: rev_induct)
+value "is_io_target M_ex [(1,20)] (initial M_ex) 4"
+value "is_io_target M_ex [(1,20)] (initial M_ex) 3"
+
+fun is_io_target' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+  "is_io_target' M [] q q' = (q = q')" |
+  "is_io_target' M (xy#io) q q' = (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M) \<noteq> [])"
+
+lemma is_io_target_code[code] :
+  "is_io_target M io q q' = is_io_target' M io q q'" 
+proof 
+  show "is_io_target M io q q' \<Longrightarrow> is_io_target' M io q q'"
+  proof (induction io arbitrary: q)
     case Nil
     then show ?case by auto
   next
-    case (snoc t p)
-    then have "path (product A B) (initial (product A B)) p" by fast
-    then have "path A (initial A) (left_path p)"
-      and "path B (initial B) (right_path p)"
-      and "target (left_path p) (initial A) = fst (target p (initial (product A B)))"
-      and "target (right_path p) (initial B) = snd (target p (initial (product A B)))" 
-      using snoc.IH  by fastforce+
-
-    then have "t_source t = (target (left_path p) (initial A), target (right_path p) (initial B))"
-      using snoc.prems by (metis (no_types, lifting) path_consIO_elim path_suffix prod.collapse) 
-
-
-    have ***: "target (left_path (p@[t])) (initial A) = fst (target (p@[t]) (initial (product A B)))"
-      by fastforce
-    have ****: "target (right_path (p@[t])) (initial B) = snd (target (p@[t]) (initial (product A B)))"
-      by fastforce
-
-    have "t \<in> h (product A B)" using snoc.prems
-      by (meson path_consIO_elim path_suffix wf_transition_simp) 
-    then have "t \<in> set (product_transitions A B)" 
-      using product_transitions_io_valid[of A B]
-      by (metis io_valid_transition_simp wf_transition_simp) 
-    
-    have "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> h A"
-      using product_transitions_elem[OF \<open>t \<in> set (product_transitions A B)\<close>] by simp
-    moreover have "target (left_path p) (initial A) = fst (t_source t)"
-      using \<open>t_source t = (target (left_path p) (initial A), target (right_path p) (initial B))\<close> by auto
-    ultimately have "path A (initial A) ((left_path p)@[(fst (t_source t), t_input t, t_output t, fst (t_target t))])"
-    proof -
-      have "\<forall>a f. a \<notin> nodes (f::('a, 'c) FSM_scheme) \<or> path f a []"
-        by blast
-      then have "path A (t_source (fst (t_source t), t_input t, t_output t, fst (t_target t))) [(fst (t_source t), t_input t, t_output t, fst (t_target t))]"
-        by (meson \<open>(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> set (wf_transitions A)\<close> consIO nodes.simps wf_transition_simp)
-      then have "path A (target (map (\<lambda>p. (fst (t_source p), t_input p, t_output p, fst (t_target p))) p) (initial A)) [(fst (t_source t), t_input t, t_output t, fst (t_target t))]"
-        using \<open>target (map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p) (initial A) = fst (t_source t)\<close> by auto
-      then show ?thesis
-        using \<open>path A (initial A) (map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p)\<close> by blast
-    qed 
-    then have *: "path A (initial A) (left_path (p@[t]))" by auto
-
-    have "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h B"
-      using product_transitions_elem[OF \<open>t \<in> set (product_transitions A B)\<close>] by simp
-    moreover have "target (right_path p) (initial B) = snd (t_source t)"
-      using \<open>t_source t = (target (left_path p) (initial A), target (right_path p) (initial B))\<close> by auto
-    ultimately have "path B (initial B) ((right_path p)@[(snd (t_source t), t_input t, t_output t, snd (t_target t))])"
-    proof -
-      have "\<forall>b f. b \<notin> nodes (f::('b, 'd) FSM_scheme) \<or> path f b []"
-        by blast
-      then have "path B (t_source (snd (t_source t), t_input t, t_output t, snd (t_target t))) [(snd (t_source t), t_input t, t_output t, snd (t_target t))]"
-        by (meson \<open>(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> set (wf_transitions B)\<close> consIO nodes.simps wf_transition_simp)
-      then have "path B (target (map (\<lambda>p. (snd (t_source p), t_input p, t_output p, snd (t_target p))) p) (initial B)) [(snd (t_source t), t_input t, t_output t, snd (t_target t))]"
-        using \<open>target (map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p) (initial B) = snd (t_source t)\<close> by auto
-      then show ?thesis
-        using \<open>path B (initial B) (map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p)\<close> by blast
-    qed
-    then have **: "path B (initial B) (right_path (p@[t]))" by auto
-
-
-    show ?case using * ** *** **** by blast
-  qed
-
-  then show "path A (initial A) (left_path p)"
-      and "path B (initial B) (right_path p)"
-      and "target (left_path p) (initial A) = fst (target p (initial (product A B)))"
-      and "target (right_path p) (initial B) = snd (target p (initial (product A B)))" by linarith+
-qed
-
-  
-
-
-
-lemma product_transition :
-  "((q1,q2),x,y,(q1',q2')) \<in> h (product A B) \<longleftrightarrow> (q1,x,y,q1') \<in> h A \<and> (q2,x,y,q2') \<in> h B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-proof 
-  show "((q1,q2),x,y,(q1',q2')) \<in> h (product A B) \<Longrightarrow> (q1,x,y,q1') \<in> h A \<and> (q2,x,y,q2') \<in> h B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-  proof -
-    assume "((q1,q2),x,y,(q1',q2')) \<in> h (product A B)"
-    then have "(q1,q2) \<in> nodes (product A B)"
-      by (metis fst_conv wf_transition_simp) 
-    then obtain p where "path (product A B) (initial (product A B)) p" and "target p (initial (product A B)) = (q1,q2)"
-      by (metis path_to_node)
-
-    have "path A (initial A) (left_path p) \<and> path B (initial B) (right_path p) \<and> target (left_path p) (initial A) = q1 \<and> target (right_path p) (initial B) = q2"
-      using paths_from_product_path[OF \<open>path (product A B) (initial (product A B)) p\<close>] \<open>target p (initial (product A B)) = (q1,q2)\<close> by auto
-    moreover have "p_io (left_path p) = p_io (right_path p)" by auto
-    ultimately have "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-      by blast
-    moreover have "(q1,x,y,q1') \<in> h A \<and> (q2,x,y,q2') \<in> h B"
-      using \<open>((q1,q2),x,y,(q1',q2')) \<in> h (product A B)\<close>
-      by (metis product_simps(4) product_transition_hIO product_transitions_io_valid wf_transition_simp)
-    ultimately show ?thesis by simp
-  qed
-
-  show "(q1,x,y,q1') \<in> h A \<and> (q2,x,y,q2') \<in> h B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2) \<Longrightarrow> ((q1,q2),x,y,(q1',q2')) \<in> h (product A B)"
-  proof -
-    assume assm: "(q1,x,y,q1') \<in> h A \<and> (q2,x,y,q2') \<in> h B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-    then obtain p1 p2 where pr1: "path A (initial A) p1" 
-                        and pr2: "path B (initial B) p2" 
-                        and pr3: "target p1 (initial A) = q1" 
-                        and pr4: "target p2 (initial B) = q2" 
-                        and pr5: "p_io p1 = p_io p2"
-      by blast
-
-    have "(q1,x,y,q1') \<in> h A" and "(q2,x,y,q2') \<in> h B"
-      using assm by auto
-
-    have "initial (product A B) \<in> nodes (product A B)"
-      by blast 
-    moreover have "path (product A B) (initial (product A B)) (zip_path p1 p2)"
-      using product_path_from_paths(1)[OF pr1 pr2 pr5] by assumption
-    moreover have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[OF pr1 pr2 pr5] pr3 pr4 by fast
-    ultimately have "(q1,q2) \<in> nodes (product A B)" 
-      using nodes_path[of "product A B" "initial (product A B)" "zip_path p1 p2"] by metis
-    then have "t_source ((q1,q2),x,y,(q1',q2')) \<in> nodes (product A B)"
+    case (Cons xy io)
+    then obtain t where "t \<in> h M" 
+                    and "t_source t = q" 
+                    and "t_input t = fst xy" 
+                    and "t_output t = snd xy" 
+                    and "is_io_target M io (t_target t) q'"
       by auto
+    then have "is_io_target' M io (t_target t) q'"
+      using Cons.IH by auto
+    have "t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q'"
+      using \<open>is_io_target' M io (t_target t) q'\<close> \<open>t_input t = fst xy\<close> \<open>t_output t = snd xy\<close> \<open>t_source t = q\<close> by fastforce
+      
+    then have "(filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M) \<noteq> [])"
+      by (metis (mono_tags, lifting) \<open>t \<in> h M\<close> filter_empty_conv)  
+      
+    then show ?case by auto
+  qed
+  show "is_io_target' M io q q' \<Longrightarrow> is_io_target M io q q'"
+  proof (induction io arbitrary: q)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons xy io)
 
-    moreover have "((q1,q2),x,y,(q1',q2')) \<in> hIO (product A B)"
-      using product_transitions_alt3[of A B] \<open>(q1,x,y,q1') \<in> h A\<close> \<open>(q2,x,y,q2') \<in> h B\<close> by force
-    ultimately show "((q1,q2),x,y,(q1',q2')) \<in> h (product A B)" 
-      using hIO_alt_def[of "product A B"] h_alt_def[of "product A B"] by blast
+    let ?t = "hd (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M))" 
+    have "length (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M)) > 0"
+      using Cons by auto
+    then obtain t where "t \<in> h M" 
+                    and "t_source t = q" 
+                    and "t_input t = fst xy" 
+                    and "t_output t = snd xy" 
+                    and "is_io_target' M io (t_target t) q'"
+      using filter_empty_conv by blast
+    then show ?case using Cons.IH
+      by (meson is_io_target.simps(2)) 
   qed
 qed
 
 
-    
-      
-      
-  
-
-
-
-lemma product_node_from_path :
-  "(q1,q2) \<in> nodes (product A B) \<longleftrightarrow> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-proof 
-  show "(q1,q2) \<in> nodes (product A B) \<Longrightarrow> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-  proof -
-    assume "(q1,q2) \<in> nodes (product A B)"
-    then obtain p where "path (product A B) (initial (product A B)) p" and "target p (initial (product A B)) = (q1,q2)"
-      by (metis path_to_node) 
-    then have "path A (initial A) (left_path p) \<and> path B (initial B) (right_path p) \<and> target (left_path p) (initial A) = q1 \<and> target (right_path p) (initial B) = q2 \<and> p_io (left_path p) = p_io (right_path p)"
-      using paths_from_product_path[OF \<open>path (product A B) (initial (product A B)) p\<close>] by simp
-    then show "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-      by blast
-  qed
-
-  show "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2) \<Longrightarrow> (q1,q2) \<in> nodes (product A B)"
-  proof -
-    assume "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-    then obtain p1 p2 where *: "path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2"
-      by blast
-
-    have "initial (product A B) \<in> nodes (product A B)"
-      by blast 
-    moreover have "path (product A B) (initial (product A B)) (zip_path p1 p2)"
-      using product_path_from_paths(1)[of A p1 B p2] * by metis
-    moreover have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[of A p1 B p2] * by metis
-    ultimately show "(q1,q2) \<in> nodes (product A B)" 
-      using nodes_path[of "product A B" "initial (product A B)" "zip_path p1 p2"] by metis
-  qed
-qed
-
-
-lemma left_path_zip : "length p1 = length p2 \<Longrightarrow> left_path (zip_path p1 p2) = p1" 
-  by (induction p1 p2 rule: list_induct2; simp)
-
-lemma right_path_zip : "length p1 = length p2 \<Longrightarrow> p_io p1 = p_io p2 \<Longrightarrow> right_path (zip_path p1 p2) = p2" 
-  by (induction p1 p2 rule: list_induct2; simp)
-
-lemma zip_path_append_left_right : "length p1 = length p2 \<Longrightarrow> zip_path (p1@(left_path p)) (p2@(right_path p)) = (zip_path p1 p2)@p"
-proof (induction p1 p2 rule: list_induct2)
+lemma is_io_target_path : 
+  "(q \<in> nodes M \<and> is_io_target M io q q') \<longleftrightarrow> (\<exists> p . path M q p \<and> target p q = q' \<and> p_io p = io)"
+proof (induction io arbitrary: q)
   case Nil
-  then show ?case by (induction p; simp)
+  then show ?case by auto
 next
-  case (Cons x xs y ys)
-  then show ?case by simp
-qed
-  
-    
-      
-
-lemma product_path:
-  "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2))"
-proof 
-  show "path (product A B) (q1,q2) p \<Longrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2))"
+  case (Cons xy io)
+  have "q \<in> nodes M \<and> is_io_target M (xy # io) q q' \<Longrightarrow> (\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io)"
   proof -
-    assume "path (product A B) (q1,q2) p"
-    then have "(q1,q2) \<in> nodes (product A B)"
-      by (meson path_begin_node) 
-    then have ex12: "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-      using product_node_from_path[of q1 q2 A B] by blast
-    then obtain p1 p2 where *: "path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2"
-      by blast
-    then have "path (product A B) (initial (product A B)) (zip_path p1 p2)" 
-      using product_path_from_paths(1)[of A p1 B p2] by metis
-
-    have "path A (initial A) p1" and "path B (initial B) p2" and "target p1 (initial A) = q1" and "target p2 (initial B) = q2" and "p_io p1 = p_io p2"
-      using * by linarith+
-
-    have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[of A p1 B p2] * by metis
-
-    have "path (product A B) (initial (product A B)) ((zip_path p1 p2) @ p)" 
-      using path_append[OF \<open>path (product A B) (initial (product A B)) (zip_path p1 p2)\<close>, of p]
-            \<open>target (zip_path p1 p2) (initial (product A B)) = (q1,q2)\<close>
-            \<open>path (product A B) (q1,q2) p\<close> by metis
-
-    have "path A (initial A) (left_path ((zip_path p1 p2) @ p))"
-      and "path B (initial B) (right_path ((zip_path p1 p2) @ p))"
-      and "target (left_path ((zip_path p1 p2) @ p)) (initial A) = fst (target ((zip_path p1 p2) @ p) (initial (product A B)))"
-      and "target (right_path ((zip_path p1 p2) @ p)) (initial B) = snd (target ((zip_path p1 p2) @ p) (initial (product A B)))"
-      using paths_from_product_path[OF \<open>path (product A B) (initial (product A B)) ((zip_path p1 p2) @ p)\<close>] by linarith+
-
-    have "length p1 = length p2"
-      using \<open>p_io p1 = p_io p2\<close> map_eq_imp_length_eq by blast 
-
-    have "(left_path ((zip_path p1 p2) @ p)) = p1@(left_path p)"
-      using left_path_zip[OF \<open>length p1 = length p2\<close>] by (induction p; simp)
-    then have "path A (initial A) (p1@(left_path p))"
-      using \<open>path A (initial A) (left_path ((zip_path p1 p2) @ p))\<close> by simp
-    have lp: "path A q1 (left_path p)" 
-      using path_suffix[OF \<open>path A (initial A) (p1@(left_path p))\<close>] \<open>target p1 (initial A) = q1\<close> by simp
-
-    
-    have "(right_path ((zip_path p1 p2) @ p)) = p2@(right_path p)"
-      using right_path_zip[OF \<open>length p1 = length p2\<close> \<open>p_io p1 = p_io p2\<close>] by (induction p; simp)  
-    then have "path B (initial B) (p2@(right_path p))"
-      using \<open>path B (initial B) (right_path ((zip_path p1 p2) @ p))\<close> by simp
-    have rp: "path B q2 (right_path p)" 
-      using path_suffix[OF \<open>path B (initial B) (p2@(right_path p))\<close>] \<open>target p2 (initial B) = q2\<close> by simp  
-
-    show "(path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2))"
-      using lp rp ex12 by simp
-  qed
-
-
-  show "(path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)) \<Longrightarrow> path (product A B) (q1,q2) p"
-  proof-
-    assume "(path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2))"
-    then have "path A q1 (left_path p)" and "path B q2 (right_path p)" and "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
+    assume "q \<in> nodes M \<and> is_io_target M (xy # io) q q'"
+    then obtain t where "t \<in> h M" 
+                    and "t_source t = q" 
+                    and "t_input t = fst xy" 
+                    and "t_output t = snd xy" 
+                    and "is_io_target M io (t_target t) q'"
       by auto
-    then obtain p1 p2 where *: "path A (initial A) p1" and "path B (initial B) p2" and "target p1 (initial A) = q1" and "target p2 (initial B) = q2" and "p_io p1 = p_io p2"
-      by blast 
+    then obtain p where "path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io"
+      using Cons.IH by fastforce
 
-    have "path A (initial A) (p1@(left_path p))"
-      using path_append[OF \<open>path A (initial A) p1\<close>, of "left_path p"] \<open>target p1 (initial A) = q1\<close> \<open>path A q1 (left_path p)\<close> by metis
-    have "path B (initial B) (p2@(right_path p))"
-      using path_append[OF \<open>path B (initial B) p2\<close>, of "right_path p"] \<open>target p2 (initial B) = q2\<close> \<open>path B q2 (right_path p)\<close> by metis
-    have "p_io (p1@(left_path p)) = p_io (p2@(right_path p))"
-      using \<open>p_io p1 = p_io p2\<close> by (induction p; simp)
-    
-    have "path (product A B) (initial (product A B)) ((zip_path p1 p2)@p)"
-      using product_path_from_paths(1)[OF \<open>path A (initial A) (p1@(left_path p))\<close> \<open>path B (initial B) (p2@(right_path p))\<close> \<open>p_io (p1@(left_path p)) = p_io (p2@(right_path p))\<close>]
-            zip_path_append_left_right[of p1 p2 p]
-      by (metis (no_types, lifting) \<open>p_io p1 = p_io p2\<close> map_eq_imp_length_eq) 
-
-    have "path (product A B) (initial (product A B)) (zip_path p1 p2)"
-      using product_path_from_paths(1)[OF \<open>path A (initial A) p1\<close> \<open>path B (initial B) p2\<close> \<open>p_io p1 = p_io p2\<close>] by metis
-    moreover have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[OF \<open>path A (initial A) p1\<close> \<open>path B (initial B) p2\<close> \<open>p_io p1 = p_io p2\<close>] \<open>target p1 (initial A) = q1\<close> \<open>target p2 (initial B) = q2\<close> by metis
-    
-    
-    ultimately show "path (product A B) (q1,q2) p"
-      using path_suffix[OF \<open>path (product A B) (initial (product A B)) ((zip_path p1 p2)@p)\<close>]
-      by presburger 
+    have "path M q (t#p)"
+      using \<open>path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io\<close> \<open>t \<in> h M\<close> \<open>t_source t = q\<close> by blast
+    moreover have "target (t#p) q = q'"
+      using \<open>path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io\<close> by auto
+    moreover have "p_io (t#p) = xy # io"
+      by (simp add: \<open>path M (t_target t) p \<and> target p (t_target t) = q' \<and> p_io p = io\<close> \<open>t_input t = fst xy\<close> \<open>t_output t = snd xy\<close>)
+    ultimately have "path M q (t#p) \<and> target (t#p) q = q' \<and> p_io (t#p) = xy # io" 
+      by auto
+    then show "q \<in> nodes M \<and> is_io_target M (xy # io) q q' \<Longrightarrow> (\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io)"
+      by (metis (no_types, lifting)) 
   qed
-qed
+
+  moreover have "(\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io) \<Longrightarrow> q \<in> nodes M \<and> is_io_target M (xy # io) q q'"
+  proof -
+    assume "(\<exists>p. path M q p \<and> target p q = q' \<and> p_io p = xy # io)"
+    then obtain p where "path M q p \<and> target p q = q' \<and> p_io p = xy # io"
+      by presburger 
+    then have "length p > 0" 
+      by auto
+
+    let ?t = "hd p"
+    let ?p = "tl p"
+    have "path M (t_target ?t) ?p"
+      using \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> by auto
+
     
+
+    moreover have "target ?p (t_target ?t) = q'"
+      using path_append_target_hd[OF \<open>length p > 0\<close>, of q']
+            \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> 
+      by auto
+    moreover have "p_io ?p = io"
+      by (simp add: \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> map_tl)
+
+    ultimately have "is_io_target M io (t_target ?t) q'"
+      using Cons.IH by blast 
+
+    then show "q \<in> nodes M \<and> is_io_target M (xy#io) q q'"
+      using \<open>path M q p \<and> target p q = q' \<and> p_io p = xy # io\<close> by auto
+  qed
+
+  ultimately show ?case
+    by (metis (no_types, lifting))
+qed
+
+
+
+
+
+
+
+
+fun io_targets :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
+  "io_targets M io q = {target p q | p . path M q p \<and> p_io p = io}"
+
+fun io_targets' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
+  "io_targets' M io q = set (map (\<lambda> p . target p q) (filter (\<lambda> p . p_io p = io) (paths_of_length M q (length io))))"
+
+fun io_targets_list :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
+  "io_targets_list M [] q = [q]" |
+  "io_targets_list M (xy#io) q = (concat (map (io_targets_list M io) (map t_target (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))))"
+
+lemma io_targets_from_list[code] :
+  "io_targets M io q = (if q \<in> nodes M then set (io_targets_list M io q) else {})"
+proof (cases "q \<in> nodes M")
+  case True
+
+  have "\<And>x. x \<in> io_targets M io q \<Longrightarrow> x \<in> set (io_targets_list M io q)"
+  proof (induction io arbitrary: q)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons xy io)
+    obtain p where "target p q = x" and "path M q p" and "p_io p = xy # io"
+      using Cons.prems by fastforce 
+    let ?t = "hd p"
+    let ?p = "tl p"
+    have "path M (t_target ?t) ?p"
+      using \<open>p_io p = xy # io\<close> \<open>path M q p\<close> by force 
+    moreover have "p_io ?p = io"
+      using \<open>p_io p = xy # io\<close> by auto
+    moreover have "target ?p (t_target ?t) = x"
+      using \<open>target p q = x\<close> \<open>p_io p = xy # io\<close> by auto 
+    ultimately have "x \<in> io_targets M io (t_target ?t)"
+      by (metis (mono_tags, lifting) io_targets.simps mem_Collect_eq)
+    then have "x \<in> set (io_targets_list M io (t_target ?t))"
+      using Cons.IH by auto
+    then have "x \<in> set (concat (map (io_targets_list M io) [t_target ?t]))" 
+      by auto
+    moreover have "set [t_target ?t] \<subseteq> set (map t_target (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))"
+    proof -
+      have "t_source ?t = q \<and> t_input ?t = fst xy \<and> t_output ?t = snd xy"
+        using \<open>p_io p = xy # io\<close> \<open>path M q p\<close> by force
+      moreover have "?t \<in> h M"
+        using \<open>p_io p = xy # io\<close> \<open>path M q p\<close> by auto
+      ultimately show ?thesis
+        by auto 
+    qed
+    
+    ultimately show ?case 
+      unfolding io_targets_list.simps using set_concat_map_sublist[of x "io_targets_list M io" "[t_target ?t]"] by blast
+  qed
+
+  moreover have "\<And>x. x \<in> set (io_targets_list M io q) \<Longrightarrow> q \<in> nodes M \<Longrightarrow> x \<in> io_targets M io q"
+   proof (induction io arbitrary: q)
+    case Nil
+    then have "x = q" unfolding io_targets_list.simps by auto  
+    then show ?case using Nil.prems(2) by auto
+  next
+    case (Cons xy io) 
+    then obtain t where "x \<in> set (io_targets_list M io (t_target t))"
+                    and *: "t \<in> set (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M))"
+      by auto
+    then have "x \<in> io_targets M io (t_target t)"
+      by (meson Cons.IH filter_is_subset nodes.step subset_code(1) wf_transition_simp)
+    then obtain p where "target p (t_target t) = x \<and> path M (t_target t) p \<and> p_io p = io"
+      by auto
+    moreover have "t \<in> h M \<and> t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy"
+      using * by auto
+    ultimately have "x = target (t#p) q" and "path M q (t#p)" and "p_io (t#p) = xy # io"
+      using length_Cons by auto
+      
+    then show ?case 
+      unfolding io_targets.simps
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
+  qed
+
+  ultimately show ?thesis using True
+    by (meson equalityI subsetI)
+next
+  case False
+  then have "io_targets M io q = {}" unfolding io_targets.simps
+    using path_begin_node by fastforce 
+  then show ?thesis 
+    using False by auto
+qed
+
+
+value "io_targets M_ex [] (initial M_ex)"
+
+lemma io_targets_nodes :
+  assumes "q \<in> nodes M"
+  shows "io_targets M io q \<subseteq> nodes M"
+  using assms nodes_path by fastforce
+
+
+lemma io_targets_is_io_target :
+  "io_targets M io q = {q' . q \<in> nodes M \<and> is_io_target M io q q'}"
+  using is_io_target_path[of q M io] by fastforce 
+
+
+lemma observable_transition_unique :
+  assumes "observable M"
+      and "t \<in> h M" 
+      and "t_source t = q" 
+      and "t_input t = x" 
+      and "t_output t = y"
+    shows "\<exists>! t . t \<in> h M \<and> t_source t = q \<and> t_input t = x \<and> t_output t = y"
+  by (metis assms observable.elims(2) prod.expand)
+
+
+
+lemma observable_path_unique :
+  assumes "observable M"
+  and     "path M q p"
+  and     "path M q p'"
+  and     "p_io p = p_io p'"
+shows "p = p'"
+proof -
+  have "length p = length p'"
+    using assms(4) map_eq_imp_length_eq by blast 
+  then show ?thesis
+  using \<open>p_io p = p_io p'\<close> \<open>path M q p\<close> \<open>path M q p'\<close> proof (induction p p' arbitrary: q rule: list_induct2)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons x xs y ys)
+    then have *: "x \<in> h M \<and> y \<in> h M \<and> t_source x = t_source y \<and> t_input x = t_input y \<and> t_output x = t_output y" 
+      by auto
+    then have "t_target x = t_target y" 
+      using assms(1) observable.elims(2) by blast 
+    then have "x = y"
+      by (simp add: "*" prod.expand) 
       
 
+    have "p_io xs = p_io ys" 
+      using Cons by auto
 
+    moreover have "path M (t_target x) xs" 
+      using Cons by auto
+    moreover have "path M (t_target x) ys"
+      using Cons \<open>t_target x = t_target y\<close> by auto
+    ultimately have "xs = ys" 
+      using Cons by auto
 
-
-
-
-
-
-
-
-
-
-lemma product_path_rev:
-  assumes "p_io p1 = p_io p2"
-  shows "path (product A B) (q1,q2) (zip_path p1 p2)
-          \<longleftrightarrow> (path A q1 p1 \<and> path B q2 p2 \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2))"
-proof -
-  have "length p1 = length p2" using assms
-    using map_eq_imp_length_eq by blast 
-  then have "(map (\<lambda> t . (fst (t_source t), t_input t, t_output t, fst (t_target t))) (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))) = p1"
-    by (induction p1 p2 arbitrary: q1 q2 rule: list_induct2; auto)
-
-  moreover have "(map (\<lambda> t . (snd (t_source t), t_input t, t_output t, snd (t_target t))) (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))) = p2"
-    using \<open>length p1 = length p2\<close> assms by (induction p1 p2 arbitrary: q1 q2 rule: list_induct2; auto)
-
-  ultimately show ?thesis using product_path[of A B q1 q2 "(map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))"]
-    by auto
-qed
-    
-    
-
-
-
-
-
-
-lemma product_language_state : 
-  assumes "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = q1 \<and> target p2 (initial B) = q2 \<and> p_io p1 = p_io p2)"
-  shows "LS (product A B) (q1,q2) = LS A q1 \<inter> LS B q2"
-proof 
-  show "LS (product A B) (q1, q2) \<subseteq> LS A q1 \<inter> LS B q2"
-  proof 
-    fix io assume "io \<in> LS (product A B) (q1, q2)"
-    then obtain p where "io = p_io p" 
-                    and "path (product A B) (q1,q2) p"
-      by auto
-    then obtain p1 p2 where "path A q1 p1" 
-                        and "path B q2 p2"
-                        and "io = p_io p1" 
-                        and "io = p_io p2"
-      using product_path[of A B q1 q2 p] by fastforce
-    then show "io \<in> LS A q1 \<inter> LS B q2" 
-      unfolding LS.simps by blast
-  qed
-
-  show "LS A q1 \<inter> LS B q2 \<subseteq> LS (product A B) (q1, q2)"
-  proof
-    fix io assume "io \<in> LS A q1 \<inter> LS B q2"
-    then obtain p1 p2 where "path A q1 p1" 
-                        and "path B q2 p2"
-                        and "io = p_io p1" 
-                        and "io = p_io p2"
-                        and "p_io p1 = p_io p2"
-      by auto
-
-    let ?p = "zip_path p1 p2"
-    
-    
-    have "length p1 = length p2"
-      using \<open>p_io p1 = p_io p2\<close> map_eq_imp_length_eq by blast 
-    moreover have "p_io ?p = p_io (map fst (zip p1 p2))" by auto
-    ultimately have "p_io ?p = p_io p1" by auto
-
-    then have "p_io ?p = io" 
-      using \<open>io = p_io p1\<close> by auto
-    moreover have "path (product A B) (q1, q2) ?p"
-      using product_path_rev[OF \<open>p_io p1 = p_io p2\<close>, of A B q1 q2] \<open>path A q1 p1\<close> \<open>path B q2 p2\<close> assms by auto
-    ultimately show "io \<in> LS (product A B) (q1, q2)" 
-      unfolding LS.simps by blast
+    then show ?case 
+      using \<open>x = y\<close> by simp
   qed
 qed
 
-
-lemma product_language : "L (product A B) = L A \<inter> L B"
+lemma observable_io_targets : 
+  assumes "observable M"
+  and "io \<in> LS M q"
+obtains q'
+where "io_targets M io q = {q'}"
 proof -
-  have "path A (initial A) [] \<and>
-         path B (initial B) [] \<and>
-         target [] (initial A) = initial A \<and> target [] (initial B) = initial B \<and> p_io [] = p_io []" by auto
-  then have "\<exists>p1 p2.
-       path A (initial A) p1 \<and>
-       path B (initial B) p2 \<and>
-       target p1 (initial A) = initial A \<and> target p2 (initial B) = initial B \<and> p_io p1 = p_io p2" by blast
-  then show ?thesis
-    using product_language_state[of A B "initial A" "initial B"] unfolding product.simps by simp
+
+  obtain p where "path M q p" and "p_io p = io" 
+    using assms(2) by auto 
+  then have "target p q \<in> io_targets M io q"
+    by auto   
+
+  have "\<exists> q' . io_targets M io q = {q'}"
+  proof (rule ccontr)
+    assume "\<nexists>q'. io_targets M io q = {q'}"
+    then have "\<exists> q' . q' \<noteq> target p q \<and> q' \<in> io_targets M io q"
+    proof -
+      have "\<not> io_targets M io q \<subseteq> {target p q}"
+        using \<open>\<nexists>q'. io_targets M io q = {q'}\<close> \<open>target p q \<in> io_targets M io q\<close> by blast
+      then show ?thesis
+        by blast
+    qed       
+    then obtain q' where "q' \<noteq> target p q" and "q' \<in> io_targets M io q" 
+      by blast
+    then obtain p' where "path M q p'" and "target p' q = q'" and "p_io p' = io"
+      by auto 
+    then have "p_io p = p_io p'" 
+      using \<open>p_io p = io\<close> by simp
+    then have "p = p'"
+      using observable_path_unique[OF assms(1) \<open>path M q p\<close> \<open>path M q p'\<close>] by simp
+    then show "False"
+      using \<open>q' \<noteq> target p q\<close> \<open>target p' q = q'\<close> by auto
+  qed
+
+  then show ?thesis using that by blast
 qed
 
 
+abbreviation(input) "io_target M io q \<equiv> hd (io_targets_list M io q)"
+
+lemma observable_first_io_target :
+  assumes "observable M"
+  and     "io \<in> LS M q"
+shows "io_targets M io q = {io_target M io q}"
+  by (metis assms insert_not_empty io_targets_from_list list.set(1) list.set_sel(1) observable_io_targets singletonD)
+
+lemma observable_path_io_target : 
+  assumes "observable M"
+  and     "path M q p"
+shows "target p q = io_target M (p_io p) q"
+proof -
+  have "target p q \<in> io_targets M (p_io p) q"
+    using assms(2) by auto
+  then show ?thesis using assms(1) observable_first_io_target
+    by (metis (mono_tags, lifting) LS.simps assms(2) mem_Collect_eq singletonD) 
+qed
+
+
+
+
+
+subsection \<open>Conformity Relations\<close>
+
+fun is_io_reduction_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
+  "is_io_reduction_state A a B b = (LS A a \<subseteq> LS B b)"
+
+abbreviation(input) "is_io_reduction A B \<equiv> is_io_reduction_state A (initial A) B (initial B)" 
+notation 
+  is_io_reduction ("_ \<preceq> _")
+
+
+fun is_io_reduction_state_on_inputs :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
+  "is_io_reduction_state_on_inputs A a U B b = (LS\<^sub>i\<^sub>n A a U \<subseteq> LS\<^sub>i\<^sub>n B b U)"
+
+abbreviation(input) "is_io_reduction_on_inputs A U B \<equiv> is_io_reduction_state_on_inputs A (initial A) U B (initial B)" 
+notation 
+  is_io_reduction_on_inputs ("_ \<preceq>\<lbrakk>_\<rbrakk> _")
+
+
+
+subsection \<open>Submachines\<close>
+
+(* extends Petrenko's definition to explicitly require same inputs and outputs *)
+fun is_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> bool" where 
+  "is_submachine A B = (initial A = initial B \<and> set (transitions A) \<subseteq> set (transitions B) \<and> inputs A = inputs B \<and> outputs A = outputs B)"
+  
+
+lemma submachine_path_initial :
+  assumes "is_submachine A B"
+  and     "path A (initial A) p"
+shows "path B (initial B) p"
+  using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc a p)
+  then show ?case
+  proof -
+    have f1: "initial A = initial B \<and> set (transitions A) \<subseteq> set (transitions B) \<and> inputs A = inputs B \<and> outputs A = outputs B"
+      using assms(1) is_submachine.simps by blast
+    then have f2: "t_source a = target p (initial B) \<and> a \<in> set (transitions A) \<and> t_source a \<in> nodes A \<and> t_input a \<in> set (inputs A) \<and> t_output a \<in> set (outputs A) \<and> path A (t_target a) []"
+      using snoc.prems(2) by force
+    then have f3: "a \<in> set (transitions B)"
+      using f1 by blast
+    have f4: "t_input a \<in> set (inputs B)"
+      using f2 f1 by metis
+    have f5: "t_output a \<in> set (outputs B)"
+      using f2 f1 by auto
+    have "t_target a \<in> nodes B"
+      using f3 f2 f1 by (metis (no_types) assms(1) nodes.step path_prefix path_target_is_node snoc.IH snoc.prems(2))
+    then show ?thesis
+      using f5 f4 f3 f2 by (metis (no_types) assms(1) is_path.simps(2) path.nil path_append path_code path_prefix path_target_is_node snoc.IH snoc.prems(2))
+  qed 
+qed
+
+lemma submachine_nodes :
+  assumes "is_submachine A B"
+  shows "nodes A \<subseteq> nodes B"
+  by (metis (no_types, lifting) assms is_submachine.elims(2) nodes_path path_to_node submachine_path_initial subsetI) 
+
+lemma submachine_path :
+  assumes "is_submachine A B"
+  and     "path A q p"
+shows "path B q p"
+  by (metis (no_types, lifting) assms(1) assms(2) distinct_path_to_node is_submachine.elims(2) path_append path_begin_node path_suffix submachine_path_initial)
+
+lemma submachine_h :
+  assumes "is_submachine A B"
+  shows "h A \<subseteq> h B" 
+  using assms submachine_nodes by auto
+
+lemma submachine_reduction : 
+  assumes "is_submachine A B"
+  shows "is_io_reduction A B"
+  using submachine_path[OF assms] assms by auto 
+
+
+
+subsection \<open>Changing Initial States\<close>
+
+fun from_FSM :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme" where
+  "from_FSM M q = \<lparr> initial = q, inputs = inputs M, outputs = outputs M, transitions = transitions M, \<dots> = FSM.more M \<rparr>"
 
 
 

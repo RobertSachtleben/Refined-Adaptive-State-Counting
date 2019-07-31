@@ -2,6 +2,40 @@ theory Util
 imports Main
 begin
 
+section \<open>Lemmata Concerning find\<close>
+
+lemma find_result_props : 
+  assumes "find P xs = Some x" 
+  shows "x \<in> set xs" and "P x"
+proof -
+  show "x \<in> set xs" using assms by (metis find_Some_iff nth_mem)
+  show "P x" using assms by (metis find_Some_iff)
+qed
+
+lemma find_set : 
+  assumes "find P xs = Some x"
+  shows "x \<in> set xs"
+using assms proof(induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  then show ?case
+    by (metis find.simps(2) list.set_intros(1) list.set_intros(2) option.inject) 
+qed
+
+lemma find_condition : 
+  assumes "find P xs = Some x"
+  shows "P x"
+using assms proof(induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  then show ?case
+    by (metis find.simps(2) option.inject)     
+qed
+
 section \<open>Enumerating Lists\<close>
 
 fun lists_of_length :: "'a list \<Rightarrow> nat \<Rightarrow> 'a list list" where
@@ -99,6 +133,17 @@ next
   qed
 qed
 
+lemma set_concat_map_sublist :
+  assumes "x \<in> set (concat (map f xs))"
+  and     "set xs \<subseteq> set xs'"
+shows "x \<in> set (concat (map f xs'))"
+using assms by (induction xs) (auto)
+
+lemma set_concat_map_elem :
+  assumes "x \<in> set (concat (map f xs))"
+  shows "\<exists> x' \<in> set xs . x \<in> set (f x')"
+using assms by auto
+
 
 lemma set_map_subset :
   assumes "x \<in> set xs"
@@ -126,5 +171,8 @@ next
       by (metis append_butlast_last_id diff_Suc_1 length_append_singleton list.distinct(1) snoc.hyps snoc.prems) 
   qed
 qed
+
+lemma concat_replicate_length : "length (concat (replicate n xs)) = n * (length xs)"
+  by (induction n; simp)
 
 end
