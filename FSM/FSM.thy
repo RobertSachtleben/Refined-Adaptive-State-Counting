@@ -815,224 +815,6 @@ lemma path_code[code] : "path M q p = is_path M q p"
 
 
 
-
-
-
-
-
-
-
-
-
-
-(*
-subsection \<open>Reachability by Transitive Closure and by Path\<close>
-
-fun pairwise_immediately_reachable :: "('state, 'b) FSM_scheme \<Rightarrow> ('state  \<times> 'state ) set" where
-  "pairwise_immediately_reachable M =  image (\<lambda> t. (t_source t, t_target t)) (set (io_valid_transitions M))"
-
-lemma wf_transrel_transition_ob : 
-  assumes "(q,q') \<in> pairwise_immediately_reachable M"
-  obtains t
-  where "t \<in> set (io_valid_transitions M)"
-    and "t_source t = q"
-    and "t_target t = q'"
-    and "is_io_valid_transition M t"
-  using assms by auto
-
-fun pairwise_reachable :: "('state, 'b) FSM_scheme \<Rightarrow> ('state  \<times> 'state ) set" where
-  "pairwise_reachable M = trancl (pairwise_immediately_reachable M)"
-
-fun reachable :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 'state \<Rightarrow> bool" where
-  "reachable M q q' = (q = q' \<or> (q, q') \<in> pairwise_reachable M)"
-
-fun initially_reachable :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> bool" where
-  "initially_reachable M q = reachable M (initial M) q"
-
-fun nodes' :: "('state, 'b) FSM_scheme \<Rightarrow> 'state set" where
-  "nodes' M = insert (initial M) (set (filter (initially_reachable M) (map t_target (io_valid_transitions M))))"
-
-
-
-lemma nodes_path : 
-  assumes "q \<in> nodes M"
-  and     "path M q p"
-shows "(target p q) \<in> nodes M"
-  using assms proof (induction p arbitrary: q) 
-  case Nil
-  then show ?case by auto
-next
-  case (Cons a p)
-  then have "t_target a \<in> nodes M" 
-       and  "path M (t_target a) p" 
-    using Cons by auto
-  then show ?case
-    using Cons.IH[of "t_target a"] by auto
-qed
-
-lemma nodes_path_initial :
-  assumes "path M (initial M) p"
-  shows "(target p (initial M)) \<in> nodes M"
-  by (meson assms nodes.initial nodes_path)
-
-
-lemma path_reachable : 
-  assumes "reachable M q1 q2"
-  obtains p where "path M q1 p"
-            and   "target p q1 = q2"
-  using assms unfolding reachable.simps
-proof (cases "q1 = q2")
-  case True
-  then have "path M q1 []" and "target [] q1 = q2" by auto
-  then show ?thesis using that by blast
-next
-  case False
-  then have "(q1, q2) \<in> pairwise_reachable M" using assms by auto
-  then have "\<exists> p . path M q1 p \<and> target p q1 = q2" unfolding pairwise_reachable.simps pairwise_immediately_reachable.simps
-  proof (induction rule: trancl.induct) 
-    case (r_into_trancl a b)
-    then obtain t where "t \<in> hIO M"
-                  and   "a = t_source t"
-                  and   "b = t_target t"
-      by auto
-    then have "path M a [t] \<and> target [t] a = b" by auto
-    then show ?case by force 
-  next
-    case (trancl_into_trancl a b c)
-    then obtain p t where "t \<in> hIO M"
-                and   "b = t_source t"
-                and   "c = t_target t"
-                and "path M a p \<and> target p a = b"
-      by auto
-    then have "path M a (p@[t]) \<and> target (p@[t]) a = c" by auto
-    then show ?case by metis 
-  qed
-  then show ?thesis using that by blast
-qed 
-
-lemma reachable_nodes :
-  assumes "initially_reachable M q"
-  shows "q \<in> nodes M"
-  by (metis assms initially_reachable.elims(2) nodes.initial nodes_path path_reachable)
-
-lemma reachable_next :
-  assumes "reachable M q (t_source t)"
-  and     "t \<in> hIO M"
-shows "reachable M q (t_target t)"
-proof -
-  have "q = t_source t \<or> (q, t_source t) \<in> pairwise_reachable M"
-    using assms(1) by auto
-  moreover have "(t_source t, t_target t) \<in> pairwise_reachable M"
-    using assms(2) by auto
-  ultimately show ?thesis 
-  proof (cases "q = t_source t")
-    case True
-    then show ?thesis
-      using \<open>(t_source t, t_target t) \<in> pairwise_reachable M\<close> by auto       
-  next
-    case False
-    then have "(q, t_source t) \<in> pairwise_reachable M" 
-      using \<open>q = t_source t \<or> (q, t_source t) \<in> pairwise_reachable M\<close> by auto
-    then have "(q, t_target t) \<in> pairwise_reachable M" 
-      using \<open>(t_source t, t_target t) \<in> pairwise_reachable M\<close> by auto
-    then show ?thesis 
-      by auto
-  qed
-qed
-
-lemma reachable_next' :
-  assumes "reachable M (t_target t) q"
-  and     "t \<in> hIO M"
-shows "reachable M (t_source t) q"
-proof -
-  have "t_target t = q \<or> (t_target t, q) \<in> pairwise_reachable M"
-    using assms(1) by auto
-  moreover have "(t_source t, t_target t) \<in> pairwise_reachable M"
-    using assms(2) by auto
-  ultimately show ?thesis 
-  proof (cases "q = t_target t")
-    case True
-    then show ?thesis
-      using \<open>(t_source t, t_target t) \<in> pairwise_reachable M\<close> by auto       
-  next
-    case False
-    then have "(t_target t, q) \<in> pairwise_reachable M" 
-      using \<open>t_target t = q \<or> (t_target t, q) \<in> pairwise_reachable M\<close> by auto
-    then have "(t_source t, q) \<in> pairwise_reachable M" 
-      using \<open>(t_source t, t_target t) \<in> pairwise_reachable M\<close> by auto
-    then show ?thesis 
-      by auto
-  qed
-qed
-
-lemma nodes'_next :
-  assumes "t_source t \<in> nodes' M"
-  and     "t \<in> hIO M"
-shows "t_target t \<in> nodes' M"
-proof (cases "t_source t = initial M")
-  case True
-  moreover have "(t_source t, t_target t) \<in> pairwise_reachable M"
-    using assms(2) by auto
-  ultimately have "(initial M, t_target t) \<in> pairwise_reachable M"
-    by auto
-  then show ?thesis 
-    using assms(2) by auto
-next
-  case False
-  then have "(initial M, t_source t) \<in> pairwise_reachable M"
-    using assms(1) by auto
-  moreover have "(t_source t, t_target t) \<in> pairwise_reachable M"
-    using assms(2) by auto
-  ultimately have "(initial M, t_target t) \<in> pairwise_reachable M"
-    by auto
-  then show ?thesis 
-    using assms(2) by auto
-qed
-
-lemma nodes_nodes' : "nodes M = nodes' M"
-proof
-  show "nodes M \<subseteq> nodes' M"
-  proof 
-    fix x assume "x \<in> nodes M"
-    then show "x \<in> nodes' M"
-    proof (induction)
-      case initial
-      then show ?case by auto
-    next
-      case (step t)
-      then show ?case
-        using nodes'_next by blast 
-    qed
-  qed
-  show "nodes' M \<subseteq> nodes M"
-  proof 
-    fix x assume "x \<in> nodes' M"
-
-    then show "x \<in> nodes M"
-      by (metis filter_set insert_iff member_filter nodes.simps nodes'.simps reachable_nodes)
-  qed
-qed
-
-lemma path_to_nodes : 
-  assumes "q \<in> nodes M"
-  obtains p where "path M (initial M) p"
-            and   "q = (target p (initial M))"
-proof -
-  have "q \<in> nodes' M"
-    using assms nodes_nodes' by force  
-  then have "reachable M (initial M) q" 
-    by auto
-  then show ?thesis
-    by (metis path_reachable that)
-qed
-*)
-
-
-
-
-
-
-
 subsection \<open>Language\<close>
 
 fun language_state_for_input :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
@@ -1194,11 +976,11 @@ lemma observable_alt_def : "observable M = (\<forall> q1 x y q1' q1'' . (q1,x,y,
 value "observable M_ex"
 value "observable M_ex'''"
 
-
 fun single_input :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
-  "single_input M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<longrightarrow> t_input t1 = t_input t2)" 
+  "single_input M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<longrightarrow> t_input t1 = t_input t2)" 
 
-lemma single_input_alt_def : "single_input M = (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x',y',q1'') \<in> h M \<and> q1 \<in> nodes M \<longrightarrow> x = x')"
+
+lemma single_input_alt_def : "single_input M = (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x',y',q1'') \<in> h M \<longrightarrow> x = x')"
   unfolding single_input.simps by fastforce 
   
 
@@ -1206,14 +988,14 @@ lemma single_input_alt_def : "single_input M = (\<forall> q1 x x' y y' q1' q1'' 
    avoids checking the same pair of transitions twice *)
 fun single_input_by_transition_list :: "('a, 'b) FSM_scheme \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
   "single_input_by_transition_list M [] = True" |
-  "single_input_by_transition_list M (t1#ts) = (case find (\<lambda> t2 . t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2) ts of
+  "single_input_by_transition_list M (t1#ts) = (case find (\<lambda> t2 . t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2) ts of
     None \<Rightarrow> single_input_by_transition_list M ts | 
     Some _ \<Rightarrow> False)"
 
 
 lemma single_input_by_transition_list_correctness :
   assumes "set xs \<subseteq> h M"
-  shows "single_input_by_transition_list M xs = (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
+  shows "single_input_by_transition_list M xs = (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2))"
 using assms proof (induction xs)
   case Nil
   then show ?case by auto
@@ -1221,21 +1003,21 @@ next
   case (Cons a xs)
   then have "a \<in> h M" by auto
 
-  let ?P = "(\<forall> t1 \<in> set (a#xs) . \<not>(\<exists> t2 \<in> set (a#xs) .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
+  let ?P = "(\<forall> t1 \<in> set (a#xs) . \<not>(\<exists> t2 \<in> set (a#xs) .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2))"
 
-  have "?P = (\<forall> t1 \<in> set (a#xs) . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
+  have "?P = (\<forall> t1 \<in> set (a#xs) . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2))"
     using set_subset_Cons by auto
-  then have *: "?P = ((\<not>(\<exists> t2 \<in> set xs .a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2)) \<and> (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2)))"
+  then have *: "?P = ((\<not>(\<exists> t2 \<in> set xs .a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_input a \<noteq> t_input t2)) \<and> (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2)))"
     by auto
   
   
   show ?case
-  proof (cases "find (\<lambda> t2 . a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2) xs")
+  proof (cases "find (\<lambda> t2 . a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_input a \<noteq> t_input t2) xs")
     case None
     
-    have "\<not>(\<exists> t2 \<in> set xs .a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2)"
-      using find_None_iff[of "(\<lambda> t2 . a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2)" xs] None by blast
-    then have "?P = (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2))"
+    have "\<not>(\<exists> t2 \<in> set xs .a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_input a \<noteq> t_input t2)"
+      using find_None_iff[of "(\<lambda> t2 . a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_input a \<noteq> t_input t2)" xs] None by blast
+    then have "?P = (\<forall> t1 \<in> set xs . \<not>(\<exists> t2 \<in> set xs .t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2))"
       using * by blast
     moreover have "single_input_by_transition_list M (a#xs) = single_input_by_transition_list M xs"
       unfolding single_input_by_transition_list.simps None by auto
@@ -1243,10 +1025,10 @@ next
   next
     case (Some a2)
     then have "a2 \<in> set xs" using find_result_props(1) by fast
-    moreover have "a \<noteq> a2 \<and> t_source a = t_source a2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input a2"
+    moreover have "a \<noteq> a2 \<and> t_source a = t_source a2 \<and> t_input a \<noteq> t_input a2"
       using find_result_props(2)[OF Some] by assumption
     ultimately have "\<not>?P"
-      using \<open>(\<forall>t1\<in>set (a # xs). \<not> (\<exists>t2\<in>set (a # xs). t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2)) = (\<not> (\<exists>t2\<in>set xs. a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_source a \<in> nodes M \<and> t_input a \<noteq> t_input t2) \<and> (\<forall>t1\<in>set xs. \<not> (\<exists>t2\<in>set xs. t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_source t1 \<in> nodes M \<and> t_input t1 \<noteq> t_input t2)))\<close> \<open>a2 \<in> set xs\<close> by blast 
+      using \<open>(\<forall>t1\<in>set (a # xs). \<not> (\<exists>t2\<in>set (a # xs). t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2)) = (\<not> (\<exists>t2\<in>set xs. a \<noteq> t2 \<and> t_source a = t_source t2 \<and> t_input a \<noteq> t_input t2) \<and> (\<forall>t1\<in>set xs. \<not> (\<exists>t2\<in>set xs. t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2)))\<close> \<open>a2 \<in> set xs\<close> by blast 
     moreover have "\<not>(single_input_by_transition_list M (a#xs))"
       using Some unfolding single_input_by_transition_list.simps by auto
     ultimately show ?thesis by simp
