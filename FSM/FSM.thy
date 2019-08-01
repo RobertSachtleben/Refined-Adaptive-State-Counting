@@ -1773,11 +1773,11 @@ proof -
 
   have "\<exists> q' . io_targets M io q = {q'}"
   proof (rule ccontr)
-    assume "\<nexists>q'. io_targets M io q = {q'}"
+    assume "\<not>(\<exists>q'. io_targets M io q = {q'})"
     then have "\<exists> q' . q' \<noteq> target p q \<and> q' \<in> io_targets M io q"
     proof -
       have "\<not> io_targets M io q \<subseteq> {target p q}"
-        using \<open>\<nexists>q'. io_targets M io q = {q'}\<close> \<open>target p q \<in> io_targets M io q\<close> by blast
+        using \<open>\<not>(\<exists>q'. io_targets M io q = {q'})\<close> \<open>target p q \<in> io_targets M io q\<close> by blast
       then show ?thesis
         by blast
     qed       

@@ -1,0 +1,11 @@
+session FSM = HOL +
+  options [document = pdf, document_output = "output"]
+  theories
+    "Util"
+    "FSM"
+    "ProductMachine"
+    "R_Distinguishability"
+    "CodeExport"
+  document_files
+    "root.tex" 
+  export_files (in ".") [2] "FSM.CodeExport:**"

@@ -122,7 +122,7 @@ next
       using Cons by auto
     have "\<exists> x . x \<in> set xs \<and> y \<in> set (f x)"  
     proof (rule ccontr)
-      assume "\<nexists>x. x \<in> set xs \<and> y \<in> set (f x)"
+      assume "\<not>(\<exists>x. x \<in> set xs \<and> y \<in> set (f x))"
       then have "\<not>(y \<in> set (concat (map f xs)))"
         by auto
       then show False 

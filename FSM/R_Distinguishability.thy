@@ -79,7 +79,7 @@ proof -
     using assms by auto
 
   then have *: "\<not> (\<exists> t1 t2 . t1 \<in> h ?F1 \<and> t2 \<in> h ?F2 \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"
-    using from_FSM_h by (metis (no_types) \<open>\<nexists>t1 t2. t1 \<in> set (wf_transitions M) \<and> t2 \<in> set (wf_transitions M) \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2\<close> assms(2) assms(3) contra_subsetD from_FSM_h)
+    using from_FSM_h by (metis (no_types) \<open>\<not> (\<exists> t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)\<close> assms(2) assms(3) contra_subsetD from_FSM_h)
   
   have **: "\<not> (\<exists> t \<in> h ?P . t_source t = (q1,q2) \<and> t_input t = x)"
   proof (rule ccontr)  
