@@ -360,12 +360,32 @@ proof
   qed
 qed
 
+lemma product_transition_t :
+  "t \<in> h (product A B) \<longleftrightarrow> (fst (t_source t),t_input t,t_output t,fst (t_target t)) \<in> h A \<and> (snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = fst (t_source t) \<and> target p2 (initial B) = snd (t_source t) \<and> p_io p1 = p_io p2)"
+proof -
+  have "t = ((fst (t_source t), snd (t_source t)), t_input t, t_output t, fst (t_target t), snd (t_target t))"
+    by auto
+  then show ?thesis
+    using product_transition[of "fst (t_source t)" "snd (t_source t)" "t_input t" "t_output t" "fst (t_target t)" "snd (t_target t)" A B] by presburger
+qed
 
-    
-      
-      
-  
-
+lemma product_transition_from_transitions :
+  assumes "t1 \<in> h A" 
+      and "t2 \<in> h B" 
+      and "t_input t1 = t_input t2" 
+      and "t_output t1 = t_output t2" 
+      and "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target p1 (initial A) = t_source t1 \<and> target p2 (initial B) = t_source t2 \<and> p_io p1 = p_io p2)"
+  shows "((t_source t1,t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2)) \<in> h (product A B)  "
+proof-
+  note product_transition[of "t_source t1" "t_source t2" "t_input t1" "t_output t1" "t_target t1" "t_target t2" A B]
+  moreover have "(t_source t1, t_input t1, t_output t1, t_target t1) \<in> set (wf_transitions A)"
+    using assms(1) by auto
+  moreover have "(t_source t2, t_input t1, t_output t1, t_target t2) \<in> set (wf_transitions B)"
+    using assms(2-4) by auto
+  moreover note assms(5)
+  ultimately show ?thesis by presburger
+qed
+ 
 
 
 lemma product_node_from_path :
@@ -700,27 +720,7 @@ proof (rule ccontr)
   qed
 qed
 
-lemma from_FSM_path_rev_initial :
-  assumes "path M q p"
-  shows "path (from_FSM M q) q p"
-using assms proof (induction p rule: rev_induct)
-  case Nil
-  have "q \<in> nodes M" using path_begin_node[OF assms] by assumption
-  have "initial (from_FSM M q) \<in> nodes (from_FSM M q)" using nodes.initial[of "from_FSM M q"] by assumption
-  show ?case using path.nil[OF nodes.initial[of "from_FSM M q"]] by simp
-next
-  case (snoc t p)
-  then have "path (from_FSM M q) q p" by auto
 
-  have "t \<in> h M" and "t_source t = target p q" using snoc.prems by auto
-
-  from \<open>t \<in> h M\<close> have "t \<in> hIO (from_FSM M q)" by auto
-  moreover have "t_source t \<in> nodes (from_FSM M q)"
-    using path_target_is_node[OF \<open>path (from_FSM M q) q p\<close>] \<open>t_source t = target p q\<close> by auto
-  ultimately have "t \<in> h (from_FSM M q)" by auto
-  then show ?case 
-    using \<open>path (from_FSM M q) q p\<close> \<open>t_source t = target p q\<close> path_append_last by metis
-qed
 
 
 lemma single_transitions_path : 
@@ -853,5 +853,102 @@ proof -
   qed
 qed
 
+lemma submachine_transition_complete_product_from :
+  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+      and "completely_specified S"
+      and "((q1,q2),x,y,(q1',q2')) \<in> h S"
+ shows "completely_specified (from_FSM S (q1',q2'))"
+proof -
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
+  let ?F = "(from_FSM S (q1',q2'))"  
+  
+  have "initial ?P = (q1,q2)"
+    by auto
+  then have "initial S = (q1,q2)" 
+    using assms(1) by (metis is_submachine.simps) 
+  then have "(q1',q2') \<in> nodes S"
+    using assms(3)
+    using wf_transition_target by fastforce 
+  then have "nodes ?F \<subseteq> nodes S"
+    using from_FSM_nodes by metis
+  moreover have "inputs ?F = inputs S"
+    by auto
+  ultimately show "completely_specified ?F" 
+    using assms(2) unfolding completely_specified.simps
+    using from_FSM_nodes_transitions[of _ S "(q1',q2')"]
+    using contra_subsetD by fastforce
+qed
 
+
+lemma from_FSM_product_inputs[simp] :
+  "set (inputs (product (from_FSM M q1) (from_FSM M q2))) = set (inputs M)"
+  unfolding product.simps from_FSM.simps by auto
+
+lemma from_FSM_product_outputs[simp] :
+  "set (outputs (product (from_FSM M q1) (from_FSM M q2))) = set (outputs M)"
+  unfolding product.simps from_FSM.simps by auto
+
+lemma from_FSM_product_initial[simp] : 
+  "initial (product (from_FSM M q1) (from_FSM M q2)) = (q1,q2)" by auto
+
+lemma from_FSM_transitions :
+  "transitions (from_FSM M q) = transitions M" by auto 
+
+
+lemma product_from_next' :
+  assumes "t \<in> h (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
+    shows "h (from_FSM (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (fst (t_target t),snd (t_target t))) = h (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))"
+proof -
+  have "t = ((fst (t_source t),snd (t_source t)),t_input t, t_output t,(fst (t_target t),snd (t_target t)))"
+    by (metis prod.collapse)
+  then have *: "((fst (t_source t),snd (t_source t)),t_input t, t_output t,(fst (t_target t),snd (t_target t))) \<in> h (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
+    using assms by presburger
+  
+  show ?thesis using product_from_next[OF *] by blast
+qed
+
+(* TODO: move *)
+lemma path_equivalence_by_h :
+  assumes "path A q (p@[t])" and "path B q p" 
+  shows "((path B q (p@[t])) = (t \<in> h B))"
+using assms by (induction p arbitrary: q; fastforce)
+
+lemma product_from_next'_path :
+  assumes "t \<in> h (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
+  shows "path (from_FSM (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (fst (t_target t),snd (t_target t))) (fst (t_target t),snd (t_target t)) p = path (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t)))) (fst (t_target t),snd (t_target t)) p" 
+    (is "path ?P1 ?q p = path ?P2 ?q p")
+proof -
+  have i1: "initial ?P1 = ?q" by auto
+  have i2: "initial ?P2 = ?q" by auto
+  have h12: "h ?P1 = h ?P2" using product_from_next'[OF assms] by assumption
+  
+  show ?thesis proof (induction p rule: rev_induct)
+    case Nil
+    then show ?case
+      by (metis (full_types) i1 i2 nodes.initial path.nil)
+  next
+    case (snoc t p)
+
+    have "path ?P1 ?q (p@[t]) \<Longrightarrow> path ?P2 ?q (p@[t])"
+      using snoc.IH path_equivalence_by_h[of ?P1 ?q p t ?P2] h12 
+
+    then show ?case using h12 path_equivalence_by_h
+  qed
+qed
+
+
+lemma product_from_path_previous :
+  assumes "path (product (from_FSM M (fst (t_target t))) 
+                         (from_FSM M (snd (t_target t))))
+                (fst (t_target t), snd (t_target t)) p"
+      and "t \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+  shows "path (product (from_FSM M q1) (from_FSM M q2)) (t_target t) p"
+proof -
+  have "is_submachine (product (from_FSM M (fst (t_target t))) 
+                         (from_FSM M (snd (t_target t))))
+                      (product (from_FSM M q1) (from_FSM M q2))"
+    using 
+
+  note from_FSM_transition_initial
 end

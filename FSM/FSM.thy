@@ -316,6 +316,7 @@ lemma path_append_last : "path M q p \<Longrightarrow> t \<in> h M \<Longrightar
 
 
 
+
 subsection \<open> Nodes and Paths \<close>
 
 lemma nodes_path : 
@@ -355,6 +356,77 @@ next
   ultimately show "\<exists>p. path M (initial M) p \<and> t_target t = target p (initial M)"
     by meson 
 qed
+
+
+
+lemma h_nodes :
+  "nodes M = insert (initial M) {t_target t | t . t \<in> h M}"
+proof -
+  have "\<And> q . q \<in> nodes M \<Longrightarrow> q \<in> insert (initial M) {t_target t | t . t \<in> h M}"
+  proof -
+    fix q assume "q \<in> nodes M"
+    then show "q \<in> insert (initial M) {t_target t | t . t \<in> h M}"
+    proof (cases "q = initial M")
+      case True
+      then show ?thesis by blast
+    next
+      case False
+      
+      then obtain t where "t \<in> set (transitions M)" 
+                      and "t_source t \<in> nodes M" 
+                      and "t_input t \<in> set (inputs M)"
+                      and "t_output t \<in> set (outputs M)" 
+                      and "t_target t = q"
+        by (metis \<open>q \<in> nodes M\<close> nodes.cases)
+
+      then have "t \<in> h M" by auto
+      then show ?thesis using \<open>t_target t = q\<close> by blast
+    qed
+  qed
+  then show ?thesis by blast
+qed
+    
+
+lemma h_subset_path : 
+  assumes "h A \<subseteq> h B"
+  and "path A q p"
+  and "q \<in> nodes B"
+shows "path B q p"
+using assms(2) proof (induction p rule: rev_induct)
+  case Nil
+  show ?case using assms(3) by auto
+next
+  case (snoc t p)
+  then show ?case using assms(1) path_suffix by auto  
+qed
+
+lemma h_subset_path_non_initial :
+  assumes "h A \<subseteq> h B"
+  and "path A q p"
+  and "q \<noteq> initial A"
+shows "path B q p"
+proof -
+  have "q \<in> nodes A" using assms(2)
+    by (meson path_begin_node) 
+  then have "q \<in> {t_target t | t . t \<in> h A}"
+    using assms(3) h_nodes[of A] by blast
+  then have "q \<in> {t_target t | t . t \<in> h B}"
+    using assms(1) by blast
+  then have "q \<in> nodes B" by blast
+  then show ?thesis using h_subset_path[OF assms(1,2)] by auto
+qed
+
+
+
+
+
+lemma h_equivalence_path :
+  assumes "h A = h B"
+  and "q \<in> nodes A" and "q \<in> nodes B"
+shows "path A q p \<longleftrightarrow> path B q p"
+  using h_subset_path[OF _ _ assms(2), of B p]
+  using h_subset_path[OF _ _ assms(3), of A p]
+  by (metis assms(1) subset_code(1))
 
 
 
@@ -1870,5 +1942,41 @@ lemma from_FSM_next_h :
       and "t_source t = initial M"
     shows "h (from_FSM M (t_target t)) \<subseteq> h M"
   by (meson assms(1) from_FSM_h nodes.step wf_transition_simp)
+
+
+lemma from_FSM_nodes_transitions : 
+  "t \<in> h M \<Longrightarrow> t_source t \<in> nodes (from_FSM M q) \<Longrightarrow> t \<in> h (from_FSM M q)"
+  by simp
+
+lemma from_FSM_path_rev_initial :
+  assumes "path M q p"
+  shows "path (from_FSM M q) q p"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  have "q \<in> nodes M" using path_begin_node[OF assms] by assumption
+  have "initial (from_FSM M q) \<in> nodes (from_FSM M q)" using nodes.initial[of "from_FSM M q"] by assumption
+  show ?case using path.nil[OF nodes.initial[of "from_FSM M q"]] by simp
+next
+  case (snoc t p)
+  then have "path (from_FSM M q) q p" by auto
+
+  have "t \<in> h M" and "t_source t = target p q" using snoc.prems by auto
+
+  from \<open>t \<in> h M\<close> have "t \<in> hIO (from_FSM M q)" by auto
+  moreover have "t_source t \<in> nodes (from_FSM M q)"
+    using path_target_is_node[OF \<open>path (from_FSM M q) q p\<close>] \<open>t_source t = target p q\<close> by auto
+  ultimately have "t \<in> h (from_FSM M q)" by auto
+  then show ?case 
+    using \<open>path (from_FSM M q) q p\<close> \<open>t_source t = target p q\<close> path_append_last by metis
+qed
+
+lemma from_FSM_transition_initial:
+  assumes "t \<in> h M" 
+  shows "t \<in> h (from_FSM M (t_source t))" 
+proof -
+  have "t_source t \<in> nodes M" using assms by auto
+  show ?thesis using assms
+    by (meson \<open>t \<in> set (wf_transitions M)\<close> \<open>t_source t \<in> nodes M\<close> from_FSM_nodes_transitions from_FSM_path_rev_initial path.nil path_begin_node) 
+qed
 
 end
