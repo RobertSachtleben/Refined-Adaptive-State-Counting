@@ -929,13 +929,10 @@ proof -
       by (metis (full_types) i1 i2 nodes.initial path.nil)
   next
     case (snoc t p)
-
-    have "path ?P1 ?q (p@[t]) \<Longrightarrow> path ?P2 ?q (p@[t])"
-      using snoc.IH path_equivalence_by_h[of ?P1 ?q p t ?P2] h12 
-
-    then show ?case using h12 path_equivalence_by_h
+    show ?case by (meson h12 h_equivalence_path path_begin_node path_prefix snoc.IH)
   qed
 qed
+
 
 
 lemma product_from_path_previous :
