@@ -343,22 +343,19 @@ next
                     and "\<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k"
       using \<open>?x \<in> set (inputs M)\<close> by blast 
 
-    obtain p where "path (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t)))) ((fst (t_target t)), (snd (t_target t))) p" 
+    obtain p where p_def: "path (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t)))) (t_target t) p" 
                and "map fst (p_io p) = ?xs"
-      using Suc.IH[OF \<open>\<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k\<close> \<open>length (tl xs) \<le> Suc k\<close> \<open>set (tl xs) \<subseteq> set (inputs M)\<close>] by blast
+      using Suc.IH[OF \<open>\<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k\<close> \<open>length (tl xs) \<le> Suc k\<close> \<open>set (tl xs) \<subseteq> set (inputs M)\<close>] by auto
     
-    then have "path ?P (t_target t) p"
-      using \<open>t_source t = (q1,q2)\<close> product_from_next
+    have "path ?P (t_target t) p" 
+      using product_from_path_previous[OF p_def \<open>t \<in> h ?P\<close>] by assumption
 
-end (*
-    then have "path ?P (t_target t) p \<and> map fst (p_io p) = ?xs"
-      by (metis (no_types, lifting) from_FSM_product_h h_equivalence_path prod.collapse)
-      
-
-    then have "path ?P (q1,q2) (t#p) \<and> map fst (p_io (t#p)) = xs"
-      by (metis (no_types, lifting) \<open>length xs = Suc (Suc k)\<close> \<open>t \<in> h (product (from_FSM M q1) (from_FSM M q2)) \<and> t_source t = (q1, q2) \<and> t_input t = hd xs\<close> cons fst_conv hd_Cons_tl length_greater_0_conv list.simps(9) zero_less_Suc)
-
-    then show ?thesis
+    have "path ?P (q1,q2) (t#p)"
+      using path_cons[OF\<open>t \<in> h ?P\<close> \<open>path ?P (t_target t) p\<close>] \<open>t_source t = (q1,q2)\<close> by metis
+    moreover have "map fst (p_io (t#p)) = xs"
+      using \<open>t_input t = ?x\<close> \<open>map fst (p_io p) = ?xs\<close>
+      by (metis (no_types, lifting) \<open>length xs = Suc (Suc k)\<close> \<open>t_input t = hd xs\<close> fst_conv hd_Cons_tl length_greater_0_conv list.simps(9) zero_less_Suc)
+    ultimately show ?thesis
       by (metis (no_types, lifting)) 
   qed
 qed

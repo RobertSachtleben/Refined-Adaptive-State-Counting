@@ -933,19 +933,131 @@ proof -
   qed
 qed
 
+(* TODO: move *)
+lemma  product_target_split: 
+  assumes "target p (q1,q2) = (q1',q2')"
+  shows "target (left_path p) q1 = q1'"
+    and "target (right_path p) q2 = q2'"
+using assms by (induction p arbitrary: q1 q2; force)+
+
+lemma from_from[simp] : "from_FSM (from_FSM M q1) q1' = from_FSM M q1'" by auto
+
+lemma path_target_append : "target p1 q1 = q2 \<Longrightarrow> target p2 q2 = q3 \<Longrightarrow> target (p1@p2) q1 = q3" by auto
+
+lemma product_from_transition_subset:
+  assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
+  shows "h (product (from_FSM M q1') (from_FSM M q2')) \<subseteq> h (product (from_FSM M q1) (from_FSM M q2))" (is "h ?P' \<subseteq> h ?P")
+proof 
+  fix t assume "t \<in> h ?P'"
+  then have "t_source t \<in> nodes ?P'" by (metis wf_transition_simp)
+  then obtain p' where "path ?P' (initial ?P') p'" and "target p' (initial ?P') = t_source t"
+    by (metis path_to_node)
+
+  have "path (from_FSM M q1') q1' (left_path p')"
+       "path (from_FSM M q2') q2' (right_path p')"
+       "(\<exists>p1 p2.
+           path (from_FSM M q1') (initial (from_FSM M q1')) p1 \<and>
+           path (from_FSM M q2') (initial (from_FSM M q2')) p2 \<and>
+           target p1 (initial (from_FSM M q1')) = q1' \<and> target p2 (initial (from_FSM M q2')) = q2' \<and> p_io p1 = p_io p2)"
+    using product_path[of "from_FSM M q1'" "from_FSM M q2'" q1' q2' p'] \<open>path ?P' (initial ?P') p'\<close> by auto
+  
+  have          "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> set (wf_transitions (from_FSM M q1'))"
+       and      "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> set (wf_transitions (from_FSM M q2'))"
+       and p'': "(\<exists>p1 p2.
+                   path (from_FSM M q1') (initial (from_FSM M q1')) p1 \<and>
+                   path (from_FSM M q2') (initial (from_FSM M q2')) p2 \<and>
+                   target p1 (initial (from_FSM M q1')) = fst (t_source t) \<and>
+             target p2 (initial (from_FSM M q2')) = snd (t_source t) \<and> p_io p1 = p_io p2)"
+    using product_transition_t[of t "from_FSM M q1'" "from_FSM M q2'"] \<open>t \<in> h ?P'\<close> by presburger+
+
+
+
+  obtain p where "path ?P (initial ?P) p" and "target p (initial ?P) = (q1',q2')"
+    by (metis assms path_to_node)
+  have "path (from_FSM M q1) q1 (left_path p)"
+       "path (from_FSM M q2) q2 (right_path p)"
+       "(\<exists>p1 p2.
+           path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+           path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+           target p1 (initial (from_FSM M q1)) = q1 \<and> target p2 (initial (from_FSM M q2)) = q2 \<and> p_io p1 = p_io p2)"
+    using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 p] \<open>path ?P (initial ?P) p\<close> by auto
+
+  have "target (left_path p) q1 = q1'" and "target (right_path p) q2 = q2'"
+    using product_target_split[of p q1 q2 q1' q2'] \<open>target p (initial ?P) = (q1',q2')\<close> by auto
+
+  have "q1' \<in> nodes (from_FSM M q1)"
+    using path_target_is_node[OF \<open>path (from_FSM M q1) q1 (left_path p)\<close>] \<open>target (left_path p) q1 = q1'\<close> by metis
+  have "h (from_FSM M q1') \<subseteq> h (from_FSM M q1)"
+    using from_FSM_h[OF \<open>q1' \<in> nodes (from_FSM M q1)\<close>] by simp
+  then have *: "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> h (from_FSM M q1)"
+    using \<open>(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> h (from_FSM M q1')\<close> by blast
+
+  have "q2' \<in> nodes (from_FSM M q2)"
+    using path_target_is_node[OF \<open>path (from_FSM M q2) q2 (right_path p)\<close>] \<open>target (right_path p) q2 = q2'\<close> by metis
+  have "h (from_FSM M q2') \<subseteq> h (from_FSM M q2)"
+    using from_FSM_h[OF \<open>q2' \<in> nodes (from_FSM M q2)\<close>] by simp
+  then have **: "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h (from_FSM M q2)"
+    using \<open>(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h (from_FSM M q2')\<close> by blast
+
+  have ***: "(\<exists>p1 p2.
+               path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+               path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+               target p1 (initial (from_FSM M q1)) = fst (t_source t) \<and>
+               target p2 (initial (from_FSM M q2)) = snd (t_source t) \<and> p_io p1 = p_io p2)"
+  proof -
+    obtain p1' p2' where "path (from_FSM M q1') q1' p1'"
+                     and "path (from_FSM M q2') q2' p2'"
+                     and "target p1' q1' = fst (t_source t)"
+                     and "target p2' q2' = snd (t_source t)" 
+                     and "p_io p1' = p_io p2'"
+      using p'' by auto
+
+    have "path (from_FSM M q1) q1' p1'"
+      using from_FSM_path \<open>q1' \<in> nodes (from_FSM M q1)\<close> \<open>path (from_FSM M q1') q1' p1'\<close> by (metis from_from)
+    have "path (from_FSM M q2) q2' p2'"
+      using from_FSM_path \<open>q2' \<in> nodes (from_FSM M q2)\<close> \<open>path (from_FSM M q2') q2' p2'\<close> by (metis from_from)
+
+    have "path (from_FSM M q1) (initial (from_FSM M q1)) ((left_path p)@p1')" 
+      using path_append[OF \<open>path (from_FSM M q1) q1 (left_path p)\<close>, of p1']  \<open>target (left_path p) q1 = q1'\<close> \<open>path (from_FSM M q1) q1' p1'\<close> by auto
+    moreover have "path (from_FSM M q2) (initial (from_FSM M q2)) ((right_path p)@p2')" 
+      using path_append[OF \<open>path (from_FSM M q2) q2 (right_path p)\<close>, of p2']  \<open>target (right_path p) q2 = q2'\<close> \<open>path (from_FSM M q2) q2' p2'\<close> by auto
+    moreover have "target ((left_path p)@p1') (initial (from_FSM M q1)) = fst (t_source t)"
+      using path_target_append[OF \<open>target (left_path p) q1 = q1'\<close> \<open>target p1' q1' = fst (t_source t)\<close>] by auto
+    moreover have "target ((right_path p)@p2') (initial (from_FSM M q2)) = snd (t_source t)"
+      using path_target_append[OF \<open>target (right_path p) q2 = q2'\<close> \<open>target p2' q2' = snd (t_source t)\<close>] by auto
+    moreover have "p_io ((left_path p)@p1') = p_io ((right_path p)@p2')"
+      using \<open>p_io p1' = p_io p2'\<close> by auto
+    ultimately show ?thesis by blast
+  qed
+
+  show "t \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+    using product_transition_t[of t "from_FSM M q1" "from_FSM M q2"] * ** *** by blast
+qed
+
+
+
+lemma product_from_path:
+  assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
+      and "path (product (from_FSM M q1') (from_FSM M q2')) (q1',q2') p" 
+    shows "path (product (from_FSM M q1) (from_FSM M q2)) (q1',q2') p"
+using h_subset_path[OF product_from_transition_subset[OF assms(1)] assms(2) assms(1)] by assumption
 
 
 lemma product_from_path_previous :
   assumes "path (product (from_FSM M (fst (t_target t))) 
                          (from_FSM M (snd (t_target t))))
-                (fst (t_target t), snd (t_target t)) p"
+                (t_target t) p"                                           (is "path ?Pt (t_target t) p")
       and "t \<in> h (product (from_FSM M q1) (from_FSM M q2))"
-  shows "path (product (from_FSM M q1) (from_FSM M q2)) (t_target t) p"
+    shows "path (product (from_FSM M q1) (from_FSM M q2)) (t_target t) p" (is "path ?P (t_target t) p")
 proof -
-  have "is_submachine (product (from_FSM M (fst (t_target t))) 
-                         (from_FSM M (snd (t_target t))))
-                      (product (from_FSM M q1) (from_FSM M q2))"
-    using 
+  have *: "(t_target t) \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    using wf_transition_target[OF assms(2)] by (metis)
+  then have **: "(fst (t_target t), snd (t_target t)) \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    by (metis prod.collapse)
+  have ***: "h ?Pt \<subseteq> h ?P" 
+    using product_from_transition_subset[OF **] by assumption
+  show ?thesis
+    using h_subset_path[OF *** assms(1) *] by assumption
+qed
 
-  note from_FSM_transition_initial
 end
