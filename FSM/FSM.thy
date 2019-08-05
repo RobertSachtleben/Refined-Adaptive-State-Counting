@@ -180,26 +180,11 @@ subsection \<open>Paths\<close>
 
 inductive path :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 'state Transition list \<Rightarrow> bool" where
   nil[intro!] : "q \<in> nodes M \<Longrightarrow> path M q []" |
-  consIO[intro!] : "t \<in> set (transitions M) \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_input t \<in> set (inputs M) \<Longrightarrow> t_output t \<in> set (outputs M) \<Longrightarrow> path M (t_target t) ts \<Longrightarrow> path M (t_source t) (t#ts)"
+  cons[intro!] : "t \<in> h M \<Longrightarrow> path M (t_target t) ts \<Longrightarrow> path M (t_source t) (t#ts)"
 
 inductive_cases path_nil_elim[elim!]: "path M q []"
-inductive_cases path_consIO_elim[elim!]: "path M q (t#ts)"
- (* TODO: remove? *)
-inductive path' :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 'state Transition list \<Rightarrow> bool" where
-  nil[intro!] : "q \<in> nodes M \<Longrightarrow> path' M q []" |
-  cons[intro!] : "t \<in> h M \<Longrightarrow> path' M (t_target t) ts \<Longrightarrow> path' M (t_source t) (t#ts)"
-inductive_cases path'_nil_elim[elim!]: "path' M q []"
-inductive_cases path'_consIO_elim[elim!]: "path' M q (t#ts)"
+inductive_cases path_cons_elim[elim!]: "path M q (t#ts)"
 
-
-lemma path_cons[intro!] : "t \<in> h M \<Longrightarrow> path M (t_target t) ts \<Longrightarrow> path M (t_source t) (t#ts)"
-  by auto
-
-
-
-
-lemma path_alt_def : "path M q p = path' M q p" 
-  by (induction p arbitrary: q; auto)
 
 fun visited_states :: "'state \<Rightarrow> 'state Transition list \<Rightarrow> 'state list" where
   "visited_states q p = (q # map t_target p)"
@@ -309,9 +294,9 @@ qed
 
 
 lemma path_prepend_t : "path M q' p \<Longrightarrow> (q,x,y,q') \<in> h M \<Longrightarrow> path M q ((q,x,y,q')#p)" 
-  by (metis (mono_tags, lifting) fst_conv mem_Collect_eq path.intros(2) prod.sel(2) set_filter wf_transitions.simps) 
+  by (metis (mono_tags, lifting) fst_conv path.intros(2) prod.sel(2)) 
 lemma path_append_last : "path M q p \<Longrightarrow> t \<in> h M \<Longrightarrow> t_source t = target p q \<Longrightarrow> path M q (p@[t])"
-  by (metis consIO path.nil path_append wf_transition_simp wf_transition_target) 
+  by (metis cons path.nil path_append wf_transition_target) 
 
 
 
@@ -351,7 +336,7 @@ next
     using step.IH by blast
   then have "path M (initial M) (p@[t])"
     using step.hyps
-    by (metis consIO nodes.step path.nil path_append) 
+    by (simp add: path_append_last) 
   moreover have "t_target t = target (p@[t]) (initial M)" by auto
   ultimately show "\<exists>p. path M (initial M) p \<and> t_target t = target p (initial M)"
     by meson 
@@ -496,21 +481,21 @@ using assms proof (induction p arbitrary: q)
   case (nil M q)
   then show ?case by auto
 next
-  case (consIO t M ts)
+  case (cons t M ts)
   then show ?case 
   proof (cases "distinct (visited_states (t_target t) ts)")
     case True
     then have "q \<in> set (visited_states (t_target t) ts)"
-      using consIO.prems by simp 
+      using cons.prems by simp 
     then obtain p2 p3 where "ts = p2@p3" and "target p2 (t_target t) = q" 
       using visited_states_prefix[of q "t_target t" ts] by blast
     then have "(t#ts) = []@(t#p2)@p3 \<and> (t#p2) \<noteq> [] \<and> target [] q = target ([]@(t#p2)) q"
-      using consIO.hyps by auto
+      using cons.hyps by auto
     then show ?thesis by blast
   next
     case False
     then obtain p1 p2 p3 where "ts = p1@p2@p3" and "p2 \<noteq> []" and "target p1 (t_target t) = target (p1@p2) (t_target t)" 
-      using consIO.IH by blast
+      using cons.IH by blast
     then have "t#ts = (t#p1)@p2@p3 \<and> p2 \<noteq> [] \<and> target (t#p1) q = target ((t#p1)@p2) q"
       by simp
     then show ?thesis by blast    
@@ -790,7 +775,7 @@ next
     have "\<And> p t . (visited_states ?q0 p)@[t_target t] = visited_states ?q0 (p@[t])" by auto
     then have *: "\<And> p t . distinct (visited_states ?q0 p @ [t_target t]) = (distinct (visited_states ?q0 p) \<and> distinct (visited_states ?q0 (p @ [t])))" by auto
     have **: "\<And> p t . (path M ?q0 p \<and> t \<in> h M \<and> t_source t = target p ?q0) = path M ?q0 (p @ [t])"
-      using wf_transition_simp[of _ M] path_alt_def by (metis consIO nil nodes.step path_append path_consIO_elim path_prefix path_suffix) 
+      by (metis path_append path_append_elim path_cons_elim path_equivalence_by_h single_transition_path) 
 
     
 
@@ -1037,7 +1022,20 @@ fun LS :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> (Input \<t
 
 abbreviation(input) "L M \<equiv> LS M (initial M)"
 
-
+lemma language_prefix : 
+  assumes "io1@io2 \<in> LS M q"
+  shows "io1 \<in> LS M q"
+proof -
+  obtain p where "path M q p" and "p_io p = io1@io2" 
+    using assms by auto
+  let ?tp = "take (length io1) p"
+  have "path M q ?tp"
+    by (metis (no_types) \<open>path M q p\<close> append_take_drop_id path_prefix) 
+  moreover have "p_io ?tp = io1"
+    using \<open>p_io p = io1@io2\<close> by (metis append_eq_conv_conj take_map) 
+  ultimately show ?thesis
+    by force 
+qed
 
 
 subsection \<open> Basic FSM properties \<close>
@@ -1737,10 +1735,6 @@ notation
 
 subsection \<open>Submachines\<close>
 
-(* extends Petrenko's definition to explicitly require same inputs and outputs *)
-(* TODO: restore original ? (based on transitions, not h) *)
-(*fun is_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> bool" where 
-  "is_submachine A B = (initial A = initial B \<and> set (transitions A) \<subseteq> set (transitions B) \<and> inputs A = inputs B \<and> outputs A = outputs B)"*)
 fun is_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> bool" where 
   "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B)"
   
@@ -1814,6 +1808,69 @@ proof -
 
   ultimately show ?thesis 
     unfolding completely_specified_state.simps by fastforce
+qed
+
+lemma submachine_language :
+  assumes "is_submachine S M"
+  shows "L S \<subseteq> L M"
+proof - (* TODO: refactor auto-generated code *)
+  obtain pps :: "(integer \<times> integer) list set \<Rightarrow> (integer \<times> integer) list set \<Rightarrow> (integer \<times> integer) list" where
+    f1: "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
+    by moura
+  obtain ppsa :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+    f2: "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (ppsa x0 x1 x2) \<and> path x2 x1 (ppsa x0 x1 x2))"
+    by moura
+  { assume "path M (initial M) (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S)"
+    moreover
+    { assume "\<exists>ps. pps (LS M (initial M)) (LS S (initial S)) = p_io ps \<and> path M (initial M) ps"
+      then have "pps (LS M (initial M)) (LS S (initial S)) \<notin> LS S (initial S) \<or> pps (LS M (initial M)) (LS S (initial S)) \<in> LS M (initial M)"
+        by simp
+      then have ?thesis
+        using f1 by blast }
+    ultimately have "LS S (initial S) \<subseteq> LS M (initial M) \<or> pps (LS M (initial M)) (LS S (initial S)) \<noteq> p_io (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S) \<or> \<not> path S (initial M) (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S)"
+      by blast }
+  moreover
+  { assume "pps (LS M (initial M)) (LS S (initial S)) \<noteq> p_io (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S) \<or> \<not> path S (initial M) (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S)"
+    then have "\<nexists>ps. pps (LS M (initial M)) (LS S (initial S)) = p_io ps \<and> path S (initial M) ps"
+      using f2 by blast
+    then have "\<nexists>ps. pps (LS M (initial M)) (LS S (initial S)) = p_io ps \<and> path S (initial S) ps"
+      by (metis (no_types) assms is_submachine.simps)
+    then have "pps (LS M (initial M)) (LS S (initial S)) \<notin> {p_io ps |ps. path S (initial S) ps}"
+      by force
+    then have ?thesis
+      using f1 by (metis (no_types) LS.simps subsetI) }
+  ultimately show ?thesis
+    by (meson assms submachine_path)
+qed
+
+lemma submachine_observable :
+  assumes "is_submachine S M"
+  and     "observable M"
+shows "observable S"
+  using assms unfolding is_submachine.simps observable.simps
+  by (meson assms(1) contra_subsetD submachine_h)
+
+
+
+lemma observable_submachine_io_target :
+  assumes "observable M"
+  and     "is_submachine S M"
+  and     "io \<in> L S"
+shows "io_target S io (initial S) = io_target M io (initial M)"
+proof -
+  obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+    "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
+    by moura
+  then have f1: "io = p_io (pps io (initial M) S) \<and> path S (initial M) (pps io (initial M) S)"
+    using assms(2) assms(3) by force
+  have f2: "\<forall>f a ps. \<not> observable (f::('a, 'b) FSM_scheme) \<or> \<not> path f a ps \<or> target ps a = io_target f (p_io ps) a"
+    by (metis (no_types) observable_path_io_target)
+  then have f3: "target (pps io (initial M) S) (initial M) = io_target S (p_io (pps io (initial M) S)) (initial M)"
+    using f1 assms(1) assms(2) submachine_observable by blast
+  have "target (pps io (initial M) S) (initial M) = io_target M (p_io (pps io (initial M) S)) (initial M)"
+    using f2 f1 by (meson assms(1) assms(2) submachine_path)
+  then show ?thesis
+    using f3 f1 assms(2) by auto
 qed
 
 
@@ -1894,7 +1951,7 @@ using assms proof (induction p rule: rev_induct)
 next
   case (snoc x xs)
   then show ?case
-    by (metis (no_types, lifting) from_FSM_simps(2) from_FSM_simps(3) from_FSM_simps(4) nodes.step path'.simps path_alt_def path_append path_consIO_elim path_prefix path_suffix path_target_is_node wf_transition_simp) 
+    by (metis from_FSM_simps(2) from_FSM_simps(3) from_FSM_simps(4) path_cons_elim path_equivalence_by_h path_prefix path_suffix path_target_is_node wf_transition_simp) 
 qed
 
 
@@ -2032,7 +2089,7 @@ next
   then have "t \<in> h M"
     using \<open>t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)\<close> by auto
   then show "path M (initial M) (p@[t])"
-    using \<open>path M (initial M) p\<close> \<open>target p (initial M) = t_source t\<close> path_cons by auto
+    using \<open>path M (initial M) p\<close> \<open>target p (initial M) = t_source t\<close> by auto
 qed
 
 lemma transition_filter_path :
@@ -2073,7 +2130,7 @@ next
     using \<open>f t\<close> \<open>t_source t \<in> nodes ?M\<close> by auto
 
   show ?case
-    using path_cons \<open>path ?M (initial ?M) p\<close> \<open>target p (initial ?M) = t_source t\<close> \<open>t \<in> h ?M\<close> by auto
+    using \<open>path ?M (initial ?M) p\<close> \<open>target p (initial ?M) = t_source t\<close> \<open>t \<in> h ?M\<close> by auto
 qed
 
 lemma transition_filter_h :

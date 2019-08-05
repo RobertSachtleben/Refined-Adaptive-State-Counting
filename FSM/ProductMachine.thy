@@ -147,7 +147,7 @@ proof -
     then have "(target xs (initial A), target ys (initial B)) \<in> nodes (product A B)"
       by (metis (no_types, lifting) path_target_is_node)
     then have "(t_source x, t_source y) \<in> nodes (product A B)"
-      using snoc.prems(1-2)  by (metis path_consIO_elim path_suffix) 
+      using snoc.prems(1-2)  by (metis path_cons_elim path_suffix) 
 
     have "x \<in> h A" using snoc.prems(1) by auto
     moreover have "y \<in> h B" using snoc.prems(2) by auto
@@ -174,7 +174,7 @@ proof -
       have "\<forall>p f. p \<notin> nodes (f::('a \<times> 'c, 'b) FSM_scheme) \<or> path f p []"
         by blast
       then have "path (product A B) (t_source ((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)) [((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)]"
-        by (meson \<open>((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y) \<in> set (wf_transitions (product A B))\<close> consIO nodes.step wf_transition_simp)
+        by (meson \<open>((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y) \<in> set (wf_transitions (product A B))\<close> cons nodes.step wf_transition_simp)
       then have "path (product A B) (target (map (\<lambda>p. ((t_source (fst p), t_source (snd p)), t_input (fst p), t_output (fst p), t_target (fst p), t_target (snd p))) (zip xs ys)) (initial (product A B))) [((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)]"
         by (metis (no_types) "**" fst_conv)
       then show ?thesis
@@ -245,7 +245,7 @@ proof -
       using snoc.IH  by fastforce+
 
     then have "t_source t = (target (left_path p) (initial A), target (right_path p) (initial B))"
-      using snoc.prems by (metis (no_types, lifting) path_consIO_elim path_suffix prod.collapse) 
+      using snoc.prems by (metis (no_types, lifting) path_cons_elim path_suffix prod.collapse) 
 
 
     have ***: "target (left_path (p@[t])) (initial A) = fst (target (p@[t]) (initial (product A B)))"
@@ -254,7 +254,7 @@ proof -
       by fastforce
 
     have "t \<in> h (product A B)" using snoc.prems
-      by (meson path_consIO_elim path_suffix wf_transition_simp) 
+      by (meson path_cons_elim path_suffix wf_transition_simp) 
     then have "t \<in> set (product_transitions A B)" 
       using product_transitions_io_valid[of A B]
       by (metis io_valid_transition_simp wf_transition_simp) 
@@ -268,7 +268,7 @@ proof -
       have "\<forall>a f. a \<notin> nodes (f::('a, 'c) FSM_scheme) \<or> path f a []"
         by blast
       then have "path A (t_source (fst (t_source t), t_input t, t_output t, fst (t_target t))) [(fst (t_source t), t_input t, t_output t, fst (t_target t))]"
-        by (meson \<open>(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> set (wf_transitions A)\<close> consIO nodes.simps wf_transition_simp)
+        by (meson \<open>(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> set (wf_transitions A)\<close> cons nodes.simps wf_transition_simp)
       then have "path A (target (map (\<lambda>p. (fst (t_source p), t_input p, t_output p, fst (t_target p))) p) (initial A)) [(fst (t_source t), t_input t, t_output t, fst (t_target t))]"
         using \<open>target (map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p) (initial A) = fst (t_source t)\<close> by auto
       then show ?thesis
@@ -285,7 +285,7 @@ proof -
       have "\<forall>b f. b \<notin> nodes (f::('b, 'd) FSM_scheme) \<or> path f b []"
         by blast
       then have "path B (t_source (snd (t_source t), t_input t, t_output t, snd (t_target t))) [(snd (t_source t), t_input t, t_output t, snd (t_target t))]"
-        by (meson \<open>(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> set (wf_transitions B)\<close> consIO nodes.simps wf_transition_simp)
+        by (meson \<open>(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> set (wf_transitions B)\<close> cons nodes.simps wf_transition_simp)
       then have "path B (target (map (\<lambda>p. (snd (t_source p), t_input p, t_output p, snd (t_target p))) p) (initial B)) [(snd (t_source t), t_input t, t_output t, snd (t_target t))]"
         using \<open>target (map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p) (initial B) = snd (t_source t)\<close> by auto
       then show ?thesis
@@ -732,7 +732,7 @@ qed
 lemma single_transitions_path : 
   assumes "(q,x,y,q') \<in> h M" 
   shows "path M q [(q,x,y,q')]" 
-  using  path_cons[OF assms path.nil[OF wf_transition_target[OF assms]]] by auto
+  using  path.cons[OF assms path.nil[OF wf_transition_target[OF assms]]] by auto
 
 lemma product_from_next :
   assumes "((q1,q2),x,y,(q1',q2')) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
