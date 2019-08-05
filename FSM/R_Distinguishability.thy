@@ -584,8 +584,31 @@ proof -
 qed
 
 
-
-
+lemma transition_filter_submachine :
+  "is_submachine (M\<lparr> transitions := filter f (transitions M)\<rparr>) M" 
+proof -
+  let ?M = "(M\<lparr> transitions := filter f (transitions M)\<rparr>)"
+  have "set (transitions ?M) \<subseteq> set (transitions M)"
+    by auto
+  then have "h ?M \<subseteq> h M" unfolding wf_transitions.simps
+  proof -
+    have "\<forall>ps P. \<exists>p. (set ps \<subseteq> P \<or> (p::'a \<times> integer \<times> integer \<times> 'a) \<in> set ps) \<and> (p \<notin> P \<or> set ps \<subseteq> P)"
+      by (meson subset_code(1))
+    then obtain pp :: "('a \<times> integer \<times> integer \<times> 'a) list \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> 'a \<times> integer \<times> integer \<times> 'a" where
+      f1: "\<And>ps P. (set ps \<subseteq> P \<or> pp ps P \<in> set ps) \<and> (pp ps P \<notin> P \<or> set ps \<subseteq> P)"
+      by metis
+    moreover
+    { assume "pp (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>)) (set (wf_transitions M)) \<notin> set (wf_transitions M)"
+      then have "pp (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>)) (set (wf_transitions M)) \<notin> set (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>))"
+        by (metis transition_filter_h(1))
+      then have "set (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>)) \<subseteq> set (filter (\<lambda>p. t_source p \<in> nodes M \<and> t_input p \<in> set (inputs M) \<and> t_output p \<in> set (outputs M)) (transitions M))"
+        using f1 by (metis (no_types) wf_transitions.elims) }
+    ultimately show "set (filter (\<lambda>p. t_source p \<in> nodes (M\<lparr>transitions := filter f (transitions M)\<rparr>) \<and> t_input p \<in> set (inputs (M\<lparr>transitions := filter f (transitions M)\<rparr>)) \<and> t_output p \<in> set (outputs (M\<lparr>transitions := filter f (transitions M)\<rparr>))) (transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>))) \<subseteq> set (filter (\<lambda>p. t_source p \<in> nodes M \<and> t_input p \<in> set (inputs M) \<and> t_output p \<in> set (outputs M)) (transitions M))"
+      by (metis (no_types) wf_transitions.elims)
+  qed
+     
+  then show ?thesis unfolding is_submachine.simps by auto
+qed
   
 
 
@@ -761,7 +784,17 @@ proof
       qed
     qed
         
-        
+    then have "completely_specified ?PC"
+      using completely_specified_states by blast 
+  
+    moreover have "is_submachine ?PC ?P"
+       using transition_filter_submachine by metis
+  
+    ultimately have "r_compatible M q1 q2"
+      unfolding r_compatible_def by blast
+    then show "False" using \<open>r_distinguishable M q1 q2\<close>
+      by blast 
+  qed    
 
 (*
 
