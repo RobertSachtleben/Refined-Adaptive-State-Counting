@@ -2,7 +2,9 @@ theory Util
 imports Main
 begin
 
-section \<open>Lemmata Concerning find\<close>
+section \<open>Utility Lemmata\<close>
+
+subsection \<open>Find\<close>
 
 lemma find_result_props : 
   assumes "find P xs = Some x" 
@@ -36,7 +38,7 @@ next
     by (metis find.simps(2) option.inject)     
 qed
 
-section \<open>Enumerating Lists\<close>
+subsection \<open>Enumerating Lists\<close>
 
 fun lists_of_length :: "'a list \<Rightarrow> nat \<Rightarrow> 'a list list" where
   "lists_of_length T 0 = [[]]" |
@@ -99,8 +101,28 @@ lemma cartesian_product_list_set : "set (cartesian_product_list xs ys) = {(x,y) 
 
 
 
+subsection \<open>Filter\<close>
 
-section \<open>Other Lemmata\<close>
+lemma filter_double :
+  assumes "x \<in> set (filter P1 xs)"
+  and     "P2 x"
+shows "x \<in> set (filter P2 (filter P1 xs))"
+  by (metis (no_types) assms(1) assms(2) filter_set member_filter)
+
+lemma filter_list_set :
+  assumes "x \<in> set xs"
+  and     "P x"
+shows "x \<in> set (filter P xs)"
+  by (simp add: assms(1) assms(2))
+
+lemma filter_list_set_not_contained :
+  assumes "x \<in> set xs"
+  and     "\<not> P x"
+shows "x \<notin> set (filter P xs)"
+  by (simp add: assms(1) assms(2))
+
+
+subsection \<open>Concat\<close>
 
 lemma concat_map_elem :
   assumes "y \<in> set (concat (map f xs))"
@@ -144,6 +166,13 @@ lemma set_concat_map_elem :
   shows "\<exists> x' \<in> set xs . x \<in> set (f x')"
 using assms by auto
 
+lemma concat_replicate_length : "length (concat (replicate n xs)) = n * (length xs)"
+  by (induction n; simp)
+
+
+
+
+subsection \<open>Other Lemmata\<close>
 
 lemma set_map_subset :
   assumes "x \<in> set xs"
@@ -172,7 +201,6 @@ next
   qed
 qed
 
-lemma concat_replicate_length : "length (concat (replicate n xs)) = n * (length xs)"
-  by (induction n; simp)
+
 
 end

@@ -133,7 +133,7 @@ lemma single_transition_path : "t \<in> h M \<Longrightarrow> path M (t_source t
 
 
 
-lemma r_0_distinguishable_from_not_completely_specified :
+lemma r_0_distinguishable_from_not_completely_specified_initial :
   assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1,q2)"
   shows "r_distinguishable_k M q1 q2 0"
 proof -
@@ -219,6 +219,33 @@ proof -
 qed          
 
 
+(* TODO: move *)
+
+lemma product_from_transition_shared_node :
+  assumes "t \<in> h (product (from_FSM M q1') (from_FSM M q2'))"
+  and  "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
+shows "t \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+  by (meson assms(1) assms(2) contra_subsetD product_from_transition_subset)
+
+    
+
+lemma product_from_not_completely_specified :
+  assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1',q2')"
+      and "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    shows  "\<not> completely_specified_state (product (from_FSM M q1') (from_FSM M q2')) (q1',q2')"
+  using assms(1) assms(2) from_FSM_product_inputs[of M q1 q2] from_FSM_product_inputs[of M q1' q2'] product_from_transition_shared_node[OF _ assms(2)] 
+  unfolding completely_specified_state.simps by metis
+
+  
+lemma r_0_distinguishable_from_not_completely_specified :
+  assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1',q2')"
+      and "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    shows "r_distinguishable_k M q1' q2' 0"
+  using r_0_distinguishable_from_not_completely_specified_initial[OF product_from_not_completely_specified[OF assms]] by assumption
+
+
+
+
 lemma r_distinguishable_k_intersection_path : 
   assumes "\<not> r_distinguishable_k M q1 q2 k"
   and "length xs \<le> Suc k"
@@ -242,7 +269,7 @@ using assms proof (induction k arbitrary: q1 q2 xs)
     proof (rule ccontr)
       assume "\<not> completely_specified_state ?P (q1,q2)"
       then have "r_distinguishable_k M q1 q2 0"
-        using r_0_distinguishable_from_not_completely_specified by metis
+        using r_0_distinguishable_from_not_completely_specified_initial by metis
       then show "False"
         using "0.prems" by simp
     qed
@@ -361,6 +388,417 @@ next
 qed
 
 
+
+lemma r_distinguishable_k_intersection_paths : 
+  assumes "\<not>(\<exists> k . r_distinguishable_k M q1 q2 k)"
+  shows "\<forall> xs . set xs \<subseteq> set (inputs M) \<longrightarrow> (\<exists> p . path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) p \<and> map fst (p_io p) = xs)"
+proof (rule ccontr)
+  assume "\<not> (\<forall> xs . set xs \<subseteq> set (inputs M) \<longrightarrow> (\<exists> p . path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) p \<and> map fst (p_io p) = xs))"
+  then obtain xs where "set xs \<subseteq> set (inputs M)"
+                   and "\<not> (\<exists> p . path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) p \<and> map fst (p_io p) = xs)" 
+    by blast
+
+  have "\<not> r_distinguishable_k M q1 q2 (length xs)"
+    using assms by auto
+
+  show "False" 
+    using r_distinguishable_k_intersection_path[OF \<open>\<not> r_distinguishable_k M q1 q2 (length xs)\<close> _ \<open>set xs \<subseteq> set (inputs M)\<close>]
+          \<open>\<not> (\<exists> p . path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) p \<and> map fst (p_io p) = xs)\<close> by fastforce
+qed
+
+
+subsubsection \<open>Equivalence of R-Distinguishability Definitions\<close>
+
+
+(* TODO: move *)
+lemma transition_filter_path_initial :
+  assumes "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) p"
+  shows "path M (initial M) p"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc t p)
+  then have "t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)" by auto
+  then have "t \<in> set (filter f (transitions M))" by auto
+  then have "t \<in> set (transitions M)" by auto
+
+  have "target p (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) = t_source t"
+    using snoc.prems by auto
+  then have "target p (initial M) = t_source t" by auto
+  moreover have "path M (initial M) p" using snoc.prems snoc.IH by auto
+  ultimately have "t_source t \<in> nodes M"
+    using path_target_is_node by metis
+  then have "t \<in> h M"
+    using \<open>t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)\<close> by auto
+  then show "path M (initial M) (p@[t])"
+    using \<open>path M (initial M) p\<close> \<open>target p (initial M) = t_source t\<close> path_cons by auto
+qed
+
+lemma transition_filter_path :
+  assumes "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) q p"
+  shows "path M q p"
+proof -
+  have "q \<in> nodes (M\<lparr> transitions := filter f (transitions M)\<rparr>)"
+    using assms path_begin_node by metis
+  then obtain pQ where "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) pQ"
+                   and "target pQ (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) = q"
+    by (metis path_to_node)
+  then have "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) (pQ@p)"
+    using assms path_append by metis
+  then have "path M (initial M) (pQ@p)"
+    using transition_filter_path_initial by auto
+  then show "path M q p"
+    using \<open>target pQ (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) = q\<close> by auto
+qed
+
+lemma transition_filter_path_initial_rev :
+  assumes "path M (initial M) p" 
+      and "list_all f p"
+    shows "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) p"
+          (is "path ?M (initial ?M) p")
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by blast 
+next
+  case (snoc t p)
+  then have "path ?M (initial ?M) p" and "f t" by auto
+
+  have "target p (initial ?M) = t_source t" using snoc.prems(1) by auto
+  then have "t_source t \<in> nodes ?M"
+    using path_target_is_node[OF \<open>path ?M (initial ?M) p\<close>] by auto
+
+  have "t \<in> h M" using snoc.prems(1) by auto
+  then have "t \<in> h ?M"
+    using \<open>f t\<close> \<open>t_source t \<in> nodes ?M\<close> by auto
+
+  show ?case
+    using path_cons \<open>path ?M (initial ?M) p\<close> \<open>target p (initial ?M) = t_source t\<close> \<open>t \<in> h ?M\<close> by auto
+qed
+
+lemma transition_filter_h :
+  assumes "t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)"  (is "t \<in> h ?M")
+  shows "t \<in> h M" and "f t"
+proof -
+  from assms have "t_source t \<in> nodes ?M" by auto
+  then obtain p where "path ?M (initial ?M) p"
+                  and "target p (initial ?M) = t_source t"
+    by (metis path_to_node)
+  then have "path M (initial M) p"
+    by (metis transition_filter_path_initial)
+  have "t_source t \<in> nodes M"
+    using path_target_is_node[OF \<open>path M (initial M) p\<close>] \<open>target p (initial ?M) = t_source t\<close> by auto
+  then show "t \<in> h M"
+    using \<open>t \<in> h ?M\<close> by auto
+  from assms show "f t" by auto
+qed
+
+lemma transition_filter_nodes :
+  "nodes (M\<lparr> transitions := filter f (transitions M)\<rparr>) \<subseteq> nodes M" (is "nodes ?M \<subseteq> nodes M")
+proof 
+  fix q assume "q \<in> nodes ?M"
+  then obtain p where "path ?M (initial ?M) p" 
+                  and "target p (initial ?M) = q"
+    by (metis path_to_node)
+  then have "path M (initial M) p"
+    using transition_filter_path_initial by metis
+  show "q \<in> nodes M"
+    using path_target_is_node[OF \<open>path M (initial M) p\<close>] \<open>target p (initial ?M) = q\<close> by auto
+qed
+
+
+lemma transition_filter_state_transitions :
+  assumes "t_source t \<in> nodes (M\<lparr> transitions := filter f (transitions M)\<rparr>)"
+      and "t \<in> h M"
+      and "f t"
+    shows "t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)" (is "t \<in> h ?M")
+  using assms by auto
+
+
+
+
+
+lemma nodes_initial_or_target :
+  assumes "q \<in> nodes M"
+  shows "q = initial M \<or> (\<exists> t \<in> h M . t_target t = q)"
+proof (cases "q = initial M")
+  case True
+  then show ?thesis by auto
+next
+  case False
+  obtain p where "path M (initial M) p" and "target p (initial M) = q"
+    by (metis path_to_node assms)
+  have "p \<noteq> []"
+    using \<open>target p (initial M) = q\<close> False by auto
+  have "(last p) \<in> h M"
+    using \<open>path M (initial M) p\<close> \<open>p \<noteq> []\<close> by (meson contra_subsetD last_in_set path_h) 
+  moreover have "t_target (last p) = q"
+    using \<open>target p (initial M) = q\<close> \<open>p \<noteq> []\<close> unfolding target.simps visited_states.simps
+    by (simp add: last_map) 
+  ultimately have "\<exists> t \<in> h M . t_target t = q"
+    by blast
+  then show ?thesis by linarith
+qed
+
+
+
+
+(* TODO: remove, second direction does not hold
+lemma transition_filter_h :
+  "h (M\<lparr> transitions := filter f (transitions M)\<rparr>) = {t \<in> h M . f t}" (is "h ?M = {t \<in> h M . f t}")
+proof -
+
+  have "\<And> t . t \<in> h ?M \<Longrightarrow> t \<in> h M \<and> f t"
+  proof -
+    fix t assume "t \<in> h ?M"
+    then have "t_source t \<in> nodes ?M" by auto
+    then obtain p where "path ?M (initial ?M) p"
+                    and "target p (initial ?M) = t_source t"
+      by (metis path_to_node)
+    then have "path M (initial M) p"
+      by (metis transition_filter_path_initial)
+    have "t_source t \<in> nodes M"
+      using path_target_is_node[OF \<open>path M (initial M) p\<close>] \<open>target p (initial ?M) = t_source t\<close> by auto
+    then show "t \<in> h M \<and> f t"
+      using \<open>t \<in> h ?M\<close> by auto
+  qed
+
+  have "\<And> t . t \<in> h M \<Longrightarrow> f t \<Longrightarrow> t \<in> h ?M" nitpick
+  proof -
+    fix t assume "t \<in> h M" and "f t"
+*)    
+  
+
+(* TODO: move*)
+lemma finite_set_min_param_ex :
+  assumes "finite XS"
+  and     "\<And> x . x \<in> XS \<Longrightarrow> \<exists> k . \<forall> k' . k \<le> k' \<longrightarrow> P x k'"
+shows "\<exists> (k::nat) . \<forall> x \<in> XS . P x k"
+proof -
+  obtain f where f_def : "\<And> x . x \<in> XS \<Longrightarrow> \<forall> k' . (f x) \<le> k' \<longrightarrow> P x k'"
+    using assms(2) by meson
+  let ?k = "Max (image f XS)"
+  have "\<forall> x \<in> XS . P x ?k"
+    using f_def by (simp add: assms(1)) 
+  then show ?thesis by blast
+qed
+
+
+
+
+  
+
+
+
+
+lemma r_distinguishable_alt_def :
+  assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
+proof 
+  show "r_distinguishable M q1 q2 \<Longrightarrow> \<exists>k. r_distinguishable_k M q1 q2 k" 
+  proof (rule ccontr)
+
+    (* Proof sketch: if no k exists such that q1 and q2 are r(k)-distinguishable, then 
+                     it is possible to construct a complete submachine of the product 
+                     machine (product (from_FSM M q1) (from_FSM M q2)) by using only those
+                     transitions in (product (from_FSM M q1) (from_FSM M q2)) that lead
+                     from a pair of non r(0)-distinguishable states to a pair that is not
+                     r(j)-distinguishable for any j. 
+    *)
+
+
+    assume "r_distinguishable M q1 q2"
+    assume c_assm: "\<nexists>k. r_distinguishable_k M q1 q2 k"
+  
+    let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+    (* filter function to restrict transitions of ?P *)
+    let ?f = "\<lambda> t . \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> \<not> (\<exists> k . r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k)"
+    let ?ft = "filter ?f (transitions ?P)"
+    (* resulting submachine of ?P *)
+    let ?PC = "?P\<lparr> transitions := ?ft \<rparr>" 
+  
+  
+    have h_ft : "h ?PC \<subseteq> { t \<in> h ?P . ?f t }" 
+      using transition_filter_h[of _ ?f ?P] by blast
+  
     
+    have nodes_non_r_d_k : "\<And> q . q \<in> nodes ?PC \<Longrightarrow> \<not> (\<exists> k . r_distinguishable_k M (fst q) (snd q) k)"
+    proof -   
+      fix q assume "q \<in> nodes ?PC"
+      have "q = initial ?PC \<or> (\<exists> t \<in> h ?PC . q = t_target t)"
+        using nodes_initial_or_target[OF \<open>q \<in> nodes ?PC\<close>] by blast 
+      then have "q = (q1,q2) \<or> (\<exists> t \<in> h ?PC . q = t_target t)"
+        by (metis (no_types, lifting) product.simps from_FSM_product_initial select_convs(1) update_convs(4))
+      show "\<not> (\<exists> k . r_distinguishable_k M (fst q) (snd q) k)"
+      proof (cases "q = (q1,q2)")
+        case True
+        then show ?thesis using c_assm by auto
+      next
+        case False
+        then obtain t where "t \<in> h ?PC" and "q = t_target t" using \<open>q = (q1,q2) \<or> (\<exists> t \<in> h ?PC . q = t_target t)\<close> by blast
+        then show ?thesis
+          using h_ft by blast 
+      qed
+    qed
+
+    have "\<And> q . q \<in> nodes ?PC \<Longrightarrow> completely_specified_state ?PC q"  
+    proof -
+      fix q assume "q \<in> nodes ?PC"
+      then have "q \<in> nodes ?P"
+        using transition_filter_nodes[of ?f ?P] by blast
+
+      show "completely_specified_state ?PC q"
+      proof (rule ccontr)
+        assume "\<not> completely_specified_state ?PC q"
+        then obtain x where "x \<in> set (inputs ?PC)" 
+                        and "\<not>(\<exists> t \<in> h ?PC . t_source t = q \<and> t_input t = x)"
+          unfolding completely_specified_state.simps by blast
+        then have "\<not>(\<exists> t \<in> h ?P . t_source t = q \<and> t_input t = x \<and> ?f t)"
+          using transition_filter_state_transitions[of _ ?f ?P]
+          using \<open>q \<in> nodes (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> (\<nexists>k. r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k)) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>)\<close> by blast
+        then have not_f : "\<And> t . t \<in> h ?P \<Longrightarrow> t_source t = q \<Longrightarrow> t_input t = x \<Longrightarrow> \<not> ?f t"
+          by blast
+
+
+        have "\<exists> k . r_distinguishable_k M (fst q) (snd q) k"
+        proof (cases "r_distinguishable_k M (fst q) (snd q) 0")
+          case True
+          then show ?thesis by blast
+        next
+          case False
+
+
+          let ?tp = "{t . t \<in> h ?P \<and> t_source t = q \<and> t_input t = x}"
+          have "finite ?tp" 
+          proof -
+            have "finite (h ?P)" by blast 
+            moreover have "?tp \<subseteq> h ?P" by blast
+            ultimately show ?thesis using finite_subset by blast 
+          qed
+  
+          have k_ex : "\<forall> t \<in> ?tp . \<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k'"
+          proof 
+            fix t assume "t \<in> ?tp"
+            then have "\<not> ?f t" using not_f by blast
+            then obtain k where "r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k"
+              using False \<open>t \<in> ?tp\<close> by blast
+            then have "\<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k'"
+              using nat_induct_at_least by fastforce
+            then show "\<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k'" by auto
+          qed
+
+          obtain k where k_def : "\<And> t . t \<in> ?tp \<Longrightarrow> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k"          
+            using finite_set_min_param_ex[OF \<open>finite ?tp\<close>, of "\<lambda> t k' . r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k'"]  k_ex by blast
+          
+          then have "\<forall> t \<in> h ?P . (t_source t = q \<and> t_input t = x) \<longrightarrow> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k"
+            by blast
+          
+          have "r_distinguishable_k M (fst q) (snd q) (Suc k)"
+          proof - 
+            have "\<And> t1 t2 . t1 \<in> h M \<Longrightarrow> t2 \<in> h M \<Longrightarrow> t_source t1 = fst q \<Longrightarrow> t_source t2 = snd q \<Longrightarrow> t_input t1 = x \<Longrightarrow> t_input t2 = x \<Longrightarrow> t_output t1 = t_output t2 \<Longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k"
+            proof -
+              fix t1 t2 assume "t1 \<in> h M" 
+                           and "t2 \<in> h M" 
+                           and "t_source t1 = fst q" 
+                           and "t_source t2 = snd q" 
+                           and "t_input t1 = x" 
+                           and "t_input t2 = x" 
+                           and "t_output t1 = t_output t2"
+              then have "t_input t1 = t_input t2"
+                    and "t_output t1 = t_output t2" by auto
+
+              
+              have "(fst q, snd q) \<in> nodes ?P" using  \<open>q \<in> nodes ?P\<close> by (metis prod.collapse)
+              then have "fst q \<in> nodes (from_FSM M q1)" 
+                    and "snd q \<in> nodes (from_FSM M q2)"
+                using product_nodes[of "from_FSM M q1" "from_FSM M q2"] by blast+
+  
+              have "t1 \<in> h (from_FSM M q1)"
+                using \<open>t1 \<in> h M\<close> \<open>fst q \<in> nodes (from_FSM M q1)\<close> \<open>t_source t1 = fst q\<close> by auto
+              have "t2 \<in> h (from_FSM M q2)"
+                using \<open>t2 \<in> h M\<close> \<open>snd q \<in> nodes (from_FSM M q2)\<close> \<open>t_source t2 = snd q\<close> by auto
+
+              obtain p where "path ?P (q1,q2) p" and "target p (q1,q2) = (fst q, snd q)"
+                using path_to_node[OF \<open>(fst q, snd q) \<in> nodes ?P\<close>] by (metis from_FSM_product_initial) 
+              
+
+              then have "path (from_FSM M q1) (initial (from_FSM M q1)) (left_path p)"
+               and "path (from_FSM M q2) (initial (from_FSM M q2)) (right_path p)"
+                using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 p] by auto
+              moreover have "target (left_path p) (initial (from_FSM M q1)) = t_source t1"
+                by (metis (no_types) \<open>t_source t1 = fst q\<close> \<open>target p (q1, q2) = (fst q, snd q)\<close> from_FSM_simps(1) product_target_split(1))
+              moreover have "target (right_path p) (initial (from_FSM M q2)) = t_source t2"
+                by (metis (no_types) \<open>t_source t2 = snd q\<close> \<open>target p (q1, q2) = (fst q, snd q)\<close> from_FSM_simps(1) product_target_split(2))
+              moreover have "p_io (left_path p) = p_io (right_path p)"
+                by auto
+              ultimately have px : "\<exists>p1 p2.
+                                       path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+                                       path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+                                       target p1 (initial (from_FSM M q1)) = t_source t1 \<and>
+                                       target p2 (initial (from_FSM M q2)) = t_source t2 \<and> p_io p1 = p_io p2" 
+                by blast
+              
+              have "t_source ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2)) = q"
+                using \<open>t_source t1 = fst q\<close> \<open>t_source t2 = snd q\<close> by auto
+              moreover have "t_input ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2)) = x"
+                using \<open>t_input t1 = x\<close> by auto
+              ultimately have tt: "((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2)) \<in> ?tp"
+                using product_transition_from_transitions[OF \<open>t1 \<in> h (from_FSM M q1)\<close> \<open>t2 \<in> h (from_FSM M q2)\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close> px] by blast
+              
+              show "r_distinguishable_k M (t_target t1) (t_target t2) k"
+                using k_def[OF tt] by auto
+            qed
+
+            moreover have "x \<in> set (inputs M)" 
+              using \<open>x \<in> set (inputs ?PC)\<close> unfolding product.simps from_FSM.simps by fastforce
+            ultimately show ?thesis
+              unfolding r_distinguishable_k.simps by blast
+          qed
+          then show ?thesis by blast
+        qed
+
+        then show "False" using nodes_non_r_d_k[OF \<open>q \<in> nodes ?PC\<close>] by blast
+      qed
+    qed
+        
+        
+
+(*
+
+ let ?tp = "{(t1,t2) | t1 t2 . t1 \<in> h (from_FSM M q1) \<and>
+                                         t2 \<in> h (from_FSM M q2) \<and>
+                                         t_source t1 = (fst q) \<and>
+                                         t_source t2 = (snd q) \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
+  
+          have "finite ?tp"
+          proof -
+            have "finite (h (from_FSM M q1))" by auto
+            moreover have "finite (h (from_FSM M q2))" by auto
+            ultimately have "finite ((h (from_FSM M q1)) \<times> (h (from_FSM M q2)))" by auto
+            moreover have "?tp \<subseteq> ((h (from_FSM M q1)) \<times> (h (from_FSM M q2)))" by blast
+            ultimately  show ?thesis by (simp add: finite_subset) 
+          qed
+
+          have k_ex : "\<forall> t \<in> ?tp . \<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'"
+          proof 
+            fix t assume "t \<in> ?tp"
+  
+            let ?t1 = "fst t"
+            let ?t2 = "snd t"
+            from \<open>t \<in> ?tp\<close> have "?t1 \<in> (h (from_FSM M q1)) \<and>
+                                 ?t2 \<in> (h (from_FSM M q2)) \<and>
+                                 t_source ?t1 = (fst q) \<and>
+                                 t_source ?t2 = (snd q) \<and> t_input ?t1 = x \<and> t_input ?t2 = x \<and> t_output ?t1 = t_output ?t2" by auto
+            then obtain k where "r_distinguishable_k M (t_target ?t1) (t_target ?t2) k"
+              using False * by blast
+            then have "\<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target ?t1) (t_target ?t2) k'"
+              using nat_induct_at_least by fastforce
+            then show "\<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'" by auto
+          qed
+
+          have "\<exists> k . r_distinguishable_k M (fst q) (snd q) k"
+            using r_distinguishable_k.simps
+
+*)
 
 end
