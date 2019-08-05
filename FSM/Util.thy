@@ -201,6 +201,17 @@ next
   qed
 qed
 
-
+lemma finite_set_min_param_ex :
+  assumes "finite XS"
+  and     "\<And> x . x \<in> XS \<Longrightarrow> \<exists> k . \<forall> k' . k \<le> k' \<longrightarrow> P x k'"
+shows "\<exists> (k::nat) . \<forall> x \<in> XS . P x k"
+proof -
+  obtain f where f_def : "\<And> x . x \<in> XS \<Longrightarrow> \<forall> k' . (f x) \<le> k' \<longrightarrow> P x k'"
+    using assms(2) by meson
+  let ?k = "Max (image f XS)"
+  have "\<forall> x \<in> XS . P x ?k"
+    using f_def by (simp add: assms(1)) 
+  then show ?thesis by blast
+qed
 
 end

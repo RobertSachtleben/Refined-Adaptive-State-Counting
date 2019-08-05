@@ -19,7 +19,7 @@ fun r_distinguishable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> '
 
 
 
-subsection \<open>R(k)-Distinguishability\<close>
+subsection \<open>R(k)-Distinguishability Properties\<close>
 
 
 lemma r_distinguishable_k_0_alt_def : 
@@ -32,37 +32,7 @@ lemma r_distinguishable_k_Suc_k_alt_def :
   unfolding r_distinguishable_k.simps by fastforce
 
 
-(* nodes that are reachable in at most k transitions *)
-fun reachable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a set" where
-  "reachable_k M q n = {target p q | p . path M q p \<and> length p \<le> n}" 
 
-(* TODO: reset to original ? otherwise change names to indicate _initial_ *)
-(* lemma reachable_k_0 : "reachable_k M q 0 = {q}" 
-  by auto*)
-lemma reachable_k_0 : "reachable_k M (initial M) 0 = {initial M}" 
-  by auto
-
-lemma reachable_k_nodes : "nodes M = reachable_k M (initial M) ( size M - 1)"
-proof -
-  have "\<And>q. q \<in> nodes M \<Longrightarrow> q \<in> reachable_k M (initial M) ( size M - 1)"
-  proof -
-    fix q assume "q \<in> nodes M"
-    then obtain p where "path M (initial M) p" and "target p (initial M) = q"
-      by (metis path_to_node) 
-    then obtain p' where "path M (initial M) p'"
-                     and "target p' (initial M) = target p (initial M)" 
-                     and "length p' < size M"
-      using distinct_path_length_limit_nodes[of "M" "initial M" p]
-      using distinct_path_length[of M "initial M" p] by auto
-    then show "q \<in> reachable_k M (initial M) ( size M - 1)"
-      using \<open>target p (initial M) = q\<close> list.size(3) mem_Collect_eq not_less_eq_eq reachable_k.simps by auto
-  qed
-
-  moreover have "\<And>x. x \<in> reachable_k M (initial M) ( size M - 1) \<Longrightarrow> x \<in> nodes M"
-    using nodes_path_initial by auto
-  
-  ultimately show ?thesis by blast
-qed
 
 lemma r_distinguishable_k_0_not_completely_specified :
   assumes "r_distinguishable_k M q1 q2 0"
@@ -109,25 +79,10 @@ proof -
 qed
 
 
-(* TODO: move *)
-lemma from_product_initial_paths_ex :
-  "(\<exists>p1 p2.
-         path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
-         path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
-         target p1 (initial (from_FSM M q1)) = q1 \<and>
-         target p2 (initial (from_FSM M q2)) = q2 \<and> p_io p1 = p_io p2)"
-proof -
-  have "path (from_FSM M q1) (initial (from_FSM M q1)) []" by blast
-  moreover have "path (from_FSM M q2) (initial (from_FSM M q2)) []" by blast
-  moreover have "
-         target [] (initial (from_FSM M q1)) = q1 \<and>
-         target [] (initial (from_FSM M q2)) = q2 \<and> p_io [] = p_io []" by auto
-  ultimately show ?thesis by blast
-qed
 
 
 
-lemma single_transition_path : "t \<in> h M \<Longrightarrow> path M (t_source t) [t]" by auto
+
 
 
 
@@ -219,22 +174,6 @@ proof -
 qed          
 
 
-(* TODO: move *)
-
-lemma product_from_transition_shared_node :
-  assumes "t \<in> h (product (from_FSM M q1') (from_FSM M q2'))"
-  and  "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
-shows "t \<in> h (product (from_FSM M q1) (from_FSM M q2))"
-  by (meson assms(1) assms(2) contra_subsetD product_from_transition_subset)
-
-    
-
-lemma product_from_not_completely_specified :
-  assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1',q2')"
-      and "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
-    shows  "\<not> completely_specified_state (product (from_FSM M q1') (from_FSM M q2')) (q1',q2')"
-  using assms(1) assms(2) from_FSM_product_inputs[of M q1 q2] from_FSM_product_inputs[of M q1' q2'] product_from_transition_shared_node[OF _ assms(2)] 
-  unfolding completely_specified_state.simps by metis
 
   
 lemma r_0_distinguishable_from_not_completely_specified :
@@ -408,209 +347,6 @@ qed
 
 
 subsubsection \<open>Equivalence of R-Distinguishability Definitions\<close>
-
-
-(* TODO: move *)
-lemma transition_filter_path_initial :
-  assumes "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) p"
-  shows "path M (initial M) p"
-using assms proof (induction p rule: rev_induct)
-  case Nil
-  then show ?case by auto
-next
-  case (snoc t p)
-  then have "t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)" by auto
-  then have "t \<in> set (filter f (transitions M))" by auto
-  then have "t \<in> set (transitions M)" by auto
-
-  have "target p (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) = t_source t"
-    using snoc.prems by auto
-  then have "target p (initial M) = t_source t" by auto
-  moreover have "path M (initial M) p" using snoc.prems snoc.IH by auto
-  ultimately have "t_source t \<in> nodes M"
-    using path_target_is_node by metis
-  then have "t \<in> h M"
-    using \<open>t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)\<close> by auto
-  then show "path M (initial M) (p@[t])"
-    using \<open>path M (initial M) p\<close> \<open>target p (initial M) = t_source t\<close> path_cons by auto
-qed
-
-lemma transition_filter_path :
-  assumes "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) q p"
-  shows "path M q p"
-proof -
-  have "q \<in> nodes (M\<lparr> transitions := filter f (transitions M)\<rparr>)"
-    using assms path_begin_node by metis
-  then obtain pQ where "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) pQ"
-                   and "target pQ (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) = q"
-    by (metis path_to_node)
-  then have "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) (pQ@p)"
-    using assms path_append by metis
-  then have "path M (initial M) (pQ@p)"
-    using transition_filter_path_initial by auto
-  then show "path M q p"
-    using \<open>target pQ (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) = q\<close> by auto
-qed
-
-lemma transition_filter_path_initial_rev :
-  assumes "path M (initial M) p" 
-      and "list_all f p"
-    shows "path (M\<lparr> transitions := filter f (transitions M)\<rparr>) (initial (M\<lparr> transitions := filter f (transitions M)\<rparr>)) p"
-          (is "path ?M (initial ?M) p")
-using assms proof (induction p rule: rev_induct)
-  case Nil
-  then show ?case by blast 
-next
-  case (snoc t p)
-  then have "path ?M (initial ?M) p" and "f t" by auto
-
-  have "target p (initial ?M) = t_source t" using snoc.prems(1) by auto
-  then have "t_source t \<in> nodes ?M"
-    using path_target_is_node[OF \<open>path ?M (initial ?M) p\<close>] by auto
-
-  have "t \<in> h M" using snoc.prems(1) by auto
-  then have "t \<in> h ?M"
-    using \<open>f t\<close> \<open>t_source t \<in> nodes ?M\<close> by auto
-
-  show ?case
-    using path_cons \<open>path ?M (initial ?M) p\<close> \<open>target p (initial ?M) = t_source t\<close> \<open>t \<in> h ?M\<close> by auto
-qed
-
-lemma transition_filter_h :
-  assumes "t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)"  (is "t \<in> h ?M")
-  shows "t \<in> h M" and "f t"
-proof -
-  from assms have "t_source t \<in> nodes ?M" by auto
-  then obtain p where "path ?M (initial ?M) p"
-                  and "target p (initial ?M) = t_source t"
-    by (metis path_to_node)
-  then have "path M (initial M) p"
-    by (metis transition_filter_path_initial)
-  have "t_source t \<in> nodes M"
-    using path_target_is_node[OF \<open>path M (initial M) p\<close>] \<open>target p (initial ?M) = t_source t\<close> by auto
-  then show "t \<in> h M"
-    using \<open>t \<in> h ?M\<close> by auto
-  from assms show "f t" by auto
-qed
-
-lemma transition_filter_nodes :
-  "nodes (M\<lparr> transitions := filter f (transitions M)\<rparr>) \<subseteq> nodes M" (is "nodes ?M \<subseteq> nodes M")
-proof 
-  fix q assume "q \<in> nodes ?M"
-  then obtain p where "path ?M (initial ?M) p" 
-                  and "target p (initial ?M) = q"
-    by (metis path_to_node)
-  then have "path M (initial M) p"
-    using transition_filter_path_initial by metis
-  show "q \<in> nodes M"
-    using path_target_is_node[OF \<open>path M (initial M) p\<close>] \<open>target p (initial ?M) = q\<close> by auto
-qed
-
-
-lemma transition_filter_state_transitions :
-  assumes "t_source t \<in> nodes (M\<lparr> transitions := filter f (transitions M)\<rparr>)"
-      and "t \<in> h M"
-      and "f t"
-    shows "t \<in> h (M\<lparr> transitions := filter f (transitions M)\<rparr>)" (is "t \<in> h ?M")
-  using assms by auto
-
-
-
-
-
-lemma nodes_initial_or_target :
-  assumes "q \<in> nodes M"
-  shows "q = initial M \<or> (\<exists> t \<in> h M . t_target t = q)"
-proof (cases "q = initial M")
-  case True
-  then show ?thesis by auto
-next
-  case False
-  obtain p where "path M (initial M) p" and "target p (initial M) = q"
-    by (metis path_to_node assms)
-  have "p \<noteq> []"
-    using \<open>target p (initial M) = q\<close> False by auto
-  have "(last p) \<in> h M"
-    using \<open>path M (initial M) p\<close> \<open>p \<noteq> []\<close> by (meson contra_subsetD last_in_set path_h) 
-  moreover have "t_target (last p) = q"
-    using \<open>target p (initial M) = q\<close> \<open>p \<noteq> []\<close> unfolding target.simps visited_states.simps
-    by (simp add: last_map) 
-  ultimately have "\<exists> t \<in> h M . t_target t = q"
-    by blast
-  then show ?thesis by linarith
-qed
-
-
-
-
-(* TODO: remove, second direction does not hold
-lemma transition_filter_h :
-  "h (M\<lparr> transitions := filter f (transitions M)\<rparr>) = {t \<in> h M . f t}" (is "h ?M = {t \<in> h M . f t}")
-proof -
-
-  have "\<And> t . t \<in> h ?M \<Longrightarrow> t \<in> h M \<and> f t"
-  proof -
-    fix t assume "t \<in> h ?M"
-    then have "t_source t \<in> nodes ?M" by auto
-    then obtain p where "path ?M (initial ?M) p"
-                    and "target p (initial ?M) = t_source t"
-      by (metis path_to_node)
-    then have "path M (initial M) p"
-      by (metis transition_filter_path_initial)
-    have "t_source t \<in> nodes M"
-      using path_target_is_node[OF \<open>path M (initial M) p\<close>] \<open>target p (initial ?M) = t_source t\<close> by auto
-    then show "t \<in> h M \<and> f t"
-      using \<open>t \<in> h ?M\<close> by auto
-  qed
-
-  have "\<And> t . t \<in> h M \<Longrightarrow> f t \<Longrightarrow> t \<in> h ?M" nitpick
-  proof -
-    fix t assume "t \<in> h M" and "f t"
-*)    
-  
-
-(* TODO: move*)
-lemma finite_set_min_param_ex :
-  assumes "finite XS"
-  and     "\<And> x . x \<in> XS \<Longrightarrow> \<exists> k . \<forall> k' . k \<le> k' \<longrightarrow> P x k'"
-shows "\<exists> (k::nat) . \<forall> x \<in> XS . P x k"
-proof -
-  obtain f where f_def : "\<And> x . x \<in> XS \<Longrightarrow> \<forall> k' . (f x) \<le> k' \<longrightarrow> P x k'"
-    using assms(2) by meson
-  let ?k = "Max (image f XS)"
-  have "\<forall> x \<in> XS . P x ?k"
-    using f_def by (simp add: assms(1)) 
-  then show ?thesis by blast
-qed
-
-
-lemma transition_filter_submachine :
-  "is_submachine (M\<lparr> transitions := filter f (transitions M)\<rparr>) M" 
-proof -
-  let ?M = "(M\<lparr> transitions := filter f (transitions M)\<rparr>)"
-  have "set (transitions ?M) \<subseteq> set (transitions M)"
-    by auto
-  then have "h ?M \<subseteq> h M" unfolding wf_transitions.simps
-  proof -
-    have "\<forall>ps P. \<exists>p. (set ps \<subseteq> P \<or> (p::'a \<times> integer \<times> integer \<times> 'a) \<in> set ps) \<and> (p \<notin> P \<or> set ps \<subseteq> P)"
-      by (meson subset_code(1))
-    then obtain pp :: "('a \<times> integer \<times> integer \<times> 'a) list \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> 'a \<times> integer \<times> integer \<times> 'a" where
-      f1: "\<And>ps P. (set ps \<subseteq> P \<or> pp ps P \<in> set ps) \<and> (pp ps P \<notin> P \<or> set ps \<subseteq> P)"
-      by metis
-    moreover
-    { assume "pp (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>)) (set (wf_transitions M)) \<notin> set (wf_transitions M)"
-      then have "pp (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>)) (set (wf_transitions M)) \<notin> set (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>))"
-        by (metis transition_filter_h(1))
-      then have "set (wf_transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>)) \<subseteq> set (filter (\<lambda>p. t_source p \<in> nodes M \<and> t_input p \<in> set (inputs M) \<and> t_output p \<in> set (outputs M)) (transitions M))"
-        using f1 by (metis (no_types) wf_transitions.elims) }
-    ultimately show "set (filter (\<lambda>p. t_source p \<in> nodes (M\<lparr>transitions := filter f (transitions M)\<rparr>) \<and> t_input p \<in> set (inputs (M\<lparr>transitions := filter f (transitions M)\<rparr>)) \<and> t_output p \<in> set (outputs (M\<lparr>transitions := filter f (transitions M)\<rparr>))) (transitions (M\<lparr>transitions := filter f (transitions M)\<rparr>))) \<subseteq> set (filter (\<lambda>p. t_source p \<in> nodes M \<and> t_input p \<in> set (inputs M) \<and> t_output p \<in> set (outputs M)) (transitions M))"
-      by (metis (no_types) wf_transitions.elims)
-  qed
-     
-  then show ?thesis unfolding is_submachine.simps by auto
-qed
-  
-
 
 
 
@@ -811,7 +547,7 @@ proof
         by (meson r_compatible_def)      
       then have "completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2)))"
         using complete_submachine_initial by metis
-      then show "False" using r_distinguishable_k_0_not_completely_specified[OF "0.prems"(1)] by metis
+      then show "False" using r_distinguishable_k_0_not_completely_specified[OF "0.prems"(1,3,4) ] by metis
     next
       case (Suc k)
       then show "False" 

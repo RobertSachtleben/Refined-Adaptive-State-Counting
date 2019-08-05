@@ -689,9 +689,15 @@ lemma product_transition_split :
 
 subsection \<open>Other Lemmata\<close>
 
-(* TODO: move *)
-lemma nodes_set_alt_def : "nodes M = { target p (initial M) | p . path M (initial M) p }" 
-  using path_to_node[of _ M]  path_target_is_node[of M "initial M"] by blast
+lemma  product_target_split:
+  assumes "target p (q1,q2) = (q1',q2')"
+  shows "target (left_path p) q1 = q1'"
+    and "target (right_path p) q2 = q2'"
+using assms by (induction p arbitrary: q1 q2; force)+
+
+
+
+
 
 lemma h_from_paths :
   assumes "\<And> p . path A (initial A) p = path B (initial B) p"
@@ -895,6 +901,7 @@ lemma from_FSM_product_initial[simp] :
 lemma from_FSM_transitions :
   "transitions (from_FSM M q) = transitions M" by auto 
 
+lemma from_from[simp] : "from_FSM (from_FSM M q1) q1' = from_FSM M q1'" by auto
 
 lemma product_from_next' :
   assumes "t \<in> h (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
@@ -908,11 +915,7 @@ proof -
   show ?thesis using product_from_next[OF *] by blast
 qed
 
-(* TODO: move *)
-lemma path_equivalence_by_h :
-  assumes "path A q (p@[t])" and "path B q p" 
-  shows "((path B q (p@[t])) = (t \<in> h B))"
-using assms by (induction p arbitrary: q; fastforce)
+
 
 lemma product_from_next'_path :
   assumes "t \<in> h (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
@@ -933,16 +936,6 @@ proof -
   qed
 qed
 
-(* TODO: move *)
-lemma  product_target_split: 
-  assumes "target p (q1,q2) = (q1',q2')"
-  shows "target (left_path p) q1 = q1'"
-    and "target (right_path p) q2 = q2'"
-using assms by (induction p arbitrary: q1 q2; force)+
-
-lemma from_from[simp] : "from_FSM (from_FSM M q1) q1' = from_FSM M q1'" by auto
-
-lemma path_target_append : "target p1 q1 = q2 \<Longrightarrow> target p2 q2 = q3 \<Longrightarrow> target (p1@p2) q1 = q3" by auto
 
 lemma product_from_transition_subset:
   assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
@@ -1058,6 +1051,37 @@ proof -
     using product_from_transition_subset[OF **] by assumption
   show ?thesis
     using h_subset_path[OF *** assms(1) *] by assumption
+qed
+
+
+lemma product_from_transition_shared_node :
+  assumes "t \<in> h (product (from_FSM M q1') (from_FSM M q2'))"
+  and  "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
+shows "t \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+  by (meson assms(1) assms(2) contra_subsetD product_from_transition_subset)
+
+    
+
+lemma product_from_not_completely_specified :
+  assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1',q2')"
+      and "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    shows  "\<not> completely_specified_state (product (from_FSM M q1') (from_FSM M q2')) (q1',q2')"
+  using assms(1) assms(2) from_FSM_product_inputs[of M q1 q2] from_FSM_product_inputs[of M q1' q2'] product_from_transition_shared_node[OF _ assms(2)] 
+  unfolding completely_specified_state.simps by metis
+
+lemma from_product_initial_paths_ex :
+  "(\<exists>p1 p2.
+         path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+         path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+         target p1 (initial (from_FSM M q1)) = q1 \<and>
+         target p2 (initial (from_FSM M q2)) = q2 \<and> p_io p1 = p_io p2)"
+proof -
+  have "path (from_FSM M q1) (initial (from_FSM M q1)) []" by blast
+  moreover have "path (from_FSM M q2) (initial (from_FSM M q2)) []" by blast
+  moreover have "
+         target [] (initial (from_FSM M q1)) = q1 \<and>
+         target [] (initial (from_FSM M q2)) = q2 \<and> p_io [] = p_io []" by auto
+  ultimately show ?thesis by blast
 qed
 
 end
