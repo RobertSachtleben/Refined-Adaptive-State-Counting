@@ -317,7 +317,7 @@ next
       using product_from_path_previous[OF p_def \<open>t \<in> h ?P\<close>] by assumption
 
     have "path ?P (q1,q2) (t#p)"
-      using path_cons[OF\<open>t \<in> h ?P\<close> \<open>path ?P (t_target t) p\<close>] \<open>t_source t = (q1,q2)\<close> by metis
+      using path.cons[OF\<open>t \<in> h ?P\<close> \<open>path ?P (t_target t) p\<close>] \<open>t_source t = (q1,q2)\<close> by metis
     moreover have "map fst (p_io (t#p)) = xs"
       using \<open>t_input t = ?x\<close> \<open>map fst (p_io p) = ?xs\<close>
       by (metis (no_types, lifting) \<open>length xs = Suc (Suc k)\<close> \<open>t_input t = hd xs\<close> fst_conv hd_Cons_tl length_greater_0_conv list.simps(9) zero_less_Suc)

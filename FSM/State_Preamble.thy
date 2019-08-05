@@ -309,5 +309,471 @@ proof (rule ccontr)
 qed
 
 
+lemma preamble_set_shared_suffix :
+  assumes "is_preamble_set M q P"
+  and     "xys1@[xy] \<in> P"
+  and     "xys2 \<in> P"
+  and     "io_target M xys1 (initial M) = io_target M xys2 (initial M)"
+  and     "observable M"
+shows "xys2@[xy] \<in> P"
+proof -
+  have "xys1 \<in> P" using assms(1,2) unfolding is_preamble_set.simps by blast 
+  moreover have "\<exists> xys' \<in> P. length xys1 < length xys' \<and> take (length xys1) xys' = xys1" 
+    using assms(2) append_eq_conv_conj by fastforce 
+  ultimately have "io_target M xys1 (initial M) \<noteq> q"
+    using assms(1) unfolding is_preamble_set.simps by blast
+  then have "io_target M xys2 (initial M) \<noteq> q"
+    using assms(4) by auto
+  then obtain xys2' where "xys2' \<in> P" and "length xys2 < length xys2'" and "take (length xys2) xys2' = xys2"
+    using assms(1,3) unfolding is_preamble_set.simps by blast
+  let ?xy = "hd (drop (length xys2) xys2')"
+  have "xys2@[?xy]@(tl (drop (length xys2) xys2')) \<in> P"
+    by (metis \<open>length xys2 < length xys2'\<close> \<open>take (length xys2) xys2' = xys2\<close> \<open>xys2' \<in> P\<close> append_Cons append_self_conv2 append_take_drop_id drop_eq_Nil hd_Cons_tl leD)
+  then have "xys2@[?xy] \<in> P"
+    using assms(1) unfolding is_preamble_set.simps by (metis (mono_tags, lifting) append_assoc) 
+  then have "fst ?xy = fst xy"
+    using assms(1,2,4) unfolding is_preamble_set.simps by (metis (no_types, lifting)) 
+
+
+  have "xys1@[xy] \<in> L M"
+    using assms(1,2) by auto
+  then obtain p where "path M (initial M) p" and "p_io p = xys1@[xy]" 
+    by auto
+  let ?hp = "butlast p"
+  let ?t = "last p"
+  have "path M (initial M) ?hp"
+    by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys1 @ [xy]\<close> \<open>path M (initial M) p\<close> path_prefix snoc_eq_iff_butlast) 
+  moreover have  "p_io ?hp = xys1"
+    by (simp add: \<open>p_io p = xys1 @ [xy]\<close> map_butlast)
+  ultimately have "target ?hp (initial M) = io_target M xys1 (initial M)"
+    using assms(5) by (metis (mono_tags, lifting) observable_path_io_target) 
+  then have "t_source ?t = io_target M xys1 (initial M)"
+    by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys1 @ [xy]\<close> \<open>path M (initial M) p\<close> path_cons_elim path_suffix snoc_eq_iff_butlast) 
+  then have "path M (io_target M xys1 (initial M)) [?t]"
+    by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = xys1 @ [xy]\<close> \<open>path M (initial M) p\<close> \<open>target (butlast p) (initial M) = io_target M xys1 (initial M)\<close> path_suffix snoc_eq_iff_butlast)
+  have "p_io [?t] = [(fst xy, snd xy)]"
+    by (metis (mono_tags, lifting) \<open>p_io p = xys1 @ [xy]\<close> last_map list.simps(8) list.simps(9) prod.collapse snoc_eq_iff_butlast)
+  
+  have "[(fst xy, snd xy)] \<in> LS M (io_target M xys1 (initial M))"
+  proof -
+    have "\<exists>ps. [(fst xy, snd xy)] = p_io ps \<and> path M (io_target M xys1 (initial M)) ps"
+      by (metis (no_types) \<open>p_io [last p] = [(fst xy, snd xy)]\<close> \<open>path M (io_target M xys1 (initial M)) [last p]\<close>)
+    then show ?thesis
+      by simp
+  qed
+  then have "[(fst xy, snd xy)] \<in> LS M (io_target M xys2 (initial M))"
+    using assms(1) unfolding is_preamble_set.simps by (metis assms(4))
+
+  then have "[(fst ?xy, snd xy)] \<in> LS M (io_target M xys2 (initial M))"
+    using \<open>fst ?xy = fst xy\<close> by auto
+
+  then have "xys2@[(fst xy, snd xy)] \<in> P" 
+    using \<open>xys2@[?xy] \<in> P\<close> assms(1) unfolding is_preamble_set.simps
+    by (metis (no_types, lifting) \<open>fst (hd (drop (length xys2) xys2')) = fst xy\<close>) 
+  then show "xys2@[xy] \<in> P"
+    by simp
+qed
+
+
+
+lemma preamble_set_implies_preamble :
+  assumes "observable M" and "is_preamble_set M q P"
+  shows "\<exists> S . is_preamble S M q \<and> L S = P"
+proof -
+  let ?is_preamble_transition = "\<lambda> t . \<exists> xys xy . xys@[xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy"
+  let ?S = "M\<lparr> transitions := filter ?is_preamble_transition (transitions M) \<rparr>"
+
+  have "is_submachine ?S M" by (metis transition_filter_submachine)
+  then have "L ?S \<subseteq> L M" 
+    using submachine_language[of ?S M] by blast
+
+  have "\<And> io . io \<in> L ?S \<longleftrightarrow> io \<in> P"
+  proof -
+    fix io
+    show "io \<in> L ?S \<longleftrightarrow> io \<in> P"
+    proof (induction io rule: rev_induct)
+      case Nil
+      have "[] \<in> P" using preamble_set_contains_empty_sequence[OF assms(2)] by auto
+      moreover have "[] \<in> L ?S" by (metis language_contains_empty_sequence)
+      ultimately show ?case by blast
+    next
+      case (snoc xy io)
+      have "io@[xy] \<in> L ?S \<Longrightarrow> io@[xy] \<in> P"
+      proof -
+        assume "io@[xy] \<in> L ?S"
+        then have "io \<in> L ?S" using language_prefix[of io] by fastforce
+        then have "io \<in> P" using snoc.IH by fastforce
+
+        from \<open>io@[xy] \<in> L ?S\<close> obtain p where "path ?S (initial ?S) p" and "p_io p = io@[xy]" by auto
+        let ?hp = "butlast p"
+        let ?t = "last p"
+        have "?t \<in> h ?S"
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path (M\<lparr>transitions := filter ?is_preamble_transition (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter ?is_preamble_transition (transitions M)\<rparr>)) p\<close> append_is_Nil_conv contra_subsetD last_in_set not_Cons_self2 path_h) 
+        then have "?is_preamble_transition ?t" 
+          by auto
+        then obtain xys xy' where "xys @ [xy'] \<in> P" 
+                              and "t_source ?t = io_target M xys (initial M)" 
+                              and "t_input ?t = fst xy'" 
+                              and "t_output (last p) = snd xy'"
+          by blast
+        then have "xy' = xy"
+          by (metis (mono_tags, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> append_is_Nil_conv last_map last_snoc not_Cons_self prod.collapse) 
+
+        have "t_source ?t = target ?hp (initial ?S)"
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p\<close> path_append_elim path_cons_elim snoc_eq_iff_butlast) 
+        
+        
+        have "path ?S (initial ?S) ?hp" 
+          using \<open>path ?S (initial ?S) p\<close>
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> append_butlast_last_id append_is_Nil_conv not_Cons_self2 path_prefix) 
+        then have "path M (initial M) ?hp"
+          using submachine_path[OF \<open>is_submachine ?S M\<close>] by auto
+        then have "io_target M io (initial M) = target ?hp (initial M)"
+          by (metis (mono_tags, lifting) \<open>p_io p = io @ [xy]\<close> assms(1) butlast_snoc map_butlast observable_path_io_target)
+          
+        then have "io_target M xys (initial M) = io_target M io (initial M)"
+          using \<open>t_source (last p) = io_target M xys (initial M)\<close> \<open>t_source (last p) = target (butlast p) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>))\<close> by auto 
+          
+        then show "io@[xy] \<in> P"
+          using preamble_set_shared_suffix[OF assms(2) \<open>xys @ [xy'] \<in> P\<close> \<open>io \<in> P\<close> _ assms(1)] \<open>xy' = xy\<close> by auto
+      qed
+
+      moreover have "io@[xy] \<in> P \<Longrightarrow> io@[xy] \<in> L ?S"
+      proof -
+        assume "io@[xy] \<in> P"
+        then have "io \<in> P" and "io@[xy] \<in> L M" using assms(2) unfolding is_preamble_set.simps by blast+
+        then have "io \<in> L ?S" using snoc.IH by auto
+
+        from \<open>io@[xy] \<in> L M\<close> obtain p where "path M (initial M) p" and "p_io p = io@[xy]" by auto
+        let ?hp = "butlast p"
+        let ?t = "last p"
+
+        have "t_source ?t = io_target M io (initial M) \<and> t_input ?t = fst xy \<and> t_output ?t = snd xy"
+        proof - (* TODO: refactor auto-generated code *)
+          have f1: "\<forall>ps p psa. (ps @ [p::integer \<times> integer] = psa) = (psa \<noteq> [] \<and> butlast psa = ps \<and> last psa = p)"
+            using snoc_eq_iff_butlast by blast
+          have f2: "p \<noteq> []"
+            using \<open>p_io p = io @ [xy]\<close> by force
+          then have f3: "butlast p @ [last p] = p"
+            using append_butlast_last_id by blast
+          then have f4: "path M (initial M) (butlast p)"
+            by (metis (no_types) \<open>path M (initial M) p\<close> path_prefix)
+          have f5: "p_io (butlast p) = io"
+            by (simp add: \<open>p_io p = io @ [xy]\<close> map_butlast)
+          have "\<forall>ps f. ps = [] \<or> last (map f ps) = (f (last ps::'a \<times> integer \<times> integer \<times> 'a)::integer \<times> integer)"
+            using last_map by blast
+          then have f6: "(t_input (last p), t_output (last p)) = last (p_io p)"
+            using f2 by force
+          have "io @ [xy] \<noteq> [] \<and> butlast (io @ [xy]) = io \<and> last (io @ [xy]) = xy"
+            using f1 by blast
+          then show ?thesis
+            using f6 f5 f4 f3 by (metis (no_types) \<open>p_io p = io @ [xy]\<close> \<open>path M (initial M) p\<close> assms(1) fst_conv observable_path_io_target path_cons_elim path_suffix snd_conv)
+        qed 
+
+        then have "?is_preamble_transition ?t"
+          using \<open>io@[xy] \<in> P\<close> by blast
+        moreover have "?t \<in> h M"
+          by (metis (no_types, lifting) Nil_is_map_conv \<open>p_io p = io @ [xy]\<close> \<open>path M (initial M) p\<close> contra_subsetD last_in_set path_h snoc_eq_iff_butlast)
+
+        have "t_source ?t \<in> nodes ?S"
+        proof - (*TODO: refactor auto-generated proof*)
+          have f1: "\<forall>f fa ps. (\<not> observable (f::('a, 'b) FSM_scheme) \<or> \<not> is_submachine fa f \<or> ps \<notin> LS fa (initial fa)) \<or> hd (io_targets_list fa ps (initial fa)) = hd (io_targets_list f ps (initial f))"
+            using observable_submachine_io_target by blast
+          obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+            "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
+            by moura
+          then have f2: "\<forall>f a ps. ((\<nexists>psa. ps = p_io psa \<and> path f a psa) \<or> ps = p_io (pps ps a f) \<and> path f a (pps ps a f)) \<and> ((\<exists>psa. ps = p_io psa \<and> path f a psa) \<or> (\<forall>psa. ps \<noteq> p_io psa \<or> \<not> path f a psa))"
+            by blast
+          then have f3: "io = p_io (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) \<and> path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>))"
+            using \<open>io \<in> LS (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>))\<close> by auto
+          have "\<forall>f a ps. \<not> observable (f::('a, 'b) FSM_scheme) \<or> \<not> path f a ps \<or> target ps a = hd (io_targets_list f (p_io ps) a)"
+            by (metis (no_types) observable_path_io_target)
+          then have f4: "target (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) = hd (io_targets_list (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (p_io (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>))) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)))"
+            using f3 \<open>is_submachine (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) M\<close> assms(1) submachine_observable by blast
+          have f5: "io = p_io (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) \<and> path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>))"
+            using f2 \<open>io \<in> LS (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>))\<close> by auto
+          then have "hd (io_targets_list (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (p_io (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>))) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>))) = hd (io_targets_list M (p_io (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>))) (initial M))"
+            using f1 \<open>io \<in> LS (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>))\<close> \<open>is_submachine (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) M\<close> assms(1) by presburger
+          then have "hd (io_targets_list M io (initial M)) = target (pps io (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>))"
+            using f5 f4 by force
+          then have "\<exists>ps. hd (io_targets_list M io (initial M)) = target ps (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) \<and> path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = hd (io_targets_list M ps (initial M)) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) ps"
+            using f3 by blast
+          then show ?thesis
+            by (simp add: \<open>t_source (last p) = hd (io_targets_list M io (initial M)) \<and> t_input (last p) = fst xy \<and> t_output (last p) = snd xy\<close> nodes_set_alt_def)
+        qed
+
+        then have "?t \<in> h ?S"
+          using transition_filter_state_transitions[OF _ \<open>?t \<in> h M\<close>, of ?is_preamble_transition, OF _ \<open>?is_preamble_transition ?t\<close>] by blast
+
+        from \<open>io \<in> L ?S\<close> obtain pS where "path ?S (initial ?S) pS" and "p_io pS = io" by auto
+        then have "path M (initial M) pS"
+          using submachine_path[OF \<open>is_submachine ?S M\<close>] by auto
+        then have "target pS (initial M) = io_target M io (initial M)"
+          by (metis (mono_tags, lifting) \<open>p_io pS = io\<close> assms(1) observable_path_io_target)
+        then have "path ?S (initial ?S) (pS@[?t])"
+          by (metis (no_types, lifting) \<open>is_submachine (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) M\<close> \<open>last p \<in> set (wf_transitions (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>))\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) pS\<close> \<open>t_source (last p) = hd (io_targets_list M io (initial M)) \<and> t_input (last p) = fst xy \<and> t_output (last p) = snd xy\<close> assms(1) io_targets_list.simps(1) language_contains_empty_sequence list.sel(1) observable_submachine_io_target path_append single_transition_path)
+        moreover have "p_io (pS@[?t]) = io@[xy]"
+          by (simp add: \<open>p_io pS = io\<close> \<open>t_source (last p) = io_target M io (initial M) \<and> t_input (last p) = fst xy \<and> t_output (last p) = snd xy\<close>)  
+        ultimately show "io@[xy] \<in> L ?S"
+          unfolding LS.simps by (metis (mono_tags, lifting) mem_Collect_eq) 
+      qed
+
+      ultimately show ?case by blast
+    qed
+  qed
+  then have "L ?S = P" by auto
+
+  have "acyclic ?S"
+  proof (rule ccontr)
+    assume "\<not> acyclic ?S"
+    then obtain p where "path ?S (initial ?S) p" and "\<not> distinct (visited_states (initial ?S) p)"
+      unfolding acyclic.simps by blast
+    then have "path M (initial M) p" 
+      using submachine_path[OF \<open>is_submachine ?S M\<close>] by auto
+
+    from \<open>path ?S (initial ?S) p\<close> have "p_io p \<in> L ?S" by auto
+    then have "p_io p \<in> P" using \<open>L ?S = P\<close> by blast
+    
+    have "distinct (visited_states (initial M) p)"
+      using assms(2) \<open>path M (initial M) p\<close> \<open>p_io p \<in> P\<close> unfolding is_preamble_set.simps by auto
+    then show "False" 
+      using \<open>\<not> distinct (visited_states (initial ?S) p)\<close> \<open>is_submachine ?S M\<close> by auto
+  qed
+
+  moreover have "single_input ?S"  
+  proof (rule ccontr)
+    assume "\<not> single_input ?S"
+    then obtain t1 t2 where "t1 \<in> h ?S" and "t2 \<in> h ?S" and "t_source t1 = t_source t2" and "t_source t1 \<in> nodes ?S" and "t_input t1 \<noteq> t_input t2"
+      unfolding single_input.simps by blast
+    moreover from \<open>t_source t1 \<in> nodes ?S\<close> obtain p where "path ?S (initial ?S) p" and "target p (initial ?S) = t_source t1"
+      by (metis (no_types, lifting) path_to_node)
+
+    ultimately have "path ?S (initial ?S) (p@[t1])" and "path ?S (initial ?S) (p@[t2])"
+      by (simp add: path_append_last)+
+    let ?xy1 = "(t_input t1, t_output t1)"
+    let ?xy2 = "(t_input t2, t_output t2)"
+
+    have "p_io (p@[t1]) = (p_io p)@[?xy1]" by auto
+    have "p_io (p@[t2]) = (p_io p)@[?xy2]" by auto
+
+    have "(p_io p)@[?xy1] \<in> L ?S"
+      using \<open>path ?S (initial ?S) (p@[t1])\<close> \<open>p_io (p@[t1]) = (p_io p)@[?xy1]\<close> unfolding LS.simps
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
+    moreover have "(p_io p)@[?xy2] \<in> L ?S"
+      using \<open>path ?S (initial ?S) (p@[t2])\<close> \<open>p_io (p@[t2]) = (p_io p)@[?xy2]\<close> unfolding LS.simps
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
+    ultimately have "(p_io p)@[?xy1] \<in> L ?S \<and> (p_io p)@[?xy2] \<in> L ?S \<and> fst ?xy1 \<noteq> fst ?xy2" 
+      using \<open>t_input t1 \<noteq> t_input t2\<close> by auto
+    then have "(p_io p)@[?xy1] \<in> L M \<and> (p_io p)@[?xy2] \<in> L M \<and> fst ?xy1 \<noteq> fst ?xy2" 
+      using \<open>L ?S \<subseteq> L M\<close> by blast
+    then have "\<not> (\<forall> xys xy1 xy2 . (xys@[xy1] \<in> L M \<and> xys@[xy2] \<in> L M) \<longrightarrow> fst xy1 = fst xy2)"
+      by blast
+    then show "False" using assms(2) unfolding is_preamble_set.simps
+      by (metis (no_types, lifting) \<open>\<And>io. (io \<in> L (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) = (io \<in> P)\<close> \<open>p_io p @ [(t_input t1, t_output t1)] \<in> L (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) \<and> p_io p @ [(t_input t2, t_output t2)] \<in> L (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) \<and> fst (t_input t1, t_output t1) \<noteq> fst (t_input t2, t_output t2)\<close>) 
+  qed
+
+  moreover have "is_submachine ?S M" by (metis transition_filter_submachine)
+
+  moreover have "q \<in> nodes ?S"
+  proof -
+    obtain ioq where "ioq \<in> P" and "io_target M ioq (initial M) = q"
+      using assms(2) unfolding is_preamble_set.simps by blast
+    then have "ioq \<in> L ?S" using \<open>L ?S = P\<close> by auto
+    then obtain p where "path ?S (initial ?S) p" and "p_io p = ioq" by auto
+    then have "target p (initial ?S) = io_target ?S ioq (initial ?S)"
+      by (metis (mono_tags, lifting) assms(1) calculation(3) observable_path_io_target submachine_observable)
+    moreover have "io_target ?S ioq (initial ?S) = io_target M ioq (initial M)"
+      using \<open>ioq \<in> L (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)\<close> \<open>is_submachine (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) M\<close> assms(1) observable_submachine_io_target by blast
+    finally have "target p (initial ?S) = q"
+      using \<open>io_target M ioq (initial M) = q\<close> by auto
+    
+    then show ?thesis
+      using \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p\<close> nodes_path_initial by blast 
+  qed
+
+  moreover have "deadlock_state ?S q"
+  proof (rule ccontr)
+    assume "\<not> deadlock_state ?S q"
+    then obtain t where "t \<in> h ?S" and "t_source t = q" 
+      unfolding deadlock_state.simps using \<open>q \<in> nodes ?S\<close> by blast
+    moreover from \<open>q \<in> nodes ?S\<close> obtain p where "path ?S (initial ?S) p" and "target p (initial ?S) = q"
+      by (metis (no_types, lifting) path_to_node)
+    ultimately have "path ?S (initial ?S) (p@[t])"
+      by (simp add: path_append_last)
+    then have "p_io (p@[t]) \<in> L ?S" unfolding LS.simps by (metis (mono_tags, lifting) mem_Collect_eq) 
+    then have "p_io (p@[t]) \<in> P" using \<open>L ?S = P\<close> by auto
+    then have "p_io p \<in> P" using assms(2) unfolding is_preamble_set.simps
+      by (metis (no_types, lifting) map_append) 
+
+    have "path M (initial M) p"
+      using submachine_path[OF \<open>is_submachine ?S M\<close>] \<open>path ?S (initial ?S) p\<close> by auto
+    moreover have "target p (initial M) = q"
+      using \<open>target p (initial ?S) = q\<close> \<open>is_submachine ?S M\<close> by auto
+    ultimately have "io_target M (p_io p) (initial M) = q"
+      by (metis (mono_tags, lifting) assms(1) observable_path_io_target)
+      
+    have "p_io (p@[t]) \<in> P \<and> length (p_io p) < length (p_io (p@[t])) \<and> take (length (p_io p)) (p_io (p@[t])) = p_io p"
+      using \<open>p_io (p@[t]) \<in> P\<close> by simp
+
+    then show "False" 
+      using assms(2) unfolding is_preamble_set.simps 
+      using \<open>p_io p \<in> P\<close> \<open>io_target M (p_io p) (initial M) = q\<close>
+      by blast
+  qed
+
+  moreover have "(\<forall> q' \<in> nodes ?S . (q = q' \<or> \<not> deadlock_state ?S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h ?S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S)))"
+  proof 
+    fix q' assume "q' \<in> nodes ?S"
+    then obtain p' where "path ?S (initial ?S) p'" and "target p' (initial ?S) = q'"
+      by (metis (no_types, lifting) path_to_node)
+    
+    let ?ioq' = "p_io p'"
+
+    have "?ioq' \<in> L ?S" 
+      using \<open>path ?S (initial ?S) p'\<close> by auto
+    then have "?ioq' \<in> P" using \<open>L ?S = P\<close> by auto
+
+    have "path M (initial M) p'"
+      using submachine_path[OF \<open>is_submachine ?S M\<close>] \<open>path ?S (initial ?S) p'\<close> by auto
+    moreover have "target p' (initial M) = q'"
+      using \<open>target p' (initial ?S) = q'\<close> \<open>is_submachine ?S M\<close> by auto
+    ultimately have "io_target M ?ioq' (initial M) = q'"
+      by (metis (mono_tags, lifting) assms(1) observable_path_io_target)
+
+    have "(q = q' \<or> \<not> deadlock_state ?S q')"  
+    proof (cases "q = q'")
+      case True
+      then show ?thesis by auto
+    next
+      case False
+      then have "io_target M ?ioq' (initial M) \<noteq> q"
+        using \<open>io_target M ?ioq' (initial M) = q'\<close> by auto
+      then obtain xys' where "xys'\<in>P" and "length ?ioq' < length xys'" and "take (length ?ioq') xys' = ?ioq'"
+        using assms(2) unfolding is_preamble_set.simps using \<open>?ioq' \<in> P\<close> by blast
+      let ?xy' = "hd (drop (length ?ioq') xys')"
+      have "?ioq'@[?xy']@(tl (drop (length ?ioq') xys')) \<in> P"
+        using \<open>xys'\<in>P\<close> \<open>take (length ?ioq') xys' = ?ioq'\<close> \<open>length ?ioq' < length xys'\<close>
+        by (metis (no_types, lifting) append_Cons append_Nil append_take_drop_id drop_eq_Nil hd_Cons_tl leD) 
+      then have "?ioq'@[?xy'] \<in> P"
+        using assms(2) unfolding is_preamble_set.simps by (metis (mono_tags, lifting) append_assoc) 
+      then have "?ioq'@[?xy'] \<in> L ?S" using \<open>L ?S = P\<close> by auto
+      then obtain p'' where "path ?S (initial ?S) p''" and "p_io p'' = ?ioq'@[?xy']" 
+        by auto
+      let ?hp'' = "butlast p''"
+      let ?t'' = "last p''"
+      have "p_io ?hp'' = ?ioq'"
+        using \<open>p_io p'' = ?ioq'@[?xy']\<close> by (simp add: map_butlast) 
+      then have "?hp'' = p'"
+      proof - (* TODO: refactor auto-generated code *)
+        have "path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (initial M) p''"
+          using \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p''\<close> by auto
+        then have "\<forall>f. path f (initial M) p'' \<or> \<not> is_submachine (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) f"
+          by (meson submachine_path)
+        then have f1: "path M (initial M) p''"
+          using transition_filter_submachine by blast
+        have "p'' \<noteq> []"
+          using \<open>p_io p'' = p_io p' @ [hd (drop (length (p_io p')) xys')]\<close> by force
+        then show ?thesis
+          using f1 by (metis (no_types) \<open>observable M\<close> \<open>p_io (butlast p'') = p_io p'\<close> \<open>path M (initial M) p'\<close> append_butlast_last_id observable_path_unique path_prefix)
+      qed
+
+      obtain t where "t \<in> h ?S" and "t_source t = q'" and "t_input t = fst ?xy'" and "t_output t = snd ?xy'"
+      proof -
+        assume a1: "\<And>t. \<lbrakk>t \<in> h (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>); t_source t = q'; t_input t = fst (hd (drop (length (p_io p')) xys')); t_output t = snd (hd (drop (length (p_io p')) xys'))\<rbrakk> \<Longrightarrow> thesis"
+        have f2: "\<forall>f fa. is_submachine (f::('a, 'b) FSM_scheme) fa = (initial f = initial fa \<and> h f \<subseteq> h fa \<and> inputs f = inputs fa \<and> outputs f = outputs fa)"
+          using is_submachine.simps by blast
+        have f3: "p'' \<noteq> []"
+          using \<open>p_io p'' = p_io p' @ [hd (drop (length (p_io p')) xys')]\<close> by force
+        then have "p' @ [last p''] = p''"
+          using \<open>butlast p'' = p'\<close> append_butlast_last_id by blast
+        then have "path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (initial M) (p' @ [last p''])"
+          using f2 \<open>is_submachine (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) M\<close> \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p''\<close> by presburger
+        then have f4: "path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) q' [last p'']"
+          using \<open>target p' (initial M) = q'\<close> by force
+        have "\<forall>f a ps. \<not> path (f::('a, 'b) FSM_scheme) a ps \<or> set ps \<subseteq> h f"
+          by (meson path_h)
+        then have f5: "last p'' \<in> h (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)"
+          using f3 \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) p''\<close> last_in_set by blast
+        have f6: "\<forall>ps f. ps = [] \<or> last (map f ps) = (f (last ps::'a \<times> integer \<times> integer \<times> 'a)::integer \<times> integer)"
+          by (meson last_map)
+        then have "last (p_io p'') = (t_input (last p''), t_output (last p''))"
+          using f3 by blast
+        then have f7: "t_input (last p'') = fst (hd (drop (length (p_io p')) xys'))"
+          by (simp add: \<open>p_io p'' = p_io p' @ [hd (drop (length (p_io p')) xys')]\<close>)
+        have "(t_input (last p''), t_output (last p'')) = last (p_io p'')"
+          using f6 f3 by fastforce
+        then have "(t_input (last p''), t_output (last p'')) = hd (drop (length (p_io p')) xys')"
+          by (simp add: \<open>p_io p'' = p_io p' @ [hd (drop (length (p_io p')) xys')]\<close>)
+        then have "t_output (last p'') = snd (hd (drop (length (p_io p')) xys'))"
+          by (metis (no_types) snd_conv)
+        then show ?thesis
+          using f7 f5 f4 a1 by blast
+      qed
+
+      then have "\<not> deadlock_state ?S q'"
+        unfolding deadlock_state.simps by blast
+
+      then show ?thesis by auto
+    qed
+
+    moreover have "(\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h ?S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S))"
+    proof 
+      fix x assume "x \<in> set (inputs M)"
+      show "(\<exists> t \<in> h ?S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S)"
+      proof 
+        assume "(\<exists> t \<in> h ?S . t_source t = q' \<and> t_input t = x)"
+        then obtain t where "t \<in> h ?S" and "t_source t = q'" and "t_input t = x" by blast
+        then have "path ?S (initial ?S) (p'@[t])" 
+          using \<open>path ?S (initial ?S) p'\<close> \<open>target p' (initial M) = q'\<close> by fastforce
+        moreover have "p_io (p'@[t]) = ?ioq'@[(x,t_output t)]"
+          using \<open>t_input t = x\<close> by auto
+        ultimately have "?ioq'@[(x,t_output t)] \<in> L ?S"
+        proof -
+          have "\<exists>ps. p_io (p' @ [t]) = p_io ps \<and> path (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>p. \<exists>ps pa. ps @ [pa] \<in> P \<and> t_source p = io_target M ps (initial M) \<and> t_input p = fst pa \<and> t_output p = snd pa) (transitions M)\<rparr>)) ps"
+            by (metis (lifting) \<open>path (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) (initial (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)) (p' @ [t])\<close>)
+          then show ?thesis
+            using \<open>p_io (p' @ [t]) = p_io p' @ [(x, t_output t)]\<close> by auto
+        qed
+        then have "?ioq'@[(x,t_output t)] \<in> P"
+          using \<open>L ?S = P\<close> by auto
+          
+        have "\<And> t' . t' \<in> h M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> h ?S"
+        proof -
+          fix t' assume "t' \<in> h M" and "t_source t' = q'" and "t_input t' = x" 
+          then have "path M q' [t']" by auto
+          then have "[(x, t_output t')] \<in> LS M q'"
+            using \<open>t_input t' = x\<close> by force 
+          then have "[(fst (x,t_output t), t_output t')] \<in> LS M (io_target M ?ioq' (initial M))"
+            using \<open>io_target M ?ioq' (initial M) = q'\<close> by auto
+          then have "?ioq'@[(x, t_output t')] \<in> P"
+            using \<open>?ioq'@[(x,t_output t)] \<in> P\<close> assms(2) unfolding is_preamble_set.simps
+            by (metis (no_types, lifting) fst_conv) 
+
+          have "?is_preamble_transition t'"
+            using \<open>io_target M (p_io p') (initial M) = q'\<close> \<open>p_io p' @ [(x, t_output t')] \<in> P\<close> \<open>t_input t' = x\<close> \<open>t_source t' = q'\<close> by auto
+
+          have "t_source t' \<in> nodes ?S"
+            using \<open>q' \<in> nodes (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>)\<close> \<open>t_source t' = q'\<close> by fastforce
+
+
+          then show "t' \<in> h ?S"
+            using transition_filter_state_transitions[OF _ \<open>t' \<in> h M\<close>, of ?is_preamble_transition, OF _ \<open>?is_preamble_transition t'\<close>] by blast
+        qed
+        then show "(\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S)" by blast
+      qed
+    qed
+
+    ultimately show "(q = q' \<or> \<not> deadlock_state ?S q') \<and> (\<forall> x \<in> set (inputs M) . (\<exists> t \<in> h ?S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> h ?S))"
+      by blast
+  qed
+
+  ultimately have "is_preamble ?S M q" 
+    unfolding is_preamble.simps by blast
+  then show ?thesis 
+    using \<open>L ?S = P\<close> by blast
+qed
+
+
+
 
 end

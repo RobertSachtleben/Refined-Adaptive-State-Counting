@@ -1037,6 +1037,9 @@ proof -
     by force 
 qed
 
+lemma language_contains_empty_sequence : "[] \<in> L M" by auto
+  
+
 
 subsection \<open> Basic FSM properties \<close>
 
