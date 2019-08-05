@@ -170,6 +170,130 @@ lemma concat_replicate_length : "length (concat (replicate n xs)) = n * (length 
   by (induction n; simp)
 
 
+subsection \<open>Enumerating List Subsets\<close>
+
+fun generate_selector_lists :: "nat \<Rightarrow> bool list list" where
+  "generate_selector_lists k = lists_of_length [False,True] k"
+  
+
+value "generate_selector_lists 4"
+
+lemma generate_selector_lists_set : "set (generate_selector_lists k) = {(bs :: bool list) . length bs = k}"
+  using lists_of_length_list_set by auto 
+
+lemma selector_list_index_set:
+  assumes "length ms = length bs"
+  shows "set (map fst (filter snd (zip ms bs))) = { ms ! i | i . i < length bs \<and> bs ! i}"
+using assms proof (induction bs arbitrary: ms rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc b bs)
+  let ?ms = "butlast ms"
+  let ?m = "last ms"
+
+  have "length ?ms = length bs" using snoc.prems by auto
+
+  have "map fst (filter snd (zip ms (bs @ [b]))) = (map fst (filter snd (zip ?ms bs))) @ (map fst (filter snd (zip [?m] [b])))"
+    by (metis \<open>length (butlast ms) = length bs\<close> append_eq_conv_conj filter_append length_0_conv map_append snoc.prems snoc_eq_iff_butlast zip_append2)
+  then have *: "set (map fst (filter snd (zip ms (bs @ [b])))) = set (map fst (filter snd (zip ?ms bs))) \<union> set (map fst (filter snd (zip [?m] [b])))"
+    by simp
+    
+
+  have "{ms ! i |i. i < length (bs @ [b]) \<and> (bs @ [b]) ! i} = {ms ! i |i. i \<le> (length bs) \<and> (bs @ [b]) ! i}"
+    by auto
+  moreover have "{ms ! i |i. i \<le> (length bs) \<and> (bs @ [b]) ! i} = {ms ! i |i. i < length bs \<and> (bs @ [b]) ! i} \<union> {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+    by fastforce
+  moreover have "{ms ! i |i. i < length bs \<and> (bs @ [b]) ! i} = {?ms ! i |i. i < length bs \<and> bs ! i}"
+    using \<open>length ?ms = length bs\<close> by (metis butlast_snoc nth_butlast)  
+  ultimately have **: "{ms ! i |i. i < length (bs @ [b]) \<and> (bs @ [b]) ! i} = {?ms ! i |i. i < length bs \<and> bs ! i} \<union> {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+    by simp
+  
+
+  have "set (map fst (filter snd (zip [?m] [b]))) = {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+  proof (cases b)
+    case True
+    then have "set (map fst (filter snd (zip [?m] [b]))) = {?m}" by fastforce
+    moreover have "{ms ! i |i. i = length bs \<and> (bs @ [b]) ! i} = {?m}" 
+    proof -
+      have "(bs @ [b]) ! length bs"
+        by (simp add: True) 
+      moreover have "ms ! length bs = ?m"
+        by (metis last_conv_nth length_0_conv length_butlast snoc.prems snoc_eq_iff_butlast) 
+      ultimately show ?thesis by fastforce
+    qed
+    ultimately show ?thesis by auto
+  next
+    case False
+    then show ?thesis by auto
+  qed
+
+  then have "set (map fst (filter snd (zip (butlast ms) bs))) \<union> set (map fst (filter snd (zip [?m] [b])))
+             = {butlast ms ! i |i. i < length bs \<and> bs ! i} \<union> {ms ! i |i. i = length bs \<and> (bs @ [b]) ! i}"
+    using snoc.IH[OF \<open>length ?ms = length bs\<close>] by blast
+
+  then show ?case using * **
+    by simp 
+qed
+
+lemma selector_list_ex :
+  assumes "set xs \<subseteq> set ms"
+  shows "\<exists> bs . length bs = length ms \<and> set xs = set (map fst (filter snd (zip ms bs)))"
+using assms proof (induction xs rule: rev_induct)
+  case Nil
+  let ?bs = "replicate (length ms) False"
+  have "set [] = set (map fst (filter snd (zip ms ?bs)))"
+    by (metis filter_False in_set_zip length_replicate list.simps(8) nth_replicate)
+  moreover have "length ?bs = length ms" by auto
+  ultimately show ?case by blast
+next
+  case (snoc a xs)
+  then have "set xs \<subseteq> set ms" and "a \<in> set ms" by auto
+  then obtain bs where "length bs = length ms" and "set xs = set (map fst (filter snd (zip ms bs)))" using snoc.IH by auto
+
+  from \<open>a \<in> set ms\<close> obtain i where "i < length ms" and "ms ! i = a"
+    by (meson in_set_conv_nth) 
+
+  let ?bs = "list_update bs i True"
+  have "length ms = length ?bs" using \<open>length bs = length ms\<close> by auto
+  have "length ?bs = length bs" by auto
+
+  have "set (map fst (filter snd (zip ms ?bs))) = {ms ! i |i. i < length ?bs \<and> ?bs ! i}"
+    using selector_list_index_set[OF \<open>length ms = length ?bs\<close>] by assumption
+
+  have "\<And> j . j < length ?bs \<Longrightarrow> j \<noteq> i \<Longrightarrow> ?bs ! j = bs ! j"
+    by auto
+  then have "{ms ! j |j. j < length bs \<and> j \<noteq> i \<and> bs ! j} = {ms ! j |j. j < length ?bs \<and> j \<noteq> i \<and> ?bs ! j}"
+    using \<open>length ?bs = length bs\<close> by fastforce
+  
+  
+  
+  have "{ms ! j |j. j < length ?bs \<and> j = i \<and> ?bs ! j} = {a}"
+    using \<open>length bs = length ms\<close> \<open>i < length ms\<close> \<open>ms ! i = a\<close> by auto
+  then have "{ms ! i |i. i < length ?bs \<and> ?bs ! i} = insert a {ms ! j |j. j < length ?bs \<and> j \<noteq> i \<and> ?bs ! j}"
+    by fastforce
+  
+
+  have "{ms ! j |j. j < length bs \<and> j = i \<and> bs ! j} \<subseteq> {ms ! j |j. j < length ?bs \<and> j = i \<and> ?bs ! j}"
+    by (simp add: Collect_mono)
+  then have "{ms ! j |j. j < length bs \<and> j = i \<and> bs ! j} \<subseteq> {a}"
+    using \<open>{ms ! j |j. j < length ?bs \<and> j = i \<and> ?bs ! j} = {a}\<close> by auto
+  moreover have "{ms ! j |j. j < length bs \<and> bs ! j} = {ms ! j |j. j < length bs \<and> j = i \<and> bs ! j} \<union> {ms ! j |j. j < length bs \<and> j \<noteq> i \<and> bs ! j}"
+    by fastforce
+
+  ultimately have "{ms ! i |i. i < length ?bs \<and> ?bs ! i} = insert a {ms ! i |i. i < length bs \<and> bs ! i}"
+    using \<open>{ms ! j |j. j < length bs \<and> j \<noteq> i \<and> bs ! j} = {ms ! j |j. j < length ?bs \<and> j \<noteq> i \<and> ?bs ! j}\<close>
+    using \<open>{ms ! ia |ia. ia < length (bs[i := True]) \<and> bs[i := True] ! ia} = insert a {ms ! j |j. j < length (bs[i := True]) \<and> j \<noteq> i \<and> bs[i := True] ! j}\<close> by auto 
+
+  moreover have "set (map fst (filter snd (zip ms bs))) = {ms ! i |i. i < length bs \<and> bs ! i}"
+    using selector_list_index_set[of ms bs] \<open>length bs = length ms\<close> by auto
+
+  ultimately have "set (a#xs) = set (map fst (filter snd (zip ms ?bs)))"
+    using \<open>set (map fst (filter snd (zip ms ?bs))) = {ms ! i |i. i < length ?bs \<and> ?bs ! i}\<close> \<open>set xs = set (map fst (filter snd (zip ms bs)))\<close> by auto
+  then show ?case
+    using \<open>length ms = length ?bs\<close>
+    by (metis Un_commute insert_def list.set(1) list.simps(15) set_append singleton_conv) 
+qed
 
 
 subsection \<open>Other Lemmata\<close>
@@ -213,5 +337,12 @@ proof -
     using f_def by (simp add: assms(1)) 
   then show ?thesis by blast
 qed
+
+fun list_max :: "nat list \<Rightarrow> nat" where
+  "list_max [] = 0" |
+  "list_max xs = Max (set xs)"
+
+lemma list_max_is_max : "q \<in> set xs \<Longrightarrow> q \<le> list_max xs"
+  by (metis List.finite_set Max_ge length_greater_0_conv length_pos_if_in_set list_max.elims) 
 
 end

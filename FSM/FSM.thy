@@ -1039,6 +1039,70 @@ qed
 
 lemma language_contains_empty_sequence : "[] \<in> L M" by auto
   
+(* TODO: rename *)
+lemma language_contains_code : "(io \<in> L M) = (io \<in> (set (map p_io (paths_up_to_length M (initial M) (length io)))))"
+proof -
+  have "io \<in> L M \<Longrightarrow> \<exists>p. io = p_io p \<and> path M (initial M) p \<and> length p \<le> length io"
+  proof -
+    assume "io \<in> L M"
+    then obtain p where "io = p_io p" and "path M (initial M) p" by auto
+    then have "length p = length io" by auto
+    show "\<exists>p. io = p_io p \<and> path M (initial M) p \<and> length p \<le> length io"
+      using \<open>io = p_io p\<close> \<open>length p = length io\<close> \<open>path M (initial M) p\<close> eq_refl by blast      
+  qed
+  then have "(io \<in> L M) = (io \<in> image p_io {p . path M (initial M) p \<and> length p \<le> length io})"
+    unfolding LS.simps by blast
+  then show ?thesis 
+    using paths_up_to_length_path_set[OF nodes.initial[of M], of "length io"] by simp 
+qed
+
+lemma language_subset_code : "((set P) \<subseteq> L M) = ((set P) \<subseteq> (set (map p_io (paths_up_to_length M (initial M) (list_max (map length P))))))"
+proof -
+  have "\<And>x. x \<in> set P \<Longrightarrow> x \<in> L M \<Longrightarrow> \<exists>p. x = p_io p \<and> path M (initial M) p \<and> length p \<le> list_max (map length P)"
+  proof -
+    fix x assume "x \<in> set P" and "x \<in> L M"
+    then obtain p where "x = p_io p" and "path M (initial M) p" by auto
+    then have "length p = length x" by auto
+    moreover have "length x \<in> set (map length P)"
+      using \<open>x \<in> set P\<close> by auto
+    ultimately have "length p \<le> list_max (map length P)" 
+      using list_max_is_max by auto
+    show "\<exists>p. x = p_io p \<and> path M (initial M) p \<and> length p \<le> list_max (map length P)"
+      using \<open>length p \<le> list_max (map length P)\<close> \<open>path M (initial M) p\<close> \<open>x = p_io p\<close> by auto 
+  qed
+
+  then have "((set P) \<subseteq> L M) = ((set P) \<subseteq> image p_io {p . path M (initial M) p \<and> length p \<le> (list_max (map length P))})"
+    unfolding LS.simps by blast
+  then show ?thesis 
+    using paths_up_to_length_path_set[OF nodes.initial[of M], of "list_max (map length P)"] by simp 
+qed
+
+
+
+
+fun language_up_to_length :: "('a, 'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list" where
+  "language_up_to_length M k = map p_io (paths_up_to_length M (initial M) k)"
+
+lemma language_up_to_length_set : "set (language_up_to_length M k) = { io \<in> L M . length io \<le> k }"
+  using paths_up_to_length_path_set[OF nodes.initial[of M], of k] unfolding LS.simps language_up_to_length.simps by auto
+
+lemma language_up_to_length_finite_language_fixpoint :
+  assumes "language_up_to_length S (Suc n) = language_up_to_length S n"
+  shows "L S = set (language_up_to_length S n)"
+proof (rule ccontr)
+  assume "L S \<noteq> set (language_up_to_length S n)"
+  then obtain io where "io \<in> L S" and "io \<notin> set (language_up_to_length S n)" using language_up_to_length_set by blast
+  then have "length io > n"
+    using language_up_to_length_set leI by blast 
+  then have "take (Suc n) io \<in> L S"
+    by (metis \<open>io \<in> L S\<close> append_take_drop_id language_prefix)
+  then have "take (Suc n) io \<in> set (language_up_to_length S (Suc n))"
+    by (metis (no_types, lifting) Suc_leI \<open>n < length io\<close> language_contains_code language_up_to_length.simps length_take min.absorb2) 
+  moreover have "take (Suc n) io \<notin> set (language_up_to_length S n)"
+    by (metis (no_types, lifting) \<open>n < length io\<close> language_up_to_length_set length_take less_eq_Suc_le less_not_refl2 mem_Collect_eq min.absorb2)
+  ultimately show "False" using assms by metis
+qed
+
 
 
 subsection \<open> Basic FSM properties \<close>
@@ -2232,5 +2296,147 @@ proof -
   
   ultimately show ?thesis by blast
 qed
+
+
+subsection \<open>Generating Submachines\<close>
+
+lemma nodes_from_transition_targets :
+  "nodes M \<subseteq> insert (initial M) (set (map t_target (transitions M)))"
+proof -
+  have "nodes M \<subseteq> insert (initial M) (set (map t_target (wf_transitions M)))"
+    using image_iff nodes_initial_or_target by fastforce
+  moreover have "(set (map t_target (wf_transitions M))) \<subseteq> (set (map t_target (transitions M)))"
+    by auto
+  ultimately show ?thesis by blast
+qed
+
+(* TODO: move *)
+lemma h_equality :
+  assumes "initial A = initial B"
+      and "inputs A = inputs B"
+      and "outputs A = outputs B"
+      and "set (transitions A) = set (transitions B)"
+    shows "h A = h B"
+proof -
+  have "\<And> p . path A (initial A) p = path B (initial B) p"
+  proof -
+    fix p 
+    show "path A (initial A) p = path B (initial B) p"
+      using assms proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case
+        by blast 
+    next
+      case (snoc t p)
+      then have "path A (initial A) p = path B (initial B) p" by auto
+      then show ?case using assms
+        by (metis path_append_elim path_cons_elim path_equivalence_by_h path_target_is_node wf_transition_simp) 
+    qed
+  qed
+  then have "nodes A = nodes B"
+    using path_to_node
+    by (metis assms(1) path_target_is_node subsetI subset_antisym) 
+  then show "h A = h B"
+    using assms(2-4) by auto
+qed
+    
+  
+lemma h_equality' :
+  assumes "initial A = initial B"
+      and "inputs A = inputs B"
+      and "outputs A = outputs B"
+      and "h A = set (transitions B)"
+    shows "h A = h B"
+proof -
+  have "\<And> p . path A (initial A) p = path B (initial B) p"
+  proof -
+    fix p 
+    show "path A (initial A) p = path B (initial B) p"
+      using assms proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case
+        by blast 
+    next
+      case (snoc t p)
+      then have "path A (initial A) p = path B (initial B) p" by auto
+      then show ?case using assms
+        by (metis path_append_elim path_cons_elim path_equivalence_by_h path_target_is_node wf_transition_simp) 
+    qed
+  qed
+  then have "nodes A = nodes B"
+    using path_to_node
+    by (metis assms(1) path_target_is_node subsetI subset_antisym) 
+  then show "h A = h B"
+    using assms(2-4) by auto
+qed
+  
+    
+
+
+lemma submachine_by_transitions :
+  assumes "set ts \<subseteq> set (transitions M)"
+  shows "is_submachine (M\<lparr> transitions := ts \<rparr>) M"
+proof -
+  let ?M = "(M\<lparr> transitions := ts \<rparr>)"
+  let ?MF = "M\<lparr> transitions := filter (\<lambda> t . t \<in> set ts) (transitions M) \<rparr>"
+  
+  have "set (transitions ?M) = set (transitions ?MF)"
+    using assms by auto
+  have "h ?M = h ?MF"
+    using h_equality[OF _ _ _ \<open>set (transitions ?M) = set (transitions ?MF)\<close>] by auto
+  moreover have "is_submachine ?MF M"
+    using transition_filter_submachine by metis
+  ultimately show ?thesis by auto
+qed
+
+ 
+
+fun generate_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> bool list \<Rightarrow> ('a, 'b) FSM_scheme" where
+  "generate_submachine M bs = M\<lparr> transitions := map fst (filter snd (zip (transitions M) bs)) \<rparr>"
+
+lemma generate_submachine_is_submachine : "is_submachine (generate_submachine M bs) M" 
+proof -
+  have "\<And> x . x \<in> set (map fst (filter snd (zip (transitions M) bs))) \<Longrightarrow> x \<in> set (transitions M)"
+    by (metis (no_types, lifting) filter_eq_nths in_set_takeD map_fst_zip_take notin_set_nthsI nths_map)
+  then show ?thesis  
+    using generate_submachine.simps by (metis submachine_by_transitions subsetI) 
+qed
+
+fun generate_submachines :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme list" where
+  "generate_submachines M = map (generate_submachine M) (generate_selector_lists (length (transitions M)))"
+
+lemma generate_submachines_containment :
+  assumes "is_submachine S M"
+  shows "\<exists> S' \<in> set (generate_submachines M) . (h S = h S')"
+proof -
+  let ?ts = "filter (\<lambda> t . t \<in> h S) (transitions M)"
+  have "h S \<subseteq> set (transitions M)" using assms by auto
+  then have "h S = set ?ts" by auto
+  
+  have "set ?ts \<subseteq> set (transitions M)" by auto
+  then obtain bs where "length bs = length (transitions M)"  and "set ?ts = set (map fst (filter snd (zip (transitions M) bs)))"
+    using selector_list_ex[of "?ts" "transitions M"] by blast
+  then have "bs \<in> set (generate_selector_lists (length (transitions M)))"
+    using generate_selector_lists_set[of "length (transitions M)"] by blast
+  then have *: "generate_submachine M bs \<in> set (generate_submachines M)" 
+    by auto
+  
+  have "set ?ts = set (transitions (generate_submachine M bs))"
+    using \<open>set ?ts = set (map fst (filter snd (zip (transitions M) bs)))\<close> unfolding generate_submachine.simps by auto
+  then have "h S = set (transitions (generate_submachine M bs))"
+    using \<open>h S = set ?ts\<close> by auto
+
+  have **: "h S = h (generate_submachine M bs)"
+    using h_equality'[OF _ _ _ \<open>h S = set (transitions (generate_submachine M bs))\<close>] assms by auto
+
+  show ?thesis using * ** by blast
+qed
+
+lemma generate_submachines_are_submachines :
+  assumes "S \<in> set (generate_submachines M)"
+  shows "is_submachine S M"
+  using assms generate_submachine_is_submachine[of M] unfolding generate_submachines.simps by fastforce
+
+value "generate_submachines M_ex"
 
 end
