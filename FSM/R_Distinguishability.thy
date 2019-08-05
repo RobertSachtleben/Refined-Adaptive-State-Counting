@@ -796,42 +796,70 @@ proof
       by blast 
   qed    
 
-(*
-
- let ?tp = "{(t1,t2) | t1 t2 . t1 \<in> h (from_FSM M q1) \<and>
-                                         t2 \<in> h (from_FSM M q2) \<and>
-                                         t_source t1 = (fst q) \<and>
-                                         t_source t2 = (snd q) \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 }"
   
-          have "finite ?tp"
-          proof -
-            have "finite (h (from_FSM M q1))" by auto
-            moreover have "finite (h (from_FSM M q2))" by auto
-            ultimately have "finite ((h (from_FSM M q1)) \<times> (h (from_FSM M q2)))" by auto
-            moreover have "?tp \<subseteq> ((h (from_FSM M q1)) \<times> (h (from_FSM M q2)))" by blast
-            ultimately  show ?thesis by (simp add: finite_subset) 
-          qed
 
-          have k_ex : "\<forall> t \<in> ?tp . \<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'"
-          proof 
-            fix t assume "t \<in> ?tp"
-  
-            let ?t1 = "fst t"
-            let ?t2 = "snd t"
-            from \<open>t \<in> ?tp\<close> have "?t1 \<in> (h (from_FSM M q1)) \<and>
-                                 ?t2 \<in> (h (from_FSM M q2)) \<and>
-                                 t_source ?t1 = (fst q) \<and>
-                                 t_source ?t2 = (snd q) \<and> t_input ?t1 = x \<and> t_input ?t2 = x \<and> t_output ?t1 = t_output ?t2" by auto
-            then obtain k where "r_distinguishable_k M (t_target ?t1) (t_target ?t2) k"
-              using False * by blast
-            then have "\<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target ?t1) (t_target ?t2) k'"
-              using nat_induct_at_least by fastforce
-            then show "\<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (t_target (fst t)) (t_target (snd t)) k'" by auto
-          qed
+  show "\<exists>k. r_distinguishable_k M q1 q2 k \<Longrightarrow> r_distinguishable M q1 q2"
+  proof (rule ccontr)
+    assume *: "\<not> r_distinguishable M q1 q2"
+    assume **: "\<exists>k. r_distinguishable_k M q1 q2 k"        
+    then obtain k where "r_distinguishable_k M q1 q2 k" by auto
+    then show "False"
+    using * assms proof (induction k arbitrary: q1 q2)
+      case 0
+      then obtain S where "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+                      and "completely_specified S"
+        by (meson r_compatible_def)      
+      then have "completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2)))"
+        using complete_submachine_initial by metis
+      then show "False" using r_distinguishable_k_0_not_completely_specified[OF "0.prems"(1)] by metis
+    next
+      case (Suc k)
+      then show "False" 
+      proof (cases "r_distinguishable_k M q1 q2 k")
+        case True
+        then show ?thesis 
+          using Suc.IH Suc.prems by blast 
+      next
+        case False
+        then obtain x where "x \<in> set (inputs M)"
+                        and "\<forall>y q1' q2'. (q1, x, y, q1') \<in> h M \<and> (q2, x, y, q2') \<in> h M \<longrightarrow> r_distinguishable_k M q1' q2' k"
+          using Suc.prems(1) by fastforce
 
-          have "\<exists> k . r_distinguishable_k M (fst q) (snd q) k"
-            using r_distinguishable_k.simps
+        from Suc obtain S where "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+                            and "completely_specified S"
+          by (meson r_compatible_def) 
 
-*)
+        have "x \<in> set (inputs (product (from_FSM M q1) (from_FSM M q2)))"
+          using \<open>x \<in> set (inputs M)\<close> by auto
+        then have "x \<in> set (inputs S)" 
+          using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
+          by (metis is_submachine.elims(2)) 
+
+        moreover have "initial S = (q1,q2)"
+          using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
+          by (metis from_FSM_product_initial is_submachine.elims(2)) 
+        ultimately obtain y q1' q2' where "((q1,q2),x,y,(q1',q2')) \<in> h S"
+          using \<open>completely_specified S\<close> using nodes.initial by fastforce 
+        then have "((q1,q2),x,y,(q1',q2')) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+          using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
+          using submachine_h by blast
+        then have "(q1, x, y, q1') \<in> h (from_FSM M q1)" and "(q2, x, y, q2') \<in> h (from_FSM M q2)" 
+          using product_transition[of q1 q2 x y q1' q2' "from_FSM M q1" "from_FSM M q2"] by presburger+
+        
+        then have "(q1, x, y, q1') \<in> h M" and "(q2, x, y, q2') \<in> h M" 
+          using from_FSM_h[OF Suc.prems(3)] from_FSM_h[OF Suc.prems(4)] by blast+
+        then have "r_distinguishable_k M q1' q2' k" 
+          using \<open>\<forall>y q1' q2'. (q1, x, y, q1') \<in> h M \<and> (q2, x, y, q2') \<in> h M \<longrightarrow> r_distinguishable_k M q1' q2' k\<close> by blast
+        have "r_distinguishable M q1' q2'"
+          using Suc.IH[OF \<open>r_distinguishable_k M q1' q2' k\<close>] wf_transition_target[OF \<open>(q1, x, y, q1') \<in> h M\<close>] wf_transition_target[OF \<open>(q2, x, y, q2') \<in> h M\<close>] by auto
+        moreover have "\<exists> S' . completely_specified S' \<and> is_submachine S' (product (from_FSM M q1') (from_FSM M q2'))"
+          using \<open>((q1,q2),x,y,(q1',q2')) \<in> h S\<close>
+          by (meson \<open>completely_specified S\<close> \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close> submachine_transition_complete_product_from submachine_transition_product_from) 
+
+        ultimately show "False" unfolding r_compatible_def by blast
+      qed
+    qed
+  qed
+qed
 
 end
