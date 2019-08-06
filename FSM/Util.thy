@@ -295,6 +295,224 @@ next
     by (metis Un_commute insert_def list.set(1) list.simps(15) set_append singleton_conv) 
 qed
 
+subsection \<open>Enumerating Choices from Lists of Lists\<close>
+
+
+fun generate_choices :: "('a \<times> ('b list)) list \<Rightarrow> ('a \<times> 'b option) list list" where
+  "generate_choices [] = [[]]" |
+  "generate_choices (xys#xyss) = concat (map (\<lambda> xy' . map (\<lambda> xys' . xy' # xys') (generate_choices xyss)) ((fst xys, None) # (map (\<lambda> y . (fst xys, Some y)) (snd xys))))"
+
+value "generate_choices [(0::nat,[0::nat,1,2])]"
+value "generate_choices [(0::nat,[0::nat,1]),(1,[10,20])]"
+
+lemma concat_map_hd_tl_elem: 
+  assumes "hd cs \<in> set P1"
+  and     "tl cs \<in> set P2"
+  and     "length cs > 0"
+shows "cs \<in> set (concat (map (\<lambda> xy' . map (\<lambda> xys' . xy' # xys') P2) P1))"
+proof -
+  have "hd cs # tl cs = cs" using assms(3) by auto
+  moreover have "hd cs # tl cs \<in> set (concat (map (\<lambda> xy' . map (\<lambda> xys' . xy' # xys') P2) P1))" using assms(1,2) by auto
+  ultimately show ?thesis by auto
+qed
+
+
+
+
+
+lemma generate_choices_hd_tl : "cs \<in> set (generate_choices (xys#xyss)) = (length cs = length (xys#xyss) \<and> fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) \<and> (tl cs \<in> set (generate_choices xyss)))"
+proof (induction xyss arbitrary: cs xys)
+  case Nil
+  have "(cs \<in> set (generate_choices [xys])) = (cs \<in> set ([(fst xys, None)] # map (\<lambda>y. [(fst xys, Some y)]) (snd xys)))" 
+    unfolding generate_choices.simps by auto
+  moreover have "(cs \<in> set ([(fst xys, None)] # map (\<lambda>y. [(fst xys, Some y)]) (snd xys))) \<Longrightarrow> (length cs = length [xys] \<and>
+     fst (hd cs) = fst xys \<and>
+     (snd (hd cs) = None \<or> snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)) \<and>
+     tl cs \<in> set (generate_choices []))"
+    by auto
+  moreover have "(length cs = length [xys] \<and>
+     fst (hd cs) = fst xys \<and>
+     (snd (hd cs) = None \<or> snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)) \<and>
+     tl cs \<in> set (generate_choices [])) \<Longrightarrow> (cs \<in> set ([(fst xys, None)] # map (\<lambda>y. [(fst xys, Some y)]) (snd xys)))"
+    unfolding generate_choices.simps(1)
+  proof -
+    assume a1: "length cs = length [xys] \<and> fst (hd cs) = fst xys \<and> (snd (hd cs) = None \<or> snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)) \<and> tl cs \<in> set [[]]"
+    have f2: "\<forall>ps. ps = [] \<or> ps = (hd ps::'a \<times> 'b option) # tl ps"
+      by (meson list.exhaust_sel)
+    have f3: "cs \<noteq> []"
+      using a1 by fastforce
+    have "snd (hd cs) = None \<longrightarrow> (fst xys, None) = hd cs"
+      using a1 by (metis prod.exhaust_sel)
+    moreover
+    { assume "hd cs # tl cs \<noteq> [(fst xys, Some (the (snd (hd cs))))]"
+      then have "snd (hd cs) = None"
+        using a1 by (metis (no_types) length_0_conv length_tl list.sel(3) option.collapse prod.exhaust_sel) }
+    ultimately have "cs \<in> insert [(fst xys, None)] ((\<lambda>b. [(fst xys, Some b)]) ` set (snd xys))"
+      using f3 f2 a1 by fastforce
+    then show ?thesis
+      by simp
+  qed 
+  ultimately show ?case by blast
+next
+  case (Cons a xyss)
+
+  have "length cs = length (xys#a#xyss) \<Longrightarrow> fst (hd cs) = fst xys \<Longrightarrow> (snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys))) \<Longrightarrow> (tl cs \<in> set (generate_choices (a#xyss))) \<Longrightarrow> cs \<in> set (generate_choices (xys#a#xyss)) "
+  proof -
+    assume "length cs = length (xys#a#xyss)" and "fst (hd cs) = fst xys" and "(snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))" and "(tl cs \<in> set (generate_choices (a#xyss)))"
+    then have "length cs > 0" by auto
+
+    have "(hd cs) \<in> set ((fst xys, None) # (map (\<lambda> y . (fst xys, Some y)) (snd xys)))"
+      using \<open>fst (hd cs) = fst xys\<close> \<open>(snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))\<close>
+      by (metis (no_types, lifting) image_eqI list.set_intros(1) list.set_intros(2) option.collapse prod.collapse set_map)  
+    
+    show "cs \<in> set (generate_choices ((xys#(a#xyss))))"
+      using generate_choices.simps(2)[of xys "a#xyss"] using concat_map_hd_tl_elem[OF \<open>(hd cs) \<in> set ((fst xys, None) # (map (\<lambda> y . (fst xys, Some y)) (snd xys)))\<close> \<open>(tl cs \<in> set (generate_choices (a#xyss)))\<close> \<open>length cs > 0\<close>] by auto
+  qed
+
+  moreover have "cs \<in> set (generate_choices (xys#a#xyss)) \<Longrightarrow> length cs = length (xys#a#xyss) \<and> fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) \<and> (tl cs \<in> set (generate_choices (a#xyss)))"
+  proof -
+    assume "cs \<in> set (generate_choices (xys#a#xyss))"
+    then have p3: "tl cs \<in> set (generate_choices (a#xyss))"
+      using generate_choices.simps(2)[of xys "a#xyss"] by fastforce
+    then have "length (tl cs) = length (a # xyss)" using Cons.IH[of "tl cs" "a"] by simp
+    then have p1: "length cs = length (xys#a#xyss)" by auto
+
+    have p2 : "fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys))))"
+      using \<open>cs \<in> set (generate_choices (xys#a#xyss))\<close> generate_choices.simps(2)[of xys "a#xyss"] by fastforce
+    
+    show ?thesis using p1 p2 p3 by simp
+  qed
+
+  ultimately show ?case by blast
+qed 
+
+lemma list_append_idx_prop : 
+  "(\<forall> i . (i < length xs \<longrightarrow> P (xs ! i))) = (\<forall> j . ((j < length (ys@xs) \<and> j \<ge> length ys) \<longrightarrow> P ((ys@xs) ! j)))"
+proof -
+  have "\<And> j . \<forall>i<length xs. P (xs ! i) \<Longrightarrow> j < length (ys @ xs) \<Longrightarrow> length ys \<le> j \<longrightarrow> P ((ys @ xs) ! j)"
+    by (simp add: nth_append)
+  moreover have "\<And> i . (\<forall> j . ((j < length (ys@xs) \<and> j \<ge> length ys) \<longrightarrow> P ((ys@xs) ! j))) \<Longrightarrow> i < length xs \<Longrightarrow> P (xs ! i)"
+  proof -
+    fix i assume "(\<forall> j . ((j < length (ys@xs) \<and> j \<ge> length ys) \<longrightarrow> P ((ys@xs) ! j)))" and "i < length xs"
+    then have "P ((ys@xs) ! (length ys + i))"
+      by (metis add_strict_left_mono le_add1 length_append)
+    moreover have "P (xs ! i) = P ((ys@xs) ! (length ys + i))"
+      by simp
+    ultimately show "P (xs ! i)" by blast
+  qed
+  ultimately show ?thesis by blast
+qed
+
+lemma list_append_idx_prop2 : 
+  assumes "length xs' = length xs"
+      and "length ys' = length ys"
+  shows "(\<forall> i . (i < length xs \<longrightarrow> P (xs ! i) (xs' ! i))) = (\<forall> j . ((j < length (ys@xs) \<and> j \<ge> length ys) \<longrightarrow> P ((ys@xs) ! j) ((ys'@xs') ! j)))"
+proof -
+
+  have "\<forall>i<length xs. P (xs ! i) (xs' ! i) \<Longrightarrow>
+    \<forall>j. j < length (ys @ xs) \<and> length ys \<le> j \<longrightarrow> P ((ys @ xs) ! j) ((ys' @ xs') ! j)"
+    using assms
+  proof -
+    assume a1: "\<forall>i<length xs. P (xs ! i) (xs' ! i)"
+    { fix nn :: nat
+      have ff1: "\<forall>n na. (na::nat) + n - n = na"
+        by simp
+      have ff2: "\<forall>n na. (na::nat) \<le> n + na"
+        by auto
+      then have ff3: "\<forall>as n. (ys' @ as) ! n = as ! (n - length ys) \<or> \<not> length ys \<le> n"
+        using ff1 by (metis (no_types) add.commute assms(2) eq_diff_iff nth_append_length_plus)
+      have ff4: "\<forall>n bs bsa. ((bsa @ bs) ! n::'b) = bs ! (n - length bsa) \<or> \<not> length bsa \<le> n"
+        using ff2 ff1 by (metis (no_types) add.commute eq_diff_iff nth_append_length_plus)
+      have "\<forall>n na nb. ((n::nat) + nb \<le> na \<or> \<not> n \<le> na - nb) \<or> \<not> nb \<le> na"
+        using ff2 ff1 by (metis le_diff_iff)
+      then have "(\<not> nn < length (ys @ xs) \<or> \<not> length ys \<le> nn) \<or> P ((ys @ xs) ! nn) ((ys' @ xs') ! nn)"
+        using ff4 ff3 a1 by (metis add.commute length_append not_le) }
+    then show ?thesis
+      by blast
+  qed
+
+  moreover have "(\<forall>j. j < length (ys @ xs) \<and> length ys \<le> j \<longrightarrow> P ((ys @ xs) ! j) ((ys' @ xs') ! j)) \<Longrightarrow>\<forall>i<length xs. P (xs ! i) (xs' ! i)"
+    using assms
+    by (metis le_add1 length_append nat_add_left_cancel_less nth_append_length_plus) 
+
+  ultimately show ?thesis by blast
+qed
+
+lemma generate_choices_idx : "cs \<in> set (generate_choices xyss) = (length cs = length xyss \<and> (\<forall> i < length cs . (fst (cs ! i)) = (fst (xyss ! i)) \<and> ((snd (cs ! i)) = None \<or> ((snd (cs ! i)) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd (xyss ! i))))))"
+proof (induction xyss arbitrary: cs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons xys xyss)
+
+
+
+  have "cs \<in> set (generate_choices (xys#xyss)) = (length cs = length (xys#xyss) \<and> fst (hd cs) = fst xys \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) \<and> (tl cs \<in> set (generate_choices xyss)))"
+    using generate_choices_hd_tl by metis
+
+  then have "cs \<in> set (generate_choices (xys#xyss)) 
+    = (length cs = length (xys#xyss) 
+      \<and> fst (hd cs) = fst xys 
+      \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) 
+      \<and> (length (tl cs) = length xyss \<and>
+        (\<forall>i<length (tl cs).
+          fst (tl cs ! i) = fst (xyss ! i) \<and>
+          (snd (tl cs ! i) = None \<or> snd (tl cs ! i) \<noteq> None \<and> the (snd (tl cs ! i)) \<in> set (snd (xyss ! i))))))"
+    using Cons.IH[of "tl cs"] by blast
+  then have *: "cs \<in> set (generate_choices (xys#xyss)) 
+    = (length cs = length (xys#xyss) 
+      \<and> fst (hd cs) = fst xys 
+      \<and> ((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys)))) 
+      \<and> (\<forall>i<length (tl cs).
+          fst (tl cs ! i) = fst (xyss ! i) \<and>
+          (snd (tl cs ! i) = None \<or> snd (tl cs ! i) \<noteq> None \<and> the (snd (tl cs ! i)) \<in> set (snd (xyss ! i)))))"
+    by auto
+
+
+  have "cs \<in> set (generate_choices (xys#xyss)) \<Longrightarrow> (length cs = length (xys # xyss) \<and>
+                    (\<forall>i<length cs.
+                        fst (cs ! i) = fst ((xys # xyss) ! i) \<and>
+                        (snd (cs ! i) = None \<or>
+                        snd (cs ! i) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd ((xys # xyss) ! i)))))"
+  proof -
+    assume "cs \<in> set (generate_choices (xys#xyss))"
+    then have p1: "length cs = length (xys#xyss)"
+          and p2: "fst (hd cs) = fst xys "
+          and p3: "((snd (hd cs) = None \<or> (snd (hd cs) \<noteq> None \<and> the (snd (hd cs)) \<in> set (snd xys))))"
+          and p4: "(\<forall>i<length (tl cs).
+                  fst (tl cs ! i) = fst (xyss ! i) \<and>
+                  (snd (tl cs ! i) = None \<or> snd (tl cs ! i) \<noteq> None \<and> the (snd (tl cs ! i)) \<in> set (snd (xyss ! i))))"
+      using * by blast+
+    then have "length xyss = length (tl cs)" and "length (xys # xyss) = length ([hd cs] @ tl cs)"
+      by auto
+    
+    have "[hd cs]@(tl cs) = cs"
+      by (metis (no_types) p1 append.left_neutral append_Cons length_greater_0_conv list.collapse list.simps(3)) 
+    then have p4b: "(\<forall>i<length cs. i > 0 \<longrightarrow>
+                    (fst (cs ! i) = fst ((xys#xyss) ! i) \<and>
+                      (snd (cs ! i) = None \<or> snd (cs ! i) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd ((xys#xyss) ! i)))))"
+      using p4 list_append_idx_prop2[of xyss "tl cs" "xys#xyss" "[hd cs]@(tl cs)" "\<lambda> x y . fst x = fst y \<and>
+                    (snd x = None \<or> snd x \<noteq> None \<and> the (snd x) \<in> set (snd y))", OF \<open>length xyss = length (tl cs)\<close> \<open>length (xys # xyss) = length ([hd cs] @ tl cs)\<close>]
+      by (metis (no_types, lifting) One_nat_def Suc_pred \<open>length (xys # xyss) = length ([hd cs] @ tl cs)\<close> \<open>length xyss = length (tl cs)\<close> length_Cons list.size(3) not_less_eq nth_Cons_pos nth_append) 
+
+    have p4a :"(fst (cs ! 0) = fst ((xys#xyss) ! 0) \<and> (snd (cs ! 0) = None \<or> snd (cs ! 0) \<noteq> None \<and> the (snd (cs ! 0)) \<in> set (snd ((xys#xyss) ! 0))))"
+      using p1 p2 p3 by (metis hd_conv_nth length_greater_0_conv list.simps(3) nth_Cons_0)
+
+    show ?thesis using p1 p4a p4b by fastforce
+  qed
+
+
+  moreover have "(length cs = length (xys # xyss) \<and>
+                    (\<forall>i<length cs.
+                        fst (cs ! i) = fst ((xys # xyss) ! i) \<and>
+                        (snd (cs ! i) = None \<or>
+                        snd (cs ! i) \<noteq> None \<and> the (snd (cs ! i)) \<in> set (snd ((xys # xyss) ! i))))) \<Longrightarrow> cs \<in> set (generate_choices (xys#xyss))"
+    using * 
+    by (metis (no_types, lifting) Nitpick.size_list_simp(2) Suc_mono hd_conv_nth length_greater_0_conv length_tl list.sel(3) list.simps(3) nth_Cons_0 nth_tl) 
+
+  ultimately show ?case by blast
+qed
+
 
 subsection \<open>Other Lemmata\<close>
 

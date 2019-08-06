@@ -2265,52 +2265,7 @@ proof -
 qed
 
 
-subsection \<open>Further Reachability Formalisations\<close>
 
-(* nodes that are reachable in at most k transitions *)
-fun reachable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a set" where
-  "reachable_k M q n = {target p q | p . path M q p \<and> length p \<le> n}" 
-
-
-lemma reachable_k_0_initial : "reachable_k M (initial M) 0 = {initial M}" 
-  by auto
-
-lemma reachable_k_nodes : "nodes M = reachable_k M (initial M) ( size M - 1)"
-proof -
-  have "\<And>q. q \<in> nodes M \<Longrightarrow> q \<in> reachable_k M (initial M) ( size M - 1)"
-  proof -
-    fix q assume "q \<in> nodes M"
-    then obtain p where "path M (initial M) p" and "target p (initial M) = q"
-      by (metis path_to_node) 
-    then obtain p' where "path M (initial M) p'"
-                     and "target p' (initial M) = target p (initial M)" 
-                     and "length p' < size M"
-      using distinct_path_length_limit_nodes[of "M" "initial M" p]
-      using distinct_path_length[of M "initial M" p] by auto
-    then show "q \<in> reachable_k M (initial M) ( size M - 1)"
-      using \<open>target p (initial M) = q\<close> list.size(3) mem_Collect_eq not_less_eq_eq reachable_k.simps by auto
-  qed
-
-  moreover have "\<And>x. x \<in> reachable_k M (initial M) ( size M - 1) \<Longrightarrow> x \<in> nodes M"
-    using nodes_path_initial by auto
-  
-  ultimately show ?thesis by blast
-qed
-
-
-subsection \<open>Generating Submachines\<close>
-
-lemma nodes_from_transition_targets :
-  "nodes M \<subseteq> insert (initial M) (set (map t_target (transitions M)))"
-proof -
-  have "nodes M \<subseteq> insert (initial M) (set (map t_target (wf_transitions M)))"
-    using image_iff nodes_initial_or_target by fastforce
-  moreover have "(set (map t_target (wf_transitions M))) \<subseteq> (set (map t_target (transitions M)))"
-    by auto
-  ultimately show ?thesis by blast
-qed
-
-(* TODO: move *)
 lemma h_equality :
   assumes "initial A = initial B"
       and "inputs A = inputs B"
@@ -2369,8 +2324,137 @@ proof -
   then show "h A = h B"
     using assms(2-4) by auto
 qed
+
+
+
+fun trim_transitions :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme" where
+  "trim_transitions M = M\<lparr> transitions := wf_transitions M\<rparr>"
+
+lemma trim_transitions_simps[simp]:
+    "initial (trim_transitions M) = initial M"
+    "inputs (trim_transitions M) = inputs M" 
+    "outputs (trim_transitions M) = outputs M"
+    "h (trim_transitions M) = h M"
+proof -
+  show "initial (trim_transitions M) = initial M" by auto
+  moreover show "inputs (trim_transitions M) = inputs M" by auto
+  moreover show "outputs (trim_transitions M) = outputs M" by auto
+  ultimately have "initial M = initial (trim_transitions M)"
+    and "inputs M = inputs (trim_transitions M)"
+    and "outputs M = outputs (trim_transitions M)"
+    and "set (wf_transitions M) = set (transitions (trim_transitions M))" by auto
   
+  then show "h (trim_transitions M) = h M" using h_equality'[of M "trim_transitions M"] by presburger
+qed
+
+lemma trim_transitions_paths : "path M q p = path (trim_transitions M) q p"
+  by (metis eq_iff h_equivalence_path h_subset_path_non_initial nodes.simps trim_transitions_simps(1) trim_transitions_simps(4))
+
+lemma trim_transitions_paths_initial : "path M (initial M) p = path (trim_transitions M) (initial (trim_transitions M)) p"
+  by (metis trim_transitions_paths trim_transitions_simps(1))
+
+lemma trim_transitions_language : "L M = L (trim_transitions M)"
+  using trim_transitions_paths_initial unfolding LS.simps by blast
+  
+lemma trim_transitions_nodes : "nodes M = nodes (trim_transitions M)"
+  using h_nodes[of M] h_nodes[of "trim_transitions M"] trim_transitions_simps(1)[of M] trim_transitions_simps(4)[of M] by presburger
+
+lemma trim_transitions_submachine : "is_submachine S M \<Longrightarrow> is_submachine (trim_transitions S) M"
+  unfolding trim_transitions.simps is_submachine.simps by auto
+
+lemma trim_transitions_single_input : "single_input S \<Longrightarrow> single_input (trim_transitions S)"
+  using trim_transitions_nodes[of S] trim_transitions_simps(4)[of S] unfolding trim_transitions.simps single_input.simps by blast
+
+lemma trim_transitions_acyclic : "acyclic S \<Longrightarrow> acyclic (trim_transitions S)"
+  using trim_transitions_paths[of S]  unfolding trim_transitions.simps acyclic.simps by simp
+
+lemma trim_transitions_deadlock_state_nodes : "deadlock_state S q = deadlock_state (trim_transitions S) q"
+  by (metis deadlock_state.simps trim_transitions_nodes trim_transitions_simps(4))
+
+lemma trim_transitions_t_source' : "t \<in> set (transitions (trim_transitions S)) \<Longrightarrow> t_source t \<in> nodes S"
+  unfolding trim_transitions.simps by auto
+
+lemma trim_transitions_t_source : "t \<in> set (transitions (trim_transitions S)) \<Longrightarrow> t_source t \<in> nodes (trim_transitions S)"
+  using trim_transitions_nodes[of S] trim_transitions_t_source'[of t S] by blast
+
+lemma trim_transitions_t_source_h : "t \<in> h (trim_transitions S) \<Longrightarrow> t_source t \<in> nodes (trim_transitions S)"
+  using trim_transitions_t_source[of t S] unfolding wf_transitions.simps by auto
+
+lemma trim_transitions_transitions : "h (trim_transitions S) = set (transitions (trim_transitions S))"
+  unfolding trim_transitions.simps 
+proof -
+  show "set (wf_transitions (S\<lparr>transitions := wf_transitions S\<rparr>)) = set (transitions (S\<lparr>transitions := wf_transitions S\<rparr>))"
+    by (metis (no_types) select_convs(4) surjective trim_transitions.simps trim_transitions_simps(4) update_convs(4))
+qed  
+
+lemma transitions_reorder :  
+  assumes     "initial S' = initial S"
+  and     "inputs S' = inputs S"
+  and     "outputs S' = outputs S"
+  and     "set (transitions S') = set (transitions S)"
+shows "h S' = h S"
+  and "path S' q p = path S q p"
+  and "nodes S' = nodes S"
+proof-
+  show "h S' = h S"
+    using h_equality[OF assms] by assumption
+
+  show "path S' q p = path S q p"
+    by (metis \<open>h S' = h S\<close> assms(1) h_subset_path h_subset_path_non_initial nodes.initial order_refl)
     
+  show "nodes S' = nodes S"
+  proof -
+    have "insert (initial S') {t_target p |p. p \<in> set (wf_transitions S)} = nodes S"
+      by (metis (no_types) assms(1) h_nodes)
+    then show ?thesis
+      by (metis \<open>set (wf_transitions S') = set (wf_transitions S)\<close> h_nodes)
+  qed
+qed
+
+subsection \<open>Further Reachability Formalisations\<close>
+
+(* nodes that are reachable in at most k transitions *)
+fun reachable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a set" where
+  "reachable_k M q n = {target p q | p . path M q p \<and> length p \<le> n}" 
+
+
+lemma reachable_k_0_initial : "reachable_k M (initial M) 0 = {initial M}" 
+  by auto
+
+lemma reachable_k_nodes : "nodes M = reachable_k M (initial M) ( size M - 1)"
+proof -
+  have "\<And>q. q \<in> nodes M \<Longrightarrow> q \<in> reachable_k M (initial M) ( size M - 1)"
+  proof -
+    fix q assume "q \<in> nodes M"
+    then obtain p where "path M (initial M) p" and "target p (initial M) = q"
+      by (metis path_to_node) 
+    then obtain p' where "path M (initial M) p'"
+                     and "target p' (initial M) = target p (initial M)" 
+                     and "length p' < size M"
+      using distinct_path_length_limit_nodes[of "M" "initial M" p]
+      using distinct_path_length[of M "initial M" p] by auto
+    then show "q \<in> reachable_k M (initial M) ( size M - 1)"
+      using \<open>target p (initial M) = q\<close> list.size(3) mem_Collect_eq not_less_eq_eq reachable_k.simps by auto
+  qed
+
+  moreover have "\<And>x. x \<in> reachable_k M (initial M) ( size M - 1) \<Longrightarrow> x \<in> nodes M"
+    using nodes_path_initial by auto
+  
+  ultimately show ?thesis by blast
+qed
+
+
+subsection \<open>Generating Submachines\<close>
+
+lemma nodes_from_transition_targets :
+  "nodes M \<subseteq> insert (initial M) (set (map t_target (transitions M)))"
+proof -
+  have "nodes M \<subseteq> insert (initial M) (set (map t_target (wf_transitions M)))"
+    using image_iff nodes_initial_or_target by fastforce
+  moreover have "(set (map t_target (wf_transitions M))) \<subseteq> (set (map t_target (transitions M)))"
+    by auto
+  ultimately show ?thesis by blast
+qed
 
 
 lemma submachine_by_transitions :
@@ -2389,7 +2473,7 @@ proof -
   ultimately show ?thesis by auto
 qed
 
- 
+subsubsection \<open>Generate all Submachines up to h-Equivalence\<close> 
 
 fun generate_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> bool list \<Rightarrow> ('a, 'b) FSM_scheme" where
   "generate_submachine M bs = M\<lparr> transitions := map fst (filter snd (zip (transitions M) bs)) \<rparr>"
@@ -2438,5 +2522,17 @@ lemma generate_submachines_are_submachines :
   using assms generate_submachine_is_submachine[of M] unfolding generate_submachines.simps by fastforce
 
 value "generate_submachines M_ex"
+
+
+
+
+
+subsubsection \<open>Generate all Single-Input Submachines up to h-Equivalence\<close> 
+
+fun generate_submachine_from_assignment :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> Input option) list \<Rightarrow> ('a, 'b) FSM_scheme" where
+  "generate_submachine_from_assignment M assn = M\<lparr> transitions := filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set assn) (wf_transitions M)\<rparr>"
+
+lemma generate_submachine_for_contained_assn: "assn \<in> set assns \<Longrightarrow> generate_submachine_from_assignment CSep assn \<in> set (map (\<lambda> assn . generate_submachine_from_assignment CSep assn) assns)"
+    by simp
 
 end
