@@ -453,9 +453,8 @@ qed
 
 (* TODO: move *)
 
-lemma acyclic_induction [consumes 1, case_names deadlock non_deadlock]:
+lemma acyclic_induction [consumes 1, case_names node]:
   assumes "acyclic M"
-      and "\<And> q . q \<in> nodes M \<Longrightarrow> deadlock_state M q \<Longrightarrow> P q"
       and "\<And> q . q \<in> nodes M \<Longrightarrow> (\<forall> t \<in> h M . ((t_source t = q) \<longrightarrow> P (t_target t))) \<Longrightarrow> P q"
     shows "\<forall> q \<in> nodes M . P q"
 proof 
@@ -474,7 +473,7 @@ proof
       then have "{p . path M q p} = {[]}" by blast 
       then have "LS M q \<subseteq> {[]}" unfolding LS.simps by blast
       then have "deadlock_state M q" using deadlock_state_alt_def by metis
-      then show ?case using \<open>q \<in> nodes M\<close> assms(2) by metis
+      then show ?case using assms(2)[OF \<open>q \<in> nodes M\<close>] unfolding deadlock_state.simps by blast
     next
       case (Suc k)
       have "\<And> t . t \<in> h M \<Longrightarrow> (t_source t = q) \<Longrightarrow> P (t_target t)"
@@ -487,7 +486,7 @@ proof
         ultimately show "P (t_target t)" 
           using Suc.IH by auto
       qed
-      then show ?case using assms(3)[OF Suc.prems(1)] by blast
+      then show ?case using assms(2)[OF Suc.prems(1)] by blast
     qed
   qed
 
@@ -495,30 +494,238 @@ proof
 qed
 
 
-      
+(* TODO: move *)
+
+abbreviation(input) "shift_h \<equiv> (\<lambda> t . (Inl (t_source t), t_input t, t_output t, Inl (t_target t)))"
+
 lemma x :
-  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-      and "path S (Inl (q1',q2')) p"
-      and "target p (Inl (q1',q2')) = Inr q1 \<or> target p (Inl (q1',q2')) = Inr q2"
-      and "q1 \<in> nodes M" 
-      and "q2 \<in> nodes M"
-    shows "\<exists> k . r_distinguishable_k M q1' q2' k" 
-using assms proof(induction p arbitrary: q1' q2' )
+  assumes "image shift_h (set (transitions M)) \<subseteq> set (transitions C)"
+      and "\<And> t . t \<in> set (transitions C) \<Longrightarrow> isl (t_target t) \<Longrightarrow> \<exists> t' \<in> set (transitions M) . t = (Inl (t_source t'), t_input t', t_output t', Inl (t_target t'))"
+      and "initial C = Inl (initial M)"
+      and "inputs C = inputs M"
+      and "outputs C = outputs M"
+    shows "path M (initial M) p = path C (initial C) (map shift_h p)"
+proof (induction p rule: rev_induct)
   case Nil
   then show ?case by auto
 next
-  case (Cons t p)
+  case (snoc t p)
+
+  have "path M (initial M) (p@[t]) \<Longrightarrow> path C (initial C) (map shift_h (p@[t]))"
+  proof -
+    assume "path M (initial M) (p@[t])"
+    then have "path M (initial M) p" by auto
+    then have "path C (initial C) (map shift_h p)" using snoc.IH by auto
+
+    have "t_source t = target p (initial M)"
+      using \<open>path M (initial M) (p@[t])\<close> by auto
+    then have "t_source (shift_h t) = target (map shift_h p) (Inl (initial M))"
+      by (cases p rule: rev_cases; auto)
+    then have "t_source (shift_h t) = target (map shift_h p) (initial C)"
+      using assms(3) by auto
+    moreover have "target (map shift_h p) (initial C) \<in> nodes C"
+      using path_target_is_node[OF \<open>path C (initial C) (map shift_h p)\<close>] by assumption
+    ultimately have "t_source (shift_h t) \<in> nodes C"
+      by auto
+    moreover have "t \<in> h M"
+      using \<open>path M (initial M) (p@[t])\<close> by auto
+    ultimately have "(shift_h t) \<in> h C"
+      using assms by auto
+
+    show "path C (initial C) (map shift_h (p@[t]))"
+      using path_append [OF \<open>path C (initial C) (map shift_h p)\<close>, of "[shift_h t]"]
+      using \<open>(shift_h t) \<in> h C\<close> \<open>t_source (shift_h t) = target (map shift_h p) (initial C)\<close>
+      using single_transition_path by force 
+  qed
+
+  moreover have "path C (initial C) (map shift_h (p@[t])) \<Longrightarrow> path M (initial M) (p@[t])" 
+  proof -
+    assume "path C (initial C) (map shift_h (p@[t]))"
+    then have "path C (initial C) (map shift_h p)" by auto
+    then have "path M (initial M) p" using snoc.IH by auto
+
+    have "t_source (shift_h t) = target (map shift_h p) (initial C)"
+      using \<open>path C (initial C) (map shift_h (p@[t]))\<close> by auto
+    then have "t_source (shift_h t) = target (map shift_h p) (Inl (initial M))"
+      using assms(3) by (cases p rule: rev_cases; auto)
+    then have "t_source t = target p (initial M)"
+      by (cases p rule: rev_cases; auto)
+    moreover have "target p (initial M) \<in> nodes M"
+      using path_target_is_node[OF \<open>path M (initial M) p\<close>] by assumption
+    ultimately have "t_source t \<in> nodes M"
+      by auto
+    moreover have "shift_h t \<in> h C"
+      using \<open>path C (initial C) (map shift_h (p@[t]))\<close> by auto
+    moreover have "isl (t_target (shift_h t))"
+      by auto
+    ultimately have "t \<in> h M"
+      using assms by fastforce 
+
+    show "path M (initial M) (p@[t])"
+      using path_append [OF \<open>path M (initial M) p\<close>, of "[t]"]
+            single_transition_path[OF \<open>t \<in> h M\<close>]
+            \<open>t_source t = target p (initial M)\<close> by auto
+  qed
+
+  ultimately show ?case
+    by linarith 
+qed
+
+
+
+lemma y : "image shift_h (set (transitions (product (from_FSM M q1) (from_FSM M q2)))) \<subseteq> set (transitions (canonical_separator M q1 q2))"
+proof -
+  let ?PM = "(product (from_FSM M q1) (from_FSM M q2))"
+  have "transitions (canonical_separator M q1 q2) = 
+          map shift_h (transitions ?PM) @
+          map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1))
+                      (filter
+                        (\<lambda>qqt. t_source (snd qqt) = fst (fst qqt) \<and>
+                               \<not> (\<exists>t'\<in>set (transitions M).
+                                      t_source t' = snd (fst qqt) \<and>
+                                      t_input t' = t_input (snd qqt) \<and>
+                                      t_output t' = t_output (snd qqt)))
+                        (concat
+                          (map (\<lambda>qq'. map (Pair qq') (transitions M))
+                            (nodes_from_distinct_paths ?PM)))) @
+                     map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2))
+                      (filter
+                        (\<lambda>qqt. t_source (snd qqt) = snd (fst qqt) \<and>
+                               \<not> (\<exists>t'\<in>set (transitions M).
+                                      t_source t' = fst (fst qqt) \<and>
+                                      t_input t' = t_input (snd qqt) \<and>
+                                      t_output t' = t_output (snd qqt)))
+                        (concat
+                          (map (\<lambda>qq'. map (Pair qq') (transitions M))
+                            (nodes_from_distinct_paths ?PM))))" 
+    unfolding canonical_separator_def 
+
+  (* TODO: remove trim_transitions *)
+
+
+  have "\<exists> ts2 . transitions (canonical_separator M q1 q2) = (map shift_h (transitions (product (from_FSM M q1) (from_FSM M q2)))) @ ts2"
+    unfolding canonical_separator_def 
+
+
+end (*    
+    
+    then have "target (map shift_h p) (initial C) = "
+    
+
+  then show ?case 
+qed
+
+
+
+end (*
+
+lemma canonical_separator_transitions_paths_product_initial :
+  "path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) p = path (canonical_separator M q1 q2) (Inl (q1,q2)) (map shift_h p)"
+proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case unfolding canonical_separator_def 
+next
+  case (snoc t p)
   then show ?case sorry
 qed
+
+
+lemma canonical_separator_transitions_paths_product :
+  "path (product (from_FSM M q1) (from_FSM M q2)) q p = path (canonical_separator M q1 q2) (Inl q) (map shift_h p)"
+proof (induction p arbitrary: q)
+  case Nil
+  then show ?case sorry
+next
+  case (Cons a p)
+  then show ?case sorry
+qed
+
+
+lemma canonical_separator_transitions_from_product :
+  assumes "t \<in> h (canonical_separator M q1 q2)"
+  shows "\<exists> t' \<in> h (product (from_FSM M q1) (from_FSM M q2)) . t = (Inl (t_source t'), t_input t', t_output t', Inl (t_target t'))"
+proof -
+  have "t \<in> 
+
+
+lemma canonical_separator_transitions :
+  "image (\<lambda> t . (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (h (product (from_FSM M q1) (from_FSM M q2)))
+    \<subseteq> (h (canonical_separator M q1 q2))"
+  
+
+end (*
+
   
 
 lemma state_separator_states_r_distinguishable_k :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-      and "Inl (q1',q2') \<in> nodes S"
+    (*  and "Inl (q1',q2') \<in> nodes S"
       and "q1 \<in> nodes M" 
       and "q2 \<in> nodes M"
-    shows "\<exists> k . r_distinguishable_k M q1' q2' k"
+    shows "\<exists> k . r_distinguishable_k M q1' q2' k"*)
+  shows "\<exists> k . r_distinguishable_k M q1 q2 k"
 proof -
+
+  let ?CSep = "(canonical_separator M q1 q2)"
+  
+  have "is_submachine S ?CSep"
+        and "single_input S"
+        and "acyclic S"
+        and "deadlock_state S (Inr q1)"
+        and "deadlock_state S (Inr q2)"
+        and "Inr q1 \<in> nodes S"
+        and "Inr q2 \<in> nodes S"
+        and "(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> isl q \<and> \<not> deadlock_state S q)"
+        and tc: "(\<forall>q\<in>nodes S.
+              \<forall>x\<in>set (inputs ?CSep).
+                 (\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow>
+                 (\<forall>t'\<in>h ?CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
+    using assms(1) unfolding is_state_separator_from_canonical_separator_def by linarith+
+
+  let ?P = "(\<lambda> q . case q of 
+                    (Inl (q1',q2')) \<Rightarrow> (\<exists> k . r_distinguishable_k M q1' q2' k) |
+                    (Inr qr) \<Rightarrow> True)"
+  have "\<forall> q \<in> nodes S . ?P q"
+  using \<open>acyclic S\<close> proof (induction rule: acyclic_induction)
+    case (node q)
+    then show ?case proof (cases "deadlock_state S q")
+      case True
+      then have "q = Inr q1 \<or> q = Inr q2"
+        using \<open>(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> isl q \<and> \<not> deadlock_state S q)\<close> node(1) by blast
+      then show ?thesis by auto
+    next
+      case False
+      then have "q \<noteq> Inr q1 \<and> q \<noteq> Inr q2"
+        using \<open>deadlock_state S (Inr q1)\<close> \<open>deadlock_state S (Inr q2)\<close> by metis
+      then have "isl q"
+        using \<open>(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> isl q \<and> \<not> deadlock_state S q)\<close> node(1) by blast
+
+      from False obtain t where "t \<in> h S" and "t_source t = q"
+        unfolding deadlock_state.simps by blast
+      then have "(\<forall>t'\<in>h ?CSep. t_source t' = q \<and> t_input t' = t_input t \<longrightarrow> t' \<in> h S)"
+        using node(1) tc by (metis wf_transition_simp) 
+      
+
+
+      then show ?thesis sorry
+    qed
+  qed
+
+
+
+
+
+(* TODO:
+ - State Separator (general def)
+ - State Separator vs State Separator from CSep
+*)
+
+
+
+end (*
+
+
+
 
 lemma state_separator_r_distinguishes :
   assumes "(\<exists>S. is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S)"
