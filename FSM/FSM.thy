@@ -1325,44 +1325,25 @@ proof
 qed
 
     
-   
+(* note: does not require q to actually be a state of M *)   
 fun deadlock_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> bool" where 
-  "deadlock_state M q = (q \<in> nodes M \<and> (\<not>(\<exists> t \<in> h M . t_source t = q)))"
+  "deadlock_state M q = (\<not>(\<exists> t \<in> h M . t_source t = q))"
 
-lemma deadlock_state_alt_def : "deadlock_state M q = (LS M q = {[]})" 
+lemma deadlock_state_alt_def : "deadlock_state M q = (LS M q \<subseteq> {[]})" 
 proof 
-  show "deadlock_state M q \<Longrightarrow> LS M q = {[]}" 
-  proof (rule ccontr)
-    assume "deadlock_state M q" and "LS M q \<noteq> {[]}"
-    moreover have "[] \<in> LS M q" 
-      using \<open>deadlock_state M q\<close> by auto
-    ultimately obtain xy io where "xy#io \<in> LS M q"
-      by (metis all_not_in_conv is_singletonI' is_singleton_the_elem neq_Nil_conv singletonD)
-    then obtain t where "t \<in> h M" and "t_source t = q"
-      by auto
-    then show "False" 
-      using \<open>deadlock_state M q\<close> by (meson deadlock_state.elims(2)) 
+  show "deadlock_state M q \<Longrightarrow> LS M q \<subseteq> {[]}" 
+  proof -
+    assume "deadlock_state M q"
+    moreover have "\<And> p . deadlock_state M q \<Longrightarrow> path M q p \<Longrightarrow> p = []"
+      unfolding deadlock_state.simps by (metis path.cases) 
+    ultimately show "LS M q \<subseteq> {[]}"
+      unfolding LS.simps by blast
   qed
-  show "LS M q = {[]} \<Longrightarrow> deadlock_state M q"
-  proof (rule ccontr)
-    assume "LS M q = {[]}" and "\<not> deadlock_state M q"
-    then have "q \<in> nodes M" unfolding LS.simps by auto
-    then obtain t where "t \<in> h M \<and> t_source t = q" using \<open>\<not> deadlock_state M q\<close> by auto
-    then have "p_io [t] \<in> LS M q"
-    proof -
-      have "path M q [t]"
-        using \<open>t \<in> set (wf_transitions M) \<and> t_source t = q\<close> by blast
-      then have "path M q [t]"
-        by meson
-      then have "\<exists>ps. p_io [t] = p_io ps \<and> path M q ps"
-        by blast
-      then show ?thesis
-        by simp
-    qed
-    then show "False" using \<open>LS M q = {[]}\<close>
-      by blast
-  qed
+  show "LS M q \<subseteq> {[]} \<Longrightarrow> deadlock_state M q"
+    unfolding LS.simps deadlock_state.simps using path.cases[of M q] by blast
 qed
+
+
 
 fun completed_path :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
   "completed_path M q p = deadlock_state M (target p q)"
@@ -2369,7 +2350,7 @@ lemma trim_transitions_acyclic : "acyclic S \<Longrightarrow> acyclic (trim_tran
   using trim_transitions_paths[of S]  unfolding trim_transitions.simps acyclic.simps by simp
 
 lemma trim_transitions_deadlock_state_nodes : "deadlock_state S q = deadlock_state (trim_transitions S) q"
-  by (metis deadlock_state.simps trim_transitions_nodes trim_transitions_simps(4))
+  by (metis deadlock_state.simps trim_transitions_simps(4))
 
 lemma trim_transitions_t_source' : "t \<in> set (transitions (trim_transitions S)) \<Longrightarrow> t_source t \<in> nodes S"
   unfolding trim_transitions.simps by auto

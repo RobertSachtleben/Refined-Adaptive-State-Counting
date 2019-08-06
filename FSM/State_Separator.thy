@@ -171,7 +171,7 @@ proof -
           case True
           let ?f = "f( s := None)"
           have "(\<forall> q . (q \<notin> (insert s NS) \<longrightarrow> f q = None) \<and> (q \<in> (insert s NS) \<longrightarrow> ((q \<notin> nodes ?S \<and> f q = None) \<or> (q \<in> nodes ?S \<and> deadlock_state ?S q \<and> f q = None) \<or> (q \<in> nodes ?S \<and> \<not> deadlock_state ?S q \<and> f q = Some (THE x .  \<exists>t\<in>h ?S. t_source t = q \<and> t_input t = x)))))"
-          using \<open>s \<in> nodes ?S\<close> True f_def by auto
+            by (metis (no_types, lifting) True f_def insert_iff)
           then show ?thesis by blast
         next
           case False
@@ -254,7 +254,7 @@ proof -
       next
         case False
         then obtain x where "\<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x"
-          by (metis (no_types, lifting) True deadlock_state.elims(3))
+          by (metis (no_types, lifting) deadlock_state.elims(3))
         then have "\<exists>! x . \<exists>t\<in>h ?S. t_source t = ?q \<and> t_input t = x"
           using \<open>single_input ?S\<close> unfolding single_input.simps
           by (metis (mono_tags, lifting)) 
@@ -403,6 +403,127 @@ lemma calculate_state_separator_from_canonical_separator_naive_ex :
 
 value[code] "image (\<lambda> qq . (qq, (case calculate_state_separator_from_canonical_separator_naive M_ex_9 (fst qq) (snd qq) of None \<Rightarrow> None | Some wt \<Rightarrow> Some (transitions wt)))) {qq \<in> {(q1,q2) | q1 q2 . q1 \<in> nodes M_ex_H \<and> q2 \<in> nodes M_ex_H} . fst qq < snd qq}"
 value[code] "image (\<lambda> qq . (qq, (case calculate_state_separator_from_canonical_separator_naive M_ex_9 (fst qq) (snd qq) of None \<Rightarrow> None | Some wt \<Rightarrow> Some (transitions wt)))) {qq \<in> {(q1,q2) | q1 q2 . q1 \<in> nodes M_ex_9 \<and> q2 \<in> nodes M_ex_9} . fst qq < snd qq}"
+
+
+
+subsection \<open>State Separators and R-Distinguishability\<close>
+
+(* TODO: move *)
+lemma acyclic_finite_paths :
+  assumes "acyclic M"
+    shows "finite {p . path M q p}"
+proof -
+  from assms have "{ p . path M (initial M) p} \<subseteq> set (paths_up_to_length M (initial M) (size M))"
+    using distinct_path_length_limit_nodes[of M "initial M"] paths_up_to_length_path_set[OF nodes.initial[of M], of "size M"]
+    by fastforce 
+  moreover have "finite (set (paths_up_to_length M (initial M) (size M)))"
+    by auto
+  ultimately have "finite { p . path M (initial M) p}"
+    using finite_subset by blast
+
+  show "finite {p . path M q p}"
+  proof (cases "q \<in> nodes M")
+    case True
+    then obtain p where "path M (initial M) p" and "target p (initial M) = q" 
+      by (metis path_to_node)
+    
+    have "image (\<lambda>p' . p@p') {p' . path M q p'} \<subseteq> {p' . path M (initial M) p'}"
+    proof 
+      fix x assume "x \<in> image (\<lambda>p' . p@p') {p' . path M q p'}"
+      then obtain p' where "x = p@p'" and "p' \<in> {p' . path M q p'}"
+        by blast
+      then have "path M q p'" by auto
+      then have "path M (initial M) (p@p')"
+        using path_append[OF \<open>path M (initial M) p\<close>] \<open>target p (initial M) = q\<close> by auto
+      then show "x \<in> {p' . path M (initial M) p'}" using \<open>x = p@p'\<close> by blast
+    qed
+    
+    then have "finite (image (\<lambda>p' . p@p') {p' . path M q p'})"
+      using \<open>finite { p . path M (initial M) p}\<close> finite_subset by auto 
+    show ?thesis using finite_imageD[OF \<open>finite (image (\<lambda>p' . p@p') {p' . path M q p'})\<close>]
+      by (meson inj_onI same_append_eq) 
+  next
+    case False
+    then show ?thesis
+      by (meson not_finite_existsD path_begin_node) 
+  qed
+qed
+
+
+
+(* TODO: move *)
+
+lemma acyclic_induction [consumes 1, case_names deadlock non_deadlock]:
+  assumes "acyclic M"
+      and "\<And> q . q \<in> nodes M \<Longrightarrow> deadlock_state M q \<Longrightarrow> P q"
+      and "\<And> q . q \<in> nodes M \<Longrightarrow> (\<forall> t \<in> h M . ((t_source t = q) \<longrightarrow> P (t_target t))) \<Longrightarrow> P q"
+    shows "\<forall> q \<in> nodes M . P q"
+proof 
+  fix q assume "q \<in> nodes M"
+
+  let ?k = "Max (image length {p . path M q p})"
+  have "finite {p . path M q p}" using acyclic_finite_paths[OF assms(1)] by auto
+  then have k_prop: "(\<forall> p . path M q p \<longrightarrow> length p \<le> ?k)" by auto
+
+  moreover have "\<And> q k . q \<in> nodes M \<Longrightarrow> (\<forall> p . path M q p \<longrightarrow> length p \<le> k) \<Longrightarrow> P q"
+  proof -
+    fix q k assume "q \<in> nodes M" and "(\<forall> p . path M q p \<longrightarrow> length p \<le> k)"
+    then show "P q" 
+    proof (induction k arbitrary: q)
+      case 0
+      then have "{p . path M q p} = {[]}" by blast 
+      then have "LS M q \<subseteq> {[]}" unfolding LS.simps by blast
+      then have "deadlock_state M q" using deadlock_state_alt_def by metis
+      then show ?case using \<open>q \<in> nodes M\<close> assms(2) by metis
+    next
+      case (Suc k)
+      have "\<And> t . t \<in> h M \<Longrightarrow> (t_source t = q) \<Longrightarrow> P (t_target t)"
+      proof -
+        fix t assume "t \<in> h M" and "t_source t = q" 
+        then have "t_target t \<in> nodes M"
+          using wf_transition_target by metis
+        moreover have "\<forall>p. path M (t_target t) p \<longrightarrow> length p \<le> k"
+          using Suc.prems(2) \<open>t \<in> set (wf_transitions M)\<close> \<open>t_source t = q\<close> by auto
+        ultimately show "P (t_target t)" 
+          using Suc.IH by auto
+      qed
+      then show ?case using assms(3)[OF Suc.prems(1)] by blast
+    qed
+  qed
+
+  ultimately show "P q" using \<open>q \<in> nodes M\<close> by blast
+qed
+
+
+      
+lemma x :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+      and "path S (Inl (q1',q2')) p"
+      and "target p (Inl (q1',q2')) = Inr q1 \<or> target p (Inl (q1',q2')) = Inr q2"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+    shows "\<exists> k . r_distinguishable_k M q1' q2' k" 
+using assms proof(induction p arbitrary: q1' q2' )
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t p)
+  then show ?case sorry
+qed
+  
+
+lemma state_separator_states_r_distinguishable_k :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+      and "Inl (q1',q2') \<in> nodes S"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+    shows "\<exists> k . r_distinguishable_k M q1' q2' k"
+proof -
+
+lemma state_separator_r_distinguishes :
+  assumes "(\<exists>S. is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S)"
+  shows "\<exists> k . r_distinguishable_k M q1 q2 k" 
+proof 
 
 
 end
