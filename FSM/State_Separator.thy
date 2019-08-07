@@ -495,7 +495,7 @@ qed
 
 lemma acyclic_induction [consumes 1, case_names node]:
   assumes "acyclic M"
-      and "\<And> q . q \<in> nodes M \<Longrightarrow> (\<forall> t \<in> h M . ((t_source t = q) \<longrightarrow> P (t_target t))) \<Longrightarrow> P q"
+      and "\<And> q . q \<in> nodes M \<Longrightarrow> (\<And> t . t \<in> h M \<Longrightarrow> ((t_source t = q) \<Longrightarrow> P (t_target t))) \<Longrightarrow> P q"
     shows "\<forall> q \<in> nodes M . P q"
 proof 
   fix q assume "q \<in> nodes M"
@@ -817,20 +817,44 @@ next
 qed
   
   
+lemma canonical_separator_h_from_product :
+  assumes "t \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+  shows "shift_Inl t \<in> h (canonical_separator M q1 q2)"
+proof -
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?C = "(canonical_separator M q1 q2)"
+
+  have "shift_Inl t \<in> set (transitions ?C)"
+    using canonical_separator_product_transitions_subset[of M q1 q2] assms
+    by (metis (no_types, lifting) image_iff set_map subsetCE) 
+
+  have "t_source t \<in> nodes ?P" 
+    using assms by blast 
+  obtain p where "path ?P (initial ?P) p" and "target p (initial ?P) = t_source t"
+    using path_to_node[OF \<open>t_source t \<in> nodes ?P\<close>] by metis
+  then have "path ?P (initial ?P) (p@[t])"
+    using assms path_append_last by metis
+  then have "path ?C (initial ?C) (map shift_Inl (p@[t]))"
+    using canonical_separator_path_shift[of M q1 q2 "p@[t]"] by linarith
+  then have "path ?C (initial ?C) ((map shift_Inl p)@[shift_Inl t])"
+    by auto
+  then show "shift_Inl t \<in> h ?C"
+    by blast
+qed
+
 
 
 lemma state_separator_states_r_distinguishable_k :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-    (*  and "Inl (q1',q2') \<in> nodes S"
+    (*  and "Inl (q1',q2') \<in> nodes S" *)
       and "q1 \<in> nodes M" 
       and "q2 \<in> nodes M"
-    shows "\<exists> k . r_distinguishable_k M q1' q2' k"*)
   shows "\<exists> k . r_distinguishable_k M q1 q2 k"
 proof -
-
-  let ?CSep = "(canonical_separator M q1 q2)"
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?C = "(canonical_separator M q1 q2)"
   
-  have "is_submachine S ?CSep"
+  have "is_submachine S ?C"
         and "single_input S"
         and "acyclic S"
         and "deadlock_state S (Inr q1)"
@@ -839,15 +863,15 @@ proof -
         and "Inr q2 \<in> nodes S"
         and "(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> isl q \<and> \<not> deadlock_state S q)"
         and tc: "(\<forall>q\<in>nodes S.
-              \<forall>x\<in>set (inputs ?CSep).
+              \<forall>x\<in>set (inputs ?C).
                  (\<exists>t\<in>h S. t_source t = q \<and> t_input t = x) \<longrightarrow>
-                 (\<forall>t'\<in>h ?CSep. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
+                 (\<forall>t'\<in>h ?C. t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
     using assms(1) unfolding is_state_separator_from_canonical_separator_def by linarith+
 
-  let ?P = "(\<lambda> q . case q of 
+  let ?Prop = "(\<lambda> q . case q of 
                     (Inl (q1',q2')) \<Rightarrow> (\<exists> k . r_distinguishable_k M q1' q2' k) |
                     (Inr qr) \<Rightarrow> True)"
-  have "\<forall> q \<in> nodes S . ?P q"
+  have "\<forall> q \<in> nodes S . ?Prop q"
   using \<open>acyclic S\<close> proof (induction rule: acyclic_induction)
   case (node q)
     then show ?case proof (cases "\<not> isl q")
@@ -864,10 +888,37 @@ proof -
 
       then obtain t where "t \<in> h S" and "t_source t = q"
         unfolding deadlock_state.simps by blast
-      then have "(\<forall>t'\<in>h ?CSep. t_source t' = q \<and> t_input t' = t_input t \<longrightarrow> t' \<in> h S)"
+      then have "(\<forall>t'\<in>h ?C. t_source t' = q \<and> t_input t' = t_input t \<longrightarrow> t' \<in> h S)"
         using node(1) tc by (metis wf_transition_simp) 
 
-      
+
+      have "Inl (q1',q2') \<in> nodes ?C"
+        using node(1) \<open>q = Inl (q1',q2')\<close> submachine_nodes[OF \<open>is_submachine S ?C\<close>] by auto
+      then obtain p where "path ?C (initial ?C) p"
+                      and "target p (initial ?C) = Inl (q1',q2')"
+        by (metis path_to_node)
+      then have "isl (target p (initial ?C))" by auto
+      then obtain p' where "path ?P (initial ?P) p'"
+                       and "p = map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p'"
+        using canonical_separator_path_from_shift[OF \<open>path ?C (initial ?C) p\<close>] by blast
+
+
+      have "path (from_FSM M q1) (initial (from_FSM M q1)) (left_path p')"
+          and "path (from_FSM M q2) (initial (from_FSM M q2)) (right_path p')"
+        using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 p'] \<open>path ?P (initial ?P) p'\<close> by auto
+      moreover have "target (left_path p') (initial (from_FSM M q1)) = q1'"
+        using \<open>p = map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p'\<close> \<open>target p (initial ?C) = Inl (q1',q2')\<close> canonical_separator_simps(1)[of M q1 q2] 
+        unfolding target.simps visited_states.simps by (cases p' rule: rev_cases; auto)
+      moreover have "target (right_path p') (initial (from_FSM M q2)) = q2'"
+        using \<open>p = map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p'\<close> \<open>target p (initial ?C) = Inl (q1',q2')\<close> canonical_separator_simps(1)[of M q1 q2] 
+        unfolding target.simps visited_states.simps by (cases p' rule: rev_cases; auto)
+      moreover have "p_io (left_path p') = p_io (right_path p')" by auto
+      ultimately have p12' : "\<exists>p1 p2.
+               path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+               path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+               target p1 (initial (from_FSM M q1)) = q1' \<and>
+               target p2 (initial (from_FSM M q2)) = q2' \<and> p_io p1 = p_io p2"
+        by blast
 
 
       have "\<And> t1 t2 . t1 \<in> h (from_FSM M q1) \<Longrightarrow> t2 \<in> h (from_FSM M q2) \<Longrightarrow> t_source t1 = q1' \<Longrightarrow> t_source t2 = q2' \<Longrightarrow> t_input t1 = t_input t \<Longrightarrow> t_input t2 = t_input t \<Longrightarrow> t_output t1 = t_output t2 \<Longrightarrow> (\<exists> k . r_distinguishable_k M (t_target t1) (t_target t2) k)"
@@ -881,22 +932,42 @@ proof -
                      and "t_output t1 = t_output t2"
         then have "t_input t1 = t_input t2" by auto
 
+        let ?t = "((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)"
 
         have "\<exists>p1 p2.
                path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
                path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
                target p1 (initial (from_FSM M q1)) = t_source t1 \<and>
                target p2 (initial (from_FSM M q2)) = t_source t2 \<and> p_io p1 = p_io p2"
-        proof -
-          have "
+          using p12' \<open>t_source t1 = q1'\<close> \<open>t_source t2 = q2'\<close> by auto
+        
+        then have "?t \<in> h ?P"
+          using product_transition_from_transitions[OF \<open>t1 \<in> h (from_FSM M q1)\<close> \<open>t2 \<in> h (from_FSM M q2)\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close>] by presburger
+
+        then have "shift_Inl ?t \<in> h ?C"
+          using canonical_separator_h_from_product[of _ M q1 q2] by blast
+        moreover have "t_source (shift_Inl ?t) = q"
+          using \<open>t_source t1 = q1'\<close> \<open>t_source t2 = q2'\<close> \<open>q = Inl (q1',q2')\<close> by auto
+        ultimately have "shift_Inl ?t \<in> h S"
+          using \<open>(\<forall>t'\<in>h ?C. t_source t' = q \<and> t_input t' = t_input t \<longrightarrow> t' \<in> h S)\<close> \<open>t_input t1 = t_input t\<close> by auto
+
+        
+        have "case t_target (shift_Inl ?t) of Inl (q1', q2') \<Rightarrow> \<exists>k. r_distinguishable_k M q1' q2' k | Inr qr \<Rightarrow> True"
+          using node.IH(2)[OF \<open>shift_Inl ?t \<in> h S\<close> \<open>t_source (shift_Inl ?t) = q\<close>] by (cases q; auto)
+        moreover have "t_target (shift_Inl ?t) = Inl (t_target t1, t_target t2)" 
+          by auto
+        ultimately show "\<exists>k. r_distinguishable_k M (t_target t1) (t_target t2) k"
+          by auto
+      qed
 
 
-        have "True"
-          using product_transition_from_transitions[OF \<open>t1 \<in> h (from_FSM M q1)\<close> \<open>t2 \<in> h (from_FSM M q2)\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close>]
       
-      (*
-      then have "\<forall> t1 \<in> h (from_FSM M q1) . \<forall> t2 \<in> h (from_FSM M q2) . (t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = t_input t \<and> t_input t2 = t_input t \<and> t_output t1 = t_output t2) \<longrightarrow> (\<exists> k . r_distinguishable_k M (t_target t1) (t_target t2) k)"
-      *)
+
+
+      have "\<exists>k. r_distinguishable_k M q1' q2' k"
+        
+        
+      
       
        
 
