@@ -749,9 +749,9 @@ proof -
   have "(q1,x,y,q1') \<in> h (from_FSM M q1)" and "(q2,x,y,q2') \<in> h (from_FSM M q2)"
     using product_transition_split[OF assms] by auto
 
-  have s1[simp] : "initial (product (from_FSM M q1') (from_FSM M q2')) = (q1',q2')"
+  have s1 : "initial (product (from_FSM M q1') (from_FSM M q2')) = (q1',q2')"
     by auto
-  have s2[simp] : "initial (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) = (q1',q2')"
+  have s2 : "initial (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) = (q1',q2')"
     by auto
 
 
@@ -887,15 +887,15 @@ proof -
 qed
 
 
-lemma from_FSM_product_inputs[simp] :
+lemma from_FSM_product_inputs :
   "set (inputs (product (from_FSM M q1) (from_FSM M q2))) = set (inputs M)"
   unfolding product.simps from_FSM.simps by auto
 
-lemma from_FSM_product_outputs[simp] :
+lemma from_FSM_product_outputs :
   "set (outputs (product (from_FSM M q1) (from_FSM M q2))) = set (outputs M)"
   unfolding product.simps from_FSM.simps by auto
 
-lemma from_FSM_product_initial[simp] : 
+lemma from_FSM_product_initial : 
   "initial (product (from_FSM M q1) (from_FSM M q2)) = (q1,q2)" by auto
 
 lemma from_FSM_transitions :

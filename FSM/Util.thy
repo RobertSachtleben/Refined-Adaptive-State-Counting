@@ -563,4 +563,11 @@ fun list_max :: "nat list \<Rightarrow> nat" where
 lemma list_max_is_max : "q \<in> set xs \<Longrightarrow> q \<le> list_max xs"
   by (metis List.finite_set Max_ge length_greater_0_conv length_pos_if_in_set list_max.elims) 
 
+lemma list_prefix_subset : "\<exists> ys . ts = xs@ys \<Longrightarrow> set xs \<subseteq> set ts" by auto
+lemma list_map_set_prop : "x \<in> set (map f xs) \<Longrightarrow> \<forall> y . P (f y) \<Longrightarrow> P x" by auto
+lemma list_concat_non_elem : "x \<notin> set xs \<Longrightarrow> x \<notin> set ys \<Longrightarrow> x \<notin> set (xs@ys)" by auto
+lemma list_prefix_elem : "x \<in> set (xs@ys) \<Longrightarrow> x \<notin> set ys \<Longrightarrow> x \<in> set xs" by auto
+lemma list_map_source_elem : "x \<in> set (map f xs) \<Longrightarrow> \<exists> x' \<in> set xs . x = f x'" by auto
+
+
 end
