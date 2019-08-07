@@ -843,12 +843,18 @@ proof -
 qed
 
 
+(* TODO: move *)
 
-lemma state_separator_states_r_distinguishable_k :
+lemma r_distinguishable_k_by_larger :
+  assumes "r_distinguishable_k M q1 q2 k"
+      and "k \<le> k'"
+    shows "r_distinguishable_k M q1 q2 k'"
+  using assms(1) assms(2) nat_induct_at_least by fastforce
+  
+
+
+lemma state_separator_r_distinguishes_k :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-    (*  and "Inl (q1',q2') \<in> nodes S" *)
-      and "q1 \<in> nodes M" 
-      and "q2 \<in> nodes M"
   shows "\<exists> k . r_distinguishable_k M q1 q2 k"
 proof -
   let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
@@ -871,7 +877,7 @@ proof -
   let ?Prop = "(\<lambda> q . case q of 
                     (Inl (q1',q2')) \<Rightarrow> (\<exists> k . r_distinguishable_k M q1' q2' k) |
                     (Inr qr) \<Rightarrow> True)"
-  have "\<forall> q \<in> nodes S . ?Prop q"
+  have rprop: "\<forall> q \<in> nodes S . ?Prop q"
   using \<open>acyclic S\<close> proof (induction rule: acyclic_induction)
   case (node q)
     then show ?case proof (cases "\<not> isl q")
@@ -920,17 +926,33 @@ proof -
                target p2 (initial (from_FSM M q2)) = q2' \<and> p_io p1 = p_io p2"
         by blast
 
+      have "q1' \<in> nodes (from_FSM M q1)"
+        using path_target_is_node[OF \<open>path (from_FSM M q1) (initial (from_FSM M q1)) (left_path p')\<close>] \<open>target (left_path p') (initial (from_FSM M q1)) = q1'\<close> by auto
+      have "q2' \<in> nodes (from_FSM M q2)"
+        using path_target_is_node[OF \<open>path (from_FSM M q2) (initial (from_FSM M q2)) (right_path p')\<close>] \<open>target (right_path p') (initial (from_FSM M q2)) = q2'\<close> by auto
 
-      have "\<And> t1 t2 . t1 \<in> h (from_FSM M q1) \<Longrightarrow> t2 \<in> h (from_FSM M q2) \<Longrightarrow> t_source t1 = q1' \<Longrightarrow> t_source t2 = q2' \<Longrightarrow> t_input t1 = t_input t \<Longrightarrow> t_input t2 = t_input t \<Longrightarrow> t_output t1 = t_output t2 \<Longrightarrow> (\<exists> k . r_distinguishable_k M (t_target t1) (t_target t2) k)"
+      have "t_input t \<in> set (inputs S)"
+        using \<open>t \<in> h S\<close> by auto
+      then have "t_input t \<in> set (inputs ?C)"
+        using \<open>is_submachine S ?C\<close> by auto
+      then have "t_input t \<in> set (inputs M)"
+        using canonical_separator_simps(2) by metis
+
+      have *: "\<And> t1 t2 . t1 \<in> h M \<Longrightarrow> t2 \<in> h M \<Longrightarrow> t_source t1 = q1' \<Longrightarrow> t_source t2 = q2' \<Longrightarrow> t_input t1 = t_input t \<Longrightarrow> t_input t2 = t_input t \<Longrightarrow> t_output t1 = t_output t2 \<Longrightarrow> (\<exists> k . r_distinguishable_k M (t_target t1) (t_target t2) k)"
       proof -
-        fix t1 t2 assume "t1 \<in> h (from_FSM M q1)" 
-                     and "t2 \<in> h (from_FSM M q2)" 
+        fix t1 t2 assume "t1 \<in> h M" 
+                     and "t2 \<in> h M" 
                      and "t_source t1 = q1'" 
                      and "t_source t2 = q2'" 
                      and "t_input t1 = t_input t" 
                      and "t_input t2 = t_input t" 
                      and "t_output t1 = t_output t2"
         then have "t_input t1 = t_input t2" by auto
+
+        have "t1 \<in> h (from_FSM M q1)" 
+          using \<open>t_source t1 = q1'\<close> \<open>q1' \<in> nodes (from_FSM M q1)\<close> \<open>t1 \<in> h M\<close> by auto
+        have "t2 \<in> h (from_FSM M q2)"
+          using \<open>t_source t2 = q2'\<close> \<open>q2' \<in> nodes (from_FSM M q2)\<close> \<open>t2 \<in> h M\<close> by auto
 
         let ?t = "((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)"
 
@@ -960,35 +982,126 @@ proof -
           by auto
       qed
 
+      (* TODO: extract *)
 
-      
+      let ?hs = "{(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = t_input t \<and> t_input t2 = t_input t \<and> t_output t1 = t_output t2}"
+      have "finite ?hs"
+      proof -
+        have "?hs \<subseteq> (h M \<times> h M)" by blast
+        moreover have "finite (h M \<times> h M)" by blast
+        ultimately show ?thesis
+          by (simp add: finite_subset) 
+      qed
+      obtain fk where fk_def : "\<And> tt . tt \<in> ?hs \<Longrightarrow> r_distinguishable_k M (t_target (fst tt)) (t_target (snd tt)) (fk tt)"
+      proof 
+        let ?fk = "\<lambda> tt . SOME k . r_distinguishable_k M (t_target (fst tt)) (t_target (snd tt)) k"
+        show "\<And> tt . tt \<in> ?hs \<Longrightarrow> r_distinguishable_k M (t_target (fst tt)) (t_target (snd tt)) (?fk tt)"
+        proof -
+          fix tt assume "tt \<in> ?hs"
+          then have "(fst tt) \<in> h M \<and> (snd tt) \<in> h M \<and> t_source (fst tt) = q1' \<and> t_source (snd tt) = q2' \<and> t_input (fst tt) = t_input t \<and> t_input (snd tt) = t_input t \<and> t_output (fst tt) = t_output (snd tt)"
+            by force 
+          then have "\<exists> k . r_distinguishable_k M (t_target (fst tt)) (t_target (snd tt)) k"
+            using * by blast
+          then show "r_distinguishable_k M (t_target (fst tt)) (t_target (snd tt)) (?fk tt)"
+            by (simp add: someI_ex)
+        qed
+      qed
+
+      let ?k = "Max (image fk ?hs)"
+      have "\<And> t1 t2 . t1 \<in> h M \<Longrightarrow> t2 \<in> h M \<Longrightarrow> t_source t1 = q1' \<Longrightarrow> t_source t2 = q2' \<Longrightarrow> t_input t1 = t_input t \<Longrightarrow> t_input t2 = t_input t \<Longrightarrow> t_output t1 = t_output t2 \<Longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) ?k"
+      proof -
+        fix t1 t2 assume "t1 \<in> h M" 
+                     and "t2 \<in> h M" 
+                     and "t_source t1 = q1'" 
+                     and "t_source t2 = q2'" 
+                     and "t_input t1 = t_input t" 
+                     and "t_input t2 = t_input t" 
+                     and "t_output t1 = t_output t2"   
+        then have "(t1,t2) \<in> ?hs"
+          by force
+        then have "r_distinguishable_k M (t_target t1) (t_target t2) (fk (t1,t2))"
+          using fk_def by force
+        have "fk (t1,t2) \<le> ?k"
+          using \<open>(t1,t2) \<in> ?hs\<close> \<open>finite ?hs\<close> by auto
+        show "r_distinguishable_k M (t_target t1) (t_target t2) ?k" 
+          using r_distinguishable_k_by_larger[OF \<open>r_distinguishable_k M (t_target t1) (t_target t2) (fk (t1,t2))\<close> \<open>fk (t1,t2) \<le> ?k\<close>] by assumption
+      qed
 
 
-      have "\<exists>k. r_distinguishable_k M q1' q2' k"
+      then have "r_distinguishable_k M q1' q2' (Suc ?k)"
+        unfolding r_distinguishable_k.simps 
+        using \<open>t_input t \<in> set (inputs M)\<close> by blast
+      then show "?Prop q"
+        using \<open>q = Inl (q1',q2')\<close>
+        by (metis (no_types, lifting) case_prodI old.sum.simps(5)) 
+    qed
+  qed
+
+          
+
+
+  moreover have "Inl (q1,q2) \<in> nodes S" 
+    using \<open>is_submachine S ?C\<close> canonical_separator_simps(1)[of M q1 q2] nodes.initial[of S] by auto
+  ultimately show "\<exists>k. r_distinguishable_k M q1 q2 k"
+    by auto 
+qed
+          
         
-        
-      
-      
+lemma x : "(\<nexists> x . P1 x \<and> P2 x \<and> P3 x) \<Longrightarrow> (\<And> x . P1 x \<Longrightarrow> P3 x \<Longrightarrow> \<not> P2 x)" by auto  
+
+lemma state_separator_from_r_distinguishable_k :
+  assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
+  assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  shows "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+proof (rule ccontr) 
+  let ?CSep = "canonical_separator M q1 q2"
+
+  assume "\<nexists>S. is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+  then have "\<And> S . 
+    is_submachine S ?CSep 
+    \<Longrightarrow> single_input S
+    \<Longrightarrow> acyclic S
+    \<Longrightarrow> deadlock_state S (Inr q1)
+    \<Longrightarrow> deadlock_state S (Inr q2)
+    \<Longrightarrow> (\<forall> q \<in> nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (isl q \<and> \<not> deadlock_state S q))
+    \<Longrightarrow> (\<forall> q \<in> nodes S . \<forall> x \<in> set (inputs ?CSep) . (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h ?CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))
+    \<Longrightarrow> \<not> (((Inr q1) \<in> nodes S) \<and> ((Inr q2) \<in> nodes S))"
+    unfolding is_state_separator_from_canonical_separator_def by blast
+
+
+
+  have "\<exists>S. completely_specified S \<and> is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+    sorry
+  then have "r_compatible M q1 q2" 
+    unfolding r_compatible_def by blast
+  then have "\<not> (\<exists> k . r_distinguishable_k M q1 q2 k)"
+    using r_distinguishable_alt_def[OF assms(2,3)] by auto
+  then show "False" using assms(1) by auto
+qed
        
 
 
 
 (* TODO:
+ - r_dist \<Longrightarrow> EX SSep (prove via r_compatible)
+
+ - Rethink effort required here: Algorithm likely relies on some distinction property only 
+    - formulate basic requirements:  
+        - finite 
+        - subset of L q1 UN L q2
+        - sequences in L q1 IN L q2 are not maximal
+        - prefix-closed (?)
+        - maximal sequences are marked q1/q2, depending on containment in L q1 or L q2
+        - output completed / transition completed (?)
+
  - State Separator (general def)
  - State Separator vs State Separator from CSep
+ - State Separator Set
 *)
 
 
 
-end (*
 
-
-
-
-lemma state_separator_r_distinguishes :
-  assumes "(\<exists>S. is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S)"
-  shows "\<exists> k . r_distinguishable_k M q1 q2 k" 
-proof 
 
 
 end
