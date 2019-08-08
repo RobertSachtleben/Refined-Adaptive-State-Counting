@@ -1045,39 +1045,151 @@ proof -
   ultimately show "\<exists>k. r_distinguishable_k M q1 q2 k"
     by auto 
 qed
-          
-        
-lemma x : "(\<nexists> x . P1 x \<and> P2 x \<and> P3 x) \<Longrightarrow> (\<And> x . P1 x \<Longrightarrow> P3 x \<Longrightarrow> \<not> P2 x)" by auto  
 
+
+
+
+(* TODO: move *)
+datatype 'a RD_tree = RD_Node 'a 'a Input nat "Output \<Rightarrow> 'a RD_tree option" 
+
+fun r_distinguishable_k_tree :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a RD_tree option" where
+  "r_distinguishable_k_tree M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) of
+    Some x \<Rightarrow> Some (RD_Node q1 q2 x 0 (\<lambda> y . None)) |
+    None \<Rightarrow> None)" |
+  "r_distinguishable_k_tree M q1 q2 (Suc k) = (case r_distinguishable_k_tree M q1 q2 k of
+    Some t \<Rightarrow> Some t |
+    None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k) (inputs M) of
+      Some x \<Rightarrow> Some (RD_Node q1 q2 x 0 
+          (\<lambda> y . (case find (\<lambda> tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt) \<and> t_output (fst tt) = y) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))) of
+                    Some tt \<Rightarrow> r_distinguishable_k_tree M (t_target (fst tt)) (t_target (snd tt)) k |
+                    None \<Rightarrow> None))) | 
+      None \<Rightarrow> None))"
+
+value "r_distinguishable_k_tree M_ex_9 0 3 1"
+value "case (r_distinguishable_k_tree M_ex_9 0 3 1) of
+        Some (RD_Node q1 q2 x k f) \<Rightarrow> map (\<lambda> y . (y, f y)) (outputs M_ex_9)"
+
+
+
+lemma rd_tree_from_r_distinguishable_k :
+  assumes "r_distinguishable_k M q1 q2 k"
+  shows "r_distinguishable_k_tree M q1 q2 k \<noteq> None"
+using assms proof (induction k arbitrary: q1 q2)
+  case 0
+  then have "find
+           (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = q1 \<and>
+                          t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+           (inputs M) \<noteq> None"                 
+    unfolding r_distinguishable_k.simps using find_None_iff[of "(\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = q1 \<and>
+                          t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" "inputs M"] by blast
+  then show ?case unfolding r_distinguishable_k_tree.simps by auto
+next
+  case (Suc k)
+  then show ?case 
+  proof (cases "r_distinguishable_k M q1 q2 k")
+    case True
+    then have "r_distinguishable_k_tree M q1 q2 k \<noteq> None"
+      using Suc.IH by metis
+    then show ?thesis 
+      unfolding r_distinguishable_k_tree.simps by auto
+  next
+    case False
+    then have "\<exists> x \<in> set (inputs M) . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k"
+      using Suc.prems unfolding r_distinguishable_k.simps by blast
+    then have fx: "find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k) (inputs M) \<noteq> None"
+      using find_None_iff[of "(\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k)" "inputs M"] by blast
+    then show ?thesis by (cases "r_distinguishable_k_tree M q1 q2 k"; auto)
+  qed
+qed
+
+
+end (*
+
+
+
+(* TODO: move *)
+(*
+fun r_distinguishable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
+  "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" |
+  "r_distinguishable_k M q1 q2 (Suc k) = (r_distinguishable_k M q1 q2 k                                           \<or> (\<exists> x \<in> set (inputs M) . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
+*)
+
+fun r_distinguishable_k_test :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (nat \<times> Input) option" where
+  "r_distinguishable_k_test M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) of
+    Some x \<Rightarrow> Some (0,x) |
+    None \<Rightarrow> None)"  |
+  "r_distinguishable_k_test M q1 q2 (Suc k) = (case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k) (inputs M) of
+      Some x \<Rightarrow> Some (Suc k,x) |
+      None \<Rightarrow> None)"
+  (*
+  "r_distinguishable_k_test M q1 q2 (Suc k) = (case r_distinguishable_k_test M q1 q2 k of
+    Some xk \<Rightarrow> Some xk |
+    None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k) (inputs M) of
+      Some x \<Rightarrow> Some (Suc k,x) |
+      None \<Rightarrow> None))"
+  *)
+
+value "r_distinguishable_k_test M_ex_9 0 3 0"
+value "r_distinguishable_k_test M_ex_9 0 3 1"
+value "r_distinguishable_k_test M_ex_9 0 3 2"
+
+fun r_distinguishable_k_least :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (nat \<times> Input) option" where
+  "r_distinguishable_k_least M q1 q2 n = (case find (\<lambda> k . r_distinguishable_k_test M q1 q2 k \<noteq> None) (upt 0 (Suc n)) of
+    Some k \<Rightarrow> r_distinguishable_k_test M q1 q2 k |
+    None \<Rightarrow> None)"
+
+value "r_distinguishable_k_least M_ex_9 0 3 0"
+value "r_distinguishable_k_least M_ex_9 0 3 1"
+value "r_distinguishable_k_least M_ex_9 0 3 2"
+
+
+lemma x :
+  assumes "\<exists> k . r_distinguishable_k M q1' q2' k"
+  shows "(LEAST k . r_distinguishable_k M q1' q2' k) < 2 * size M"
+proof -
+  (* construct submachine of product automaton from LEAST *)
+  let ?k = "(LEAST k . r_distinguishable_k M q1' q2' k)"
+  have "r_distinguishable_k M q1' q2' ?k" 
+    using assms LeastI by blast 
+  
+  
+
+end (*
+
+fun r_distinguishable_k_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (nat \<times> Input) option" where
+"r_distinguishable_k_witness M q1' q2' = (if (\<exists> k . r_distinguishable_k M q1' q2' k)
+            then (let lk = LEAST k . r_distinguishable_k M q1' q2' k in
+                    (if lk = 0
+                      then Some (lk, SOME x . x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                      else Some (lk, SOME x . x \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (lk-1)))))
+            else None)"
+
+value "r_distinguishable_k_witness M_ex_9 1 3"
+
+lemma r_distinguishable_k_witnesses :
+  assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
+  shows "\<exists> fk . \<forall> q1' \<in> nodes M . \<forall> q2' \<in> nodes M . 
+          ((fk q1 q2) = (if (\<exists> k . r_distinguishable M q1' q2' k)
+            then (let lk = LEAST k . r_distinguishable M q1' q2' k in
+                    (if lk = 0
+                      then (k, SOME x . x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                      else (k, SOME x . x \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (k-1))))"
+
+
+(* Note: requires observability, a (per definition) even states in non-observable FSMs may be r-d, but this might require different inputs *)
 lemma state_separator_from_r_distinguishable_k :
   assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
+  assumes "observable M"
   assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
   shows "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
 proof (rule ccontr) 
   let ?CSep = "canonical_separator M q1 q2"
 
-  assume "\<nexists>S. is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-  then have "\<And> S . 
-    is_submachine S ?CSep 
-    \<Longrightarrow> single_input S
-    \<Longrightarrow> acyclic S
-    \<Longrightarrow> deadlock_state S (Inr q1)
-    \<Longrightarrow> deadlock_state S (Inr q2)
-    \<Longrightarrow> (\<forall> q \<in> nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (isl q \<and> \<not> deadlock_state S q))
-    \<Longrightarrow> (\<forall> q \<in> nodes S . \<forall> x \<in> set (inputs ?CSep) . (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h ?CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))
-    \<Longrightarrow> \<not> (((Inr q1) \<in> nodes S) \<and> ((Inr q2) \<in> nodes S))"
-    unfolding is_state_separator_from_canonical_separator_def by blast
-
-
-
-  have "\<exists>S. completely_specified S \<and> is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
-    sorry
-  then have "r_compatible M q1 q2" 
-    unfolding r_compatible_def by blast
-  then have "\<not> (\<exists> k . r_distinguishable_k M q1 q2 k)"
-    using r_distinguishable_alt_def[OF assms(2,3)] by auto
-  then show "False" using assms(1) by auto
-qed
+  obtain fk where 
        
 
 
