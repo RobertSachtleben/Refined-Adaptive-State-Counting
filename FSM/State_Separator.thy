@@ -1354,45 +1354,39 @@ qed
 
 
 
-lemma x : 
-  assumes "(\<forall> i < length (t' # ts) . \<forall> j < length (t' # ts) . i < j \<longrightarrow> f((t' # ts) ! j) < f ((t' # ts) ! i))"
-      and "f t > f t'" 
-    shows "(\<forall> i < length (t # t' # ts) . \<forall> j < length (t # t' # ts) . i < j \<longrightarrow> f((t # t' # ts) ! j) < f ((t # t' # ts) ! i))"
-proof -
-  have "\<And> i . i < length (t' # ts) \<Longrightarrow> (t # t' # ts) ! (Suc i) = (t' # ts) ! i"
-    by sim3
-    
-  have "(\<forall> i < (length (t' # ts)) . \<forall> j < Suc (length (t' # ts)) . i < j \<longrightarrow> f((t # t' # ts ) ! (Suc j)) < f ((t # t' # ts) ! (Suc i)))"
-    using 
 
-using assms proof (induction ts rule: rev_induct)
-  case Nil
-  then show ?case
-    by (simp add: nth_Cons') 
-next
-  case (snoc x xs)
-  have "\<And> i . i < length (t # t' # xs) \<Longrightarrow> (t # t' # xs @ [x]) ! i = (t # t' # xs) ! i"
-    by (metis append_Cons nth_append)
-  then have "\<forall>i<length (t # t' # xs).
-       \<forall>j<length (t # t' # xs). i < j \<longrightarrow> f ((t # t' # xs @ [x]) ! j) < f ((t # t' # xs @ [x]) ! i)"
-    using snoc.prems
-    
-  then show ?case
-qed
 
 lemma r_distinguishable_k_tree_height :
   assumes "r_distinguishable_k_tree M q1 q2 k = Some tr"
+      and "q1 \<in> nodes M"
+      and "q2 \<in> nodes M"
   and "rd_tree_path tr p"
-shows "length p \<le> Suc k \<and> (\<forall> i < length p . \<forall> j < length p . i < j \<longrightarrow> (snd (snd (snd (p ! j)))) < (snd (snd (snd (p ! i)))))"
-  
+shows "length p \<le> Suc k 
+        \<and> (length p > 1 \<longrightarrow> (\<forall> i < (length p - 1) . (snd (snd (snd (p ! (Suc i))))) < (snd (snd (snd (p ! i))))))
+        \<and> (\<forall> qqxk \<in> set p . \<exists> p1 p2 . path (from_FSM M q1) q1 p1 \<and> path (from_FSM M q2) q2 p2 \<and> target p1 q1 = fst qqxk \<and> target p2 q2 = fst (snd qqxk) \<and> p_io p1 = p_io p2)"
+      (is "?length_prop p k \<and> ?sort_prop p \<and> (\<forall> qqxk \<in> set p . ?path_prop qqxk q1 q2)")
 using assms proof (induction k arbitrary: q1 q2 p tr)
   case 0
   then obtain x where "tr = RD_Node q1 q2 x 0 Map.empty"
     using r_distinguishable_k_tree_0_some_unfold by metis
   moreover have "\<And> y . Map.empty y = None" by auto
   ultimately consider "p = []" | "p = [(q1,q2,x,0)]"
-    using "0.prems"(2) rd_tree_path.simps by fastforce 
-  then show ?case by (cases; auto)  
+    using "0.prems"(4) rd_tree_path.simps  by fastforce
+  then show ?case proof (cases)
+    case 1
+    then show ?thesis by auto
+  next
+    case 2
+    have "path (from_FSM M q1) q1 []" and "path (from_FSM M q2) q2 []"
+      using path.nil[OF nodes.initial] from_FSM_simps(1) by metis+
+    moreover have "target [] q1 = fst (q1,q2,x,0) \<and> target [] q2 = fst (snd (q1,q2,x,k)) \<and> p_io [] = p_io []"
+      by auto
+    ultimately have "?path_prop (q1,q2,x,0) q1 q2" by auto
+    moreover have "set p = {(q1,q2,x,0)}" using 2 by auto
+    ultimately have "(\<forall> qqxk \<in> set p . ?path_prop qqxk q1 q2)" by auto 
+    moreover have "?length_prop p 0" and "?sort_prop p" using 2 by auto
+    ultimately show ?thesis by auto
+  qed
 next
   case (Suc k)
   then obtain x k' f where "x \<in> set (inputs M)" and "k' \<le> Suc k" and "tr = RD_Node q1 q2 x k' f" and *: "\<And> y q1' q2' x' k'' f'.
@@ -1426,21 +1420,28 @@ next
       have "k'' < k'" using * \<open>f y = Some tr'\<close> \<open>tr' = RD_Node q1' q2' x' k'' f'\<close> by auto
       then have "k'' \<le> k" using \<open>k' \<le> Suc k\<close> by auto
 
-      have "length (t'#ts') \<le> Suc k" and sort_prop: "(\<forall>i<length (t' # ts'). \<forall>j<length (t' # ts'). i < j \<longrightarrow> snd (snd (snd ((t' # ts') ! j))) < snd (snd (snd ((t' # ts') ! i))))"
+      have "length (t'#ts') \<le> Suc k" and sort_prop: "(length (t'#ts') > 1 \<longrightarrow> (\<forall> i < (length (t'#ts') - 1) . (snd (snd (snd ((t'#ts') ! (Suc i))))) < (snd (snd (snd ((t'#ts') ! i))))))"
         using Suc.IH[OF r_distinguishable_k_tree_leq[OF \<open>r_distinguishable_k_tree M q1' q2' k'' = Some tr'\<close> \<open>k'' \<le> k\<close>] \<open>rd_tree_path tr' (t'#ts')\<close>] by auto
       then have "length p \<le> Suc (Suc k)"
         using \<open>p = t#(t'#ts')\<close> by auto
       
-      have "snd (snd (snd (p ! 0))) = k'"
+      have "snd (snd (snd ((t#t'#ts') ! 0))) = k'"
         using Suc.prems(2) \<open>p = t # t' # ts'\<close> \<open>tr = RD_Node q1 q2 x k' f\<close> by fastforce
-      moreover have "snd (snd (snd (p ! 1))) = k''"
+      moreover have "snd (snd (snd ((t#t'#ts') ! 1))) = k''"
         using \<open>p = t # t' # ts'\<close> \<open>rd_tree_path tr' (t' # ts')\<close> \<open>tr' = RD_Node q1' q2' x' k'' f'\<close> by fastforce 
-      moreover have "length p = Suc (length (t'#ts'))"
-        using \<open>p = t # t' # ts'\<close> by auto
-      moreover have "\<And> i . p ! (Suc i) = (t'#ts) ! i"
-        using \<open>p = t # t' # ts'\<close> 
-      ultimately have "(\<forall>i<length p. \<forall>j<length p. i < j \<longrightarrow> snd (snd (snd (p ! j))) < snd (snd (snd (p ! i))))"
-        using \<open>p = t # t' # ts'\<close> sort_prop 
+      ultimately have s1: "snd (snd (snd ((t#t'#ts') ! (Suc 0)))) < snd (snd (snd ((t#t'#ts') ! 0)))"
+        using \<open>k'' < k'\<close> by auto
+      
+      have "\<And> i . i < (length (t'#ts') - 1) \<Longrightarrow> (snd (snd (snd ((t'#ts') ! (Suc i))))) < (snd (snd (snd ((t'#ts') ! i))))"
+        using sort_prop by auto
+      then have s2: "\<And> i . i < (length (t#t'#ts') - 1) \<Longrightarrow> i > 0 \<Longrightarrow> (snd (snd (snd ((t#t'#ts') ! (Suc i))))) < (snd (snd (snd ((t#t'#ts') ! i))))"
+        using sort_prop by auto
+      
+      have s12: "\<And> i . i < length (t#t'#ts') - 1  \<Longrightarrow> (snd (snd (snd ((t#t'#ts') ! (Suc i))))) < (snd (snd (snd ((t#t'#ts') ! i))))"
+        using s1 s2 by blast 
+
+      then show ?thesis 
+        using \<open>length p \<le> Suc (Suc k)\<close> \<open>p = t#t'#ts'\<close> by auto
     qed
   qed
 qed
