@@ -1354,13 +1354,37 @@ qed
 
 
 
+lemma x : 
+  assumes "(\<forall> i < length (t' # ts) . \<forall> j < length (t' # ts) . i < j \<longrightarrow> f((t' # ts) ! j) < f ((t' # ts) ! i))"
+      and "f t > f t'" 
+    shows "(\<forall> i < length (t # t' # ts) . \<forall> j < length (t # t' # ts) . i < j \<longrightarrow> f((t # t' # ts) ! j) < f ((t # t' # ts) ! i))"
+proof -
+  have "\<And> i . i < length (t' # ts) \<Longrightarrow> (t # t' # ts) ! (Suc i) = (t' # ts) ! i"
+    by sim3
+    
+  have "(\<forall> i < (length (t' # ts)) . \<forall> j < Suc (length (t' # ts)) . i < j \<longrightarrow> f((t # t' # ts ) ! (Suc j)) < f ((t # t' # ts) ! (Suc i)))"
+    using 
 
-
+using assms proof (induction ts rule: rev_induct)
+  case Nil
+  then show ?case
+    by (simp add: nth_Cons') 
+next
+  case (snoc x xs)
+  have "\<And> i . i < length (t # t' # xs) \<Longrightarrow> (t # t' # xs @ [x]) ! i = (t # t' # xs) ! i"
+    by (metis append_Cons nth_append)
+  then have "\<forall>i<length (t # t' # xs).
+       \<forall>j<length (t # t' # xs). i < j \<longrightarrow> f ((t # t' # xs @ [x]) ! j) < f ((t # t' # xs @ [x]) ! i)"
+    using snoc.prems
+    
+  then show ?case
+qed
 
 lemma r_distinguishable_k_tree_height :
   assumes "r_distinguishable_k_tree M q1 q2 k = Some tr"
   and "rd_tree_path tr p"
-shows "length p \<le> Suc k"
+shows "length p \<le> Suc k \<and> (\<forall> i < length p . \<forall> j < length p . i < j \<longrightarrow> (snd (snd (snd (p ! j)))) < (snd (snd (snd (p ! i)))))"
+  
 using assms proof (induction k arbitrary: q1 q2 p tr)
   case 0
   then obtain x where "tr = RD_Node q1 q2 x 0 Map.empty"
@@ -1402,10 +1426,21 @@ next
       have "k'' < k'" using * \<open>f y = Some tr'\<close> \<open>tr' = RD_Node q1' q2' x' k'' f'\<close> by auto
       then have "k'' \<le> k" using \<open>k' \<le> Suc k\<close> by auto
 
-      have "length (t'#ts') \<le> Suc k" 
-        using Suc.IH[OF r_distinguishable_k_tree_leq[OF \<open>r_distinguishable_k_tree M q1' q2' k'' = Some tr'\<close> \<open>k'' \<le> k\<close>] \<open>rd_tree_path tr' (t'#ts')\<close>] by assumption
-      then show ?thesis
+      have "length (t'#ts') \<le> Suc k" and sort_prop: "(\<forall>i<length (t' # ts'). \<forall>j<length (t' # ts'). i < j \<longrightarrow> snd (snd (snd ((t' # ts') ! j))) < snd (snd (snd ((t' # ts') ! i))))"
+        using Suc.IH[OF r_distinguishable_k_tree_leq[OF \<open>r_distinguishable_k_tree M q1' q2' k'' = Some tr'\<close> \<open>k'' \<le> k\<close>] \<open>rd_tree_path tr' (t'#ts')\<close>] by auto
+      then have "length p \<le> Suc (Suc k)"
         using \<open>p = t#(t'#ts')\<close> by auto
+      
+      have "snd (snd (snd (p ! 0))) = k'"
+        using Suc.prems(2) \<open>p = t # t' # ts'\<close> \<open>tr = RD_Node q1 q2 x k' f\<close> by fastforce
+      moreover have "snd (snd (snd (p ! 1))) = k''"
+        using \<open>p = t # t' # ts'\<close> \<open>rd_tree_path tr' (t' # ts')\<close> \<open>tr' = RD_Node q1' q2' x' k'' f'\<close> by fastforce 
+      moreover have "length p = Suc (length (t'#ts'))"
+        using \<open>p = t # t' # ts'\<close> by auto
+      moreover have "\<And> i . p ! (Suc i) = (t'#ts) ! i"
+        using \<open>p = t # t' # ts'\<close> 
+      ultimately have "(\<forall>i<length p. \<forall>j<length p. i < j \<longrightarrow> snd (snd (snd (p ! j))) < snd (snd (snd (p ! i))))"
+        using \<open>p = t # t' # ts'\<close> sort_prop 
     qed
   qed
 qed
@@ -1449,7 +1484,20 @@ next
 qed
 
 
+lemma r_distinguishable_k_tree_least_path_decreasing :
+  assumes "r_distinguishable_k_tree M q1 q2 k0 = Some tr"
+      and "rd_tree_path tr (t1#t2#ts)"
+  shows "fst (snd (snd t1)) > fst (snd (snd t2))"
 
+lemma r_distinguishable_k_tree_least_path_unique :
+  assumes "r_distinguishable_k_tree M q1 q2 k0 = Some tr"
+      and "rd_tree_path tr p"
+  shows "(LEAST k . r_distinguishable_k_tree M q1 q2 k \<noteq> None) < 2 * size M"
+
+
+lemma r_distinguishable_k_tree_least :
+  assumes "\<exists> k . r_distinguishable_k_tree M q1 q2 k \<noteq> None"
+  shows "(LEAST k . r_distinguishable_k_tree M q1 q2 k \<noteq> None) < 2 * size M"
 
 
 
