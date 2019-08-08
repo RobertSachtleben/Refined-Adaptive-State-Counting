@@ -1052,6 +1052,26 @@ qed
 (* TODO: move *)
 datatype 'a RD_tree = RD_Node 'a 'a Input nat "Output \<Rightarrow> 'a RD_tree option" 
 
+(*
+inductive path :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 'state Transition list \<Rightarrow> bool" where
+  nil[intro!] : "q \<in> nodes M \<Longrightarrow> path M q []" |
+  cons[intro!] : "t \<in> h M \<Longrightarrow> path M (t_target t) ts \<Longrightarrow> path M (t_source t) (t#ts)"
+
+inductive_cases path_nil_elim[elim!]: "path M q []"
+inductive_cases path_cons_elim[elim!]: "path M q (t#ts)"
+*)
+
+inductive rd_tree_path :: "'a RD_tree \<Rightarrow> ('a \<times> 'a \<times> Input \<times> nat) list \<Rightarrow> bool" where
+  nil[intro!] : "rd_tree_path tr []" |
+  unit[intro!] : "rd_tree_path (RD_Node q1 q2 x k f) [(q1,q2,x,k)]" |
+  cons[intro!] : "rd_tree_path tr p \<Longrightarrow> \<exists> y . f y = Some tr \<Longrightarrow> rd_tree_path (RD_Node q1 q2 x k f) ((q1,q2,x,k)#p)"
+
+inductive_cases rd_tree_path_nil_elim[elim!]: "rd_tree_path tr []"
+inductive_cases rd_tree_path_unit_elim[elim!]: "rd_tree_path tr [t]"
+inductive_cases rd_tree_path_cons_elim[elim!]: "rd_tree_path tr (t#p)"
+
+
+
 fun r_distinguishable_k_tree :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a RD_tree option" where
   "r_distinguishable_k_tree M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) of
     Some x \<Rightarrow> Some (RD_Node q1 q2 x 0 (\<lambda> y . None)) |
@@ -1059,15 +1079,152 @@ fun r_distinguishable_k_tree :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarro
   "r_distinguishable_k_tree M q1 q2 (Suc k) = (case r_distinguishable_k_tree M q1 q2 k of
     Some t \<Rightarrow> Some t |
     None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k) (inputs M) of
-      Some x \<Rightarrow> Some (RD_Node q1 q2 x 0 
+      Some x \<Rightarrow> Some (RD_Node q1 q2 x (Suc k) 
           (\<lambda> y . (case find (\<lambda> tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt) \<and> t_output (fst tt) = y) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))) of
                     Some tt \<Rightarrow> r_distinguishable_k_tree M (t_target (fst tt)) (t_target (snd tt)) k |
                     None \<Rightarrow> None))) | 
       None \<Rightarrow> None))"
 
-value "r_distinguishable_k_tree M_ex_9 0 3 1"
-value "case (r_distinguishable_k_tree M_ex_9 0 3 1) of
+value "r_distinguishable_k_tree M_ex_9 0 3 100"
+value "case (r_distinguishable_k_tree M_ex_9 0 3 100) of
         Some (RD_Node q1 q2 x k f) \<Rightarrow> map (\<lambda> y . (y, f y)) (outputs M_ex_9)"
+
+lemma r_distinguishable_k_tree_0_some_unfold : 
+  assumes "r_distinguishable_k_tree M q1 q2 0 = Some tr" 
+  shows "\<exists> x \<in> set (inputs M) . tr = RD_Node q1 q2 x 0 Map.empty"
+proof -
+  have "find
+           (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = q1 \<and>
+                          t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+           (inputs M) \<noteq> None"                 
+    using assms unfolding r_distinguishable_k_tree.simps
+    by (metis option.distinct(1) option.simps(4)) 
+  then obtain x where x_def : "find
+           (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = q1 \<and>
+                          t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+           (inputs M) = Some x" by blast
+  then have "tr = RD_Node q1 q2 x 0 Map.empty"
+    using assms unfolding r_distinguishable_k_tree.simps by auto
+  moreover have "x \<in> set (inputs M)"
+    using x_def by (simp add: find_set) 
+  ultimately show ?thesis by blast
+qed
+
+
+
+lemma r_distinguishable_k_tree_Suc_some_unfold : 
+  assumes "r_distinguishable_k_tree M q1 q2 (Suc k) = Some tr" 
+  shows "\<exists> x \<in> set (inputs M) . \<exists> k' \<le> Suc k . \<exists> f . tr = RD_Node q1 q2 x k' f"
+using assms proof (induction k arbitrary: q1 q2 tr)
+  case 0
+  then show ?case proof (cases "r_distinguishable_k_tree M q1 q2 0")
+    case None
+    then have c_def : "(case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) 0) (inputs M) of
+      Some x \<Rightarrow> Some (RD_Node q1 q2 x (Suc 0) 
+          (\<lambda> y . (case find (\<lambda> tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt) \<and> t_output (fst tt) = y) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))) of
+                    Some tt \<Rightarrow> r_distinguishable_k_tree M (t_target (fst tt)) (t_target (snd tt)) 0 |
+                    None \<Rightarrow> None))) | 
+      None \<Rightarrow> None) = Some tr"
+      unfolding r_distinguishable_k_tree.simps(2) using 0 by auto
+    then have "find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) 0) (inputs M) \<noteq> None"
+      by (metis (no_types, lifting) option.discI option.simps(4))
+    then obtain x where x_def : "find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) 0) (inputs M) = Some x"
+      by auto
+    then have "tr = RD_Node q1 q2 x (Suc 0) (\<lambda> y . (case find (\<lambda> tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt) \<and> t_output (fst tt) = y) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))) of
+                    Some tt \<Rightarrow> r_distinguishable_k_tree M (t_target (fst tt)) (t_target (snd tt)) 0 |
+                    None \<Rightarrow> None))"
+      using c_def unfolding r_distinguishable_k_tree.simps by auto  
+    moreover have "x \<in> set (inputs M)" 
+      using x_def by (simp add: find_set) 
+    ultimately show ?thesis by blast
+  next
+    case (Some tr')
+    then have "tr = tr'"
+      unfolding r_distinguishable_k_tree.simps(2) using 0 by auto
+    moreover obtain x where "x \<in> set (inputs M)" and "tr' = RD_Node q1 q2 x 0 Map.empty"
+      using r_distinguishable_k_tree_0_some_unfold[OF Some] by blast
+    ultimately show ?thesis by blast
+  qed
+next
+  case (Suc k)
+  then show ?case proof (cases "r_distinguishable_k_tree M q1 q2 (Suc k)")
+    case None
+    then have c_def : "(case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (Suc k)) (inputs M) of
+      Some x \<Rightarrow> Some (RD_Node q1 q2 x (Suc (Suc k)) 
+          (\<lambda> y . (case find (\<lambda> tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt) \<and> t_output (fst tt) = y) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))) of
+                    Some tt \<Rightarrow> r_distinguishable_k_tree M (t_target (fst tt)) (t_target (snd tt)) (Suc k) |
+                    None \<Rightarrow> None))) | 
+      None \<Rightarrow> None) = Some tr"
+      using Suc unfolding r_distinguishable_k_tree.simps(2)  by auto
+    then have "find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (Suc k)) (inputs M) \<noteq> None"
+      by (metis (no_types, lifting) option.discI option.simps(4))
+    then obtain x where x_def : "find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (Suc k)) (inputs M) = Some x"
+      by auto
+    then have "tr = RD_Node q1 q2 x (Suc (Suc k)) (\<lambda> y . (case find (\<lambda> tt . t_source (fst tt) = q1 \<and> t_source (snd tt) = q2 \<and> t_input (fst tt) = x \<and> t_input (snd tt) = x \<and> t_output (fst tt) = t_output (snd tt) \<and> t_output (fst tt) = y) (concat (map (\<lambda> t1 . map (\<lambda> t2 . (t1,t2)) (wf_transitions M)) (wf_transitions M))) of
+                    Some tt \<Rightarrow> r_distinguishable_k_tree M (t_target (fst tt)) (t_target (snd tt)) (Suc k) |
+                    None \<Rightarrow> None))"
+      using c_def unfolding r_distinguishable_k_tree.simps by auto  
+    moreover have "x \<in> set (inputs M)" 
+      using x_def by (simp add: find_set) 
+    ultimately show ?thesis by blast
+  next
+    case (Some tr')
+    then have "tr = tr'"
+      unfolding r_distinguishable_k_tree.simps(2) using Suc by auto
+    moreover obtain x k' f where "x \<in> set (inputs M)" and "k' \<le> Suc k" and "tr' = RD_Node q1 q2 x k' f"
+      using Suc.IH[OF Some] by blast
+    ultimately show ?thesis by auto
+  qed
+qed
+
+
+
+
+
+
+lemma r_distinguishable_k_tree_height :
+  assumes "r_distinguishable_k_tree M q1 q2 k = Some tr"
+  and "rd_tree_path tr p"
+shows "length p \<le> Suc k"
+using assms proof (induction k arbitrary: q1 q2 p)
+  case 0
+  then obtain x where "tr = RD_Node q1 q2 x 0 Map.empty"
+    using r_distinguishable_k_tree_0_some_unfold by metis
+  moreover have "\<And> y . Map.empty y = None" by auto
+  ultimately consider "p = []" | "p = [(q1,q2,x,0)]"
+    using "0.prems"(2) rd_tree_path.simps by fastforce 
+  then show ?case by (cases; auto)  
+next
+  case (Suc k)
+  then obtain x k' f where "x \<in> set (inputs M)" and "k' \<le> Suc k" and "tr = RD_Node q1 q2 x k' f"
+    using r_distinguishable_k_tree_Suc_some_unfold by metis
+  
+  show ?case proof (cases p)
+    case Nil
+    then show ?thesis by auto
+  next
+    case (Cons t ts)
+    then show ?thesis proof (cases ts)
+      case Nil
+      then show ?thesis using Cons by auto
+    next
+      case (Cons t' ts')
+      then have "p = t#(t'#ts')"  
+        using \<open>p = t#ts\<close> by auto
+      then have "rd_tree_path (RD_Node q1 q2 x k' f) (t#(t'#ts'))" 
+        using Suc.prems(2) \<open>tr = RD_Node q1 q2 x k' f\<close> by auto
+      then obtain tr' y where "f y = Some tr'" and "rd_tree_path tr' (t'#ts')"
+        using rd_tree_path_cons_elim[OF \<open>rd_tree_path (RD_Node q1 q2 x k' f) (t#(t'#ts'))\<close>] by blast
+      then show ?thesis sorry
+qed
+  qed
+qed
+
+
 
 
 
@@ -1105,6 +1262,11 @@ next
     then show ?thesis by (cases "r_distinguishable_k_tree M q1 q2 k"; auto)
   qed
 qed
+
+
+
+
+
 
 
 end (*
