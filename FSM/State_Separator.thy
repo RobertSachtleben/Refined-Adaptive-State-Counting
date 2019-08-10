@@ -1514,45 +1514,6 @@ lemma find_from :
 
 
 
-  
-(*
-lemma r_distinguishable_k_least_ex : 
-  assumes "r_distinguishable_k M q1 q2 k"
-  shows "\<exists> k' x . r_distinguishable_k_least M q1 q2 k = Some (k',x)"
-using assms proof (induction k)
-  case 0
-  then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x"
-    unfolding r_distinguishable_k.simps using find_None_iff[of "\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" "inputs M"] by blast
-  then have "r_distinguishable_k_least M q1 q2 0 = Some (0,x)"
-    unfolding r_distinguishable_k_least.simps by auto
-  then show ?case by blast
-next
-  case (Suc n)
-  then show ?case sorry
-qed
-
-
-lemma r_distinguishable_k_least_ex : 
-  assumes "r_distinguishable_k M q1 q2 k"
-      and "k = (LEAST k . r_distinguishable_k M q1 q2 k)"
-      and "k \<le> n"
-    shows "\<exists> x . r_distinguishable_k_least M q1 q2 n = Some (k,x)"
-using assms proof (induction n)
-  case 0
-  then have "k = 0" by auto
-  then have "r_distinguishable_k M q1 q2 0" using 0 by auto
-  then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x"
-    unfolding r_distinguishable_k.simps using find_None_iff[of "\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" "inputs M"] by blast
-  then have "r_distinguishable_k_least M q1 q2 0 = Some (0,x)"
-    unfolding r_distinguishable_k_least.simps by auto
-  then show ?case
-    using \<open>k = 0\<close> by blast 
-next
-  case (Suc n)
-  then show ?case sorry
-qed
-*)
-
 lemma r_distinguishable_k_least_ex : 
   assumes "r_distinguishable_k_least M q1 q2 k = None" 
   shows "\<not> r_distinguishable_k M q1 q2 k"
