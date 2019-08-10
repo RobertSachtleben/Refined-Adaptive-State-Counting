@@ -1700,31 +1700,10 @@ value "is_r_distinguishable M_ex_9 1 3"
 value "is_r_distinguishable M_ex_9 0 1"
 
 
-  
-
-end (*
-
-fun r_distinguishable_k_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (nat \<times> Input) option" where
-"r_distinguishable_k_witness M q1' q2' = (if (\<exists> k . r_distinguishable_k M q1' q2' k)
-            then (let lk = LEAST k . r_distinguishable_k M q1' q2' k in
-                    (if lk = 0
-                      then Some (lk, SOME x . x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                      else Some (lk, SOME x . x \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (lk-1)))))
-            else None)"
-
-value "r_distinguishable_k_witness M_ex_9 1 3"
-
-lemma r_distinguishable_k_witnesses :
-  assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
-  shows "\<exists> fk . \<forall> q1' \<in> nodes M . \<forall> q2' \<in> nodes M . 
-          ((fk q1 q2) = (if (\<exists> k . r_distinguishable M q1' q2' k)
-            then (let lk = LEAST k . r_distinguishable M q1' q2' k in
-                    (if lk = 0
-                      then (k, SOME x . x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                      else (k, SOME x . x \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) (k-1))))"
 
 
-(* Note: requires observability, a (per definition) even states in non-observable FSMs may be r-d, but this might require different inputs *)
+
+(* Note: requires observability, a (per definition) states in non-observable FSMs may still be r-d, but this might require different inputs *)
 lemma state_separator_from_r_distinguishable_k :
   assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
   assumes "observable M"
@@ -1733,8 +1712,22 @@ lemma state_separator_from_r_distinguishable_k :
 proof (rule ccontr) 
   let ?CSep = "canonical_separator M q1 q2"
 
-  obtain fk where 
-       
+  let ?fk = "\<lambda> q1 q2 . case r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) of
+              Some (k,x) \<Rightarrow> Some x |
+              None \<Rightarrow> None"
+  let ?tsInl_pairs = "(filter (\<lambda> tt . t_input (fst tt) = t_input (snd tt) \<and> t_output (fst tt) = t_output (snd tt) \<and> ?fk (t_source (fst tt)) (t_source (snd tt)) = Some (t_input (fst tt)))
+                  (concat (map (\<lambda>t1 . map (\<lambda> t2 . (t1,t2)) (transitions M)) (transitions M))))"    
+  let ?tsInl = "map shift_Inl (map (\<lambda> tt . ((t_source (fst tt), t_source (snd tt)),t_input (fst tt),t_output (fst tt), (t_target (fst tt), t_target (snd tt)))) ?tsInl_pairs)"
+
+  let ?tsLeft = "(map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1 )) (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> (r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) = Some (0,t_input (snd qqt)))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
+  let ?tsRight = "(map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2 )) (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> (r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) = Some (0,t_input (snd qqt)))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
+
+  have "set ?tsInl \<subseteq> set (shifted_transitions M q1 q2)"
+    sorry
+  have "set ?tsLeft \<subseteq> set (distinguishing_transitions_left M q1 q2)"
+    sorry
+  have "set ?tsRight \<subseteq> set (distinguishing_transitions_right M q1 q2)"
+    sorry
 
 
 
