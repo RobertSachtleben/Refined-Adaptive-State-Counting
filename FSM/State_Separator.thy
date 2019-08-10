@@ -1048,6 +1048,9 @@ qed
 
 
 
+subsection \<open>Bounds\<close>
+
+
 
 inductive is_least_r_d_k_path :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) \<times> Input \<times> nat) list \<Rightarrow> bool" where
   immediate[intro!] : "x \<in> set (inputs M) \<Longrightarrow> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<Longrightarrow> is_least_r_d_k_path M q1 q2 [((q1,q2),x,0)]" |
@@ -1295,13 +1298,11 @@ proof -
 qed
 
 
-(* TODO: move *)
 
 
-lemma is_least_r_d_k_nodes :
+
+lemma is_least_r_d_k_path_nodes :
   assumes "is_least_r_d_k_path M q1 q2 p"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
 shows "set (map fst p) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
   using assms proof (induction p)
   case (immediate x M q1 q2)
@@ -1328,23 +1329,171 @@ next
   have "((q1,q2),t_input t1, t_output t1, (t_target t1, t_target t2)) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
     using product_transition_from_transitions[OF \<open>t1 \<in> h (from_FSM M q1)\<close> \<open>t2 \<in> h (from_FSM M q2)\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close>]  
           from_product_initial_paths_ex[of M q1 q2] \<open>t_source t1 = q1\<close> \<open>t_source t2 = q2\<close> by blast
-  
+
   then have "(t_target t1, t_target t2) \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
     using wf_transition_target
     by (metis snd_conv) 
+  moreover have "nodes (product (from_FSM M (t_target t1)) (from_FSM M (t_target t2))) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    using product_from_path[OF calculation] 
+          path_to_node[of _ "(product (from_FSM M (t_target t1)) (from_FSM M (t_target t2)))"]
+    by (metis from_FSM_product_initial path_target_is_node subrelI)
+  moreover have "set (map fst p) \<subseteq> nodes (product (from_FSM M (t_target t1)) (from_FSM M (t_target t2)))"
+    using step.IH by assumption
+  ultimately have "set (map fst p) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    by blast
   
+  moreover have "set (map fst [((q1,q2),x,Suc k)]) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    using \<open>((q1, q2), t_input t1, t_output t1, t_target t1, t_target t2) \<in> set (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<close>
+    by (metis (no_types, lifting) empty_iff empty_set fst_conv list.simps(8) list.simps(9) set_ConsD subsetI wf_transition_simp) 
+    
+  ultimately show ?case
+  proof -
+    have f1: "\<And>p f pa ps. (p::'a \<times> 'a) \<notin> set (map f ((pa::('a \<times> 'a) \<times> integer \<times> nat) # ps)) \<or> p = f pa \<or> p \<in> set (map f ps)"
+      by fastforce
+    obtain pp :: "('a \<times> 'a) list \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> 'a \<times> 'a" where
+      f2: "\<And>ps r. (set ps \<subseteq> r \<or> pp ps r \<in> set ps) \<and> (pp ps r \<notin> r \<or> set ps \<subseteq> r)"
+      by moura
+    have "pp (map fst (((q1, q2), x, Suc k) # p)) (nodes (product (from_FSM M q1) (from_FSM M q2))) = fst ((q1, q2), x, Suc k) \<longrightarrow> pp (map fst (((q1, q2), x, Suc k) # p)) (nodes (product (from_FSM M q1) (from_FSM M q2))) \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+      by (metis (no_types) \<open>set (map fst [((q1, q2), x, Suc k)]) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> insert_iff list.simps(15) list.simps(9) subset_iff)
+    then show ?thesis
+      using f2 f1 by (meson \<open>set (map fst p) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> subset_iff)
+  qed
+qed
+
+
+lemma is_least_r_d_k_path_decreasing :
+  assumes "is_least_r_d_k_path M q1 q2 p"
+  shows "\<forall> t' \<in> set (tl p) . snd (snd t') < snd (snd (hd p))"
+using assms proof(induction p)
+  case (immediate x M q1 q2)
+  then show ?case by auto
+next
+  case (step k M q1 q2 x t1 t2 p)
+  then show ?case proof (cases p)
+    case Nil
+    then show ?thesis by auto
+  next
+    case (Cons t' p')
+    then have "is_least_r_d_k_path M (t_target t1) (t_target t2) (t'#p')" using step.hyps(7) by auto
+
+    have "r_distinguishable_k M (t_target t1) (t_target t2) (snd (snd t'))" 
+     and "snd (snd t') = (LEAST k'. r_distinguishable_k M (t_target t1) (t_target t2) k')"
+      using is_least_r_d_k_path_is_least[OF \<open>is_least_r_d_k_path M (t_target t1) (t_target t2) (t'#p')\<close>] by auto
+
+    have "snd (snd t') < Suc k"
+      by (metis \<open>snd (snd t') = (LEAST k'. r_distinguishable_k M (t_target t1) (t_target t2) k')\<close> local.step(3) local.step(4) local.step(5) local.step(6) not_less_Least not_less_eq)
+    moreover have "\<forall>t''\<in>set p. snd (snd t'') \<le> snd (snd t')" 
+      using Cons step.IH by auto
+    ultimately show ?thesis by auto
+  qed
+qed
+
+lemma is_least_r_d_k_path_suffix :
+  assumes "is_least_r_d_k_path M q1 q2 p"
+      and "i < length p"
+    shows "is_least_r_d_k_path M (fst (fst (hd (drop i p)))) (snd (fst (hd (drop i p)))) (drop i p)"
+using assms proof(induction p arbitrary: i)
+  case (immediate x M q1 q2)
+  then show ?case by auto
+next
+  case (step k M q1 q2 x t1 t2 p)
+  then have "is_least_r_d_k_path M q1 q2 (((q1,q2),x,Suc k)#p)"
+    by blast 
+
+  have "\<And> i . i < length p \<Longrightarrow> is_least_r_d_k_path M (fst (fst (hd (drop (Suc i) (((q1, q2), x, Suc k) # p))))) (snd (fst (hd (drop (Suc i) (((q1, q2), x, Suc k) # p))))) (drop (Suc i) (((q1, q2), x, Suc k) # p))"
+    using step.IH by simp
+  then have "\<And> i . i < length (((q1, q2), x, Suc k) # p) \<Longrightarrow> i > 0 \<Longrightarrow> is_least_r_d_k_path M (fst (fst (hd (drop i (((q1, q2), x, Suc k) # p))))) (snd (fst (hd (drop i (((q1, q2), x, Suc k) # p))))) (drop i (((q1, q2), x, Suc k) # p))"
+    by (metis Suc_less_eq gr0_implies_Suc length_Cons)
+  moreover have "\<And> i . i < length (((q1, q2), x, Suc k) # p) \<Longrightarrow> i = 0 \<Longrightarrow> is_least_r_d_k_path M (fst (fst (hd (drop i (((q1, q2), x, Suc k) # p))))) (snd (fst (hd (drop i (((q1, q2), x, Suc k) # p))))) (drop i (((q1, q2), x, Suc k) # p))"
+    using \<open>is_least_r_d_k_path M q1 q2 (((q1,q2),x,Suc k)#p)\<close> by auto
+  ultimately show ?case
+    using step.prems by blast 
+qed
+
+  
+
+lemma is_least_r_d_k_path_distinct :
+  assumes "is_least_r_d_k_path M q1 q2 p"
+  shows "distinct (map fst p)"
+using assms proof(induction p)
+  case (immediate x M q1 q2)
+  then show ?case by auto
+next
+  case (step k M q1 q2 x t1 t2 p)
+  then have "is_least_r_d_k_path M q1 q2 (((q1,q2),x,Suc k)#p)"
+    by blast 
+  
+  show ?case proof (rule ccontr)
+    assume "\<not> distinct (map fst (((q1, q2), x, Suc k) # p))"
+    then have "(q1,q2) \<in> set (map fst p)"
+      using step.IH by simp 
+    then obtain i where "i < length p" and "(map fst p) ! i = (q1,q2)"
+      by (metis distinct_Ex1 length_map step.IH)
+    then obtain x' k' where "hd (drop i p) = ((q1,q2),x',k')"
+      by (metis fst_conv hd_drop_conv_nth nth_map old.prod.exhaust)
+
+    have "is_least_r_d_k_path M q1 q2 (drop i p)"
+      using is_least_r_d_k_path_suffix[OF \<open>is_least_r_d_k_path M q1 q2 (((q1,q2),x,Suc k)#p)\<close>] \<open>i < length p\<close>
+    proof -
+      have "snd (fst (hd (drop i p))) = q2"
+        using \<open>hd (drop i p) = ((q1, q2), x', k')\<close> by auto
+      then show ?thesis
+        by (metis (no_types) \<open>hd (drop i p) = ((q1, q2), x', k')\<close> \<open>i < length p\<close> fst_conv is_least_r_d_k_path_suffix step.hyps(7))
+    qed
+
+    have "k' < Suc k"
+      using is_least_r_d_k_path_decreasing[OF \<open>is_least_r_d_k_path M q1 q2 (((q1,q2),x,Suc k)#p)\<close>]
+      by (metis Cons_nth_drop_Suc \<open>hd (drop i p) = ((q1, q2), x', k')\<close> \<open>i < length p\<close> hd_in_set in_set_dropD list.sel(1) list.sel(3) list.simps(3) snd_conv)
+    moreover have "k' = (LEAST k'. r_distinguishable_k M q1 q2 k')"  
+      using is_least_r_d_k_path_is_least \<open>is_least_r_d_k_path M q1 q2 (drop i p)\<close> is_least_r_d_k_path_is_least
+      by (metis Cons_nth_drop_Suc \<open>hd (drop i p) = ((q1, q2), x', k')\<close> \<open>i < length p\<close> hd_drop_conv_nth snd_conv)
+    ultimately show "False"
+      using step.hyps(1) dual_order.strict_implies_not_eq by blast 
+  qed
+qed
+
+
+
+lemma r_distinguishable_least_bound :
+  assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
+  shows "(LEAST k . r_distinguishable_k M q1 q2 k) \<le> size (product (from_FSM M q1) (from_FSM M q2))"
+proof (rule ccontr)
+  assume "\<not> (LEAST k. r_distinguishable_k M q1 q2 k) \<le> FSM.size (product (from_FSM M q1) (from_FSM M q2))"
+  then have c_assm : "size (product (from_FSM M q1) (from_FSM M q2)) < (LEAST k. r_distinguishable_k M q1 q2 k)"
+    by linarith
+
+  obtain t p where "is_least_r_d_k_path M q1 q2 (t # p)" 
+               and "length (t # p) = Suc (LEAST k. r_distinguishable_k M q1 q2 k)"
+    using is_least_r_d_k_path_length_from_r_d[OF assms] by blast
+  then have "size (product (from_FSM M q1) (from_FSM M q2)) < length (t # p)"
+    using c_assm by linarith
+
+   
+  
+  have "distinct (map fst (t # p))"
+    using is_least_r_d_k_path_distinct[OF \<open>is_least_r_d_k_path M q1 q2 (t # p)\<close>] by assumption
+  then have "card (set (map fst (t # p))) = length (t # p)"
+    using distinct_card by fastforce
+  moreover have "card (set (map fst (t # p))) \<le> card (nodes (product (from_FSM M q1) (from_FSM M q2)))"
+    using is_least_r_d_k_path_nodes[OF \<open>is_least_r_d_k_path M q1 q2 (t # p)\<close>] nodes_finite card_mono by blast
+  ultimately have "length (t # p) \<le> size (product (from_FSM M q1) (from_FSM M q2))"
+    by (metis size_def) 
+  then show "False"
+    using \<open>size (product (from_FSM M q1) (from_FSM M q2)) < length (t # p)\<close> by linarith
+qed
     
 
-  then have "set (map fst p) \<subseteq> nodes (product (from_FSM M (t_target t1)) (from_FSM M (t_target t2)))"
-    using step.IH by metis
-  have "nodes (product (from_FSM M (t_target t1)) (from_FSM M (t_target t2))) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
-  
-    using product_from_path[of "t_target t1" "t_target t2" M q1 q2]
-  show ?case
-    using nodes.initial[of \<open>product (from_FSM M q1) (from_FSM M q2)\<close>]
-          step.IH[OF \<open>t_target t1 \<in> nodes M\<close> \<open>t_target t2 \<in> nodes M\<close>]
-    
-qed
+
+
+
+
+
+
+
+
+
+
+
 
 
 
