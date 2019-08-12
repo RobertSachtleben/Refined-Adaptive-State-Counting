@@ -2514,6 +2514,91 @@ fun generate_submachine_from_assignment :: "('a, 'b) FSM_scheme \<Rightarrow> ('
   "generate_submachine_from_assignment M assn = M\<lparr> transitions := filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set assn) (wf_transitions M)\<rparr>"
 
 lemma generate_submachine_for_contained_assn: "assn \<in> set assns \<Longrightarrow> generate_submachine_from_assignment CSep assn \<in> set (map (\<lambda> assn . generate_submachine_from_assignment CSep assn) assns)"
-    by simp
+  by simp
+
+  
+subsubsection \<open>Induction Schemes\<close>
+
+lemma acyclic_finite_paths :
+  assumes "acyclic M"
+    shows "finite {p . path M q p}"
+proof -
+  from assms have "{ p . path M (initial M) p} \<subseteq> set (paths_up_to_length M (initial M) (size M))"
+    using distinct_path_length_limit_nodes[of M "initial M"] paths_up_to_length_path_set[OF nodes.initial[of M], of "size M"]
+    by fastforce 
+  moreover have "finite (set (paths_up_to_length M (initial M) (size M)))"
+    by auto
+  ultimately have "finite { p . path M (initial M) p}"
+    using finite_subset by blast
+
+  show "finite {p . path M q p}"
+  proof (cases "q \<in> nodes M")
+    case True
+    then obtain p where "path M (initial M) p" and "target p (initial M) = q" 
+      by (metis path_to_node)
+    
+    have "image (\<lambda>p' . p@p') {p' . path M q p'} \<subseteq> {p' . path M (initial M) p'}"
+    proof 
+      fix x assume "x \<in> image (\<lambda>p' . p@p') {p' . path M q p'}"
+      then obtain p' where "x = p@p'" and "p' \<in> {p' . path M q p'}"
+        by blast
+      then have "path M q p'" by auto
+      then have "path M (initial M) (p@p')"
+        using path_append[OF \<open>path M (initial M) p\<close>] \<open>target p (initial M) = q\<close> by auto
+      then show "x \<in> {p' . path M (initial M) p'}" using \<open>x = p@p'\<close> by blast
+    qed
+    
+    then have "finite (image (\<lambda>p' . p@p') {p' . path M q p'})"
+      using \<open>finite { p . path M (initial M) p}\<close> finite_subset by auto 
+    show ?thesis using finite_imageD[OF \<open>finite (image (\<lambda>p' . p@p') {p' . path M q p'})\<close>]
+      by (meson inj_onI same_append_eq) 
+  next
+    case False
+    then show ?thesis
+      by (meson not_finite_existsD path_begin_node) 
+  qed
+qed
+
+
+
+lemma acyclic_induction [consumes 1, case_names node]:
+  assumes "acyclic M"
+      and "\<And> q . q \<in> nodes M \<Longrightarrow> (\<And> t . t \<in> h M \<Longrightarrow> ((t_source t = q) \<Longrightarrow> P (t_target t))) \<Longrightarrow> P q"
+    shows "\<forall> q \<in> nodes M . P q"
+proof 
+  fix q assume "q \<in> nodes M"
+
+  let ?k = "Max (image length {p . path M q p})"
+  have "finite {p . path M q p}" using acyclic_finite_paths[OF assms(1)] by auto
+  then have k_prop: "(\<forall> p . path M q p \<longrightarrow> length p \<le> ?k)" by auto
+
+  moreover have "\<And> q k . q \<in> nodes M \<Longrightarrow> (\<forall> p . path M q p \<longrightarrow> length p \<le> k) \<Longrightarrow> P q"
+  proof -
+    fix q k assume "q \<in> nodes M" and "(\<forall> p . path M q p \<longrightarrow> length p \<le> k)"
+    then show "P q" 
+    proof (induction k arbitrary: q)
+      case 0
+      then have "{p . path M q p} = {[]}" by blast 
+      then have "LS M q \<subseteq> {[]}" unfolding LS.simps by blast
+      then have "deadlock_state M q" using deadlock_state_alt_def by metis
+      then show ?case using assms(2)[OF \<open>q \<in> nodes M\<close>] unfolding deadlock_state.simps by blast
+    next
+      case (Suc k)
+      have "\<And> t . t \<in> h M \<Longrightarrow> (t_source t = q) \<Longrightarrow> P (t_target t)"
+      proof -
+        fix t assume "t \<in> h M" and "t_source t = q" 
+        then have "t_target t \<in> nodes M"
+          using wf_transition_target by metis
+        moreover have "\<forall>p. path M (t_target t) p \<longrightarrow> length p \<le> k"
+          using Suc.prems(2) \<open>t \<in> set (wf_transitions M)\<close> \<open>t_source t = q\<close> by auto
+        ultimately show "P (t_target t)" 
+          using Suc.IH by auto
+      qed
+      then show ?case using assms(2)[OF Suc.prems(1)] by blast
+    qed
+  qed
+
+  ultimately show "P q" using \<open>q \<in> nodes M\<close> by blast
+qed
 
 end

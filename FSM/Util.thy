@@ -38,6 +38,11 @@ next
     by (metis find.simps(2) option.inject)     
 qed
 
+lemma find_from : 
+  assumes "\<exists> x \<in> set xs . P x"
+  shows "find P xs \<noteq> None"
+  by (metis assms find_None_iff)
+
 subsection \<open>Enumerating Lists\<close>
 
 fun lists_of_length :: "'a list \<Rightarrow> nat \<Rightarrow> 'a list list" where
