@@ -1105,6 +1105,46 @@ qed
 
 
 
+lemma LS\<^sub>i\<^sub>n_alt_def : "LS\<^sub>i\<^sub>n M q U = {io \<in> LS M q . (map fst io) \<in> U}"
+proof -
+  have p_io_io : "\<And>p . map t_input p = map fst (map (\<lambda>t . (t_input t, t_output t)) p)" by auto
+
+  have "\<And> io . io \<in> LS\<^sub>i\<^sub>n M q U \<Longrightarrow> io \<in> {io \<in> LS M q. map fst io \<in> U}"
+    unfolding LS\<^sub>i\<^sub>n.simps LS.simps 
+  proof -
+    fix io :: "(integer \<times> integer) list"
+    assume "io \<in> {p_io p |p. path M q p \<and> map t_input p \<in> U}"
+    then obtain pps :: "(integer \<times> integer) list \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+      f1: "io = p_io (pps io) \<and> path M q (pps io) \<and> map t_input (pps io) \<in> U"
+      by moura
+    then have "map fst io = map t_input (pps io)"
+      by (simp add: p_io_io)
+    then have "map fst io \<in> U"
+      using f1 by simp
+    then show "io \<in> {ps \<in> {p_io ps |ps. path M q ps}. map fst ps \<in> U}"
+      using f1 by blast
+  qed 
+  moreover have "\<And> io . io \<in> {io \<in> LS M q. map fst io \<in> U} \<Longrightarrow> io \<in> LS\<^sub>i\<^sub>n M q U"
+    unfolding LS\<^sub>i\<^sub>n.simps LS.simps
+  proof -
+    fix io :: "(integer \<times> integer) list"
+    assume a1: "io \<in> {io \<in> {p_io p |p. path M q p}. map fst io \<in> U}"
+    then have "\<exists>ps. io = p_io ps \<and> path M q ps"
+      by blast
+    then obtain pps :: "(integer \<times> integer) list \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+      f2: "io = p_io (pps io) \<and> path M q (pps io)"
+      by moura
+    then have "map t_input (pps io) \<in> U"
+      using a1 by (simp add: p_io_io)
+    then show "io \<in> {p_io ps |ps. path M q ps \<and> map t_input ps \<in> U}"
+      using f2 by blast
+  qed
+  ultimately show ?thesis by blast
+qed
+
+
+
+
 subsection \<open> Basic FSM properties \<close>
 
 fun completely_specified :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where

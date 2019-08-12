@@ -951,20 +951,38 @@ subsection \<open>State Separation Sets\<close>
 definition fault_domain :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ('a,'b) FSM_scheme set" where
   "fault_domain M m = { M' . inputs M' = inputs M \<and> outputs M' = outputs M \<and> size M' \<le> size M + m \<and> observable M' \<and> completely_specified M'}"
 
-(* use  acyclic_sequences M q1 S \<and> acyclic_sequences M q2 S ?*)
-(*      S \<subseteq> LS M q1 \<union> LS M q2 *)
-definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> bool" where
+(* TODO: relax completely_specified M' to the easier requirement that the LSin on M' are non-empty? *)
+(*definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> bool" where
   "is_state_separation_set M q1 q2 S = (
     finite S
     \<and> (\<forall> s \<in> S . set s \<subseteq> set (inputs M))
     \<and> (\<forall> M'::('a,'b) FSM_scheme . ((\<forall> s \<in> S . set s \<subseteq> set (inputs M')) \<and> completely_specified M') \<longrightarrow> (*(inputs M' = inputs M \<and> outputs M' = outputs M \<and> completely_specified M') \<longrightarrow> *)
         (\<forall> q1' \<in> nodes M' . \<forall> q2' \<in> nodes M' .  ((LS\<^sub>i\<^sub>n M' q1' S \<subseteq> LS\<^sub>i\<^sub>n M q1 S) \<and> (LS\<^sub>i\<^sub>n M' q2' S \<subseteq> LS\<^sub>i\<^sub>n M q2 S)) \<longrightarrow> q1' \<noteq> q2'))
   )"
+*)
+(* TODO: LSin is incorrect, as it ignores adaptivity *)
+(*
+definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> bool" where
+  "is_state_separation_set M q1 q2 S = (
+    finite S
+    \<and> (\<forall> M'::('a,'b) FSM_scheme . 
+        (\<forall> q1' \<in> nodes M' . \<forall> q2' \<in> nodes M' .  ((LS\<^sub>i\<^sub>n M' q1' S \<noteq> {}) \<and> (LS\<^sub>i\<^sub>n M' q2' S \<noteq> {}) \<and> (LS\<^sub>i\<^sub>n M' q1' S \<subseteq> LS\<^sub>i\<^sub>n M q1 S) \<and> (LS\<^sub>i\<^sub>n M' q2' S \<subseteq> LS\<^sub>i\<^sub>n M q2 S)) \<longrightarrow> q1' \<noteq> q2'))
+  )"
+*)
+
+definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "is_state_separation_set M q1 q2 S = (
+    finite S
+    \<and> (\<forall> M'::('a,'b) FSM_scheme . 
+        (\<forall> q1' \<in> nodes M' . \<forall> q2' \<in> nodes M' .  ((LS M' q1' \<inter> S \<noteq> {}) \<and> (LS M' q2' \<inter> S \<noteq> {}) \<and> (LS M' q1' \<inter> S \<subseteq> LS M q1 \<inter> S) \<and> (LS M' q2' \<inter> S \<subseteq> LS M q2 \<inter> S)) \<longrightarrow> q1' \<noteq> q2'))
+  )"
 
 
-definition state_separation_set_from_state_separator :: "('a + 'b, 'c) FSM_scheme \<Rightarrow> Input list set" where
-  "state_separation_set_from_state_separator S = {map t_input p | p .path S (initial S) p \<and> \<not> isl (target p (initial S)) }"
+definition state_separation_set_from_state_separator :: "('a + 'b, 'c) FSM_scheme \<Rightarrow> (Input \<times> Output) list set" where
+  (*"state_separation_set_from_state_separator S = {map t_input p | p .path S (initial S) p \<and> \<not> isl (target p (initial S)) }"*)
+  "state_separation_set_from_state_separator S = {p_io p | p .path S (initial S) p \<and> \<not> isl (target p (initial S)) }"
 
+(*
 lemma state_separation_set_from_state_separator_inputs :
   "(\<forall> s \<in> state_separation_set_from_state_separator S . set s \<subseteq> set (inputs S))"
 proof 
@@ -976,6 +994,7 @@ proof
   then show "set s \<subseteq> set (inputs S)"
     using \<open>s = map t_input p\<close> by auto
 qed
+*)
 
 lemma state_separation_set_from_state_separator_finite :
   assumes "acyclic S"
@@ -985,7 +1004,7 @@ lemma state_separation_set_from_state_separator_finite :
 
 
 
-
+(* TODO: move *)
 lemma filter_map_elem : "t \<in> set (map g (filter f xs)) \<Longrightarrow> \<exists> x \<in> set xs . f x \<and> t = g x" by auto
 
 (* TODO: move *)
@@ -1249,11 +1268,6 @@ next
   then have "path ?C (initial ?C) (p')" and "t \<in> h ?C"
     by auto
 
-
-  
-
-  
-
   have "isl (target p' (initial S))"
   proof (rule ccontr)
     assume "\<not> isl (target p' (initial S))"
@@ -1351,18 +1365,176 @@ next
     using \<open>p_io (p'@[t]) \<in> LS M q1\<close> \<open>p_io (p'@[t]) \<notin> LS M q2\<close> snoc by blast
 qed
 
+
+
+
 lemma canonical_separator_maximal_path_distinguishes_right :
-  assumes "path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2))  p"
-      and "target p (initial (canonical_separator M q1 q2)) = Inr q2"
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S" (is "is_state_separator_from_canonical_separator ?C q1 q2 S")
+      and "path S (initial S) p"
+      and "target p (initial S) = Inr q2"  
+      and "observable M"
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M" and "q1 \<noteq> q2"
 shows "p_io p \<in> LS M q2 - LS M q1"
-  sorry
+proof (cases p rule: rev_cases)
+  case Nil
+  then have "initial S = Inr q2" using assms(3) by auto
+  then have "initial ?C = Inr q2" using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] is_submachine.simps[of S ?C] canonical_separator_simps(1)[of M q1 q2] by metis
+  then show ?thesis using canonical_separator_simps(1) Inr_Inl_False by metis
+next
+  case (snoc p' t) 
+  then have "path S (initial S) (p'@[t])"
+    using assms(2) by auto
+  then have "t \<in> h S" and "t_source t = target p' (initial S)" by auto
+
+
+  have "path ?C (initial ?C) (p'@[t])"
+    using \<open>path S (initial S) (p'@[t])\<close> assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] by (meson submachine_path_initial)
+  then have "path ?C (initial ?C) (p')" and "t \<in> h ?C"
+    by auto
+
+  have "isl (target p' (initial S))"
+  proof (rule ccontr)
+    assume "\<not> isl (target p' (initial S))"
+    moreover have "target p' (initial S) \<in> nodes S"
+      using \<open>path S (initial S) (p'@[t])\<close> by auto
+    ultimately have "target p' (initial S) = Inr q1 \<or> target p' (initial S) = Inr q2"
+      using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] by blast 
+    moreover have "deadlock_state S (Inr q1)" and "deadlock_state S (Inr q2)"
+      using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] by presburger+
+    ultimately show "False" 
+      using \<open>t \<in> h S\<close> \<open>t_source t = target p' (initial S)\<close> unfolding deadlock_state.simps
+      by metis 
+  qed
+  then obtain q1' q2' where "target p' (initial S) = Inl (q1',q2')" using isl_def prod.collapse by metis
+  then have "isl (target p' (initial ?C))"
+     using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S]
+     by (metis (no_types, lifting) Nil_is_append_conv assms(2) isl_def list.distinct(1) list.sel(1) path.cases snoc submachine_path_initial) 
+
+  
+
+  obtain pC where "path (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2))) pC"
+              and "p' = map shift_Inl pC"
+    using canonical_separator_path_from_shift[OF \<open>path ?C (initial ?C) (p')\<close> \<open>isl (target p' (initial ?C))\<close>] by blast
+  then have "path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) pC"
+    by force
+
+  then have "path (from_FSM M q1) q1 (left_path pC)" and "path (from_FSM M q2) q2 (right_path pC)"
+    using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 pC] by presburger+
+
+
+  have "path M q1 (left_path pC)"
+    using from_FSM_path[OF assms(5) \<open>path (from_FSM M q1) q1 (left_path pC)\<close>] by assumption
+  have "path M q2 (right_path pC)"
+    using from_FSM_path[OF assms(6) \<open>path (from_FSM M q2) q2 (right_path pC)\<close>] by assumption
+  
+  have "t_target t = Inr q2"
+    using \<open>path S (initial S) (p'@[t])\<close> snoc assms(3) by auto
+  then have "t \<in> set (distinguishing_transitions_right M q1 q2)"
+    using canonical_separator_targets(3)[OF \<open>t \<in> h ?C\<close> assms(5,6,7)] by auto
+
+  have "t_source t = Inl (q1',q2')"
+    using \<open>target p' (initial S) = Inl (q1',q2')\<close> \<open>t_source t = target p' (initial S)\<close> by auto
+
+  obtain t' where "q1' \<in> nodes M"
+                        and "q2' \<in> nodes M"
+                        and "t' \<in> h M"
+                        and "t_input t' = t_input t"
+                        and "t_output t' = t_output t"
+                        and "t_source t' = q2'"
+                        and "\<not> (\<exists>t''\<in>h M. t_source t'' = q1' \<and> t_input t'' = t_input t \<and> t_output t'' = t_output t)"
+    using distinguishing_transitions_right_sources_targets(1)[OF \<open>t \<in> set (distinguishing_transitions_right M q1 q2)\<close> assms(5,6)]
+          \<open>t_source t = Inl (q1',q2')\<close>
+    by force 
+
+  
+
+  have "initial S = Inl (q1,q2)"
+    using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] is_submachine.simps[of S ?C] canonical_separator_simps(1)[of M q1 q2]
+    by (metis from_FSM_simps(1) product_simps(1))
+  have "length p' = length pC"
+    using \<open>p' = map shift_Inl pC\<close> by auto
+  then have "target p' (initial S) = Inl (target pC (q1,q2))"
+    using \<open>p' = map shift_Inl pC\<close> \<open>initial S = Inl (q1,q2)\<close> unfolding target.simps visited_states.simps by (induction p' pC rule: list_induct2; auto)
+  then have "target pC (q1,q2) = (q1',q2')"
+     using \<open>target p' (initial S) = Inl (q1',q2')\<close> by auto 
+  then have "target (left_path pC) q1 = q1'"
+    using product_target_split(1) by fastforce
+  then have "\<not> (\<exists>t'\<in>h M. t_source t' = target (left_path pC) q1 \<and> t_input t' = t_input t \<and> t_output t' = t_output t)"
+    using \<open>\<not> (\<exists>t'\<in>h M. t_source t' = q1' \<and> t_input t' = t_input t \<and> t_output t' = t_output t)\<close> by blast
+
+  have "target (right_path pC) q2 = q2'"
+    using \<open>target pC (q1,q2) = (q1',q2')\<close> product_target_split(2) by fastforce
+  then have "path M q2 ((right_path pC)@[t'])"
+    using \<open>path M q2 (right_path pC)\<close> \<open>t' \<in> h M\<close> \<open>t_source t' = q2'\<close>
+    by (simp add: path_append_last) 
+  then have "p_io ((right_path pC)@[t']) \<in> LS M q2" 
+    unfolding LS.simps by force 
+  moreover have "p_io p' = p_io (right_path pC)"
+    using \<open>p' = map shift_Inl pC\<close> by auto
+  ultimately have "p_io (p'@[t]) \<in> LS M q2"
+    using \<open>t_input t' = t_input t\<close> \<open>t_output t' = t_output t\<close> by auto
+    
+
+
+  have "p_io (left_path pC) @  [(t_input t, t_output t)] \<notin> LS M q1"
+    using observable_path_language_step[OF assms(4) \<open>path M q1 (left_path pC)\<close> \<open>\<not> (\<exists>t'\<in>h M. t_source t' = target (left_path pC) q1 \<and> t_input t' = t_input t \<and> t_output t' = t_output t)\<close>] by assumption
+  moreover have "p_io p' = p_io (left_path pC)"
+    using \<open>p' = map shift_Inl pC\<close> by auto
+  ultimately have "p_io (p'@[t]) \<notin> LS M q1"
+    by auto
+  
+  
+
+  show ?thesis 
+    using \<open>p_io (p'@[t]) \<in> LS M q2\<close> \<open>p_io (p'@[t]) \<notin> LS M q1\<close> snoc by blast
+qed
 
 
 
 
+lemma state_separation_set_from_state_separator :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+      and "observable M"
+      and "q1 \<in> nodes M"
+      and "q2 \<in> nodes M"
+      and "q1 \<noteq> q2"
+  shows "is_state_separation_set M q1 q2 (state_separation_set_from_state_separator S)" (is "is_state_separation_set M q1 q2 ?SS")
+proof -
+
+  have "acyclic S"
+    using assms(1) is_state_separator_from_canonical_separator_def by metis 
+
+  have "finite ?SS"
+    using state_separation_set_from_state_separator_finite[OF \<open>acyclic S\<close>] by assumption
+  moreover have "(\<And> M'::('a,'b) FSM_scheme . \<And> q1' q2' . 
+        q1' \<in> nodes M' \<Longrightarrow> q2' \<in> nodes M' \<Longrightarrow> (LS M' q1' \<inter> ?SS \<noteq> {}) \<Longrightarrow> (LS M' q2' \<inter> ?SS \<noteq> {}) \<Longrightarrow> (LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS) \<Longrightarrow> (LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS) \<Longrightarrow> q1' \<noteq> q2')"
+  proof -
+    fix M'::"('a,'b) FSM_scheme"
+    fix q1' q2' assume "(LS M' q1' \<inter> ?SS \<noteq> {})" 
+                   and "(LS M' q2' \<inter> ?SS \<noteq> {})"
+                   and "(LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS)" 
+                   and "(LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS)"
+
+    obtain io1 where "io1 \<in> LS M' q1'" and "io1 \<in> ?SS"
+      using \<open>(LS M' q1' \<inter> ?SS \<noteq> {})\<close> by blast
+    obtain io2 where "io2 \<in> LS M' q2'" and "io2 \<in> ?SS"
+      using \<open>(LS M' q2' \<inter> ?SS \<noteq> {})\<close> by blast
+
+    
+    note canonical_separator_maximal_path_distinguishes_left[OF assms(1)]
+
+    show "q1' \<noteq> q2'"
+      sorry
+  qed
+  ultimately show ?thesis 
+    unfolding is_state_separation_set_def by blast
+qed
+
+  
 
 
 
+(* TODO: prove that for completely_specified machines and applicable inputs the LSin of M' in are non-empty *)
 
 
 
