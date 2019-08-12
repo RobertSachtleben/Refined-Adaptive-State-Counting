@@ -288,31 +288,26 @@ proof (rule ccontr)
       have "deadlock_state S (target p (initial S))"
         unfolding deadlock_state.simps 
       proof 
-        show "target p (initial S) \<in> nodes S"
-          using \<open>path S (initial S) p\<close> nodes_path_initial by blast 
-        show "\<not> (\<exists>t\<in>set (wf_transitions S). t_source t = target p (initial S)) "
-        proof 
-          assume "\<exists>t\<in>h S. t_source t = target p (initial S)"  
-          then obtain t where "t\<in>h S" and "t_source t = target p (initial S)"
-            by blast
-          then have "path S (initial S) (p@[t])" 
-            using \<open>path S (initial S) p\<close> by (simp add: path_append_last) 
-          then have "xys@[(t_input t,t_output t)] \<in> L S" 
-            using \<open>p_io p = xys\<close>
-          proof -
-            have "xys @ [(t_input t, t_output t)] = p_io (p @ [t])"
-              by (simp add: \<open>p_io p = xys\<close>)
-            then have "\<exists>ps. xys @ [(t_input t, t_output t)] = p_io ps \<and> path S (initial S) ps"
-              by (meson \<open>path S (initial S) (p @ [t])\<close>)
-            then show ?thesis
-              by simp
-          qed 
-          moreover have "length xys < length (xys @ [(t_input t, t_output t)]) \<and> take (length xys) (xys @ [(t_input t, t_output t)]) = xys"
+        assume "\<exists>t\<in>h S. t_source t = target p (initial S)"  
+        then obtain t where "t\<in>h S" and "t_source t = target p (initial S)"
+          by blast
+        then have "path S (initial S) (p@[t])" 
+          using \<open>path S (initial S) p\<close> by (simp add: path_append_last) 
+        then have "xys@[(t_input t,t_output t)] \<in> L S" 
+          using \<open>p_io p = xys\<close>
+        proof -
+          have "xys @ [(t_input t, t_output t)] = p_io (p @ [t])"
+            by (simp add: \<open>p_io p = xys\<close>)
+          then have "\<exists>ps. xys @ [(t_input t, t_output t)] = p_io ps \<and> path S (initial S) ps"
+            by (meson \<open>path S (initial S) (p @ [t])\<close>)
+          then show ?thesis
             by simp
-            
-          ultimately show "False" 
-            using \<open>\<not> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys)\<close> by blast
-        qed
+        qed 
+        moreover have "length xys < length (xys @ [(t_input t, t_output t)]) \<and> take (length xys) (xys @ [(t_input t, t_output t)]) = xys"
+          by simp
+          
+        ultimately show "False" 
+          using \<open>\<not> (\<exists> xys' \<in> L S . length xys < length xys' \<and> take (length xys) xys' = xys)\<close> by blast
       qed
         
       show "False" using assms(2) unfolding is_preamble.simps
