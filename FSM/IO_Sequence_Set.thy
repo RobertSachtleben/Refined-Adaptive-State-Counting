@@ -22,20 +22,20 @@ value "output_complete_sequences M_ex {[],[(1,10),(1,10)],[(1,10),(1,20)],[(1,10
 
 
 
-fun acyclic_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
-  "acyclic_sequences M P = (\<forall> p . (path M (initial M) p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states (initial M) p))"
+fun acyclic_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "acyclic_sequences M q P = (\<forall> p . (path M q p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states q p))"
 
-fun acyclic_sequences' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
-  "acyclic_sequences' M P = (\<forall> io \<in> P . \<forall> p \<in> set (paths_of_length M (initial M) (length io)) . (p_io p = io) \<longrightarrow> distinct (visited_states (initial M) p))"
+fun acyclic_sequences' :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "acyclic_sequences' M q P = (\<forall> io \<in> P . \<forall> p \<in> set (paths_of_length M q (length io)) . (p_io p = io) \<longrightarrow> distinct (visited_states q p))"
 
 lemma acyclic_sequences_alt_def[code] : "acyclic_sequences M P = acyclic_sequences' M P"
   unfolding acyclic_sequences'.simps acyclic_sequences.simps
   by (metis (no_types, lifting) length_map paths_of_length_containment paths_of_length_is_path(1))
   
-value "acyclic_sequences M_ex {}"  
-value "acyclic_sequences M_ex {[]}"
-value "acyclic_sequences M_ex {[(1,30)]}"
-value "acyclic_sequences M_ex {[(1,30),(2,20)]}"
+value "acyclic_sequences M_ex (initial M_ex) {}"  
+value "acyclic_sequences M_ex (initial M_ex) {[]}"
+value "acyclic_sequences M_ex (initial M_ex) {[(1,30)]}"
+value "acyclic_sequences M_ex (initial M_ex) {[(1,30),(2,20)]}"
 
 
 

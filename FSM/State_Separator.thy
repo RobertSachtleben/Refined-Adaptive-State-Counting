@@ -13,10 +13,10 @@ definition shifted_transitions :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightar
   "shifted_transitions M q1 q2 = map shift_Inl (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))"
 
 definition distinguishing_transitions_left :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
-  "distinguishing_transitions_left M q1 q2 = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1 )) (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> \<not>(\<exists> t' \<in> set (transitions M) . t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
+  "distinguishing_transitions_left M q1 q2 = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1 )) (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> \<not>(\<exists> t' \<in> set (transitions M) . t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
 
 definition distinguishing_transitions_right :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
-  "distinguishing_transitions_right M q1 q2 = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2 )) (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> \<not>(\<exists> t' \<in> set (transitions M) . t_source t' = fst (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
+  "distinguishing_transitions_right M q1 q2 = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2 )) (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> \<not>(\<exists> t' \<in> set (transitions M) . t_source t' = fst (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
 
 definition canonical_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme" where
   "canonical_separator M q1 q2 = 
@@ -175,7 +175,7 @@ proof -
                                      t_source t' = snd (fst qqt) \<and>
                                      t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))
                        (concat
-                         (map (\<lambda>qq'. map (Pair qq') (transitions M))
+                         (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
                            (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))))))"
                   "\<lambda> t . \<not> isl (t_target t)", OF _ \<open>\<forall> t' . \<not> isl (t_target ((\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1)) t'))\<close>] unfolding distinguishing_transitions_left_def by assumption
   then have **: "t \<notin> set ?ts2" using assms(2) by blast
@@ -190,7 +190,7 @@ proof -
                                      t_source t' = fst (fst qqt) \<and>
                                      t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))
                        (concat
-                         (map (\<lambda>qq'. map (Pair qq') (transitions M))
+                         (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
                            (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))))))"
                   "\<lambda> t . \<not> isl (t_target t)", OF _ \<open>\<forall> t' . \<not> isl (t_target ((\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2)) t'))\<close>] unfolding distinguishing_transitions_right_def by assumption
   then have ***: "t \<notin> set ?ts3" using assms(2) by blast
@@ -264,7 +264,7 @@ proof -
                                      t_source t' = snd (fst qqt) \<and>
                                      t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))
                        (concat
-                         (map (\<lambda>qq'. map (Pair qq') (transitions M))
+                         (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
                            (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))))))", OF _ \<open>\<forall> t' . isl (t_source ((\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1)) t'))\<close>] unfolding distinguishing_transitions_left_def by assumption
 
   moreover have "\<And> t' . t' \<in> set ?ts3 \<Longrightarrow> isl (t_source t')" 
@@ -274,7 +274,7 @@ proof -
                                      t_source t' = fst (fst qqt) \<and>
                                      t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))
                        (concat
-                         (map (\<lambda>qq'. map (Pair qq') (transitions M))
+                         (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
                            (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))))))", OF _ \<open>\<forall> t' . isl (t_source ((\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2)) t'))\<close>] unfolding distinguishing_transitions_right_def by assumption
 
   ultimately show ?thesis using \<open>transitions (canonical_separator M q1 q2) = ?ts1 @ ?ts2 @ ?ts3\<close>
@@ -939,6 +939,377 @@ qed
 
 
     
+
+
+
+
+
+
+subsection \<open>State Separation Sets\<close>
+
+(* TODO: move *)
+definition fault_domain :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ('a,'b) FSM_scheme set" where
+  "fault_domain M m = { M' . inputs M' = inputs M \<and> outputs M' = outputs M \<and> size M' \<le> size M + m \<and> observable M' \<and> completely_specified M'}"
+
+(* use  acyclic_sequences M q1 S \<and> acyclic_sequences M q2 S ?*)
+(*      S \<subseteq> LS M q1 \<union> LS M q2 *)
+definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> bool" where
+  "is_state_separation_set M q1 q2 S = (
+    finite S
+    \<and> (\<forall> s \<in> S . set s \<subseteq> set (inputs M))
+    \<and> (\<forall> M'::('a,'b) FSM_scheme . ((\<forall> s \<in> S . set s \<subseteq> set (inputs M')) \<and> completely_specified M') \<longrightarrow> (*(inputs M' = inputs M \<and> outputs M' = outputs M \<and> completely_specified M') \<longrightarrow> *)
+        (\<forall> q1' \<in> nodes M' . \<forall> q2' \<in> nodes M' .  ((LS\<^sub>i\<^sub>n M' q1' S \<subseteq> LS\<^sub>i\<^sub>n M q1 S) \<and> (LS\<^sub>i\<^sub>n M' q2' S \<subseteq> LS\<^sub>i\<^sub>n M q2 S)) \<longrightarrow> q1' \<noteq> q2'))
+  )"
+
+
+definition state_separation_set_from_state_separator :: "('a + 'b, 'c) FSM_scheme \<Rightarrow> Input list set" where
+  "state_separation_set_from_state_separator S = {map t_input p | p .path S (initial S) p \<and> \<not> isl (target p (initial S)) }"
+
+lemma state_separation_set_from_state_separator_inputs :
+  "(\<forall> s \<in> state_separation_set_from_state_separator S . set s \<subseteq> set (inputs S))"
+proof 
+  fix s assume "s \<in> state_separation_set_from_state_separator S"
+  then obtain p where "path S (initial S) p" and "s = map t_input p"
+    unfolding state_separation_set_from_state_separator_def by blast
+  have "set (map t_input p) \<subseteq> set (inputs S)"
+    using \<open>path S (initial S) p\<close> by (induction p; auto)
+  then show "set s \<subseteq> set (inputs S)"
+    using \<open>s = map t_input p\<close> by auto
+qed
+
+lemma state_separation_set_from_state_separator_finite :
+  assumes "acyclic S"
+  shows "finite (state_separation_set_from_state_separator S)"
+  using acyclic_finite_paths[OF assms] unfolding state_separation_set_from_state_separator_def
+  by simp 
+
+
+
+
+lemma filter_map_elem : "t \<in> set (map g (filter f xs)) \<Longrightarrow> \<exists> x \<in> set xs . f x \<and> t = g x" by auto
+
+(* TODO: move *)
+lemma observable_path_language_step :
+  assumes "observable M"
+      and "path M q p"
+      and "\<not> (\<exists>t\<in>h M.
+               t_source t = target p q \<and>
+               t_input t = x \<and> t_output t = y)"
+    shows "(p_io p)@[(x,y)] \<notin> LS M q"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  show ?case proof
+    assume "p_io [] @ [(x, y)] \<in> LS M q"
+    then obtain p' where "path M q p'" and "p_io p' = [(x,y)]" unfolding LS.simps
+      by force 
+    then obtain t where "p' = [t]" by blast
+    
+    have "t\<in>h M" and "t_source t = target [] q"
+      using \<open>path M q p'\<close> \<open>p' = [t]\<close> by auto
+    moreover have "t_input t = x \<and> t_output t = y"
+      using \<open>p_io p' = [(x,y)]\<close> \<open>p' = [t]\<close> by auto
+    ultimately show "False"
+      using Nil.prems(3) by blast
+  qed
+next
+  case (snoc t p)
+  then have "path M q p" and "t_source t = target p q" and "t \<in> h M" by auto
+
+  show ?case proof
+    assume "p_io (p @ [t]) @ [(x, y)] \<in> LS M q"
+    then obtain p' where "path M q p'" and "p_io p' = p_io (p @ [t]) @ [(x, y)]"
+      by auto
+    then obtain p'' t' t'' where "p' = p''@[t']@[t'']"
+      by (metis (no_types, lifting) append.assoc map_butlast map_is_Nil_conv snoc_eq_iff_butlast)
+    then have "path M q p''" 
+      using \<open>path M q p'\<close> by blast
+    
+    
+    have "p_io p'' = p_io p"
+      using \<open>p' = p''@[t']@[t'']\<close> \<open>p_io p' = p_io (p @ [t]) @ [(x, y)]\<close> by auto
+    then have "p'' = p"
+      using observable_path_unique[OF assms(1) \<open>path M q p''\<close> \<open>path M q p\<close>] by blast
+
+    have "t_source t' = target p'' q" and "t' \<in> h M"
+      using \<open>path M q p'\<close> \<open>p' = p''@[t']@[t'']\<close> by auto
+    then have "t_source t' = t_source t"
+      using \<open>p'' = p\<close> \<open>t_source t = target p q\<close> by auto 
+    moreover have "t_input t' = t_input t \<and> t_output t' = t_output t"
+      using \<open>p_io p' = p_io (p @ [t]) @ [(x, y)]\<close> \<open>p' = p''@[t']@[t'']\<close> \<open>p'' = p\<close> by auto
+    ultimately have "t' = t"
+      using \<open>t \<in> h M\<close> \<open>t' \<in> h M\<close> assms(1) unfolding observable.simps by (meson prod.expand) 
+
+    have "t''\<in>h M" and "t_source t'' = target (p@[t]) q"
+      using \<open>path M q p'\<close> \<open>p' = p''@[t']@[t'']\<close> \<open>p'' = p\<close> \<open>t' = t\<close> by auto
+    moreover have "t_input t'' = x \<and> t_output t'' = y"
+      using \<open>p_io p' = p_io (p @ [t]) @ [(x, y)]\<close> \<open>p' = p''@[t']@[t'']\<close> by auto
+    ultimately show "False"
+      using snoc.prems(3) by blast
+  qed
+qed
+
+
+lemma shifted_transitions_targets :
+  assumes "t \<in> set (shifted_transitions M q1 q2)"
+  shows "isl (t_target t)"
+  using assms unfolding shifted_transitions_def
+  by (metis (no_types, lifting) list_map_source_elem snd_conv sum.disc(1)) 
+
+lemma distinguishing_transitions_left_sources_targets :
+  assumes "t \<in> set (distinguishing_transitions_left M q1 q2)"
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  shows "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q1' \<and> \<not> (\<exists>t'\<in>h M.
+                             t_source t' = q2' \<and>
+                             t_input t' = t_input t \<and> t_output t' = t_output t)" 
+    and "t_target t = Inr q1"
+proof -
+  obtain qqt where *: "qqt \<in> set (concat
+                 (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                   (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
+          and **: "(\<lambda>qqt. t_source (snd qqt) = fst (fst qqt) \<and>
+                      \<not> (\<exists>t'\<in>set (transitions M).
+                             t_source t' = snd (fst qqt) \<and>
+                             t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) qqt"
+          and ***: "t = (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1)) qqt" 
+    using filter_map_elem[of t "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1))"
+                               "(\<lambda>qqt. t_source (snd qqt) = fst (fst qqt) \<and>
+                                        \<not> (\<exists>t'\<in>set (transitions M).
+                                               t_source t' = snd (fst qqt) \<and>
+                                                t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))"
+                               "(concat
+                                   (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                                    (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"] 
+    using assms unfolding distinguishing_transitions_left_def by blast
+
+  obtain qq where "qq \<in> set (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))"
+                  "qqt \<in> set (map (Pair qq) (wf_transitions M))"
+    using concat_map_elem[OF *] by blast
+
+  have "qq = fst qqt" and "snd qqt \<in> h M"
+    using \<open>qqt \<in> set (map (Pair qq) (wf_transitions M))\<close>  by auto
+
+  then have "t_source t = Inl (fst qq, snd qq)"
+   and "t_input t = t_input (snd qqt)"
+   and "t_output t = t_output (snd qqt)"
+   and "t_target t = Inr q1"
+    using *** by auto
+
+
+  have "qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    using \<open>qq \<in> set (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))\<close> nodes_code[of "product (from_FSM M q1) (from_FSM M q2)"] by blast
+  
+  have "fst qq \<in> nodes (from_FSM M q1)"
+    by (metis (no_types) \<open>qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> mem_Sigma_iff prod.exhaust_sel product_nodes subsetCE)
+  then have "fst qq \<in> nodes M"
+    using from_FSM_nodes[OF assms(2)] by blast
+
+  have "snd qq \<in> nodes (from_FSM M q2)"
+    by (metis (no_types) \<open>qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> mem_Sigma_iff prod.exhaust_sel product_nodes subsetCE)
+  then have "snd qq \<in> nodes M"
+    using from_FSM_nodes[OF assms(3)] by blast
+
+  have "\<not> (\<exists>t'\<in>h M.
+             t_source t' = snd qq \<and>
+             t_input t' = t_input t \<and> t_output t' = t_output t)"
+    using ** \<open>qq = fst qqt\<close> \<open>t_input t = t_input (snd qqt)\<close> \<open>t_output t = t_output (snd qqt)\<close> by auto
+
+  then show "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q1' \<and> \<not> (\<exists>t'\<in>h M.
+                             t_source t' = q2' \<and>
+                             t_input t' = t_input t \<and> t_output t' = t_output t)"
+    using \<open>t_source t = Inl (fst qq, snd qq)\<close> \<open>fst qq \<in> nodes M\<close> \<open>snd qq \<in> nodes M\<close> \<open>snd qqt \<in> h M\<close> ** \<open>qq = fst qqt\<close> by blast 
+  
+  show "t_target t = Inr q1"
+    using \<open>t_target t = Inr q1\<close> by assumption
+qed
+
+lemma distinguishing_transitions_right_sources_targets :
+  assumes "t \<in> set (distinguishing_transitions_right M q1 q2)"
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  shows "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q2' \<and> \<not> (\<exists>t'\<in>h M.
+                             t_source t' = q1' \<and>
+                             t_input t' = t_input t \<and> t_output t' = t_output t)" 
+    and "t_target t = Inr q2"
+proof -
+  obtain qqt where *: "qqt \<in> set (concat
+                 (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                   (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
+          and **: "(\<lambda>qqt. t_source (snd qqt) = snd (fst qqt) \<and>
+                      \<not> (\<exists>t'\<in>set (transitions M).
+                             t_source t' = fst (fst qqt) \<and>
+                             t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) qqt"
+          and ***: "t = (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2)) qqt" 
+    using filter_map_elem[of t "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2))"
+                               "(\<lambda>qqt. t_source (snd qqt) = snd (fst qqt) \<and>
+                                        \<not> (\<exists>t'\<in>set (transitions M).
+                                               t_source t' = fst (fst qqt) \<and>
+                                                t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))"
+                               "(concat
+                                   (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                                    (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"] 
+    using assms(1) unfolding distinguishing_transitions_right_def by blast
+
+  obtain qq where "qq \<in> set (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))"
+                  "qqt \<in> set (map (Pair qq) (wf_transitions M))"
+    using concat_map_elem[OF *] by blast
+
+  have "qq = fst qqt" and "snd qqt \<in> h M"
+    using \<open>qqt \<in> set (map (Pair qq) (wf_transitions M))\<close>  by auto
+
+  then have "t_source t = Inl (fst qq, snd qq)"
+   and "t_input t = t_input (snd qqt)"
+   and "t_output t = t_output (snd qqt)"
+   and "t_target t = Inr q2"
+    using *** by auto
+
+
+  have "qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+    using \<open>qq \<in> set (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))\<close> nodes_code[of "product (from_FSM M q1) (from_FSM M q2)"] by blast
+  
+  have "fst qq \<in> nodes (from_FSM M q1)"
+    by (metis (no_types) \<open>qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> mem_Sigma_iff prod.exhaust_sel product_nodes subsetCE)
+  then have "fst qq \<in> nodes M"
+    using from_FSM_nodes[OF assms(2)] by blast
+
+  have "snd qq \<in> nodes (from_FSM M q2)"
+    by (metis (no_types) \<open>qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> mem_Sigma_iff prod.exhaust_sel product_nodes subsetCE)
+  then have "snd qq \<in> nodes M"
+    using from_FSM_nodes[OF assms(3)] by blast
+
+  have "\<not> (\<exists>t'\<in>h M.
+             t_source t' = fst qq \<and>
+             t_input t' = t_input t \<and> t_output t' = t_output t)"
+    using ** \<open>qq = fst qqt\<close> \<open>t_input t = t_input (snd qqt)\<close> \<open>t_output t = t_output (snd qqt)\<close> by auto
+
+  then show "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q2' \<and> \<not> (\<exists>t'\<in>h M.
+                             t_source t' = q1' \<and>
+                             t_input t' = t_input t \<and> t_output t' = t_output t)"
+    using \<open>t_source t = Inl (fst qq, snd qq)\<close> \<open>fst qq \<in> nodes M\<close> \<open>snd qq \<in> nodes M\<close> \<open>snd qqt \<in> h M\<close> ** \<open>qq = fst qqt\<close> by blast 
+  
+  show "t_target t = Inr q2"
+    using \<open>t_target t = Inr q2\<close> by assumption
+qed
+
+
+lemma canonical_separator_targets :
+  assumes "t \<in> h (canonical_separator M q1 q2)" 
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M" and "q1 \<noteq> q2"
+  shows "isl (t_target t) \<Longrightarrow> t \<in> set (shifted_transitions M q1 q2)"
+    and "t_target t = Inr q1 \<Longrightarrow> t \<in> set (distinguishing_transitions_left M q1 q2)"
+    and "t_target t = Inr q2 \<Longrightarrow> t \<in> set (distinguishing_transitions_right M q1 q2)"
+proof -
+  let ?C = "(canonical_separator M q1 q2)"
+  have *: "set (transitions ?C) = (set (shifted_transitions M q1 q2)) \<union> (set (distinguishing_transitions_left M q1 q2)) \<union> (set (distinguishing_transitions_right M q1 q2))"
+    using canonical_separator_simps(4)[of M q1 q2] by auto
+
+  
+  
+  show "isl (t_target t) \<Longrightarrow> t \<in> set (shifted_transitions M q1 q2)"
+    using shifted_transitions_targets[of t M q1 q2] 
+          distinguishing_transitions_left_sources_targets(2)[OF _ assms(2,3), of t]
+          distinguishing_transitions_right_sources_targets(2)[OF _ assms(2,3), of t]
+    using * assms(1) by force
+
+  show "t_target t = Inr q1 \<Longrightarrow> t \<in> set (distinguishing_transitions_left M q1 q2)"
+    using shifted_transitions_targets[of t M q1 q2] 
+          distinguishing_transitions_left_sources_targets(2)[OF _ assms(2,3), of t]
+          distinguishing_transitions_right_sources_targets(2)[OF _ assms(2,3), of t]
+    using "*" assms(1) assms(4) by auto
+
+  show "t_target t = Inr q2 \<Longrightarrow> t \<in> set (distinguishing_transitions_right M q1 q2)"
+    using shifted_transitions_targets[of t M q1 q2] 
+          distinguishing_transitions_left_sources_targets(2)[OF _ assms(2,3), of t]
+          distinguishing_transitions_right_sources_targets(2)[OF _ assms(2,3), of t]
+    using "*" assms(1) assms(4) by auto
+qed
+    
+  
+
+
+lemma canonical_separator_maximal_path_distinguishes_left :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S" (is "is_state_separator_from_canonical_separator ?C q1 q2 S")
+      and "path S (initial S) p"
+      and "target p (initial S) = Inr q1"  
+      and "observable M"
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M" and "q1 \<noteq> q2"
+shows "p_io p \<in> LS M q1 - LS M q2"
+proof (cases p rule: rev_cases)
+  case Nil
+  then have "initial S = Inr q1" using assms(3) by auto
+  then have "initial ?C = Inr q1" using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] is_submachine.simps[of S ?C] canonical_separator_simps(1)[of M q1 q2] by metis
+  then show ?thesis using canonical_separator_simps(1) Inr_Inl_False by metis
+next
+  case (snoc p' t) 
+  then have "path S (initial S) (p'@[t])"
+    using assms(2) by auto
+  then have "t \<in> h S" and "t_source t = target p' (initial S)" by auto
+
+
+  have "path ?C (initial ?C) (p'@[t])"
+    using \<open>path S (initial S) (p'@[t])\<close> assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] by (meson submachine_path_initial)
+  then have "path ?C (initial ?C) (p')" and "t \<in> h ?C"
+    by auto
+
+
+  
+
+  
+
+  have "isl (target p' (initial S))"
+  proof (rule ccontr)
+    assume "\<not> isl (target p' (initial S))"
+    moreover have "target p' (initial S) \<in> nodes S"
+      using \<open>path S (initial S) (p'@[t])\<close> by auto
+    ultimately have "target p' (initial S) = Inr q1 \<or> target p' (initial S) = Inr q2"
+      using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] by blast 
+    moreover have "deadlock_state S (Inr q1)" and "deadlock_state S (Inr q2)"
+      using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] by presburger+
+    ultimately show "False" 
+      using \<open>t \<in> h S\<close> \<open>t_source t = target p' (initial S)\<close> unfolding deadlock_state.simps
+      by metis 
+  qed
+  then obtain q1' q2' where "target p' (initial S) = Inl (q1',q2')" using isl_def prod.collapse by metis
+  then have "isl (target p' (initial ?C))"
+     using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S]
+     by (metis (no_types, lifting) Nil_is_append_conv assms(2) isl_def list.distinct(1) list.sel(1) path.cases snoc submachine_path_initial) 
+
+  
+
+  obtain pC where "path (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2))) pC"
+              and "p' = map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) pC"
+    using canonical_separator_path_from_shift[OF \<open>path ?C (initial ?C) (p')\<close> \<open>isl (target p' (initial ?C))\<close>] by blast
+  then have "path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) pC"
+    by force
+
+  then have "path (from_FSM M q1) q1 (left_path pC)" and "path (from_FSM M q2) q2 (right_path pC)"
+    using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 pC] by presburger+
+
+
+  have "path M q1 (left_path pC)"
+    using from_FSM_path[OF assms(5) \<open>path (from_FSM M q1) q1 (left_path pC)\<close>] by assumption
+  have "path M q2 (right_path pC)"
+    using from_FSM_path[OF assms(6) \<open>path (from_FSM M q2) q2 (right_path pC)\<close>] by assumption
+  
+  have "t_target t = Inr q1"
+    using \<open>path S (initial S) (p'@[t])\<close> snoc assms(3) by auto
+  then have "t \<in> set (distinguishing_transitions_left M q1 q2)"
+    using canonical_separator_targets(2)[OF \<open>t \<in> h ?C\<close> assms(5,6,7)] by auto
+  
+  note distinguishing_transitions_left_sources_targets(1)[OF \<open>t \<in> set (distinguishing_transitions_left M q1 q2)\<close> assms(5,6)]
+  
+  
+  note observable_path_language_step[OF assms(4) \<open>path M q2 (right_path pC)\<close>]
+  
+
+  then show ?thesis sorry
+qed
+
+lemma canonical_separator_maximal_path_distinguishes_right :
+  assumes "path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2))  p"
+      and "target p (initial (canonical_separator M q1 q2)) = Inr q2"
+shows "p_io p \<in> LS M q2 - LS M q1"
+  sorry
+
+
 
 
 

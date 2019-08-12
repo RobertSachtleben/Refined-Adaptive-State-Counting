@@ -38,7 +38,7 @@ subsection \<open>Alternative Definition of Preamble Sets\<close>
 lemma is_preamble_set_alt_def :
   "is_preamble_set M q P = (
     P \<subseteq> L M
-    \<and> acyclic_sequences M P
+    \<and> acyclic_sequences M (initial M) P
     \<and> single_input_sequences M P
     \<and> output_complete_for_FSM_sequences M P
     \<and> deadlock_states_sequences M {q} P
@@ -56,7 +56,7 @@ lemma is_preamble_set_alt_def :
 lemma is_preamble_set_code[code] :
   "is_preamble_set M q (set P) = (
     ((set P) \<subseteq> (set (map p_io (paths_up_to_length M (initial M) (list_max (map length P))))))
-    \<and> acyclic_sequences M (set P)
+    \<and> acyclic_sequences M (initial M) (set P)
     \<and> single_input_sequences M (set P)
     \<and> output_complete_for_FSM_sequences M (set P)
     \<and> deadlock_states_sequences M {q} (set P)
@@ -812,7 +812,8 @@ proof
   then have "x \<in> L M" using assms by auto
   then obtain p where "p_io p = x" and "path M (initial M) p" by auto
   then have "distinct (visited_states (initial M) p)" using is_preamble_set_alt_def[of M q P] assms acyclic_sequences.simps
-    using \<open>x \<in> P\<close> by blast 
+    using \<open>x \<in> P\<close>
+    by (metis (mono_tags, lifting)) 
   then have "length p < size M" using distinct_path_length_limit_nodes[OF \<open>path M (initial M) p\<close>] by auto
   then have "p_io p \<in> { io \<in> L M . length io < size M }"
     using \<open>p_io p = x\<close> \<open>x \<in> L M\<close> by fastforce 
