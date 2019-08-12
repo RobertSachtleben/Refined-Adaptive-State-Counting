@@ -2,6 +2,19 @@ theory TODO
 imports State_Separator
 begin
 
+section \<open>Proof Notes\<close>
+
+(*
+- prove algorithm not for all sets of pairwise r-d states, but instead for some
+  set PRD of sets of pairwise r-d states that is assumed to contain the singleton
+  sets for each state of the model FSM
+  \<rightarrow> this avoids having to prove that a state separator exists if states are r-d
+
+
+
+*)
+
+
 
 section \<open>Unfinished Proofs of Interest\<close>
 

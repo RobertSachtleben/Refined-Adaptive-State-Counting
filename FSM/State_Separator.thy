@@ -950,7 +950,7 @@ qed
 
 
 (* TODO:
- - r_dist \<Longrightarrow> EX SSep (prove via r_compatible)
+ - r_dist \<Longrightarrow> EX SSep 
 
  - Rethink effort required here: Algorithm likely relies on some distinction property only 
     - formulate basic requirements:  
