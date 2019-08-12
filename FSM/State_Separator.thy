@@ -1058,9 +1058,9 @@ lemma shifted_transitions_targets :
 lemma distinguishing_transitions_left_sources_targets :
   assumes "t \<in> set (distinguishing_transitions_left M q1 q2)"
       and "q1 \<in> nodes M" and "q2 \<in> nodes M"
-  shows "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q1' \<and> \<not> (\<exists>t'\<in>h M.
-                             t_source t' = q2' \<and>
-                             t_input t' = t_input t \<and> t_output t' = t_output t)" 
+  shows "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q1' \<and> t_input t' = t_input t \<and> t_output t' = t_output t \<and> \<not> (\<exists>t''\<in>h M.
+                             t_source t'' = q2' \<and>
+                             t_input t'' = t_input t \<and> t_output t'' = t_output t)" 
     and "t_target t = Inr q1"
 proof -
   obtain qqt where *: "qqt \<in> set (concat
@@ -1089,8 +1089,8 @@ proof -
     using \<open>qqt \<in> set (map (Pair qq) (wf_transitions M))\<close>  by auto
 
   then have "t_source t = Inl (fst qq, snd qq)"
-   and "t_input t = t_input (snd qqt)"
-   and "t_output t = t_output (snd qqt)"
+   and "t_input (snd qqt) = t_input t"
+   and "t_output (snd qqt) = t_output t"
    and "t_target t = Inr q1"
     using *** by auto
 
@@ -1111,12 +1111,12 @@ proof -
   have "\<not> (\<exists>t'\<in>h M.
              t_source t' = snd qq \<and>
              t_input t' = t_input t \<and> t_output t' = t_output t)"
-    using ** \<open>qq = fst qqt\<close> \<open>t_input t = t_input (snd qqt)\<close> \<open>t_output t = t_output (snd qqt)\<close> by auto
+    using ** \<open>qq = fst qqt\<close> \<open>t_input (snd qqt) = t_input t\<close> \<open>t_output (snd qqt) = t_output t\<close> by auto
 
-  then show "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q1' \<and> \<not> (\<exists>t'\<in>h M.
+  then show "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q1' \<and> t_input t' = t_input t \<and> t_output t' = t_output t \<and> \<not> (\<exists>t'\<in>h M.
                              t_source t' = q2' \<and>
                              t_input t' = t_input t \<and> t_output t' = t_output t)"
-    using \<open>t_source t = Inl (fst qq, snd qq)\<close> \<open>fst qq \<in> nodes M\<close> \<open>snd qq \<in> nodes M\<close> \<open>snd qqt \<in> h M\<close> ** \<open>qq = fst qqt\<close> by blast 
+    using \<open>t_source t = Inl (fst qq, snd qq)\<close> \<open>fst qq \<in> nodes M\<close> \<open>snd qq \<in> nodes M\<close> \<open>snd qqt \<in> h M\<close> ** \<open>qq = fst qqt\<close> \<open>t_input (snd qqt) = t_input t\<close> \<open>t_output (snd qqt) = t_output t\<close> by blast 
   
   show "t_target t = Inr q1"
     using \<open>t_target t = Inr q1\<close> by assumption
@@ -1125,9 +1125,9 @@ qed
 lemma distinguishing_transitions_right_sources_targets :
   assumes "t \<in> set (distinguishing_transitions_right M q1 q2)"
       and "q1 \<in> nodes M" and "q2 \<in> nodes M"
-  shows "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q2' \<and> \<not> (\<exists>t'\<in>h M.
-                             t_source t' = q1' \<and>
-                             t_input t' = t_input t \<and> t_output t' = t_output t)" 
+  shows "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q2' \<and> t_input t' = t_input t \<and> t_output t' = t_output t \<and> \<not> (\<exists>t''\<in>h M.
+                             t_source t'' = q1' \<and>
+                             t_input t'' = t_input t \<and> t_output t'' = t_output t)" 
     and "t_target t = Inr q2"
 proof -
   obtain qqt where *: "qqt \<in> set (concat
@@ -1156,8 +1156,8 @@ proof -
     using \<open>qqt \<in> set (map (Pair qq) (wf_transitions M))\<close>  by auto
 
   then have "t_source t = Inl (fst qq, snd qq)"
-   and "t_input t = t_input (snd qqt)"
-   and "t_output t = t_output (snd qqt)"
+   and "t_input (snd qqt) = t_input t"
+   and "t_output (snd qqt) = t_output t"
    and "t_target t = Inr q2"
     using *** by auto
 
@@ -1178,12 +1178,12 @@ proof -
   have "\<not> (\<exists>t'\<in>h M.
              t_source t' = fst qq \<and>
              t_input t' = t_input t \<and> t_output t' = t_output t)"
-    using ** \<open>qq = fst qqt\<close> \<open>t_input t = t_input (snd qqt)\<close> \<open>t_output t = t_output (snd qqt)\<close> by auto
+    using ** \<open>qq = fst qqt\<close> \<open>t_input (snd qqt) = t_input t\<close> \<open>t_output (snd qqt) = t_output t\<close> by auto
 
-  then show "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q2' \<and> \<not> (\<exists>t'\<in>h M.
+  then show "\<exists> q1' q2' t' . t_source t = Inl (q1',q2') \<and> q1' \<in> nodes M \<and> q2' \<in> nodes M \<and> t' \<in> h M \<and> t_source t' = q2' \<and> t_input t' = t_input t \<and> t_output t' = t_output t \<and> \<not> (\<exists>t'\<in>h M.
                              t_source t' = q1' \<and>
                              t_input t' = t_input t \<and> t_output t' = t_output t)"
-    using \<open>t_source t = Inl (fst qq, snd qq)\<close> \<open>fst qq \<in> nodes M\<close> \<open>snd qq \<in> nodes M\<close> \<open>snd qqt \<in> h M\<close> ** \<open>qq = fst qqt\<close> by blast 
+    using \<open>t_source t = Inl (fst qq, snd qq)\<close> \<open>fst qq \<in> nodes M\<close> \<open>snd qq \<in> nodes M\<close> \<open>snd qqt \<in> h M\<close> ** \<open>qq = fst qqt\<close> \<open>t_input (snd qqt) = t_input t\<close> \<open>t_output (snd qqt) = t_output t\<close> by blast 
   
   show "t_target t = Inr q2"
     using \<open>t_target t = Inr q2\<close> by assumption
@@ -1275,7 +1275,7 @@ next
   
 
   obtain pC where "path (product (from_FSM M q1) (from_FSM M q2)) (initial (product (from_FSM M q1) (from_FSM M q2))) pC"
-              and "p' = map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) pC"
+              and "p' = map shift_Inl pC"
     using canonical_separator_path_from_shift[OF \<open>path ?C (initial ?C) (p')\<close> \<open>isl (target p' (initial ?C))\<close>] by blast
   then have "path (product (from_FSM M q1) (from_FSM M q2)) (q1,q2) pC"
     by force
@@ -1293,14 +1293,62 @@ next
     using \<open>path S (initial S) (p'@[t])\<close> snoc assms(3) by auto
   then have "t \<in> set (distinguishing_transitions_left M q1 q2)"
     using canonical_separator_targets(2)[OF \<open>t \<in> h ?C\<close> assms(5,6,7)] by auto
-  
-  note distinguishing_transitions_left_sources_targets(1)[OF \<open>t \<in> set (distinguishing_transitions_left M q1 q2)\<close> assms(5,6)]
-  
-  
-  note observable_path_language_step[OF assms(4) \<open>path M q2 (right_path pC)\<close>]
+
+  have "t_source t = Inl (q1',q2')"
+    using \<open>target p' (initial S) = Inl (q1',q2')\<close> \<open>t_source t = target p' (initial S)\<close> by auto
+
+  obtain t' where "q1' \<in> nodes M"
+                        and "q2' \<in> nodes M"
+                        and "t' \<in> h M"
+                        and "t_input t' = t_input t"
+                        and "t_output t' = t_output t"
+                        and "t_source t' = q1'"
+                        and "\<not> (\<exists>t''\<in>h M. t_source t'' = q2' \<and> t_input t'' = t_input t \<and> t_output t'' = t_output t)"
+    using distinguishing_transitions_left_sources_targets(1)[OF \<open>t \<in> set (distinguishing_transitions_left M q1 q2)\<close> assms(5,6)]
+          \<open>t_source t = Inl (q1',q2')\<close>
+    by force 
+
   
 
-  then show ?thesis sorry
+  have "initial S = Inl (q1,q2)"
+    using assms(1) is_state_separator_from_canonical_separator_def[of ?C q1 q2 S] is_submachine.simps[of S ?C] canonical_separator_simps(1)[of M q1 q2]
+    by (metis from_FSM_simps(1) product_simps(1))
+  have "length p' = length pC"
+    using \<open>p' = map shift_Inl pC\<close> by auto
+  then have "target p' (initial S) = Inl (target pC (q1,q2))"
+    using \<open>p' = map shift_Inl pC\<close> \<open>initial S = Inl (q1,q2)\<close> unfolding target.simps visited_states.simps by (induction p' pC rule: list_induct2; auto)
+  then have "target pC (q1,q2) = (q1',q2')"
+     using \<open>target p' (initial S) = Inl (q1',q2')\<close> by auto 
+  then have "target (right_path pC) q2 = q2'"
+    using product_target_split(2) by fastforce
+  then have "\<not> (\<exists>t'\<in>h M. t_source t' = target (right_path pC) q2 \<and> t_input t' = t_input t \<and> t_output t' = t_output t)"
+    using \<open>\<not> (\<exists>t'\<in>h M. t_source t' = q2' \<and> t_input t' = t_input t \<and> t_output t' = t_output t)\<close> by blast
+
+  have "target (left_path pC) q1 = q1'"
+    using \<open>target pC (q1,q2) = (q1',q2')\<close> product_target_split(1) by fastforce
+  then have "path M q1 ((left_path pC)@[t'])"
+    using \<open>path M q1 (left_path pC)\<close> \<open>t' \<in> h M\<close> \<open>t_source t' = q1'\<close>
+    by (simp add: path_append_last) 
+  then have "p_io ((left_path pC)@[t']) \<in> LS M q1" 
+    unfolding LS.simps by force 
+  moreover have "p_io p' = p_io (left_path pC)"
+    using \<open>p' = map shift_Inl pC\<close> by auto
+  ultimately have "p_io (p'@[t]) \<in> LS M q1"
+    using \<open>t_input t' = t_input t\<close> \<open>t_output t' = t_output t\<close> by auto
+    
+
+
+  have "p_io (right_path pC) @  [(t_input t, t_output t)] \<notin> LS M q2"
+    using observable_path_language_step[OF assms(4) \<open>path M q2 (right_path pC)\<close> \<open>\<not> (\<exists>t'\<in>h M. t_source t' = target (right_path pC) q2 \<and> t_input t' = t_input t \<and> t_output t' = t_output t)\<close>] by assumption
+  moreover have "p_io p' = p_io (right_path pC)"
+    using \<open>p' = map shift_Inl pC\<close> by auto
+  ultimately have "p_io (p'@[t]) \<notin> LS M q2"
+    by auto
+  
+  
+
+  show ?thesis 
+    using \<open>p_io (p'@[t]) \<in> LS M q1\<close> \<open>p_io (p'@[t]) \<notin> LS M q2\<close> snoc by blast
 qed
 
 lemma canonical_separator_maximal_path_distinguishes_right :
