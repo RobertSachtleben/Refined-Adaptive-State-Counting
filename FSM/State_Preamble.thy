@@ -40,11 +40,11 @@ lemma is_preamble_set_alt_def :
     P \<subseteq> L M
     \<and> acyclic_sequences M (initial M) P
     \<and> single_input_sequences M P
-    \<and> output_complete_for_FSM_sequences M P
+    \<and> output_complete_for_FSM_sequences_from_state M (initial M) P
     \<and> deadlock_states_sequences M {q} P
     \<and> reachable_states_sequences M {q} P
     \<and> prefix_closed_sequences P)"
-  using output_complete_for_FSM_sequences_alt_def[of M P]
+  using output_complete_for_FSM_sequences_from_state_alt_def[of M "initial M" P]
   unfolding is_preamble_set.simps 
             acyclic_sequences.simps 
             single_input_sequences.simps
@@ -58,7 +58,7 @@ lemma is_preamble_set_code[code] :
     ((set P) \<subseteq> (set (map p_io (paths_up_to_length M (initial M) (list_max (map length P))))))
     \<and> acyclic_sequences M (initial M) (set P)
     \<and> single_input_sequences M (set P)
-    \<and> output_complete_for_FSM_sequences M (set P)
+    \<and> output_complete_for_FSM_sequences_from_state M (initial M) (set P)
     \<and> deadlock_states_sequences M {q} (set P)
     \<and> reachable_states_sequences M {q} (set P)
     \<and> prefix_closed_sequences (set P))"

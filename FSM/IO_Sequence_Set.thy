@@ -60,65 +60,65 @@ value "single_input_sequences M_ex {[(1,30)],[(1,30),(1,30)]}"
 value "single_input_sequences M_ex {[(1,30)],[(1,30),(2,30)]}"
 value "single_input_sequences M_ex {[(1,30)],[(1,30),(1,30)],[(1,30),(2,30)]}"
 
-fun output_complete_for_FSM_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
-  "output_complete_for_FSM_sequences M P = (\<forall> io xy t . io@[xy] \<in> P \<and> t \<in> h M \<and> t_source t = io_target M io (initial M) \<and> t_input t = fst xy \<longrightarrow> io@[(fst xy, t_output t)] \<in> P)"
+fun output_complete_for_FSM_sequences_from_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "output_complete_for_FSM_sequences_from_state M q P = (\<forall> io xy t . io@[xy] \<in> P \<and> t \<in> h M \<and> t_source t = io_target M io q \<and> t_input t = fst xy \<longrightarrow> io@[(fst xy, t_output t)] \<in> P)"
 
-lemma output_complete_for_FSM_sequences_alt_def :
-  shows "output_complete_for_FSM_sequences M P = (\<forall> xys xy y . (xys@[xy] \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))) \<longrightarrow> xys@[(fst xy,y)] \<in> P)"
+lemma output_complete_for_FSM_sequences_from_state_alt_def :
+  shows "output_complete_for_FSM_sequences_from_state M q P = (\<forall> xys xy y . (xys@[xy] \<in> P \<and> [(fst xy,y)] \<in> LS M (io_target M xys q)) \<longrightarrow> xys@[(fst xy,y)] \<in> P)"
 proof -
-  have "\<And> xys (xy :: (Input \<times> Output)) y .[(fst xy,y)] \<in> LS M (io_target M xys (initial M)) \<Longrightarrow> \<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
+  have "\<And> xys (xy :: (Input \<times> Output)) y .[(fst xy,y)] \<in> LS M (io_target M xys q) \<Longrightarrow> \<exists> t . t \<in> h M \<and> t_source t = io_target M xys q \<and> t_input t = fst xy \<and> t_output t = y"
   proof -
     fix xys y 
     fix xy :: "(Input \<times> Output)"
-    assume "[(fst xy,y)] \<in> LS M (io_target M xys (initial M))"
-    then obtain p where "path M (io_target M xys (initial M)) p" and "p_io p = [(fst xy,y)]"
+    assume "[(fst xy,y)] \<in> LS M (io_target M xys q)"
+    then obtain p where "path M (io_target M xys q) p" and "p_io p = [(fst xy,y)]"
       unfolding LS.simps mem_Collect_eq by (metis (no_types, lifting)) 
     let ?t = "hd p"
-    have "?t \<in> h M \<and> t_source ?t = io_target M xys (initial M) \<and> t_input ?t = fst xy \<and> t_output ?t = y"
-      using \<open>p_io p = [(fst xy, y)]\<close> \<open>path M (io_target M xys (initial M)) p\<close> by auto
+    have "?t \<in> h M \<and> t_source ?t = io_target M xys q \<and> t_input ?t = fst xy \<and> t_output ?t = y"
+      using \<open>p_io p = [(fst xy, y)]\<close> \<open>path M (io_target M xys q) p\<close> by auto
     
-    then show "\<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
+    then show "\<exists> t . t \<in> h M \<and> t_source t = io_target M xys q \<and> t_input t = fst xy \<and> t_output t = y"
       by blast
   qed
-  have "\<And> xys (xy :: (Input \<times> Output)) y . \<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y \<Longrightarrow> [(fst xy,y)] \<in> LS M (io_target M xys (initial M))"
+  have "\<And> xys (xy :: (Input \<times> Output)) y . \<exists> t . t \<in> h M \<and> t_source t = io_target M xys q \<and> t_input t = fst xy \<and> t_output t = y \<Longrightarrow> [(fst xy,y)] \<in> LS M (io_target M xys q)"
   proof -
     fix xys y 
     fix xy :: "(Input \<times> Output)"
-    assume "\<exists> t . t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
-    then obtain t where "t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y"
+    assume "\<exists> t . t \<in> h M \<and> t_source t = io_target M xys q \<and> t_input t = fst xy \<and> t_output t = y"
+    then obtain t where "t \<in> h M \<and> t_source t = io_target M xys q \<and> t_input t = fst xy \<and> t_output t = y"
       by blast
-    then have "path M (io_target M xys (initial M)) [t] \<and> p_io [t] = [(fst xy, y)]"
+    then have "path M (io_target M xys q) [t] \<and> p_io [t] = [(fst xy, y)]"
       by (metis (no_types, lifting) list.simps(8) list.simps(9) single_transition_path)
       
 
-    then show "[(fst xy,y)] \<in> LS M (io_target M xys (initial M))"
+    then show "[(fst xy,y)] \<in> LS M (io_target M xys q)"
       unfolding LS.simps by (metis (mono_tags, lifting) mem_Collect_eq) 
   qed
 
   show ?thesis
   proof -
-    have "\<forall>f P. output_complete_for_FSM_sequences f P = (\<forall>ps p pa. (ps @ [p] \<notin> P \<or> pa \<notin> h f \<or> (t_source pa::'a) \<noteq> io_target f ps (initial f) \<or> t_input pa \<noteq> fst p) \<or> ps @ [(fst p, t_output pa)] \<in> P)"
-      by (meson output_complete_for_FSM_sequences.simps)
-  then have "(\<not> output_complete_for_FSM_sequences M P) \<noteq> (\<forall>ps p n. (ps @ [p] \<notin> P \<or> [(fst p, n)] \<notin> LS M (io_target M ps (initial M))) \<or> ps @ [(fst p, n)] \<in> P)"
-  by (metis (full_types) \<open>\<And>y xys xy. [(fst xy, y)] \<in> LS M (io_target M xys (initial M)) \<Longrightarrow> \<exists>t. t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y\<close> \<open>\<And>y xys xy. \<exists>t. t \<in> h M \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = y \<Longrightarrow> [(fst xy, y)] \<in> LS M (io_target M xys (initial M))\<close>)
+    have *: "\<forall>f q P. output_complete_for_FSM_sequences_from_state f q P = (\<forall>ps p pa. (ps @ [p] \<notin> P \<or> pa \<notin> h f \<or> (t_source pa::'a) \<noteq> io_target f ps q \<or> t_input pa \<noteq> fst p) \<or> ps @ [(fst p, t_output pa)] \<in> P)"
+      by (meson output_complete_for_FSM_sequences_from_state.simps)
+  then have "(\<not> output_complete_for_FSM_sequences_from_state M q P) \<noteq> (\<forall>ps p n. (ps @ [p] \<notin> P \<or> [(fst p, n)] \<notin> LS M (io_target M ps q)) \<or> ps @ [(fst p, n)] \<in> P)"
+  by (metis (full_types) \<open>\<And>y xys xy. [(fst xy, y)] \<in> LS M (io_target M xys q) \<Longrightarrow> \<exists>t. t \<in> h M \<and> t_source t = io_target M xys q \<and> t_input t = fst xy \<and> t_output t = y\<close> \<open>\<And>y xys xy. \<exists>t. t \<in> h M \<and> t_source t = io_target M xys q \<and> t_input t = fst xy \<and> t_output t = y \<Longrightarrow> [(fst xy, y)] \<in> LS M (io_target M xys q)\<close>)
     then show ?thesis
       by blast
   qed 
 qed
 
-fun output_complete_for_FSM_sequences' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
-  "output_complete_for_FSM_sequences' M P = (\<forall> io\<in>P . \<forall> t \<in> h M . io = [] \<or> (t_source t = io_target M (butlast io) (initial M) \<and> t_input t = fst (last io) \<longrightarrow> (butlast io)@[(fst (last io), t_output t)] \<in> P))"
+fun output_complete_for_FSM_sequences_from_state' :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "output_complete_for_FSM_sequences_from_state' M q P = (\<forall> io\<in>P . \<forall> t \<in> h M . io = [] \<or> (t_source t = io_target M (butlast io) q \<and> t_input t = fst (last io) \<longrightarrow> (butlast io)@[(fst (last io), t_output t)] \<in> P))"
 
-lemma output_complete_for_FSM_sequences_alt_def'[code] : "output_complete_for_FSM_sequences M P = output_complete_for_FSM_sequences' M P"
-  unfolding output_complete_for_FSM_sequences.simps output_complete_for_FSM_sequences'.simps
+lemma output_complete_for_FSM_sequences_alt_def'[code] : "output_complete_for_FSM_sequences_from_state M q P = output_complete_for_FSM_sequences_from_state' M q P"
+  unfolding output_complete_for_FSM_sequences_from_state.simps output_complete_for_FSM_sequences_from_state'.simps
   by (metis last_snoc snoc_eq_iff_butlast)
   
 
-value "output_complete_for_FSM_sequences M_ex {}"
-value "output_complete_for_FSM_sequences M_ex {[]}"
-value "output_complete_for_FSM_sequences M_ex {[(1,20)]}"
-value "output_complete_for_FSM_sequences M_ex {[(1,10)],[(1,20)]}"
-value "output_complete_for_FSM_sequences M_ex {[(1,20)],[(1,30)]}"
+value "output_complete_for_FSM_sequences_from_state M_ex (initial M_ex) {}"
+value "output_complete_for_FSM_sequences_from_state M_ex (initial M_ex) {[]}"
+value "output_complete_for_FSM_sequences_from_state M_ex (initial M_ex) {[(1,20)]}"
+value "output_complete_for_FSM_sequences_from_state M_ex (initial M_ex) {[(1,10)],[(1,20)]}"
+value "output_complete_for_FSM_sequences_from_state M_ex (initial M_ex) {[(1,20)],[(1,30)]}"
 
 
 fun deadlock_states_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> 'a set \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
@@ -188,5 +188,54 @@ value "prefix_closed_sequences {}"
 value "prefix_closed_sequences {[]}"
 value "prefix_closed_sequences {[(1,20)]}"
 value "prefix_closed_sequences {[],[(1,20)]}"
+
+
+
+subsection \<open>Completions\<close>
+
+definition prefix_completion :: "'a list set \<Rightarrow> 'a list set" where
+  "prefix_completion P = {xs . \<exists> ys . xs@ys \<in> P}"
+
+lemma prefix_completion_closed :
+  "prefix_closed_sequences (prefix_completion P)"
+  unfolding prefix_closed_sequences.simps prefix_completion_def
+  by auto 
+
+lemma prefix_completion_source_subset :
+  "P \<subseteq> prefix_completion P" 
+  unfolding prefix_completion_def
+  by (metis (no_types, lifting) append_Nil2 mem_Collect_eq subsetI) 
+
+
+definition output_completion_for_FSM :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> (Input \<times> Output) list set" where
+  "output_completion_for_FSM M P = P \<union> { io@[(x,y')] | io x y' . (y' \<in> set (outputs M)) \<and> (\<exists> y . io@[(x,y)] \<in> P)}"
+
+lemma output_completion_for_FSM_complete :
+  shows "output_complete_sequences M (output_completion_for_FSM M P)"
+  unfolding output_completion_for_FSM_def output_complete_sequences.simps 
+proof 
+  fix io assume *: "io \<in> P \<union> {io @ [(x, y')] |io x y'. y' \<in> set (outputs M) \<and> (\<exists>y. io @ [(x, y)] \<in> P)}"
+  show   "io = [] \<or>
+          (\<forall>y\<in>set (outputs M).
+              butlast io @ [(fst (last io), y)]
+              \<in> P \<union> {io @ [(x, y')] |io x y'. y' \<in> set (outputs M) \<and> (\<exists>y. io @ [(x, y)] \<in> P)})"
+  proof (cases io rule: rev_cases)
+    case Nil
+    then show ?thesis by blast
+  next
+    case (snoc ys y)
+    then show ?thesis proof (cases "io \<in> P")
+      case True  
+      then have "butlast io @ [(fst (last io), (snd (last io)))] \<in> P" using snoc by auto
+      then show ?thesis using snoc by blast
+    next
+      case False
+      then show ?thesis
+        using "*" by auto 
+    qed 
+  qed
+qed
+
+
 
 end

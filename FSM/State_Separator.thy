@@ -973,6 +973,7 @@ definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rig
 definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "is_state_separation_set M q1 q2 S = (
     finite S
+    \<and> ((LS M q1 \<inter> S) \<inter> (LS M q2 \<inter> S) = {})
     \<and> (\<forall> M'::('a,'b) FSM_scheme . 
         (\<forall> q1' \<in> nodes M' . \<forall> q2' \<in> nodes M' .  (((LS M' q1' \<inter> S \<noteq> {}) \<or> (LS M' q2' \<inter> S \<noteq> {})) \<and> (LS M' q1' \<inter> S \<subseteq> LS M q1 \<inter> S) \<and> (LS M' q2' \<inter> S \<subseteq> LS M q2 \<inter> S)) \<longrightarrow> LS M' q1' \<noteq> LS M' q2'))
   )"
@@ -1582,10 +1583,61 @@ proof -
   qed
 
   ultimately show ?thesis 
-    unfolding is_state_separation_set_def by blast
+    unfolding is_state_separation_set_def using \<open>(LS M q1 \<inter> ?SS) \<inter> (LS M q2 \<inter> ?SS) = {}\<close> by blast
 qed
 
   
+
+
+
+
+subsection \<open>State Separation Sets as Test Cases\<close>
+
+(* TODO: introduce Petrenko's notion of test cases? *)
+
+lemma state_separation_set_sym : "is_state_separation_set M q1 q2 = is_state_separation_set M q2 q1"
+  unfolding is_state_separation_set_def by blast
+
+(* note that no handling of pass traces is required, as Petrenko's pass relies only on the reachability of Fail states *)
+(* TODO: incorporate fault_model ? *)
+definition fail_sequence_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "fail_sequence_set M q Fail = (LS M q \<inter> Fail = {})"
+
+lemma fail_sequence_set_application : 
+  assumes "fail_sequence_set M q Fail"
+      and "LS M' q' \<inter> Fail \<noteq> {}"      
+shows "\<exists> io \<in> Fail . io \<in> (LS M' q' - LS M q)"
+  using assms unfolding fail_sequence_set_def by blast
+
+
+
+definition state_separation_fail_sequence_set_from_state_separator :: "('a, 'c) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('b + 'a, 'c) FSM_scheme \<Rightarrow> (Input \<times> Output) list set" where
+  "state_separation_fail_sequence_set_from_state_separator M q1 S = 
+      output_completion_for_FSM M (L S) - {io | io p . path S (initial S) p \<and> target p (initial S) = Inr q1 \<and> (\<exists> io' . p_io p = io@io')}"
+(*      output_completion_for_FSM M {p_io p | p . path S (initial S) p \<and> (\<exists> p' . path S (initial S) (p@p') \<and> target (p@p') (initial S) = Inr q2)}" *)
+(*    output_completion_for_FSM M (prefix_completion {p_io p | p . path S (initial S) p \<and> target p (initial S) = Inr q2})" *)
+
+lemma state_separation_fail_sequence_set_from_state_separator :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+      and "observable M"
+      and "q1 \<in> nodes M"
+      and "q2 \<in> nodes M"
+      and "q1 \<noteq> q2"
+    shows "fail_sequence_set M q1 (state_separation_fail_sequence_set_from_state_separator M q1 S)" (is "fail_sequence_set M q1 ?SS")
+  sorry
+  
+lemma x :
+  assumes "completely_specified M'"
+      and "inputs M' = inputs M"
+      and "outputs M' = outputs M"
+      and "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S" 
+      and "q1' \<in> nodes M'"
+    shows "LS M' q1' \<inter> output_completion_for_FSM M (L S) \<noteq> {}" 
+
+lemma y :
+  "path S (initial S) p \<and> target p (initial S) = Inr q1 \<and> (\<exists> io' . p_io p = io@io') \<Longrightarrow> io \<in> LS M q1"
+    
+     
 
 
 
