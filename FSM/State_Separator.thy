@@ -974,7 +974,7 @@ definition is_state_separation_set :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rig
   "is_state_separation_set M q1 q2 S = (
     finite S
     \<and> (\<forall> M'::('a,'b) FSM_scheme . 
-        (\<forall> q1' \<in> nodes M' . \<forall> q2' \<in> nodes M' .  ((LS M' q1' \<inter> S \<noteq> {}) \<and> (LS M' q2' \<inter> S \<noteq> {}) \<and> (LS M' q1' \<inter> S \<subseteq> LS M q1 \<inter> S) \<and> (LS M' q2' \<inter> S \<subseteq> LS M q2 \<inter> S)) \<longrightarrow> q1' \<noteq> q2'))
+        (\<forall> q1' \<in> nodes M' . \<forall> q2' \<in> nodes M' .  (((LS M' q1' \<inter> S \<noteq> {}) \<or> (LS M' q2' \<inter> S \<noteq> {})) \<and> (LS M' q1' \<inter> S \<subseteq> LS M q1 \<inter> S) \<and> (LS M' q2' \<inter> S \<subseteq> LS M q2 \<inter> S)) \<longrightarrow> LS M' q1' \<noteq> LS M' q2'))
   )"
 
 
@@ -1504,28 +1504,83 @@ proof -
   have "acyclic S"
     using assms(1) is_state_separator_from_canonical_separator_def by metis 
 
+  have "(LS M q1 \<inter> ?SS) \<inter> (LS M q2 \<inter> ?SS) = {}"
+  proof -
+    have "\<And> io . io \<in> ?SS \<Longrightarrow> \<not>(io \<in> LS M q1 \<and> io \<in> LS M q2)"
+    proof -
+      fix io assume "io \<in> ?SS"
+      then obtain p where "path S (initial S) p" and  "\<not> isl (target p (initial S))" and "p_io p = io"
+        unfolding state_separation_set_from_state_separator_def by blast
+
+      have "target p (initial S) \<in> nodes S"
+        using \<open>path S (initial S) p\<close> path_target_is_node by metis
+      then consider "target p (initial S) = Inr q1" | 
+                    "target p (initial S) = Inr q2"
+        using \<open>\<not> isl (target p (initial S))\<close> assms(1) unfolding is_state_separator_from_canonical_separator_def
+        by blast 
+      then show "\<not>(io \<in> LS M q1 \<and> io \<in> LS M q2)" 
+      proof (cases)
+        case 1
+        have "p_io p \<in> LS M q1 - LS M q2"
+          using canonical_separator_maximal_path_distinguishes_left[OF assms(1) \<open>path S (initial S) p\<close> 1 assms(2,3,4,5)] by assumption
+        then show ?thesis using \<open>p_io p = io\<close> by blast
+      next
+        case 2
+        have "p_io p \<in> LS M q2 - LS M q1"
+          using canonical_separator_maximal_path_distinguishes_right[OF assms(1) \<open>path S (initial S) p\<close> 2 assms(2,3,4,5)] by assumption
+        then show ?thesis using \<open>p_io p = io\<close> by blast
+      qed
+    qed
+    then show ?thesis by blast
+  qed
+
+      
+  
+
   have "finite ?SS"
     using state_separation_set_from_state_separator_finite[OF \<open>acyclic S\<close>] by assumption
   moreover have "(\<And> M'::('a,'b) FSM_scheme . \<And> q1' q2' . 
-        q1' \<in> nodes M' \<Longrightarrow> q2' \<in> nodes M' \<Longrightarrow> (LS M' q1' \<inter> ?SS \<noteq> {}) \<Longrightarrow> (LS M' q2' \<inter> ?SS \<noteq> {}) \<Longrightarrow> (LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS) \<Longrightarrow> (LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS) \<Longrightarrow> q1' \<noteq> q2')"
+        q1' \<in> nodes M' \<Longrightarrow> q2' \<in> nodes M' \<Longrightarrow> (LS M' q1' \<inter> ?SS \<noteq> {} \<or> LS M' q2' \<inter> ?SS \<noteq> {}) \<Longrightarrow> (LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS) \<Longrightarrow> (LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS) \<Longrightarrow> LS M' q1' \<noteq> LS M' q2')"
   proof -
     fix M'::"('a,'b) FSM_scheme"
-    fix q1' q2' assume "(LS M' q1' \<inter> ?SS \<noteq> {})" 
-                   and "(LS M' q2' \<inter> ?SS \<noteq> {})"
+    fix q1' q2' assume "(LS M' q1' \<inter> ?SS \<noteq> {}) \<or> (LS M' q2' \<inter> ?SS \<noteq> {})"
                    and "(LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS)" 
                    and "(LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS)"
 
-    obtain io1 where "io1 \<in> LS M' q1'" and "io1 \<in> ?SS"
-      using \<open>(LS M' q1' \<inter> ?SS \<noteq> {})\<close> by blast
-    obtain io2 where "io2 \<in> LS M' q2'" and "io2 \<in> ?SS"
-      using \<open>(LS M' q2' \<inter> ?SS \<noteq> {})\<close> by blast
-
-    
-    note canonical_separator_maximal_path_distinguishes_left[OF assms(1)]
-
-    show "q1' \<noteq> q2'"
-      sorry
+    show "LS M' q1' \<noteq> LS M' q2'"
+    proof (cases "(LS M' q1' \<inter> ?SS \<noteq> {})")
+      case True
+      then obtain io1 where "io1 \<in> (LS M' q1' \<inter> ?SS)" by blast
+      then have "io1 \<in> LS M q1 \<inter> ?SS"
+        using \<open>(LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS)\<close> by blast
+      then have "io1 \<notin> LS M q2 \<inter> ?SS"
+        using \<open>(LS M q1 \<inter> ?SS) \<inter> (LS M q2 \<inter> ?SS) = {}\<close> by blast
+      then have "io1 \<notin> LS M' q2' \<inter> ?SS"
+        using \<open>(LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS)\<close> by blast
+      then have "io1 \<notin> LS M' q2'"
+        using \<open>io1 \<in> (LS M' q1' \<inter> ?SS)\<close> by blast
+      moreover have "io1 \<in> LS M' q1'" 
+        using \<open>io1 \<in> (LS M' q1' \<inter> ?SS)\<close> by blast
+      ultimately show ?thesis by blast
+    next
+      case False
+      then have "LS M' q2' \<inter> ?SS \<noteq> {}"
+        using \<open>(LS M' q1' \<inter> ?SS \<noteq> {}) \<or> (LS M' q2' \<inter> ?SS \<noteq> {})\<close> by blast
+      then obtain io2 where "io2 \<in> (LS M' q2' \<inter> ?SS)" by blast
+      then have "io2 \<in> LS M q2 \<inter> ?SS"
+        using \<open>(LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS)\<close> by blast
+      then have "io2 \<notin> LS M q1 \<inter> ?SS"
+        using \<open>(LS M q1 \<inter> ?SS) \<inter> (LS M q2 \<inter> ?SS) = {}\<close> by blast
+      then have "io2 \<notin> LS M' q1' \<inter> ?SS"
+        using \<open>(LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS)\<close> by blast
+      then have "io2 \<notin> LS M' q1'"
+        using \<open>io2 \<in> (LS M' q2' \<inter> ?SS)\<close> by blast
+      moreover have "io2 \<in> LS M' q2'" 
+        using \<open>io2 \<in> (LS M' q2' \<inter> ?SS)\<close> by blast
+      ultimately show ?thesis by blast
+    qed
   qed
+
   ultimately show ?thesis 
     unfolding is_state_separation_set_def by blast
 qed
