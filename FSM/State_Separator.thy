@@ -1714,25 +1714,17 @@ proof -
 qed
 
 
-value "calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3"
-value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3 of
+value "calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1"
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1 of
         Some S \<Rightarrow> Some (LS_acyclic S (initial S)) |
         None \<Rightarrow> None"
-value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3 of
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1 of
         Some S \<Rightarrow> Some (output_completion_for_FSM M_ex_9 (LS_acyclic S (initial S))) |
         None \<Rightarrow> None"
-value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3 of
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1 of
         Some S \<Rightarrow> Some (state_separation_fail_sequence_set_from_state_separator M_ex_9 0 S) |
         None \<Rightarrow> None"
-end (*
-    using output_completion_for_FSM_length[of "LS_acyclic S (initial S)", of "length (wf_transitions M)" M] 
-     
-    
-    
-    
-  have "[] \<in> LS_acyclic S (initial S)"
-    unfolding LS_acyclic_def 
-  let ?k = "Max (image length (LS_acyclic S (initial S)))"
+
 
 lemma state_separation_fail_sequence_set_from_state_separator :
   "fail_sequence_set M q1 (state_separation_fail_sequence_set_from_state_separator M q1 S)"
@@ -1791,14 +1783,8 @@ qed
 
     
 
-lemma y :
-  "path S (initial S) p \<and> target p (initial S) = Inr q1 \<and> (\<exists> io' . p_io p = io@io') \<Longrightarrow> io \<in> LS M q1"
-    
-     
 
 
-
-(* TODO: prove that for completely_specified machines and applicable inputs the LSin of M' in are non-empty *)
 
 
 
@@ -1806,15 +1792,6 @@ lemma y :
 
 (* TODO:
  - r_dist \<Longrightarrow> EX SSep 
-
- - Rethink effort required here: Algorithm likely relies on some distinction property only 
-    - formulate basic requirements:  
-        - finite 
-        - subset of L q1 UN L q2
-        - sequences in L q1 IN L q2 are not maximal
-        - prefix-closed (?)
-        - maximal sequences are marked q1/q2, depending on containment in L q1 or L q2
-        - output completed / transition completed (?)
 
  - State Separator (general def)
  - State Separator vs State Separator from CSep
