@@ -1364,6 +1364,107 @@ proof
   qed
 qed
 
+lemma acyclic_finite_paths :
+  assumes "acyclic M"
+    shows "finite {p . path M q p}"
+proof -
+  from assms have "{ p . path M (initial M) p} \<subseteq> set (paths_up_to_length M (initial M) (size M))"
+    using distinct_path_length_limit_nodes[of M "initial M"] paths_up_to_length_path_set[OF nodes.initial[of M], of "size M"]
+    by fastforce 
+  moreover have "finite (set (paths_up_to_length M (initial M) (size M)))"
+    by auto
+  ultimately have "finite { p . path M (initial M) p}"
+    using finite_subset by blast
+
+  show "finite {p . path M q p}"
+  proof (cases "q \<in> nodes M")
+    case True
+    then obtain p where "path M (initial M) p" and "target p (initial M) = q" 
+      by (metis path_to_node)
+    
+    have "image (\<lambda>p' . p@p') {p' . path M q p'} \<subseteq> {p' . path M (initial M) p'}"
+    proof 
+      fix x assume "x \<in> image (\<lambda>p' . p@p') {p' . path M q p'}"
+      then obtain p' where "x = p@p'" and "p' \<in> {p' . path M q p'}"
+        by blast
+      then have "path M q p'" by auto
+      then have "path M (initial M) (p@p')"
+        using path_append[OF \<open>path M (initial M) p\<close>] \<open>target p (initial M) = q\<close> by auto
+      then show "x \<in> {p' . path M (initial M) p'}" using \<open>x = p@p'\<close> by blast
+    qed
+    
+    then have "finite (image (\<lambda>p' . p@p') {p' . path M q p'})"
+      using \<open>finite { p . path M (initial M) p}\<close> finite_subset by auto 
+    show ?thesis using finite_imageD[OF \<open>finite (image (\<lambda>p' . p@p') {p' . path M q p'})\<close>]
+      by (meson inj_onI same_append_eq) 
+  next
+    case False
+    then show ?thesis
+      by (meson not_finite_existsD path_begin_node) 
+  qed
+qed
+
+lemma acyclic_paths_from_nodes :
+  assumes "acyclic M" 
+      and "path M q p"
+    shows "distinct (visited_states q p)"
+proof -
+  have "q \<in> nodes M"
+    using assms(2) path_begin_node by metis
+  then obtain p' where "path M (initial M) p'" and "target p' (initial M) = q"
+    using path_to_node by metis
+  then have "path M (initial M) (p'@p)"
+    using assms(2) path_append by metis
+  then have "distinct (visited_states (initial M) (p'@p))"
+    using assms(1) unfolding acyclic.simps by blast
+  then have "distinct (initial M # (map t_target p') @ map t_target p)"
+    by auto
+  moreover have "initial M # (map t_target p') @ map t_target p = (butlast (initial M # map t_target p')) @ ((last (initial M # map t_target p')) # map t_target p)"
+    by auto
+  ultimately have "distinct ((last (initial M # map t_target p')) # map t_target p)"
+    by auto
+  then show ?thesis 
+    using \<open>target p' (initial M) = q\<close> unfolding visited_states.simps target.simps by simp
+qed
+
+
+
+
+definition LS_acyclic :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set" where
+  "LS_acyclic M q = set (map p_io (paths_up_to_length M q (card (h M))))"
+
+lemma distinct_path_length_limit_card :
+  assumes "path M q p"
+  and     "distinct (visited_states q p)"
+shows "length p \<le> card (h M)"
+proof (rule ccontr)
+  assume *: "\<not> length p \<le> card (h M)"
+
+  have "set p \<subseteq> h M" 
+    using assms(1) by (meson path_h) 
+  
+  have "\<not> distinct p"
+    by (metis (no_types, lifting) "*" List.finite_set  \<open>set p \<subseteq> h M\<close> card_mono distinct_card)
+  then have "\<not> distinct (map t_target p)"
+    by (simp add: distinct_map)
+  then have "\<not>distinct (visited_states q p)"
+    unfolding visited_states.simps by auto
+  then show "False" using assms(2) by auto
+qed
+
+lemma LS_acyclic_complete :
+  assumes "acyclic M"
+      and "q \<in> nodes M"
+  shows "LS M q = LS_acyclic M q"
+proof -
+  have "LS_acyclic M q = {p_io p | p . path M q p \<and> length p \<le> (card (h M))}"
+    using paths_up_to_length_path_set[OF assms(2)] unfolding LS_acyclic_def by force
+  moreover have "LS M q = {p_io p | p . path M q p \<and> length p \<le> card (h M)}"
+    unfolding LS.simps using acyclic_paths_from_nodes[OF assms(1), of q] distinct_path_length_limit_card[of M q] by blast
+  ultimately show ?thesis by blast
+qed
+
+
     
 (* note: does not require q to actually be a state of M *)   
 fun deadlock_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> bool" where 
@@ -2559,45 +2660,7 @@ lemma generate_submachine_for_contained_assn: "assn \<in> set assns \<Longrighta
   
 subsubsection \<open>Induction Schemes\<close>
 
-lemma acyclic_finite_paths :
-  assumes "acyclic M"
-    shows "finite {p . path M q p}"
-proof -
-  from assms have "{ p . path M (initial M) p} \<subseteq> set (paths_up_to_length M (initial M) (size M))"
-    using distinct_path_length_limit_nodes[of M "initial M"] paths_up_to_length_path_set[OF nodes.initial[of M], of "size M"]
-    by fastforce 
-  moreover have "finite (set (paths_up_to_length M (initial M) (size M)))"
-    by auto
-  ultimately have "finite { p . path M (initial M) p}"
-    using finite_subset by blast
 
-  show "finite {p . path M q p}"
-  proof (cases "q \<in> nodes M")
-    case True
-    then obtain p where "path M (initial M) p" and "target p (initial M) = q" 
-      by (metis path_to_node)
-    
-    have "image (\<lambda>p' . p@p') {p' . path M q p'} \<subseteq> {p' . path M (initial M) p'}"
-    proof 
-      fix x assume "x \<in> image (\<lambda>p' . p@p') {p' . path M q p'}"
-      then obtain p' where "x = p@p'" and "p' \<in> {p' . path M q p'}"
-        by blast
-      then have "path M q p'" by auto
-      then have "path M (initial M) (p@p')"
-        using path_append[OF \<open>path M (initial M) p\<close>] \<open>target p (initial M) = q\<close> by auto
-      then show "x \<in> {p' . path M (initial M) p'}" using \<open>x = p@p'\<close> by blast
-    qed
-    
-    then have "finite (image (\<lambda>p' . p@p') {p' . path M q p'})"
-      using \<open>finite { p . path M (initial M) p}\<close> finite_subset by auto 
-    show ?thesis using finite_imageD[OF \<open>finite (image (\<lambda>p' . p@p') {p' . path M q p'})\<close>]
-      by (meson inj_onI same_append_eq) 
-  next
-    case False
-    then show ?thesis
-      by (meson not_finite_existsD path_begin_node) 
-  qed
-qed
 
 
 

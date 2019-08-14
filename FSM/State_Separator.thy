@@ -1613,10 +1613,126 @@ shows "\<exists> io \<in> Fail . io \<in> (LS M' q' - LS M q)"
 
 definition state_separation_fail_sequence_set_from_state_separator :: "('a, 'c) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('b + 'a, 'c) FSM_scheme \<Rightarrow> (Input \<times> Output) list set" where
   "state_separation_fail_sequence_set_from_state_separator M q1 S = 
-        output_completion_for_FSM M (L S) - (LS M q1)"
+          output_completion_for_FSM M (LS_acyclic S (initial S)) - (insert [] (LS M q1))"
+(*        output_completion_for_FSM M (L S) - (LS M q1)" *)
 (*      output_completion_for_FSM M (L S) - {io | io p . path S (initial S) p \<and> target p (initial S) = Inr q1 \<and> (\<exists> io' . p_io p = io@io')}"*)
 (* TODO: prove equivalency with above alternative definition? *)
 (* TODO: prove code *)
+
+lemma state_separation_fail_sequence_set_from_state_separator_code[code] :
+  "state_separation_fail_sequence_set_from_state_separator M q1 S = 
+    output_completion_for_FSM M (LS_acyclic S (initial S)) - set (map p_io (paths_up_to_length M q1 (card (h S))))"
+proof -
+  
+
+  have "(insert [] (LS M q1)) - set (map p_io (paths_up_to_length M q1 (card (h S))))
+         = {io \<in> LS M q1 . length io > (card (h S))}" (*{p_io p | p . path M q1 p \<and> length p > length (wf_transitions S)}"*)
+  proof (cases "q1 \<in> nodes M")
+    case True
+
+    have "set (map p_io (paths_up_to_length M q1 (card (h S)))) = 
+            {p_io p | p . path M q1 p \<and> length p \<le> (card (h S))}"
+      using paths_up_to_length_path_set[OF True, of "(card (h S))"] by auto
+    then have "set (map p_io (paths_up_to_length M q1 (card (h S)))) = {io \<in> LS M q1 . length io \<le> (card (h S))}"
+      unfolding LS.simps by force
+    moreover have "insert [] (LS M q1) = LS M q1"
+      using True unfolding LS.simps by auto
+    moreover have "(LS M q1) - {io \<in> LS M q1 . length io \<le> (card (h S))} = {io \<in> LS M q1 . length io > (card (h S))}"
+      by auto
+    ultimately have "(insert [] (LS M q1)) - set (map p_io (paths_up_to_length M q1 (card (h S)))) = {io \<in> LS M q1 . length io > (card (h S))}"
+      by auto
+    moreover have "{io \<in> LS M q1 . length io > length (wf_transitions S)} = {p_io p | p . path M q1 p \<and> length p > length (wf_transitions S)}"
+      unfolding LS.simps by force 
+    ultimately show ?thesis by auto
+  next
+    case False
+    have "\<And> n . paths_up_to_length M q1 n = [[]]"
+    proof -
+      fix n show "paths_up_to_length M q1 n = [[]]" 
+      proof (induction n)
+        case 0
+        then show ?case by auto
+      next
+        case (Suc n)
+        have "\<And> p. \<not> path M q1 p"
+          using False by (meson path_begin_node) 
+        then have *: "\<And> n . filter (path M q1) (lists_of_length (wf_transitions M) (Suc n)) = []"
+          by auto
+        show ?case
+          using Suc *[of n] unfolding paths_up_to_length.simps paths_of_length.simps by force
+      qed 
+    qed
+    then have "paths_up_to_length M q1 (card (h S)) = [[]]"
+      by blast
+    moreover have "(insert [] (LS M q1)) = {[]}"
+      unfolding LS.simps using False path_begin_node by fastforce
+    ultimately show ?thesis by auto
+  qed
+
+  moreover have "\<And> io . io \<in> output_completion_for_FSM M (LS_acyclic S (initial S)) \<Longrightarrow> length io \<le> (card (h S))"
+    using paths_up_to_length_path_set[OF nodes.initial[of S], of "(card (h S))"] 
+    using output_completion_for_FSM_length[of "LS_acyclic S (initial S)", of "(card (h S))" M]
+    unfolding LS_acyclic_def by force
+
+  ultimately have "output_completion_for_FSM M (LS_acyclic S (initial S)) \<inter> ((insert [] (LS M q1)) - set (map p_io (paths_up_to_length M q1 (card (h S))))) = {}"
+    by force
+
+  moreover have "set (map p_io (paths_up_to_length M q1 (card (h S)))) \<subseteq> (insert [] (LS M q1))"
+  proof (cases "q1 \<in> nodes M")
+    case True
+    show ?thesis 
+      using paths_up_to_length_path_set[OF True, of "(card (h S))"] unfolding LS.simps by force
+  next
+    case False
+    
+    have "\<And> n . paths_up_to_length M q1 n = [[]]"
+    proof -
+      fix n show "paths_up_to_length M q1 n = [[]]" 
+      proof (induction n)
+        case 0
+        then show ?case by auto
+      next
+        case (Suc n)
+        have "\<And> p. \<not> path M q1 p"
+          using False by (meson path_begin_node) 
+        then have *: "\<And> n . filter (path M q1) (lists_of_length (wf_transitions M) (Suc n)) = []"
+          by auto
+        show ?case
+          using Suc *[of n] unfolding paths_up_to_length.simps paths_of_length.simps by force
+      qed 
+    qed
+    then have "paths_up_to_length M q1 (card (h S)) = [[]]"
+      by blast
+    moreover have "(insert [] (LS M q1)) = {[]}"
+      unfolding LS.simps using False path_begin_node by fastforce
+    ultimately show ?thesis by auto
+  qed
+
+  ultimately show ?thesis
+    unfolding state_separation_fail_sequence_set_from_state_separator_def
+    by blast
+qed
+
+
+value "calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3"
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3 of
+        Some S \<Rightarrow> Some (LS_acyclic S (initial S)) |
+        None \<Rightarrow> None"
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3 of
+        Some S \<Rightarrow> Some (output_completion_for_FSM M_ex_9 (LS_acyclic S (initial S))) |
+        None \<Rightarrow> None"
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3 of
+        Some S \<Rightarrow> Some (state_separation_fail_sequence_set_from_state_separator M_ex_9 0 S) |
+        None \<Rightarrow> None"
+end (*
+    using output_completion_for_FSM_length[of "LS_acyclic S (initial S)", of "length (wf_transitions M)" M] 
+     
+    
+    
+    
+  have "[] \<in> LS_acyclic S (initial S)"
+    unfolding LS_acyclic_def 
+  let ?k = "Max (image length (LS_acyclic S (initial S)))"
 
 lemma state_separation_fail_sequence_set_from_state_separator :
   "fail_sequence_set M q1 (state_separation_fail_sequence_set_from_state_separator M q1 S)"
@@ -1624,7 +1740,7 @@ lemma state_separation_fail_sequence_set_from_state_separator :
 
 
   
-lemma x :
+lemma state_separator_language_intersection :
   assumes "completely_specified M'"
       and "set (inputs M) \<subseteq> set (inputs M')"
       and "set (outputs M) = set (outputs M')"

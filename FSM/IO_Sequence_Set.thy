@@ -236,6 +236,61 @@ proof
   qed
 qed
 
+lemma output_completion_for_FSM_length :
+  assumes "\<forall> io \<in> P . length io \<le> k"
+  shows   "\<forall> io \<in> output_completion_for_FSM M P. length io \<le> k" 
+  using assms unfolding output_completion_for_FSM_def
+  by auto 
 
+fun output_completion_for_FSM_list :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list list \<Rightarrow> (Input \<times> Output) list list" where
+  "output_completion_for_FSM_list M [] = []" |
+  "output_completion_for_FSM_list M (io#ios) = (case length io of
+    0 \<Rightarrow> [] # (output_completion_for_FSM_list M ios) |
+    Suc k \<Rightarrow> io # (map (\<lambda>y . (butlast io @ [(fst (last io), y)])) (outputs M))) @ (output_completion_for_FSM_list M ios)"
+
+
+
+lemma output_completion_for_FSM_code[code] :
+  "output_completion_for_FSM M (set xs) = set (remdups (output_completion_for_FSM_list M xs))"
+proof (induction xs)
+  case Nil
+  then show ?case unfolding output_completion_for_FSM_def by auto
+next
+  case (Cons x xs)
+
+  have *: "output_completion_for_FSM M (set (x # xs)) = output_completion_for_FSM M {x} \<union> output_completion_for_FSM M (set xs)"
+    unfolding output_completion_for_FSM_def by force
+
+  show ?case proof (cases "length x")
+    case 0
+    then have "set (output_completion_for_FSM_list M (x#xs)) = {[]} \<union> set (output_completion_for_FSM_list M xs)"
+      by auto
+    moreover have "output_completion_for_FSM M {x} = {[]}"
+      using 0 unfolding output_completion_for_FSM_def by auto
+    ultimately show ?thesis using * Cons.IH by force
+  next
+    case (Suc nat)
+    then have **: "set (output_completion_for_FSM_list M (x#xs)) = (set (x # map (\<lambda>y . (butlast x @ [(fst (last x), y)])) (outputs M))) \<union> set (output_completion_for_FSM_list M xs)"
+      by auto
+
+    have "{(butlast x @ [(fst (last x), snd (last x))])} = {x}"
+      using Suc snoc_eq_iff_butlast by fastforce 
+    then have "set (map (\<lambda>y. butlast x @ [(fst (last x), y)]) (outputs M)) = {butlast x @[(fst (last x),y)] | y . y \<in> set (outputs M)}"
+      by auto
+    moreover have "{io @ [(xa, y')] |io xa y'. y' \<in> set (outputs M) \<and> (\<exists>y. io @ [(xa, y)] \<in> {x})} = {butlast x @[(fst (last x),y)] | y . y \<in> set (outputs M)}"
+      using \<open>{(butlast x @ [(fst (last x), snd (last x))])} = {x}\<close>
+      by (metis (no_types, lifting) butlast_snoc fst_conv insertI1 last_snoc singletonD) 
+    ultimately have "(set (map (\<lambda>y . (butlast x @ [(fst (last x), y)])) (outputs M))) = {io @ [(xa, y')] |io xa y'. y' \<in> set (outputs M) \<and> (\<exists>y. io @ [(xa, y)] \<in> {x})}"
+      by auto
+    then have "(set (x # map (\<lambda>y . (butlast x @ [(fst (last x), y)])) (outputs M))) = output_completion_for_FSM M {x}"
+      unfolding output_completion_for_FSM_def by auto 
+    then show ?thesis 
+      using * ** Cons.IH by auto
+  qed
+qed
+
+
+value "output_completion_for_FSM_list M_ex_H [[(0,0)],[(0,0),(1,1)]]"
+value "output_completion_for_FSM M_ex_H {[(0,0)],[(0,0),(1,1)]}"
 
 end
