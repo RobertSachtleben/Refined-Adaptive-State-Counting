@@ -19,6 +19,20 @@ value "paths_for_input M_ex_9 0 [1,1]"
 value "paths_for_input M_ex_9 0 [1,1,1]"
 value "paths_for_input M_ex_9 0 [1,1,1,1,1,1,1,1]"
 
+
+lemma paths_for_input_path_set : 
+  assumes "q \<in> nodes M"
+  shows "set (paths_for_input M q xs) = {p . path M q p \<and> map t_target p = xs}"
+using assms proof (induction xs arbitrary: q)
+  case Nil
+  then show ?case unfolding paths_for_input.simps by auto
+next
+  case (Cons x xs)
+  then show ?case sorry
+qed
+
+end (*
+
 (* N - helper *)
 fun m_traversal_sequences' :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a set set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list set \<Rightarrow> Input list set \<Rightarrow> Input list set" where
   "m_traversal_sequences' M q D m 0 current finished = finished" |
