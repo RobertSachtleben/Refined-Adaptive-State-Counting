@@ -120,6 +120,46 @@ fun m_traversal_sequences' :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow>
 value "m_traversal_sequences' M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 4 3 {[]} {}"
 value "m_traversal_sequences' M_ex_9 2 {({0},{0}),({1},{}),({2},{2}),({3},{3})} 4 100  {[]} {}"*)
 
+fun lists_up_to_length :: "'a list \<Rightarrow> nat \<Rightarrow> 'a list list" where
+  "lists_up_to_length xs 0 = [[]]" |
+  "lists_up_to_length xs (Suc n) = (lists_up_to_length xs n) @ (lists_of_length xs (Suc n))"
+
+lemma lists_up_to_length_list_set : "set (lists_up_to_length xs k) = {xs' . length xs' \<le> k \<and> set xs' \<subseteq> set xs}"
+proof (induction k)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+  then show ?case 
+    using lists_of_length_list_set[of xs "Suc k"] unfolding lists_up_to_length.simps by auto
+qed
+
+
+(* TODO: extremely slow *)
+fun m_traversal_sequences_list :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list list" where
+  "m_traversal_sequences_list M q D m k = (filter ((\<lambda> xs . (\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) \<and>
+                                                          \<not>(\<forall> p \<in> set (paths_for_input M q (butlast xs)) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))))
+                                          (lists_up_to_length (inputs M) k))"
+
+lemma m_traversal_sequences_list_set :
+  "set (m_traversal_sequences_list M q D m k) = {xs . length xs \<le> k \<and> set xs \<subseteq> set (inputs M) \<and>
+                                                  (\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) \<and>
+                                                  \<not>(\<forall> p \<in> set (paths_for_input M q (butlast xs)) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}"
+  unfolding m_traversal_sequences_list.simps using lists_up_to_length_list_set[of "inputs M" k] by force
+
+value "m_traversal_sequences_list M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 4 4"
+
+
+lemma m_traversal_sequences_bound :
+  assumes "\<And> q . q \<in> nodes M \<Longrightarrow> \<exists> d \<in> D . q \<in> fst d"
+      and "path M q p"
+      and "length p \<ge> Suc ((size M)*m)"
+    shows "\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))"
+  sorry
+  
+
+
+(* TODO: very awkward, try forward approach similar to distinct path calculation? *)
 fun m_traversal_sequences' :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list set \<Rightarrow> Input list set \<Rightarrow> Input list set" where
   "m_traversal_sequences' M q D m 0 current finished = finished" |
   "m_traversal_sequences' M q D m (Suc k) current finished = 
@@ -135,7 +175,7 @@ lemma m_traversal_sequences'_set_internal :
   assumes "\<And> xs p . xs \<in> X \<Longrightarrow> \<not> (\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))"
   shows "m_traversal_sequences' M q D m k X Y = Y \<union> {xs'@xs | xs' xs . set xs \<subseteq> set (inputs M) \<and> length xs \<le> k \<and> xs' \<in> X \<and>
                                                       (\<forall> p \<in> set (paths_for_input M q (xs'@xs)) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) \<and>
-                                                      (\<forall> p \<in> set (paths_for_input M q (butlast (xs'@xs))) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}"
+                                                      \<not>(\<forall> p \<in> set (paths_for_input M q (butlast (xs'@xs))) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}"
 using assms proof (induction k arbitrary: X Y)
   case 0
   then show ?case unfolding m_traversal_sequences'.simps by force
@@ -159,21 +199,26 @@ next
   moreover have "m_traversal_sequences' M q D m k ?X ?Y = 
           ?Y \<union> {xs'@xs | xs' xs . set xs \<subseteq> set (inputs M) \<and> length xs \<le> k \<and> xs' \<in> ?X \<and>
                   (\<forall> p \<in> set (paths_for_input M q (xs'@xs)) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) \<and>
-                  (\<forall> p \<in> set (paths_for_input M q (butlast (xs'@xs))) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}"
+                  \<not>(\<forall> p \<in> set (paths_for_input M q (butlast (xs'@xs))) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}"
     using Suc.IH[of "({xs \<in> (image (\<lambda>xsx . (fst xsx)@[snd xsx]) (X \<times> set (inputs M))) . \<not>(\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))})"
                      "(Y \<union> {xs \<in> (image (\<lambda>xsx . (fst xsx)@[snd xsx]) (X \<times> set (inputs M))) . (\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))})"]
     
           *
     by blast
+  
 
   moreover have 
     "{xs' @ xs |xs' xs. set xs \<subseteq> set (inputs M) \<and> length xs \<le> Suc k \<and>  xs' \<in> X \<and>
            (\<forall>p \<in> set (paths_for_input M q (xs' @ xs)). \<exists>d\<in>D. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) \<and>
-           (\<forall>p \<in> set (paths_for_input M q (butlast (xs' @ xs))). \<exists>d\<in>D. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p))}
+           \<not>(\<forall>p \<in> set (paths_for_input M q (butlast (xs' @ xs))). \<exists>d\<in>D. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p))}
     = {xs \<in> (image (\<lambda>xsx . (fst xsx)@[snd xsx]) (X \<times> set (inputs M))) . (\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}
         \<union> {xs'@xs | xs' xs . set xs \<subseteq> set (inputs M) \<and> length xs \<le> k \<and> xs' \<in> {xs \<in> (image (\<lambda>xsx . (fst xsx)@[snd xsx]) (X \<times> set (inputs M))) . \<not>(\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))} \<and>
             (\<forall> p \<in> set (paths_for_input M q (xs'@xs)) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) \<and>
-            (\<forall> p \<in> set (paths_for_input M q (butlast (xs'@xs))) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}"
+            \<not>(\<forall> p \<in> set (paths_for_input M q (butlast (xs'@xs))) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))}"
+    (is "?S1 = ?S2")
+  proof 
+    show "?S1 \<subseteq> ?S2"
+    
     
 
 end (*
