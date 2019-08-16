@@ -107,6 +107,71 @@ qed
 
 
 
+fun paths_up_to_length_or_condition :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a Transition list \<Rightarrow> bool) \<Rightarrow> 'a Transition list \<Rightarrow> 'a Transition list list" where
+  "paths_up_to_length_or_condition M q 0 f pref = (if f pref
+    then [pref]
+    else [])" | 
+  "paths_up_to_length_or_condition M q (Suc k) f pref = (if f pref
+    then [pref]
+    else (concat (map
+              (\<lambda> t . (paths_up_to_length_or_condition M (t_target t) k f (pref@[t])))
+              (filter (\<lambda> t . t_source t = target pref q) (wf_transitions M)))))"
+
+lemma paths_up_to_length_or_condition_path_set :
+  assumes "path M q pref"      
+  shows "set (paths_up_to_length_or_condition M q k f pref) = {(pref@p) | p . path M q (pref@p) \<and> length p \<le> k \<and> f (pref@p) \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> \<not> f (pref@p'))}"
+using assms proof (induction k arbitrary: q pref)
+  case 0
+  then show ?case 
+      using 0 assms unfolding paths_up_to_length_or_condition.simps by force  
+next
+  case (Suc k)
+
+  show ?case proof (cases "f pref")
+    case True
+    then show ?thesis using Suc.prems unfolding paths_up_to_length_or_condition.simps by force
+  next
+    case False
+    then have "set (paths_up_to_length_or_condition M q (Suc k) f pref) = 
+                  set ((concat (map
+              (\<lambda> t . (paths_up_to_length_or_condition M (t_target t) k f (pref@[t])))
+              (filter (\<lambda> t . t_source t = target pref q) (wf_transitions M)))))" 
+      unfolding paths_up_to_length_or_condition.simps by force
+    also have "\<dots> = \<Union>{set (paths_up_to_length_or_condition M (t_target t) k f (pref@[t])) | t . t \<in> h M \<and> t_source t = target pref q}"
+      by force
+
+
+    have "\<And> t . t \<in> h M \<Longrightarrow> t_source t = target pref q \<Longrightarrow> set (paths_up_to_length_or_condition M (t_target t) k f (pref@[t])) 
+                                                            =  {((pref @ [t]) @ p) |p .
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> f ((pref @ [t]) @ p'))}"
+    proof -
+      fix t assume "t \<in> h M" and "t_source t = target pref q"
+      then have "path M q (pref@[t])"
+        using Suc.prems
+        by (simp add: path_append_last) 
+      show "set (paths_up_to_length_or_condition M (t_target t) k f (pref@[t])) 
+                                                            =  {((pref @ [t]) @ p) |p .
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> f ((pref @ [t]) @ p'))}"
+      using Suc.IH[OF ]
+
+    also have "\<dots> = \<Union>{{((pref @ [t]) @ p) |p .
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> f ((pref @ [t]) @ p'))} | t . t \<in> h M \<and> t_source t = target pref q}"
+      using Suc.IH 
+
+    then show ?thesis using assms Suc unfolding paths_up_to_length_or_condition.simps 
+  qed
+
+   
+
+  then show ?case using assms unfolding paths_up_to_length_or_condition.simps
+qed
+
+
+end (*
+
 
 (* N - helper *)
 (*
