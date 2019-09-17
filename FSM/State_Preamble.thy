@@ -911,12 +911,15 @@ lemma language_by_same_h_initial :
 
 lemma calculate_preamble_set_naive_exhaustiveness :
   assumes "observable M"
-  and     "is_preamble_set M q P"
+  and     "\<exists> P . is_preamble_set M q P"
   shows "calculate_preamble_set_naive M q \<noteq> None"
 proof -
 
+  obtain P where "is_preamble_set M q P"
+    using assms(2) by blast
+
   obtain SP where "is_preamble SP M q" and "L SP = P"
-    using preamble_set_implies_preamble[OF assms] by blast
+    using preamble_set_implies_preamble[OF assms(1) \<open>is_preamble_set M q P\<close>] by blast
   then have "is_submachine SP M" unfolding is_preamble.simps by presburger
 
   obtain S where "S \<in> set (generate_submachines M)" and "h S = h SP"
@@ -931,7 +934,7 @@ proof -
   then have "L S = P"
     using \<open>L SP = P\<close> by simp
   then have "L S \<subseteq> set (language_up_to_length M ( size M - 1) )"
-    using is_preamble_set_length[OF assms(2)] by auto
+    using is_preamble_set_length[OF \<open>is_preamble_set M q P\<close>] by auto
   then have "L S \<subseteq> {io \<in> L M. length io \<le> size M - 1}"
     using language_up_to_length_set[of M "size M - 1"] by blast
   moreover have "L S \<inter> {io \<in> L M. length io \<le> size M - 1} = {io \<in> L S. length io \<le> size M - 1}"
@@ -943,7 +946,7 @@ proof -
   then have "P = set (language_up_to_length S ( size M - 1) )"
     using language_up_to_length_set[of S "size M - 1"] \<open>L S = P\<close> by blast
   then have "is_preamble_set M q (set (language_up_to_length S ( size M - 1 )))"
-    using assms(2) by metis
+    using \<open>is_preamble_set M q P\<close> by metis
   
   have "language_up_to_length S (Suc ( size M - 1 )) = (language_up_to_length S ( size M - 1 )) @ (map p_io (paths_of_length S (initial S) (Suc ( size M - 1 ))))"
   proof -

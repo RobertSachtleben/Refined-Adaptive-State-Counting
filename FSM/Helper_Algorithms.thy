@@ -239,10 +239,85 @@ qed
 fun d_reachable_states_with_preambles :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
   "d_reachable_states_with_preambles M = map (\<lambda> qp . (fst qp, the (snd qp))) (filter (\<lambda> qp . snd qp \<noteq> None) (map (\<lambda> q . (q,calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M)))"
 
+lemma d_reachable_states_with_preambles_exhaustiveness :
+  assumes "\<exists> P . is_preamble_set M q P"
+  and     "observable M"
+  and     "q \<in> nodes M"
+shows "\<exists> P . is_preamble_set M q P \<and> (q,P) \<in> set (d_reachable_states_with_preambles M)"
+proof -
+  have "calculate_preamble_set_naive M q \<noteq> None"
+    using calculate_preamble_set_naive_exhaustiveness[OF assms(2,1)] by assumption
+  then obtain P where "calculate_preamble_set_naive M q = Some P"
+    by blast
+  then have "(q,Some P) \<in> set ((filter (\<lambda>qp. snd qp \<noteq> None)
+               (map (\<lambda>q. (q, calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M))))"
+    by (metis (mono_tags, lifting) \<open>calculate_preamble_set_naive M q \<noteq> None\<close> assms(3) filter_list_set image_eqI nodes_code set_map snd_conv)
+    
+  then have "(q,P) \<in> set (d_reachable_states_with_preambles M)" 
+    unfolding d_reachable_states_with_preambles.simps
+  proof -
+    have "(q, P) = (fst (q, Some P), the (snd (q, Some P)))"
+      by auto
+    then have "(q, P) \<in> (\<lambda>p. (fst p, the (snd p))) ` set (filter (\<lambda>p. snd p \<noteq> None) (map (\<lambda>a. (a, calculate_preamble_set_naive M a)) (nodes_from_distinct_paths M)))"
+      using \<open>(q, Some P) \<in> set (filter (\<lambda>qp. snd qp \<noteq> None) (map (\<lambda>q. (q, calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M)))\<close> by blast
+    then show "(q, P) \<in> set (map (\<lambda>p. (fst p, the (snd p))) (filter (\<lambda>p. snd p \<noteq> None) (map (\<lambda>a. (a, calculate_preamble_set_naive M a)) (nodes_from_distinct_paths M))))"
+      by (metis (no_types) list.set_map)
+  qed 
+  then show ?thesis
+    by (meson \<open>calculate_preamble_set_naive M q = Some P\<close> calculate_preamble_set_naive_soundness) 
+qed
+
+lemma d_reachable_states_with_preambles_containment :
+  assumes "(q,P) \<in> set (d_reachable_states_with_preambles M)"
+  shows "is_preamble_set M q P"
+    and "q \<in> nodes M"
+proof -
+
+  have "calculate_preamble_set_naive M q = Some P"
+    using assms unfolding d_reachable_states_with_preambles.simps
+    using image_iff by auto 
+  then show "is_preamble_set M q P"
+    using calculate_preamble_set_naive_soundness by metis
+
+  show "q \<in> nodes M"
+    using assms unfolding d_reachable_states_with_preambles.simps
+  proof -
+    assume "(q, P) \<in> set (map (\<lambda>qp. (fst qp, the (snd qp))) (filter (\<lambda>qp. snd qp \<noteq> None) (map (\<lambda>q. (q, calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M))))"
+    then have "q \<in> set (nodes_from_distinct_paths M)"
+      by fastforce
+    then show ?thesis
+      by (metis nodes_code)
+  qed
+qed
+
+
+
 value "d_reachable_states_with_preambles M_ex_H"
+
+
 
 fun d_reachable_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a list" where
   "d_reachable_states M = (map fst (d_reachable_states_with_preambles M))"
+
+lemma d_reachable_states_set : 
+  assumes "observable M"
+  shows "set (d_reachable_states M) = {q . q \<in> nodes M \<and> (\<exists> P . is_preamble_set M q P)}"
+proof -
+  have "\<And> q . q \<in> set (d_reachable_states M) \<Longrightarrow> q \<in> {q \<in> nodes M. \<exists>P. is_preamble_set M q P}"
+    unfolding d_reachable_states.simps using d_reachable_states_with_preambles_containment[of _ _ M]
+    by (metis (no_types, lifting) list_map_source_elem mem_Collect_eq prod.collapse)
+  moreover have "\<And> q . q \<in> {q \<in> nodes M. \<exists>P. is_preamble_set M q P} \<Longrightarrow> q \<in> set (d_reachable_states M)"
+    unfolding d_reachable_states.simps using d_reachable_states_with_preambles_exhaustiveness[OF _ assms]
+  proof -
+    fix q :: 'a
+    assume "q \<in> {q \<in> nodes M. \<exists>P. is_preamble_set M q P}"
+    then have "q \<in> nodes M \<and> Ex (is_preamble_set M q)"
+      by blast
+    then show "q \<in> set (map fst (d_reachable_states_with_preambles M))"
+      by (metis (no_types) \<open>\<And>q. \<lbrakk>\<exists>P. is_preamble_set M q P; q \<in> nodes M\<rbrakk> \<Longrightarrow> \<exists>P. is_preamble_set M q P \<and> (q, P) \<in> set (d_reachable_states_with_preambles M)\<close> fst_conv image_eqI set_map)
+  qed
+  ultimately show ?thesis by blast
+qed
 
 value "d_reachable_states M_ex_H"
 
