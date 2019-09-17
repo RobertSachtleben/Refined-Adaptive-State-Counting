@@ -405,7 +405,9 @@ qed
 
 lemma preamble_set_implies_preamble :
   assumes "observable M" and "is_preamble_set M q P"
-  shows "\<exists> S . is_preamble S M q \<and> L S = P"
+  (*shows "\<exists> S . is_preamble S M q \<and> L S = P"*)
+  shows "is_preamble (M\<lparr> transitions := filter (\<lambda> t . \<exists> xys xy . xys@[xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M) \<rparr>) M q"
+    and "L (M\<lparr> transitions := filter (\<lambda> t . \<exists> xys xy . xys@[xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M) \<rparr>) = P"
 proof -
   let ?is_preamble_transition = "\<lambda> t . \<exists> xys xy . xys@[xy] \<in> P \<and> t_source t = io_target M xys (initial M) \<and> t_input t = fst xy \<and> t_output t = snd xy"
   let ?S = "M\<lparr> transitions := filter ?is_preamble_transition (transitions M) \<rparr>"
@@ -548,7 +550,7 @@ proof -
       ultimately show ?case by blast
     qed
   qed
-  then have "L ?S = P" by auto
+  then show "L ?S = P" by auto
 
   have "acyclic ?S"
   proof (rule ccontr)
@@ -794,10 +796,8 @@ proof -
       by blast
   qed
 
-  ultimately have "is_preamble ?S M q" 
+  ultimately show "is_preamble ?S M q" 
     unfolding is_preamble.simps by blast
-  then show ?thesis 
-    using \<open>L ?S = P\<close> by blast
 qed
 
 

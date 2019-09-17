@@ -345,6 +345,8 @@ value "m_traversal_paths M_ex_H 4 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 10000"
 
 value "m_traversal_paths M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 4 10000"
 
+(* calculate maximal sets of pairwise r_distinguishable states and their respective subsets of d-reachable states *)
+
 end (*
 
 
