@@ -536,7 +536,130 @@ proof -
     by (meson subsetI subset_antisym) 
 qed
 
+(* TODO: move *)
+fun prefixes :: "'a list \<Rightarrow> 'a list list" where
+  "prefixes [] = [[]]" |
+  "prefixes (x#xs) = [] # (map (\<lambda> xs' . x#xs') (prefixes xs))"
 
+value "prefixes [1::nat,2,3,4]"
+
+lemma prefixes_set : "set (prefixes xs) = {xs' . \<exists> xs'' . xs'@xs'' = xs}"
+proof (induction xs)
+  case Nil
+  then show ?case unfolding prefixes.simps by auto
+next
+  case (Cons a xs)
+
+  have "set (prefixes (a#xs)) = insert [] (set (map (\<lambda> xs' . a#xs') (prefixes xs)))"
+    unfolding prefixes.simps by auto
+  then have "set (prefixes (a#xs)) = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
+    using Cons.IH by auto
+
+  moreover have "{xs'. \<exists>xs''. xs' @ xs'' = a # xs} = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}" 
+  proof -
+    have "\<And> xs' . xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
+    proof - 
+      fix xs' 
+      show "xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
+        by (cases xs'; auto)
+    qed
+    then show ?thesis by blast
+  qed
+
+  ultimately show ?case by auto
+qed
+  
+
+
+
+fun add_prefixes :: "'a list list \<Rightarrow> 'a list list" where
+  "add_prefixes xs = concat (map prefixes xs)"
+
+value "add_prefixes [[1::nat,2,3], [], [10,100,1000,1000]]"
+
+lemma add_prefixes_set : "set (add_prefixes xs) = {xs' . \<exists> xs'' . xs'@xs'' \<in> set xs}"
+proof -
+  have "set (add_prefixes xs) = {xs' . \<exists> x \<in> set xs . xs' \<in> set (prefixes x)}"
+    unfolding add_prefixes.simps by auto
+  also have "\<dots> = {xs' . \<exists> xs'' . xs'@xs'' \<in> set xs}"
+  proof (induction xs)
+    case Nil
+    then show ?case using prefixes_set by auto
+  next
+    case (Cons a xs)
+    then show ?case 
+    proof -
+      have "\<And> xs' . xs' \<in> {xs'. \<exists>x\<in>set (a # xs). xs' \<in> set (prefixes x)} \<longleftrightarrow> xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' \<in> set (a # xs)}"
+      proof -
+        fix xs' 
+        show "xs' \<in> {xs'. \<exists>x\<in>set (a # xs). xs' \<in> set (prefixes x)} \<longleftrightarrow> xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' \<in> set (a # xs)}"
+          using prefixes_set by (cases "xs' \<in> set (prefixes a)"; auto)
+      qed
+      then show ?thesis by blast
+    qed
+  qed
+  finally show ?thesis by blast
+qed
+
+
+
+fun N :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list list" where
+  "N M q D m = add_prefixes (map (\<lambda> p . map t_input p) (m_traversal_paths M q D m))"
+
+value "remdups (N M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4)"
+
+
+fun T :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list" where
+  "T M q D m = add_prefixes (map (\<lambda> p . p_io p) (m_traversal_paths M q D m))"
+
+value "remdups (T M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4)" 
+
+fun Traces :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
+  "Traces M q D m \<alpha> = filter (\<lambda>io . map fst io \<in> set (prefixes \<alpha>)) (T M q D m)"
+
+value "remdups (Traces M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 [1,1])"
+
+
+
+
+
+
+
+
+lemma N_set : 
+  assumes "\<forall> q \<in> nodes M . \<exists> d \<in> D . q \<in> fst d"
+    and     "\<forall> d \<in> D . snd d \<subseteq> fst d"
+    and     "q \<in> nodes M"
+  shows "set (N M q D m) = {xs . (\<exists> io \<in> LS M q . xs = map fst io) \<and>
+                                       (\<forall> p . (path M q p \<and> xs = map t_input p \<and> (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))) \<and>
+                                       (\<forall> xs' . (\<exists> xs'' . xs' @ xs'' = xs \<and> xs'' = []) \<longrightarrow> \<not> (\<forall> p . (path M q p \<and> xs' = map t_input p \<and> (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))))}" 
+proof -
+  have "set (N M q D m) = {xs'. \<exists>xs''. xs' @ xs'' \<in> set (map (map t_input) (m_traversal_paths M q D m))}"
+    unfolding N.simps
+    using add_prefixes_set[of "(map (map t_input) (m_traversal_paths M q D m))"] by assumption
+  also have "\<dots> = {xs'. \<exists>xs''. \<exists> p \<in> set (m_traversal_paths M q D m) . xs'@xs'' = map t_input p}"
+  proof -
+    have "\<And> xs ps . xs \<in> set (map (map t_input) ps) \<longleftrightarrow> (\<exists> p \<in> set ps . xs = map t_input p)"
+      by auto
+    then show ?thesis by blast
+  qed
+  also have "\<dots> = {xs'. \<exists>xs''. \<exists> p \<in> {p. path M q p \<and>
+      (\<exists>d\<in>D. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) \<and>
+      (\<forall>p' p''.
+          p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow>
+          \<not> (\<exists>d\<in>D. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')))} . xs'@xs'' = map t_input p}"
+    using m_traversal_paths_set[OF assms, of m] by auto
+
+  (* TODO *)
+  also have "\<dots> = {xs . (\<exists> io \<in> LS M q . xs = map fst io) \<and>
+                                       (\<forall> p . (path M q p \<and> xs = map t_input p \<and> (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))) \<and>
+                                       (\<forall> xs' . (\<exists> xs'' . xs' @ xs'' = xs \<and> xs'' = []) \<longrightarrow> \<not> (\<forall> p . (path M q p \<and> xs' = map t_input p \<and> (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))))}"
+    sorry
+  finally show ?thesis by blast
+qed
+
+lemma Traces_set : "set (Traces M q D m \<alpha>) = {io \<in> set (T M q D m) . map fst io \<in> set (prefixes \<alpha>)}"
+  sorry
 
 end (*
 
