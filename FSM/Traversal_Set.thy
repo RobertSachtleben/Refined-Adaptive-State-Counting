@@ -509,22 +509,33 @@ lemma m_traversal_paths_set :
 proof -
   let ?f = "\<lambda> p . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))"
 
+  have "path M q []"
+    using assms(3) by auto
+
   have "\<And> p . p \<in> ?MTP \<Longrightarrow> p \<in> ?P"
+    using paths_up_to_length_or_condition_path_set_nil[of M q "(Suc (size M * m))" ?f] assms(3) 
+    unfolding m_traversal_paths.simps m_traversal_paths_up_to_length.simps by blast
+  moreover have "\<And> p . p \<in> ?P \<Longrightarrow> p \<in> ?MTP"
   proof -
-    fix p assume "p \<in> ?MTP"
-    then have "p \<in> set (m_traversal_paths_up_to_length M q D m (Suc (size M * m)))"
-      unfolding m_traversal_paths.simps by assumption
-    then have "p \<in> {p. path M q p \<and>
-        length p \<le> Suc (FSM.size M * m) \<and>
-        ?f p \<and>
-        (\<forall>p' p''.
-            p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow>
-            \<not> (?f p'))}"
-      using paths_up_to_length_or_condition_path_set_nil[of M q "(Suc (size M * m))" ?f] assms(3) 
-      unfolding m_traversal_paths_up_to_length.simps
-      by blast 
-    then have 
-      
+    fix p assume "p \<in> ?P"
+    then have "path M q p"
+          and "?f p"
+          and "\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')"
+      by blast+
+    then have "p \<in> set (m_traversal_paths_up_to_length M q D m (length p))"
+      using paths_up_to_length_or_condition_path_set_nil[of M q "length p" ?f] assms(3) by auto
+    then have "length p \<le> Suc (size M * m)"
+      using m_traversal_paths_up_to_length_max_length[OF assms] by blast
+    
+    show "p \<in> ?MTP"
+      using \<open>path M q p\<close> \<open>length p \<le> Suc (size M * m)\<close> \<open>?f p\<close> \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')\<close>
+      using paths_up_to_length_or_condition_path_set_nil[of M q "(Suc (size M * m))" ?f, OF \<open>path M q []\<close>] 
+      unfolding m_traversal_paths.simps m_traversal_paths_up_to_length.simps by blast
+  qed
+  ultimately show ?thesis
+    by (meson subsetI subset_antisym) 
+qed
+
 
 
 end (*
