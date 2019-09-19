@@ -20,11 +20,94 @@ section \<open>Unfinished Proofs of Interest\<close>
 
 subsection \<open>Generating a State Separator from R-Distinguishable States of an Observable FSM\<close>
 
-(* 
+ 
 
 lemma list_append_subset3 : "set xs1 \<subseteq> set ys1 \<Longrightarrow> set xs2 \<subseteq> set ys2 \<Longrightarrow> set xs3 \<subseteq> set ys3 \<Longrightarrow> set (xs1@xs2@xs3) \<subseteq> set(ys1@ys2@ys3)" by auto
 lemma subset_filter : "set xs \<subseteq> set ys \<Longrightarrow> set xs = set (filter (\<lambda> x . x \<in> set xs) ys)"
   by auto
+
+
+fun calculate_separator' :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a) + 'a) set \<Rightarrow> ((('a \<times> 'a) + 'a) Transition list) \<Rightarrow> ((('a \<times> 'a) + 'a) Transition list) option" where
+  "calculate_separator' C 0 Q T = None" |
+  "calculate_separator' C (Suc k) Q T = 
+    (case find (\<lambda> qx . (fst qx \<notin> Q) \<and> (\<forall> t \<in> h C . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (t_target t) \<in> Q)) (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs C)) (nodes_from_distinct_paths C)))
+      of Some qx \<Rightarrow> (if fst qx = initial C 
+        then Some (T@(filter (\<lambda>t . t_source t = fst qx \<and> t_input t = snd qx) (wf_transitions C)))
+        else calculate_separator' C k (insert (fst qx) Q) (T@(filter (\<lambda>t . t_source t = fst qx \<and> t_input t = snd qx) (wf_transitions C)))) | 
+         None \<Rightarrow> None)"
+
+(* Algorithm with some sort of "logging" *)
+fun calculate_separator'' :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a) + 'a) set \<Rightarrow> ((('a \<times> 'a) + 'a) Transition list) \<Rightarrow> ((('a \<times> 'a) + 'a) set \<times> ((('a \<times> 'a) + 'a) Transition list)) list \<Rightarrow> ((('a \<times> 'a) + 'a) set \<times> ((('a \<times> 'a) + 'a) Transition list)) list \<times> bool" where
+  "calculate_separator'' C 0 Q T prev = (prev,False)" |
+  "calculate_separator'' C (Suc k) Q T prev = 
+    (case find (\<lambda> qx . (fst qx \<notin> Q) \<and> (\<forall> t \<in> h C . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (t_target t) \<in> Q)) (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs C)) (nodes_from_distinct_paths C)))
+      of Some qx \<Rightarrow> (if fst qx = initial C 
+        then (prev@[(insert (fst qx) Q, (T@(filter (\<lambda>t . t_source t = fst qx \<and> t_input t = snd qx) (wf_transitions C))))],True)
+        else calculate_separator'' C k (insert (fst qx) Q) (T@(filter (\<lambda>t . t_source t = fst qx \<and> t_input t = snd qx) (wf_transitions C))) (prev@[(insert (fst qx) Q, (T@(filter (\<lambda>t . t_source t = fst qx \<and> t_input t = snd qx) (wf_transitions C))))])) | 
+         None \<Rightarrow> (prev,False))"
+
+(* Algorithm for calculating separators based on the rought description given by Petrenko *)
+fun calculate_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a), 'b) FSM_scheme option" where
+  "calculate_separator M q1 q2 = (case calculate_separator' (canonical_separator M q1 q2) (size (canonical_separator M q1 q2)) {Inr q1, Inr q2} [] of
+    Some T \<Rightarrow> Some \<lparr> initial = Inl (q1,q2), inputs = inputs (canonical_separator M q1 q2), outputs = outputs (canonical_separator M q1 q2), transitions = T, \<dots> = FSM.more M\<rparr> |
+    None \<Rightarrow> None)" 
+
+
+fun calculate_separator_states :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> Input) set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> Input) set option" where
+  "calculate_separator_states C 0 Q = None" |
+  "calculate_separator_states C (Suc k) Q = 
+    (case find 
+            (\<lambda> qx . (\<forall> qx' \<in> Q . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h C . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> Q . fst qx' = (t_target t)))) 
+            (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs C)) (nodes_from_distinct_paths C)))
+      of Some qx \<Rightarrow> (if fst qx = initial C 
+                        then Some (insert qx Q)
+                        else calculate_separator_states C k (insert qx Q)) | 
+         None \<Rightarrow> None)"
+
+fun calculate_separator_from_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a), 'b) FSM_scheme option" where
+  "calculate_separator_from_states M q1 q2 = (let C = (canonical_separator M q1 q2) in 
+    (case calculate_separator_states C (size C) {(Inr q1,0), (Inr q2,0)} of (* TODO: replace dummy inputs for Inr-values *)
+      Some Q \<Rightarrow> Some \<lparr> initial = Inl (q1,q2), inputs = inputs C, outputs = outputs C, transitions = filter (\<lambda> t . (t_source t,t_input t) \<in> Q) (wf_transitions C), \<dots> = FSM.more M\<rparr> |
+    None \<Rightarrow> None))" 
+
+
+value "calculate_separator_from_states M_ex_9 0 3"
+value "is_state_separator_from_canonical_separator (canonical_separator M_ex_9 0 3) 0 3 (the (calculate_separator_from_states M_ex_9 0 3))"
+
+value "calculate_separator M_ex_9 0 3"
+value "is_state_separator_from_canonical_separator (canonical_separator M_ex_9 0 3) 0 3 (the (calculate_separator M_ex_9 0 3))"
+value "calculate_separator M_ex_H 1 3"
+value "calculate_separator'' (canonical_separator M_ex_9 0 3) (size (canonical_separator M_ex_9 0 3)) {Inr 0, Inr 3} [] []"
+
+(* TODO: move *)
+lemma submachine_transitive :
+  assumes "is_submachine S M"
+  and     "is_submachine S' S"
+shows "is_submachine S' M"
+  using assms unfolding is_submachine.simps by force
+
+lemma y : 
+  assumes "r_distinguishable M q1 q2"
+  assumes "observable M"
+  assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  shows "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+proof -
+
+  have *: "\<And> S . is_submachine S (product (from_FSM M q1) (from_FSM M q2)) \<Longrightarrow> \<exists> q \<in> nodes S . \<exists> x \<in> set (inputs M) . \<not> (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x)"
+    using assms(1) unfolding r_compatible_def completely_specified.simps
+    by (metis from_FSM_product_inputs is_submachine.elims(2))  
+
+  have **: "\<And> S S' . is_submachine S (product (from_FSM M q1) (from_FSM M q2)) \<Longrightarrow> is_submachine S' S \<Longrightarrow>  \<not> completely_specified S'"
+    using assms(1) submachine_transitive unfolding r_compatible_def by blast
+
+  obtain S where "is_submachine S (product (from_FSM M q1) (from_FSM M q2))" 
+    unfolding is_submachine.simps by blast
+
+  then obtain q x where "q \<in> nodes S" and "x \<in> set (inputs M)" and "\<not> (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x)"
+    using * by blast
+
+  (* choose arbitrary   
+
 
 (* Note: requires observability, a (per definition) states in non-observable FSMs may still be r-d, but this might require different inputs *)
 lemma state_separator_from_r_distinguishable_k :
@@ -47,7 +130,7 @@ proof (rule ccontr)
 
   let ?S = "?CSep \<lparr> transitions := filter (\<lambda> t . t \<in> set (?tsInl @ ?tsLeft @ ?tsRight)) (transitions ?CSep) \<rparr>"
 
-  have tsInl_subset: "set ?tsInl \<subseteq> set (shifted_transitions M q1 q2)"
+  have tsInl_subset: "set ?tsInl \<subseteq> set (shifted_transitions M q1 q2)" unfolding shifted_transitions_def
     sorry
   have tsLeft_subset: "set ?tsLeft \<subseteq> set (distinguishing_transitions_left M q1 q2)"
     sorry

@@ -1,8 +1,41 @@
 theory Helper_Algorithms
-imports R_Distinguishability State_Preamble
+imports R_Distinguishability State_Separator State_Preamble
 begin
 
-value "Pow {1::nat,2}"
+(* state_separation_set_from_state_separator 
+  calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S'
+*)
+
+fun r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> ((Input \<times> Output) list set)) list" where
+  "r_distinguishable_state_pairs_with_separators M = 
+    map 
+      (\<lambda> qqp . (fst qqp, set (state_separation_set_from_state_separator_naive (the (snd qqp))))) 
+      (filter 
+        (\<lambda> qqp . snd qqp \<noteq> None) 
+        (map 
+          (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+          (concat 
+            (map 
+              (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+              (nodes_from_distinct_paths M)))))"
+
+value "r_distinguishable_state_pairs_with_separators M_ex_H"
+(*
+fun r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
+  "r_distinguishable_state_pairs_with_separators M = 
+    map 
+      (\<lambda> qqp . (fst qqp, (the (snd qqp)))) 
+      (filter 
+        (\<lambda> qqp . snd qqp \<noteq> None) 
+        (map 
+          (\<lambda> qq . (qq,r_distinguishable_k_least M q1 q2 (size (product (from_FSM M (fst qq)) (from_FSM M (snd qq)))))) 
+          (concat 
+            (map 
+              (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+              (nodes_from_distinct_paths M)))))"
+*)
+
+end (*
 
 (* calculate all pairs of r_distinguishable states *)
 fun r_distinguishable_state_pairs :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> 'a) list" where
@@ -97,6 +130,8 @@ lemma maximal_pairwise_r_distinguishable_state_sets_code[code] :
   by metis
 
 value "maximal_pairwise_r_distinguishable_state_sets M_ex_H"
+
+
 
 (* TODO: move *)
 lemma maximal_set_cover : 

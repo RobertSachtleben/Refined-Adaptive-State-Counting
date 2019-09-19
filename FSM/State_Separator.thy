@@ -983,6 +983,13 @@ definition state_separation_set_from_state_separator :: "('a + 'b, 'c) FSM_schem
   (*"state_separation_set_from_state_separator S = {map t_input p | p .path S (initial S) p \<and> \<not> isl (target p (initial S)) }"*)
   "state_separation_set_from_state_separator S = {p_io p | p .path S (initial S) p \<and> \<not> isl (target p (initial S)) }"
 
+definition state_separation_set_from_state_separator_naive :: "('a + 'b, 'c) FSM_scheme \<Rightarrow> (Input \<times> Output) list list" where
+  "state_separation_set_from_state_separator_naive S = map p_io (paths_up_to_length_or_condition S (initial S) (size S) (\<lambda> p . \<not> isl (target p (initial S))) [])"
+
+value "calculate_state_separator_from_canonical_separator_naive M_ex_9 0 2"
+value "state_separation_set_from_state_separator_naive (the (calculate_state_separator_from_canonical_separator_naive M_ex_9 0 2))"
+
+
 (*
 lemma state_separation_set_from_state_separator_inputs :
   "(\<forall> s \<in> state_separation_set_from_state_separator S . set s \<subseteq> set (inputs S))"
@@ -998,12 +1005,84 @@ qed
 *)
 
 lemma state_separation_set_from_state_separator_finite :
-  assumes "acyclic S"
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
   shows "finite (state_separation_set_from_state_separator S)"
-  using acyclic_finite_paths[OF assms] unfolding state_separation_set_from_state_separator_def
-  by simp 
+proof -
+  have "acyclic S"
+    using assms unfolding is_state_separator_from_canonical_separator_def by blast
+  show ?thesis 
+    using acyclic_finite_paths[OF \<open>acyclic S\<close>] unfolding state_separation_set_from_state_separator_def by simp 
+qed
+
+(* TODO: move *)
+lemma acyclic_path_length :
+  assumes "acyclic M" 
+  and     "path M (initial M) p" 
+  shows "length p < size M"
+  using distinct_path_length_limit_nodes[OF assms(2) acyclic_paths_from_nodes[OF assms]] by assumption
 
 
+
+lemma state_separation_set_from_state_separator_naive_set :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+  shows "set (state_separation_set_from_state_separator_naive S) = state_separation_set_from_state_separator S"
+proof 
+  have "acyclic S"
+   and "deadlock_state S (Inr q1)"
+       "deadlock_state S (Inr q2)"
+       "(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> isl q \<and> \<not> deadlock_state S q)"
+    using assms unfolding is_state_separator_from_canonical_separator_def by blast+
+
+  show "state_separation_set_from_state_separator S \<subseteq> set (state_separation_set_from_state_separator_naive S)"
+  proof 
+    fix io assume "io \<in> state_separation_set_from_state_separator S"
+    then obtain p where "io = p_io p"
+                    and "path S (initial S) p"
+                    and "\<not> isl (target p (initial S))"
+      unfolding state_separation_set_from_state_separator_def by blast
+
+    have "length p \<le> size S"
+      using acyclic_path_length[OF \<open>acyclic S\<close>] \<open>path S (initial S) p\<close>
+      using less_imp_le_nat by blast 
+    moreover have "(\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> isl (target p' (initial S)))"
+    proof -
+      have "\<And> p' p''. p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> isl (target p' (initial S))"
+      proof -
+        fix p' p'' assume "p = p' @ p''" and "p'' \<noteq> []"
+        show "isl (target p' (initial S))"
+        proof (rule ccontr)
+          assume "\<not> isl (target p' (initial S))"
+          then have "target p' (initial S) = Inr q1 \<or> target p' (initial S) = Inr q2"
+            using \<open>(\<forall>q\<in>nodes S. q \<noteq> Inr q1 \<and> q \<noteq> Inr q2 \<longrightarrow> isl q \<and> \<not> deadlock_state S q)\<close>
+            using \<open>p = p' @ p''\<close> \<open>path S (initial S) p\<close> nodes_path_initial by blast 
+          then have "deadlock_state S (target p' (initial S))"
+            using \<open>deadlock_state S (Inr q1)\<close> \<open>deadlock_state S (Inr q2)\<close> by presburger 
+
+          obtain t p''' where "p'' = t#p'''" using \<open>p'' \<noteq> []\<close> list.exhaust_sel by blast 
+          then have "path S (target p' (initial S)) (t#p''')"
+            using \<open>path S (initial S) p\<close> \<open>p = p' @ p''\<close> by auto
+          then have "path S (target p' (initial S)) [t]"
+            by auto
+          then have "t \<in> h S \<and> t_source t = (target p' (initial S))" 
+            by auto
+          then show "False"
+            using \<open>deadlock_state S (target p' (initial S))\<close> unfolding deadlock_state.simps by blast
+        qed
+      qed
+      then show ?thesis by blast
+    qed
+
+    ultimately show "io \<in> set (state_separation_set_from_state_separator_naive S)"
+      unfolding state_separation_set_from_state_separator_naive_def 
+      using paths_up_to_length_or_condition_path_set_nil[OF nodes.initial[of S], of "size S" "(\<lambda> p . \<not> isl (target p (initial S)))"] 
+            \<open>path S (initial S) p\<close> \<open>\<not> isl (target p (initial S))\<close> \<open>io = p_io p\<close> by force
+  qed
+
+  show "set (state_separation_set_from_state_separator_naive S) \<subseteq> state_separation_set_from_state_separator S"
+    unfolding state_separation_set_from_state_separator_naive_def state_separation_set_from_state_separator_def
+    using paths_up_to_length_or_condition_path_set_nil[OF nodes.initial[of S], of "size S" "(\<lambda> p . \<not> isl (target p (initial S)))"] by auto
+
+qed
 
 (* TODO: move *)
 lemma filter_map_elem : "t \<in> set (map g (filter f xs)) \<Longrightarrow> \<exists> x \<in> set xs . f x \<and> t = g x" by auto
@@ -1539,7 +1618,7 @@ proof -
   
 
   have "finite ?SS"
-    using state_separation_set_from_state_separator_finite[OF \<open>acyclic S\<close>] by assumption
+    using state_separation_set_from_state_separator_finite[OF assms(1)] by assumption
   moreover have "(\<And> M'::('a,'b) FSM_scheme . \<And> q1' q2' . 
         q1' \<in> nodes M' \<Longrightarrow> q2' \<in> nodes M' \<Longrightarrow> (LS M' q1' \<inter> ?SS \<noteq> {} \<or> LS M' q2' \<inter> ?SS \<noteq> {}) \<Longrightarrow> (LS M' q1' \<inter> ?SS \<subseteq> LS M q1 \<inter> ?SS) \<Longrightarrow> (LS M' q2' \<inter> ?SS \<subseteq> LS M q2 \<inter> ?SS) \<Longrightarrow> LS M' q1' \<noteq> LS M' q2')"
   proof -
@@ -1714,14 +1793,14 @@ proof -
 qed
 
 
-value "calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1"
-value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1 of
+value "calculate_state_separator_from_canonical_separator_naive M_ex_9 0 2"
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 2 of
         Some S \<Rightarrow> Some (LS_acyclic S (initial S)) |
         None \<Rightarrow> None"
-value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1 of
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 2 of
         Some S \<Rightarrow> Some (output_completion_for_FSM M_ex_9 (LS_acyclic S (initial S))) |
         None \<Rightarrow> None"
-value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 1 of
+value "case calculate_state_separator_from_canonical_separator_naive M_ex_9 0 2 of
         Some S \<Rightarrow> Some (state_separation_fail_sequence_set_from_state_separator M_ex_9 0 S) |
         None \<Rightarrow> None"
 
