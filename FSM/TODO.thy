@@ -99,6 +99,7 @@ shows "is_submachine S' M"
 definition merge_sub_intersection_transitions :: "'a Transition list \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> 'a Transition list" where
   "merge_sub_intersection_transitions ts M2 = ts @ (filter (\<lambda> t2 . \<not> (\<exists> t1 \<in> set ts . t_source t1 = t_source t2)) (wf_transitions M2))"
 
+(*
 fun merge_sub_intersections :: "Input list \<Rightarrow> Output list \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> ('a,'b) FSM_scheme list \<Rightarrow> ('a,'b) FSM_scheme" where
   "merge_sub_intersections ins outs q qts [] = undefined " |
   "merge_sub_intersections ins outs q qts [M] = \<lparr> initial = q, inputs = ins, outputs = outs, transitions = merge_sub_intersection_transitions qts M, \<dots> = more M \<rparr>" |
@@ -117,11 +118,242 @@ value "merge_sub_intersections
              inputs = [0,1],
              outputs = [0,1],
              transitions = [(2,0,0,20),(2,0,1,1),(1,0,0,21)]\<rparr>]"
+*)
 
+abbreviation "merge_FSMs M S \<equiv> (\<lparr> initial = initial M, 
+                                          inputs = inputs M, 
+                                          outputs = outputs M, 
+                                          transitions = (wf_transitions M) @ (filter (\<lambda> t2 . \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)) (wf_transitions S)), 
+                                          \<dots> = more M \<rparr>)"
+
+fun merge_sub_intersections :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme list \<Rightarrow> ('a,'b) FSM_scheme" where
+  "merge_sub_intersections M [] = M" |
+  "merge_sub_intersections M (S#SS) = merge_sub_intersections (merge_FSMs M S) SS"
+
+value "merge_sub_intersections 
+          \<lparr> initial = 0::nat, inputs = [0,1], outputs = [0,1], transitions = [(0,0,0,1),(0,0,1,2)] \<rparr>
+          [\<lparr> initial = 1,
+             inputs = [0,1],
+             outputs = [0,1],
+             transitions = [(1,1,0,10),(1,1,1,11)]\<rparr>,
+           \<lparr> initial = 2,
+             inputs = [0,1],
+             outputs = [0,1],
+             transitions = [(2,0,0,20),(2,0,1,1),(1,0,0,21)]\<rparr>]"
+
+
+
+
+(* possible approach to showing that a separator can be constructed from sub-separators *)
 definition retains_outputs_for_states_and_inputs :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> bool" where
   "retains_outputs_for_states_and_inputs M S = (\<forall> tS \<in> h S . \<forall> tM \<in> h M . (t_source tS = t_source tM \<and> t_input tS = t_input tM) \<longrightarrow> tM \<in> h S)"
 
-(* possible approach to showing that a separator can be constructed from sub-separators *)
+lemma merge_FSMs_paths_initial :
+  assumes "path M (initial M) p"
+  shows   "path (merge_FSMs M S) (initial M) p"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case
+    by (metis (no_types, lifting) nil nodes.initial select_convs(1)) 
+next
+  case (snoc t p)
+
+  have "path M (initial M) p" and "t \<in> h M" and "t_source t = target p (initial M)"
+    using snoc.prems by auto
+  
+  have "path (merge_FSMs M S) (initial M) p"
+    using snoc.IH[OF \<open>path M (initial M) p\<close>] by assumption
+
+  then have "target p (initial M) \<in> nodes (merge_FSMs M S)" 
+    using path_target_is_node by (metis (no_types, lifting)) 
+  then have "t \<in> h (merge_FSMs M S)"
+    using \<open>t_source t = target p (initial M)\<close> \<open>t \<in> h M\<close> by auto
+  then show ?case 
+    using \<open>path (merge_FSMs M S) (initial M) p\<close>
+    by (meson path_equivalence_by_h snoc.prems) 
+qed
+
+lemma merge_FSMs_nodes_left : "nodes M \<subseteq> nodes (merge_FSMs M S)"
+proof 
+  fix q assume "q \<in> nodes M"
+  then obtain p where "path M (initial M) p" and "target p (initial M) = q"
+    using path_to_node by metis
+  have "path (merge_FSMs M S) (initial (merge_FSMs M S)) p"
+    using merge_FSMs_paths_initial[OF \<open>path M (initial M) p\<close>] by auto
+  then show "q \<in> nodes (merge_FSMs M S)"
+    using path_target_is_node \<open>target p (initial M) = q\<close>
+    by (metis (no_types, lifting) select_convs(1)) 
+qed 
+
+
+
+lemma merge_FSMs_h :
+  assumes "inputs M = inputs S"
+      and "outputs M = outputs S"
+  shows "h (merge_FSMs M S) = (h M) \<union> {t2 \<in> h S . t_source t2 \<in> nodes (merge_FSMs M S) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}"
+proof -
+  have "h (merge_FSMs M S) \<subseteq> (h M) \<union> {t2 \<in> h S . \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}" by auto
+  moreover have "\<And> t . t_source t \<notin> nodes (merge_FSMs M S) \<Longrightarrow> t \<notin> h (merge_FSMs M S)" by auto
+  ultimately have "h (merge_FSMs M S) \<subseteq> (h M) \<union> {t2 \<in> h S . t_source t2 \<in> nodes (merge_FSMs M S) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}" by blast
+
+  moreover have "h M \<subseteq> h (merge_FSMs M S)"
+  proof 
+    fix t assume "t \<in> h M"
+    then have "t_source t \<in> nodes M" by auto
+    then have "t_source t \<in> nodes (merge_FSMs M S)"
+      using merge_FSMs_nodes_left[of M S] by blast
+    then show "t \<in> h (merge_FSMs M S)"
+      using \<open>t \<in> h M\<close> by auto
+  qed
+
+  moreover have "{t2 \<in> h S . t_source t2 \<in> nodes (merge_FSMs M S) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)} \<subseteq> h (merge_FSMs M S)"
+  proof 
+    fix t assume "t \<in> {t2 \<in> h S . t_source t2 \<in> nodes (merge_FSMs M S) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}"
+    then have "t \<in> h S" and "t_source t \<in> nodes (merge_FSMs M S)" and "\<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t)"
+      by blast+
+    
+    have "t \<in> set (transitions (merge_FSMs M S))"
+      using \<open>t \<in> h S\<close> \<open>\<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t)\<close> by simp
+    moreover have "t_input t \<in> set (inputs (merge_FSMs M S))"
+      using assms(1) \<open>t \<in> h S\<close> by auto
+    moreover have "t_output t \<in> set (outputs (merge_FSMs M S))"
+      using assms(2) \<open>t \<in> h S\<close> by auto
+    ultimately show "t \<in> h (merge_FSMs M S)"
+      using \<open>t_source t \<in> nodes (merge_FSMs M S)\<close> by blast
+  qed
+  
+  ultimately show ?thesis by blast
+qed
+
+
+
+
+ 
+
+lemma merge_FSMs_single_input :
+  assumes "single_input M"
+  and     "single_input S"
+shows "single_input (merge_FSMs M S)"
+  using assms unfolding single_input.simps
+  by (metis (mono_tags, lifting) filter_set list_concat_non_elem member_filter select_convs(4) wf_transition_simp) 
+
+lemma merge_FSMs_retains_outputs_for_states_and_inputs :
+  assumes "retains_outputs_for_states_and_inputs PM M"
+      and "retains_outputs_for_states_and_inputs PM S"
+  assumes "inputs M = inputs S"
+      and "outputs M = outputs S"  
+shows "retains_outputs_for_states_and_inputs PM (merge_FSMs M S)"
+proof -
+  have "\<And> t tPM . t \<in> h (merge_FSMs M S) \<Longrightarrow> tPM \<in> h PM \<Longrightarrow> t_source t = t_source tPM \<Longrightarrow> t_input t = t_input tPM \<Longrightarrow> tPM \<in> h (merge_FSMs M S)"
+  proof -
+    fix t tPM assume "t \<in> h (merge_FSMs M S)" 
+                 and p1: "tPM \<in> h PM" 
+                 and p2: "t_source t = t_source tPM" 
+                 and p3: "t_input t = t_input tPM"
+    
+    
+
+    show "tPM \<in> h (merge_FSMs M S)"
+    proof (cases "t \<in> h M")
+      case True
+      then have "tPM \<in> h M"
+        using p1 p2 p3 assms(1) unfolding retains_outputs_for_states_and_inputs_def by blast
+      then show ?thesis
+        using merge_FSMs_h[OF assms(3,4)] by blast
+    next
+      case False
+      moreover have "t \<in> (h M) \<union> {t2 \<in> h S . t_source t2 \<in> nodes (merge_FSMs M S) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}"
+        using \<open>t \<in> h (merge_FSMs M S)\<close> merge_FSMs_h[OF assms(3,4)] by blast
+      ultimately have "t \<in> h S"
+                  and "t_source t \<in> nodes (merge_FSMs M S)"
+                  and "\<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t)"
+        by blast+
+      then have "tPM \<in> h S"
+        using p1 p2 p3 assms(2) unfolding retains_outputs_for_states_and_inputs_def by blast
+      moreover have "t_source tPM \<in> nodes (merge_FSMs M S)"
+        using p2 \<open>t_source t \<in> nodes (merge_FSMs M S)\<close> by auto
+      moreover have "\<not> (\<exists> t1 \<in> h M . t_source t1 = t_source tPM)" 
+        using p2 \<open>\<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t)\<close> by auto
+      ultimately show ?thesis 
+        using merge_FSMs_h[OF assms(3,4)] by blast
+    qed
+  qed
+    
+  then show ?thesis 
+    unfolding retains_outputs_for_states_and_inputs_def by blast
+qed
+
+(* incorrect *)
+(* instead cut off transitions if a state has no defined input in either M or S *)
+lemma merge_FSMs_path_left :
+  assumes "path (merge_FSMs M S) q p"
+  and     "q \<in> nodes M"
+  and     "\<not> deadlock_state M q"
+  assumes "inputs M = inputs S"
+      and "outputs M = outputs S" 
+shows "path M q p" nitpick
+  using assms proof (induction p arbitrary: q rule: list.induct)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t p)
+
+  have "t \<in> h (merge_FSMs M S)" and "t_source t = q" and "path (merge_FSMs M S) (t_target t) p"
+    using Cons.prems by blast+
+  then have "t \<in> (h M) \<union> {t2 \<in> h S . t_source t2 \<in> nodes (merge_FSMs M S) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}"
+    using merge_FSMs_h[OF assms(4,5)] by blast
+  then have "t \<in> h M"
+    using Cons.prems(3) \<open>t_source t = q\<close> unfolding deadlock_state.simps by auto
+  then have "t_target t \<in> nodes M"
+    by blast
+  
+  moreover have "path M (t_target t) p"
+  proof (cases p)
+    case Nil
+    then show ?thesis by (simp add: \<open>t_target t \<in> nodes M\<close> nil) 
+  next
+    case (Cons t' p')
+    then have "t' \<in> h (merge_FSMs M S)" 
+      using \<open>path (merge_FSMs M S) (t_target t) p\<close> by blast
+    then have "t' \<in> (h M) \<union> {t2 \<in> h S . t_source t2 \<in> nodes (merge_FSMs M S) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}"
+      using merge_FSMs_h[OF assms(4,5)] by blast
+    then have "t' \<in> h M"
+      
+
+    moreover have "t_source t' = t_target t"
+      using \<open>path (merge_FSMs M S) (t_target t) p\<close>
+      by (metis (no_types, lifting) list.distinct(1) list.sel(1) local.Cons path.cases) 
+    ultimately have "\<not> deadlock_state M (t_target t)"
+      unfolding deadlock_state.simps 
+    then show ?thesis 
+  qed
+
+  show ?case proof (cases p)
+    case Nil
+    then show ?thesis 
+  next
+    case (Cons a list)
+    then show ?thesis sorry
+  qed
+qed
+
+
+lemma merge_FSMs_acyclic :
+  assumes "acyclic S"
+      and "acyclic M"
+  assumes "inputs M = inputs S"
+      and "outputs M = outputs S"  
+shows "acyclic (merge_FSMs M S)"
+  
+  
+  
+  
+  
+
+end (*
+
+
+
 lemma x :
   assumes "\<And> S . S \<in> set SS \<Longrightarrow> 
                 inputs S = inputs M \<and> 
@@ -134,25 +366,33 @@ lemma x :
   and "SS \<noteq> []"
   and "q1 \<in> nodes M"
   and "q2 \<in> nodes M"
-  and "\<And> t . t \<in> set qts \<Longrightarrow> 
-                    t \<in> h (product (from_FSM M q1) (from_FSM M q2)) \<and>
-                    t_source t = (q1,q2) \<and>
-                    (\<exists> S \<in> set SS . initial S = t_target t)"
-shows " inputs (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) = inputs M \<and> 
-        outputs (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) = outputs M \<and> 
-        single_input (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<and> 
-        acyclic (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<and>
-        h (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<subseteq> h (product (from_FSM M q1) (from_FSM M q2)) \<and> 
-        retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<and>
-        (\<forall> q \<in> nodes (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) . deadlock_state (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) q \<longrightarrow> ((\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = (fst q) \<and> t_source t2 = (snd q) \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))))"  
+  and "(filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) \<noteq> []" 
+  and "\<And> t . t \<in> h (product (from_FSM M q1) (from_FSM M q2)) 
+              \<Longrightarrow> t_source t = (q1,q2) 
+              \<Longrightarrow> (\<exists> S \<in> set SS . initial S = t_target t)"
+shows " inputs (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) = inputs M \<and> 
+        outputs (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) = outputs M \<and> 
+        single_input (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) \<and> 
+        acyclic (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) \<and>
+        h (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) \<subseteq> h (product (from_FSM M q1) (from_FSM M q2)) \<and> 
+        retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) \<and>
+        (\<forall> q \<in> nodes (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) . deadlock_state (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) SS) q \<longrightarrow> ((\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = (fst q) \<and> t_source t2 = (snd q) \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))))"  
 
 using assms proof (induction SS rule: rev_induct)
   case Nil
   show ?case using \<open>[] \<noteq> []\<close> by presburger
 next
   case (snoc S SS)
-  then show ?case proof (cases "SS = []")
+
+  let ?merge = "(merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) (SS@[S]))"
+  
+  show ?case proof (cases "SS = []")
     case True
+    then have "?merge = (merge_sub_intersections (inputs M) (outputs M) (q1,q2) (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) [S])"
+      by (metis append_self_conv2)
+    then have "?merge = \<lparr>initial = (q1,q2), inputs = inputs M, outputs = outputs M,
+                         transitions = merge_sub_intersection_transitions (filter (\<lambda>t . t_source t = (q1,q2) \<and> t_input = x) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))) S , \<dots> = more S \<rparr>"
+      using merge_sub_intersections.simps(2) by metis
     then show ?thesis 
   next
     case False
