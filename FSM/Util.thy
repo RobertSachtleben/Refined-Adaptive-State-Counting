@@ -575,4 +575,119 @@ lemma list_prefix_elem : "x \<in> set (xs@ys) \<Longrightarrow> x \<notin> set y
 lemma list_map_source_elem : "x \<in> set (map f xs) \<Longrightarrow> \<exists> x' \<in> set xs . x = f x'" by auto
 
 
+lemma maximal_set_cover : 
+  fixes X :: "'a set set"
+  assumes "finite X" 
+  and     "S \<in> X"  
+shows "\<exists> S' \<in> X . S \<subseteq> S' \<and> (\<forall> S'' \<in> X . \<not>(S' \<subset> S''))"
+proof (rule ccontr)
+  assume "\<not> (\<exists>S'\<in>X. S \<subseteq> S' \<and> (\<forall>S''\<in>X. \<not> S' \<subset> S''))"
+  then have *: "\<And> T . T \<in> X \<Longrightarrow> S \<subseteq> T \<Longrightarrow> \<exists> T' \<in> X . T \<subset> T'"
+    by auto
+
+  have "\<And> k . \<exists> ss . (length ss = Suc k) \<and> (hd ss = S) \<and> (\<forall> i < k . ss ! i \<subset> ss ! (Suc i)) \<and> (set ss \<subseteq> X)"
+  proof -
+    fix k show "\<exists> ss . (length ss = Suc k) \<and> (hd ss = S) \<and> (\<forall> i < k . ss ! i \<subset> ss ! (Suc i)) \<and> (set ss \<subseteq> X)"
+    proof (induction k)
+      case 0
+      have "length [S] = Suc 0 \<and> hd [S] = S \<and> (\<forall> i < 0 . [S] ! i \<subset> [S] ! (Suc i)) \<and> (set [S] \<subseteq> X)" using assms(2) by auto
+      then show ?case by blast
+    next
+      case (Suc k)
+      then obtain ss where "length ss = Suc k" 
+                       and "hd ss = S" 
+                       and "(\<forall>i<k. ss ! i \<subset> ss ! Suc i)" 
+                       and "set ss \<subseteq> X"
+        by blast
+      then have "ss ! k \<in> X"
+        by auto
+      moreover have "S \<subseteq> (ss ! k)"
+      proof -
+        have "\<And> i . i < Suc k \<Longrightarrow> S \<subseteq> (ss ! i)"
+        proof -
+          fix i assume "i < Suc k"
+          then show "S \<subseteq> (ss ! i)"
+          proof (induction i)
+            case 0
+            then show ?case using \<open>hd ss = S\<close> \<open>length ss = Suc k\<close>
+              by (metis hd_conv_nth list.size(3) nat.distinct(1) order_refl) 
+          next
+            case (Suc i)
+            then have "S \<subseteq> ss ! i" and "i < k" by auto
+            then have "ss ! i \<subset> ss ! Suc i" using \<open>(\<forall>i<k. ss ! i \<subset> ss ! Suc i)\<close> by blast
+            then show ?case using \<open>S \<subseteq> ss ! i\<close> by auto
+          qed
+        qed
+        then show ?thesis using \<open>length ss = Suc k\<close> by auto 
+      qed
+      ultimately obtain T' where "T' \<in> X" and "ss ! k \<subset> T'"
+        using * by meson 
+
+      let ?ss = "ss@[T']"
+
+      have "length ?ss = Suc (Suc k)" 
+        using \<open>length ss = Suc k\<close> by auto
+      moreover have "hd ?ss = S" 
+        using \<open>hd ss = S\<close> by (metis \<open>length ss = Suc k\<close> hd_append list.size(3) nat.distinct(1)) 
+      moreover have "(\<forall>i < Suc k. ?ss ! i \<subset> ?ss ! Suc i)" 
+        using \<open>(\<forall>i<k. ss ! i \<subset> ss ! Suc i)\<close> \<open>ss ! k \<subset> T'\<close> 
+        by (metis Suc_lessI \<open>length ss = Suc k\<close> diff_Suc_1 less_SucE nth_append nth_append_length) 
+      moreover have "set ?ss \<subseteq> X" 
+        using \<open>set ss \<subseteq> X\<close> \<open>T' \<in> X\<close> by auto
+      ultimately show ?case by blast
+    qed
+  qed
+
+  then obtain ss where "(length ss = Suc (card X))"
+                   and "(hd ss = S)" 
+                   and "(\<forall> i < card X . ss ! i \<subset> ss ! (Suc i))" 
+                   and "(set ss \<subseteq> X)" 
+    by blast
+  then have "(\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i))"
+    by auto
+
+  have **: "\<And> i (ss :: 'a set list) . (\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i)) \<Longrightarrow> i < length ss  \<Longrightarrow> \<forall> s \<in> set (take i ss) . s \<subset> ss ! i"
+  proof -
+    fix i 
+    fix ss :: "'a set list"
+    assume "i < length ss " and "(\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i))"
+    then show "\<forall> s \<in> set (take i ss) . s \<subset> ss ! i"
+    proof (induction i)
+      case 0
+      then show ?case by auto
+    next
+      case (Suc i)
+      then have "\<forall>s\<in>set (take i ss). s \<subset> ss ! i" by auto
+      then have "\<forall>s\<in>set (take i ss). s \<subset> ss ! (Suc i)" using Suc.prems
+        by (metis One_nat_def Suc_diff_Suc Suc_lessE diff_zero dual_order.strict_trans nat.inject zero_less_Suc) 
+      moreover have "ss ! i \<subset> ss ! (Suc i)" using Suc.prems by auto
+      moreover have "(take (Suc i) ss) = (take i ss)@[ss ! i]" using Suc.prems(1)
+        by (simp add: take_Suc_conv_app_nth)
+      ultimately show ?case by auto 
+    qed
+  qed
+
+  have "distinct ss"
+    using \<open>(\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i))\<close>
+  proof (induction ss rule: rev_induct)
+    case Nil
+    then show ?case by auto
+  next
+    case (snoc a ss)
+    from snoc.prems have "\<forall>i<length ss - 1. ss ! i \<subset> ss ! Suc i"
+      by (metis Suc_lessD diff_Suc_1 diff_Suc_eq_diff_pred length_append_singleton nth_append zero_less_diff) 
+    then have "distinct ss"
+      using snoc.IH by auto
+    moreover have "a \<notin> set ss"
+      using **[OF snoc.prems, of "length (ss @ [a]) - 1"] by auto
+    ultimately show ?case by auto
+  qed
+
+  then have "card (set ss) = Suc (card X)"
+    using \<open>(length ss = Suc (card X))\<close> by (simp add: distinct_card) 
+  then show "False"
+    using \<open>set ss \<subseteq> X\<close> \<open>finite X\<close> by (metis Suc_n_not_le_n card_mono) 
+qed
+
+
 end

@@ -6,6 +6,7 @@ begin
 definition r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) set" where
   "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some Sep}"
 
+(* TODO: horribly inefficient*)
 definition r_distinguishable_state_pairs_with_separators_naive :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) list" where
   "r_distinguishable_state_pairs_with_separators_naive M = 
     map 
@@ -22,83 +23,94 @@ definition r_distinguishable_state_pairs_with_separators_naive :: "('a,'b) FSM_s
 value "r_distinguishable_state_pairs_with_separators_naive M_ex_H"
 
 lemma r_distinguishable_state_pairs_with_separators_code[code] :
-  "set (r_distinguishable_state_pairs_with_separators_naive M) = r_distinguishable_state_pairs_with_separators M"
-  (is "?S1 = ?S2")
-proof 
+  "r_distinguishable_state_pairs_with_separators M = set (r_distinguishable_state_pairs_with_separators_naive M)"
+proof -
   have *: "set (concat (map (\<lambda>q1. map (Pair q1) (nodes_from_distinct_paths M)) (nodes_from_distinct_paths M)))
          = {(q1,q2) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
-    using nodes_code[of M] by (metis cartesian_product_list.simps cartesian_product_list_set) 
+    using nodes_code[of M] by (metis cartesian_product_list.simps cartesian_product_list_set)
+  moreover have "set (map 
+                  (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+                  (concat 
+                    (map 
+                      (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                      (nodes_from_distinct_paths M)))) =
+                 image (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) (set (concat 
+                    (map 
+                      (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                      (nodes_from_distinct_paths M))))"
+    by auto
+  moreover have "image (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) {(q1,q2) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M}
+                   = {((q1,q2),calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2))) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
+    by auto
+  ultimately have "set (map 
+                  (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+                  (concat 
+                    (map 
+                      (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                      (nodes_from_distinct_paths M)))) =
+            {((q1,q2),calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2))) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
+    by presburger
+  then have "{qqp \<in> set (map 
+                  (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+                  (concat 
+                    (map 
+                      (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                      (nodes_from_distinct_paths M)))) . snd qqp \<noteq> None}
+                 = {((q1,q2),calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2))) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2)) \<noteq> None}"
+    by auto
+  moreover have "set (filter 
+                    (\<lambda> qqp . snd qqp \<noteq> None) 
+                    (map 
+                      (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+                      (concat 
+                        (map 
+                          (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                          (nodes_from_distinct_paths M))))) =
+                 {qqp \<in> set (map 
+                  (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+                  (concat 
+                    (map 
+                      (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                      (nodes_from_distinct_paths M)))) . snd qqp \<noteq> None}"
+    by (metis (full_types) set_filter)
+  ultimately have "set (filter 
+                    (\<lambda> qqp . snd qqp \<noteq> None) 
+                    (map 
+                      (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+                      (concat 
+                        (map 
+                          (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                          (nodes_from_distinct_paths M))))) = 
+            {((q1,q2),calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2))) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2)) \<noteq> None}"
+    by presburger
+  moreover have "image (\<lambda> qqp . (fst qqp, the (snd qqp))) {((q1,q2),calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2))) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2)) \<noteq> None}
+                  = {((q1,q2),the (calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2)))) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2)) \<noteq> None}"
+    by force
+  moreover have "set (r_distinguishable_state_pairs_with_separators_naive M) =
+                 image (\<lambda> qqp . (fst qqp, the (snd qqp))) (set (filter 
+                    (\<lambda> qqp . snd qqp \<noteq> None) 
+                    (map 
+                      (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+                      (concat 
+                        (map 
+                          (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+                          (nodes_from_distinct_paths M))))))"
+    unfolding r_distinguishable_state_pairs_with_separators_naive_def
+    by (meson list.set_map) 
+    
+  ultimately have "set (r_distinguishable_state_pairs_with_separators_naive M) =
+              {((q1,q2),the (calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2)))) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> calculate_state_separator_from_canonical_separator_naive M (fst (q1,q2)) (snd (q1,q2)) \<noteq> None}"
+    unfolding r_distinguishable_state_pairs_with_separators_naive_def 
+    by presburger
 
-  then have "set ((map 
-          (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
-          (concat 
-            (map 
-              (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
-              (nodes_from_distinct_paths M)))))) = {((q1,q2),) | q1 q2 x . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
+  then show ?thesis
+    unfolding r_distinguishable_state_pairs_with_separators_def by auto
+qed
 
-
-  show "?S1 \<subseteq> ?S2"
-  proof 
-    fix qqs assume "qqs \<in> ?S1"
-    then show "qqs \<in> ?S2"
-      unfolding r_distinguishable_state_pairs_with_separators_naive_def
-      using * 
-
-end (*
-    then obtain x where "snd qqs = the x" and "(fst qqs, x) \<in> set ((filter (\<lambda>qqp. snd qqp \<noteq> None)
-               (map (\<lambda>qq. (qq,
-                           calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq)))
-                 (concat
-                   (map (\<lambda>q1. map (Pair q1) (nodes_from_distinct_paths M))
-                     (nodes_from_distinct_paths M))))))"
-      unfolding r_distinguishable_state_pairs_with_separators_naive_def
-    then have "fst qqs \<in> {(q1,q2) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
-      unfolding r_distinguishable_state_pairs_with_separators_naive_def
-      using * 
-
-end (*
-    unfolding r_distinguishable_state_pairs_with_separators_def r_distinguishable_state_pairs_with_separators_naive_def
-    using * by auto 
-  show "?S2 \<subseteq> ?S1"
-    unfolding r_distinguishable_state_pairs_with_separators_def r_distinguishable_state_pairs_with_separators_naive_def
-    using * 
   
 
 
-(* TODO: horribly inefficient*)
-(*
-definition r_distinguishable_state_pairs_with_separator_sets_naive :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> ((Input \<times> Output) list set)) list" where
-  "r_distinguishable_state_pairs_with_separators_naive M = 
-    map 
-      (\<lambda> qqp . (fst qqp, set (state_separation_set_from_state_separator_naive (the (snd qqp))))) 
-      (filter 
-        (\<lambda> qqp . snd qqp \<noteq> None) 
-        (map 
-          (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
-          (concat 
-            (map 
-              (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
-              (nodes_from_distinct_paths M)))))"
 
-value "r_distinguishable_state_pairs_with_separators M_ex_H"
-*)
-
-(*
-fun r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
-  "r_distinguishable_state_pairs_with_separators M = 
-    map 
-      (\<lambda> qqp . (fst qqp, (the (snd qqp)))) 
-      (filter 
-        (\<lambda> qqp . snd qqp \<noteq> None) 
-        (map 
-          (\<lambda> qq . (qq,r_distinguishable_k_least M q1 q2 (size (product (from_FSM M (fst qq)) (from_FSM M (snd qq)))))) 
-          (concat 
-            (map 
-              (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
-              (nodes_from_distinct_paths M)))))"
-*)
-
-end (*
 
 (* calculate all pairs of r_distinguishable states *)
 fun r_distinguishable_state_pairs :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> 'a) list" where
@@ -126,6 +138,8 @@ qed
 
 (* calculate sets of pairwise r_distinguishable states *)
 
+(* currently replaced by explicit calculations from state separators *)
+(*
 definition pairwise_r_distinguishable_state_sets :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
   "pairwise_r_distinguishable_state_sets M = {S . S \<subseteq> nodes M \<and> (\<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> is_r_distinguishable M q1 q2)}"
 
@@ -194,128 +208,6 @@ lemma maximal_pairwise_r_distinguishable_state_sets_code[code] :
 
 value "maximal_pairwise_r_distinguishable_state_sets M_ex_H"
 
-
-
-(* TODO: move *)
-lemma maximal_set_cover : 
-  fixes X :: "'a set set"
-  assumes "finite X" 
-  and     "S \<in> X"  
-shows "\<exists> S' \<in> X . S \<subseteq> S' \<and> (\<forall> S'' \<in> X . \<not>(S' \<subset> S''))"
-proof (rule ccontr)
-  assume "\<not> (\<exists>S'\<in>X. S \<subseteq> S' \<and> (\<forall>S''\<in>X. \<not> S' \<subset> S''))"
-  then have *: "\<And> T . T \<in> X \<Longrightarrow> S \<subseteq> T \<Longrightarrow> \<exists> T' \<in> X . T \<subset> T'"
-    by auto
-
-  have "\<And> k . \<exists> ss . (length ss = Suc k) \<and> (hd ss = S) \<and> (\<forall> i < k . ss ! i \<subset> ss ! (Suc i)) \<and> (set ss \<subseteq> X)"
-  proof -
-    fix k show "\<exists> ss . (length ss = Suc k) \<and> (hd ss = S) \<and> (\<forall> i < k . ss ! i \<subset> ss ! (Suc i)) \<and> (set ss \<subseteq> X)"
-    proof (induction k)
-      case 0
-      have "length [S] = Suc 0 \<and> hd [S] = S \<and> (\<forall> i < 0 . [S] ! i \<subset> [S] ! (Suc i)) \<and> (set [S] \<subseteq> X)" using assms(2) by auto
-      then show ?case by blast
-    next
-      case (Suc k)
-      then obtain ss where "length ss = Suc k" 
-                       and "hd ss = S" 
-                       and "(\<forall>i<k. ss ! i \<subset> ss ! Suc i)" 
-                       and "set ss \<subseteq> X"
-        by blast
-      then have "ss ! k \<in> X"
-        by auto
-      moreover have "S \<subseteq> (ss ! k)"
-      proof -
-        have "\<And> i . i < Suc k \<Longrightarrow> S \<subseteq> (ss ! i)"
-        proof -
-          fix i assume "i < Suc k"
-          then show "S \<subseteq> (ss ! i)"
-          proof (induction i)
-            case 0
-            then show ?case using \<open>hd ss = S\<close> \<open>length ss = Suc k\<close>
-              by (metis hd_conv_nth list.size(3) nat.distinct(1) order_refl) 
-          next
-            case (Suc i)
-            then have "S \<subseteq> ss ! i" and "i < k" by auto
-            then have "ss ! i \<subset> ss ! Suc i" using \<open>(\<forall>i<k. ss ! i \<subset> ss ! Suc i)\<close> by blast
-            then show ?case using \<open>S \<subseteq> ss ! i\<close> by auto
-          qed
-        qed
-        then show ?thesis using \<open>length ss = Suc k\<close> by auto 
-      qed
-      ultimately obtain T' where "T' \<in> X" and "ss ! k \<subset> T'"
-        using * by meson 
-
-      let ?ss = "ss@[T']"
-
-      have "length ?ss = Suc (Suc k)" 
-        using \<open>length ss = Suc k\<close> by auto
-      moreover have "hd ?ss = S" 
-        using \<open>hd ss = S\<close> by (metis \<open>length ss = Suc k\<close> hd_append list.size(3) nat.distinct(1)) 
-      moreover have "(\<forall>i < Suc k. ?ss ! i \<subset> ?ss ! Suc i)" 
-        using \<open>(\<forall>i<k. ss ! i \<subset> ss ! Suc i)\<close> \<open>ss ! k \<subset> T'\<close> 
-        by (metis Suc_lessI \<open>length ss = Suc k\<close> diff_Suc_1 less_SucE nth_append nth_append_length) 
-      moreover have "set ?ss \<subseteq> X" 
-        using \<open>set ss \<subseteq> X\<close> \<open>T' \<in> X\<close> by auto
-      ultimately show ?case by blast
-    qed
-  qed
-
-  then obtain ss where "(length ss = Suc (card X))"
-                   and "(hd ss = S)" 
-                   and "(\<forall> i < card X . ss ! i \<subset> ss ! (Suc i))" 
-                   and "(set ss \<subseteq> X)" 
-    by blast
-  then have "(\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i))"
-    by auto
-
-  have **: "\<And> i (ss :: 'a set list) . (\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i)) \<Longrightarrow> i < length ss  \<Longrightarrow> \<forall> s \<in> set (take i ss) . s \<subset> ss ! i"
-  proof -
-    fix i 
-    fix ss :: "'a set list"
-    assume "i < length ss " and "(\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i))"
-    then show "\<forall> s \<in> set (take i ss) . s \<subset> ss ! i"
-    proof (induction i)
-      case 0
-      then show ?case by auto
-    next
-      case (Suc i)
-      then have "\<forall>s\<in>set (take i ss). s \<subset> ss ! i" by auto
-      then have "\<forall>s\<in>set (take i ss). s \<subset> ss ! (Suc i)" using Suc.prems
-        by (metis One_nat_def Suc_diff_Suc Suc_lessE diff_zero dual_order.strict_trans nat.inject zero_less_Suc) 
-      moreover have "ss ! i \<subset> ss ! (Suc i)" using Suc.prems by auto
-      moreover have "(take (Suc i) ss) = (take i ss)@[ss ! i]" using Suc.prems(1)
-        by (simp add: take_Suc_conv_app_nth)
-      ultimately show ?case by auto 
-    qed
-  qed
-
-  have "distinct ss"
-    using \<open>(\<forall> i < length ss - 1 . ss ! i \<subset> ss ! (Suc i))\<close>
-  proof (induction ss rule: rev_induct)
-    case Nil
-    then show ?case by auto
-  next
-    case (snoc a ss)
-    from snoc.prems have "\<forall>i<length ss - 1. ss ! i \<subset> ss ! Suc i"
-      by (metis Suc_lessD diff_Suc_1 diff_Suc_eq_diff_pred length_append_singleton nth_append zero_less_diff) 
-    then have "distinct ss"
-      using snoc.IH by auto
-    moreover have "a \<notin> set ss"
-      using **[OF snoc.prems, of "length (ss @ [a]) - 1"] by auto
-    ultimately show ?case by auto
-  qed
-
-  then have "card (set ss) = Suc (card X)"
-    using \<open>(length ss = Suc (card X))\<close> by (simp add: distinct_card) 
-  then show "False"
-    using \<open>set ss \<subseteq> X\<close> \<open>finite X\<close> by (metis Suc_n_not_le_n card_mono) 
-qed
-  
-    
-  
-  
-
-
 lemma maximal_pairwise_r_distinguishable_state_sets_cover :
   assumes "q \<in> nodes M"
   shows "\<exists> S \<in> maximal_pairwise_r_distinguishable_state_sets M . q \<in> S"
@@ -329,6 +221,58 @@ proof -
   show ?thesis
     unfolding maximal_pairwise_r_distinguishable_state_sets_def  
     using maximal_set_cover[OF ** *] by auto
+qed
+*)
+
+
+
+definition pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
+  "pairwise_r_distinguishable_state_sets_from_separators M = {S . S \<subseteq> nodes M \<and> (\<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M))}"
+
+definition pairwise_r_distinguishable_state_sets_from_separators_naive :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
+  "pairwise_r_distinguishable_state_sets_from_separators_naive M = (let PR = image fst (r_distinguishable_state_pairs_with_separators M) in {S \<in> Pow (set (nodes_from_distinct_paths M)) . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> PR})"
+
+lemma pairwise_r_distinguishable_state_sets_from_separators_code[code] :
+  "pairwise_r_distinguishable_state_sets_from_separators M = pairwise_r_distinguishable_state_sets_from_separators_naive M"
+  unfolding pairwise_r_distinguishable_state_sets_from_separators_def pairwise_r_distinguishable_state_sets_from_separators_naive_def
+  by (metis (mono_tags, lifting) Collect_cong Pow_iff nodes_code)
+
+lemma pairwise_r_distinguishable_state_sets_from_separators_cover :
+  assumes "q \<in> nodes M"
+  shows "\<exists> S \<in> pairwise_r_distinguishable_state_sets_from_separators M . q \<in> S"
+proof -
+  have "{q} \<in> pairwise_r_distinguishable_state_sets_from_separators M"
+    unfolding pairwise_r_distinguishable_state_sets_from_separators_def using assms by blast
+  then show ?thesis by blast
+qed
+
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
+  "maximal_pairwise_r_distinguishable_state_sets_from_separators M = (let PR = (pairwise_r_distinguishable_state_sets_from_separators M) in {S \<in> PR . \<not>(\<exists> S' \<in> PR . S \<subset> S')})"
+
+value "r_distinguishable_state_pairs_with_separators M_ex_H"
+value "pairwise_r_distinguishable_state_sets_from_separators M_ex_H"
+value "maximal_pairwise_r_distinguishable_state_sets_from_separators M_ex_H"
+
+
+lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_cover :
+  assumes "q \<in> nodes M"
+  shows "\<exists> S \<in> maximal_pairwise_r_distinguishable_state_sets_from_separators M . q \<in> S"
+proof -
+
+  have *: "{q} \<in> pairwise_r_distinguishable_state_sets_from_separators M"
+    unfolding pairwise_r_distinguishable_state_sets_from_separators_def using assms by blast
+  have **: "finite (pairwise_r_distinguishable_state_sets_from_separators M)"
+    unfolding pairwise_r_distinguishable_state_sets_from_separators_def by (simp add: nodes_finite) 
+
+  have "maximal_pairwise_r_distinguishable_state_sets_from_separators M = 
+        {S \<in> pairwise_r_distinguishable_state_sets_from_separators M . \<not>(\<exists> S' \<in> pairwise_r_distinguishable_state_sets_from_separators M . S \<subset> S')}"
+    unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_def by metis 
+  then have "maximal_pairwise_r_distinguishable_state_sets_from_separators M = 
+        {S \<in> pairwise_r_distinguishable_state_sets_from_separators M . (\<forall> S' \<in> pairwise_r_distinguishable_state_sets_from_separators M . \<not> S \<subset> S')}"
+    by blast 
+  moreover have "\<exists> S \<in> {S \<in> pairwise_r_distinguishable_state_sets_from_separators M . (\<forall> S' \<in> pairwise_r_distinguishable_state_sets_from_separators M . \<not> S \<subset> S')} . q \<in> S"
+    using maximal_set_cover[OF ** *] by blast
+  ultimately show ?thesis by blast 
 qed
 
   
@@ -420,8 +364,16 @@ qed
 value "d_reachable_states M_ex_H"
 
 (* calculate maximal sets of pairwise r_distinguishable states and their respective subsets of d-reachable states *)
+(*
 fun maximal_repetition_sets :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets M = image (\<lambda> S . (S, {q \<in> S . q \<in> set (d_reachable_states M)})) (maximal_pairwise_r_distinguishable_state_sets M)"
 
 value "maximal_repetition_sets M_ex_H"
+*)
+
+fun maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
+  "maximal_repetition_sets_from_separators M = image (\<lambda> S . (S, {q \<in> S . q \<in> set (d_reachable_states M)})) (maximal_pairwise_r_distinguishable_state_sets_from_separators M)"
+
+value "maximal_repetition_sets_from_separators M_ex_H"
+value "maximal_repetition_sets_from_separators M_ex_9"
 end
