@@ -2,12 +2,73 @@ theory Helper_Algorithms
 imports R_Distinguishability State_Separator State_Preamble
 begin
 
-(* state_separation_set_from_state_separator 
-  calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some S'
-*)
 
-fun r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> ((Input \<times> Output) list set)) list" where
-  "r_distinguishable_state_pairs_with_separators M = 
+definition r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) set" where
+  "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> calculate_state_separator_from_canonical_separator_naive M q1 q2 = Some Sep}"
+
+definition r_distinguishable_state_pairs_with_separators_naive :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) list" where
+  "r_distinguishable_state_pairs_with_separators_naive M = 
+    map 
+      (\<lambda> qqp . (fst qqp, the (snd qqp))) 
+      (filter 
+        (\<lambda> qqp . snd qqp \<noteq> None) 
+        (map 
+          (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+          (concat 
+            (map 
+              (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+              (nodes_from_distinct_paths M)))))"
+
+value "r_distinguishable_state_pairs_with_separators_naive M_ex_H"
+
+lemma r_distinguishable_state_pairs_with_separators_code[code] :
+  "set (r_distinguishable_state_pairs_with_separators_naive M) = r_distinguishable_state_pairs_with_separators M"
+  (is "?S1 = ?S2")
+proof 
+  have *: "set (concat (map (\<lambda>q1. map (Pair q1) (nodes_from_distinct_paths M)) (nodes_from_distinct_paths M)))
+         = {(q1,q2) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
+    using nodes_code[of M] by (metis cartesian_product_list.simps cartesian_product_list_set) 
+
+  then have "set ((map 
+          (\<lambda> qq . (qq, calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq))) 
+          (concat 
+            (map 
+              (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) 
+              (nodes_from_distinct_paths M)))))) = {((q1,q2),) | q1 q2 x . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
+
+
+  show "?S1 \<subseteq> ?S2"
+  proof 
+    fix qqs assume "qqs \<in> ?S1"
+    then show "qqs \<in> ?S2"
+      unfolding r_distinguishable_state_pairs_with_separators_naive_def
+      using * 
+
+end (*
+    then obtain x where "snd qqs = the x" and "(fst qqs, x) \<in> set ((filter (\<lambda>qqp. snd qqp \<noteq> None)
+               (map (\<lambda>qq. (qq,
+                           calculate_state_separator_from_canonical_separator_naive M (fst qq) (snd qq)))
+                 (concat
+                   (map (\<lambda>q1. map (Pair q1) (nodes_from_distinct_paths M))
+                     (nodes_from_distinct_paths M))))))"
+      unfolding r_distinguishable_state_pairs_with_separators_naive_def
+    then have "fst qqs \<in> {(q1,q2) | q1 q2 . q1 \<in> nodes M \<and> q2 \<in> nodes M}"
+      unfolding r_distinguishable_state_pairs_with_separators_naive_def
+      using * 
+
+end (*
+    unfolding r_distinguishable_state_pairs_with_separators_def r_distinguishable_state_pairs_with_separators_naive_def
+    using * by auto 
+  show "?S2 \<subseteq> ?S1"
+    unfolding r_distinguishable_state_pairs_with_separators_def r_distinguishable_state_pairs_with_separators_naive_def
+    using * 
+  
+
+
+(* TODO: horribly inefficient*)
+(*
+definition r_distinguishable_state_pairs_with_separator_sets_naive :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> ((Input \<times> Output) list set)) list" where
+  "r_distinguishable_state_pairs_with_separators_naive M = 
     map 
       (\<lambda> qqp . (fst qqp, set (state_separation_set_from_state_separator_naive (the (snd qqp))))) 
       (filter 
@@ -20,6 +81,8 @@ fun r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Right
               (nodes_from_distinct_paths M)))))"
 
 value "r_distinguishable_state_pairs_with_separators M_ex_H"
+*)
+
 (*
 fun r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
   "r_distinguishable_state_pairs_with_separators M = 

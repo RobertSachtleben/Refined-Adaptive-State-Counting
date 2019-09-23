@@ -53,6 +53,10 @@ fun calculate_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a
     None \<Rightarrow> None)" 
 
 
+
+
+
+
 fun calculate_separator_states :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> Input) set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> Input) set option" where
   "calculate_separator_states C 0 Q = None" |
   "calculate_separator_states C (Suc k) Q = 
@@ -64,6 +68,7 @@ fun calculate_separator_states :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Right
                         else calculate_separator_states C k (insert qx Q)) | 
          None \<Rightarrow> None)"
 
+(* Variation that calculates the transition relation only after selecting states and corresponding inputs *)
 fun calculate_separator_from_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a), 'b) FSM_scheme option" where
   "calculate_separator_from_states M q1 q2 = (let C = (canonical_separator M q1 q2) in 
     (case calculate_separator_states C (size C) {(Inr q1,0), (Inr q2,0)} of (* TODO: replace dummy inputs for Inr-values *)
@@ -85,6 +90,82 @@ lemma submachine_transitive :
   and     "is_submachine S' S"
 shows "is_submachine S' M"
   using assms unfolding is_submachine.simps by force
+
+
+
+
+
+(* merging single-input FSMs *)
+definition merge_sub_intersection_transitions :: "'a Transition list \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> 'a Transition list" where
+  "merge_sub_intersection_transitions ts M2 = ts @ (filter (\<lambda> t2 . \<not> (\<exists> t1 \<in> set ts . t_source t1 = t_source t2)) (wf_transitions M2))"
+
+fun merge_sub_intersections :: "Input list \<Rightarrow> Output list \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> ('a,'b) FSM_scheme list \<Rightarrow> ('a,'b) FSM_scheme" where
+  "merge_sub_intersections ins outs q qts [] = undefined " |
+  "merge_sub_intersections ins outs q qts [M] = \<lparr> initial = q, inputs = ins, outputs = outs, transitions = merge_sub_intersection_transitions qts M, \<dots> = more M \<rparr>" |
+  "merge_sub_intersections ins outs q qts (M1#M2#MS) = merge_sub_intersections ins outs q (merge_sub_intersection_transitions qts M1) (M2#MS)"  
+
+value "merge_sub_intersections 
+          [0,1]
+          [0,1]
+          (0::nat)
+          [(0,0,0,1),(0,0,1,2)]
+          [\<lparr> initial = 1,
+             inputs = [0,1],
+             outputs = [0,1],
+             transitions = [(1,1,0,10),(1,1,1,11)]\<rparr>,
+           \<lparr> initial = 2,
+             inputs = [0,1],
+             outputs = [0,1],
+             transitions = [(2,0,0,20),(2,0,1,1),(1,0,0,21)]\<rparr>]"
+
+definition retains_outputs_for_states_and_inputs :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> bool" where
+  "retains_outputs_for_states_and_inputs M S = (\<forall> tS \<in> h S . \<forall> tM \<in> h M . (t_source tS = t_source tM \<and> t_input tS = t_input tM) \<longrightarrow> tM \<in> h S)"
+
+(* possible approach to showing that a separator can be constructed from sub-separators *)
+lemma x :
+  assumes "\<And> S . S \<in> set SS \<Longrightarrow> 
+                inputs S = inputs M \<and> 
+                outputs S = outputs M \<and> 
+                single_input S \<and> 
+                acyclic S \<and>
+                h S \<subseteq> h (product (from_FSM M q1) (from_FSM M q2)) \<and> 
+                retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) S \<and>
+                (\<forall> q \<in> nodes S . deadlock_state S q \<longrightarrow> ((\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = (fst q) \<and> t_source t2 = (snd q) \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))))"
+  and "SS \<noteq> []"
+  and "q1 \<in> nodes M"
+  and "q2 \<in> nodes M"
+  and "\<And> t . t \<in> set qts \<Longrightarrow> 
+                    t \<in> h (product (from_FSM M q1) (from_FSM M q2)) \<and>
+                    t_source t = (q1,q2) \<and>
+                    (\<exists> S \<in> set SS . initial S = t_target t)"
+shows " inputs (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) = inputs M \<and> 
+        outputs (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) = outputs M \<and> 
+        single_input (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<and> 
+        acyclic (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<and>
+        h (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<subseteq> h (product (from_FSM M q1) (from_FSM M q2)) \<and> 
+        retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) \<and>
+        (\<forall> q \<in> nodes (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) . deadlock_state (merge_sub_intersections (inputs M) (outputs M) (q1,q2) qts SS) q \<longrightarrow> ((\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = (fst q) \<and> t_source t2 = (snd q) \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))))"  
+
+using assms proof (induction SS rule: rev_induct)
+  case Nil
+  show ?case using \<open>[] \<noteq> []\<close> by presburger
+next
+  case (snoc S SS)
+  then show ?case proof (cases "SS = []")
+    case True
+    then show ?thesis 
+  next
+    case False
+    then show ?thesis sorry
+  qed
+    
+
+qed
+
+
+
+
+
 
 lemma y : 
   assumes "r_distinguishable M q1 q2"
