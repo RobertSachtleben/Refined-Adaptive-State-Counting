@@ -328,7 +328,7 @@ lemma take_last_index :
 
 
 (* TODO: move *)
-lemma acyclic_cycle :
+lemma cyclic_cycle :
   assumes "\<not> acyclic M"
   shows "\<exists> q p . path M q p \<and> p \<noteq> [] \<and> target p q = q" 
 proof -
@@ -403,7 +403,254 @@ proof -
       by blast
   qed
 qed
+
+lemma cyclic_cycle_rev :
+  assumes "\<exists> q p . path M q p \<and> p \<noteq> [] \<and> target p q = q"
+  shows "\<not> acyclic M"
+  using assms unfolding acyclic.simps target.simps visited_states.simps
+proof -
+  assume "\<exists>q p. path M q p \<and> p \<noteq> [] \<and> last (q # map t_target p) = q"
+  then obtain aa :: 'a and pps :: "('a \<times> integer \<times> integer \<times> 'a) list" where
+    f1: "path M aa pps \<and> pps \<noteq> [] \<and> last (aa # map t_target pps) = aa"
+    by blast
+  then have "map t_target pps \<noteq> []"
+    by blast
+  then show "\<not> (\<forall>ps. path M (initial M) ps \<longrightarrow> distinct (initial M # map t_target ps))"
+    using f1 by (metis (no_types) acyclic.elims(3) acyclic_paths_from_nodes distinct.simps(2) last.simps last_in_set visited_states.simps)
+qed 
+
+
+(* TODO: move *)
+lemma transitions_subset_path :
+  assumes "set p \<subseteq> h M"
+  and     "p \<noteq> []"
+  and     "path S q p"
+shows "path M q p"
+  using assms by (induction p arbitrary: q; auto)
+
+
+lemma acyclic_initial :
+  assumes "acyclic M"
+  shows "\<not> (\<exists> t \<in> h M . t_target t = initial M)" 
+proof 
+  assume "\<exists>t\<in>set (wf_transitions M). t_target t = initial M"
+  then obtain t where "t \<in> h M" and "t_target t = initial M"
+    by blast
+  then have "t_source t \<in> nodes M" by auto
+  then obtain p where "path M (initial M) p" and "target p (initial M) = t_source t" 
+    using path_to_node by metis
+  then have "path M (initial M) (p@[t])" 
+    using \<open>t \<in> h M\<close> by auto
+  moreover have "p@[t] \<noteq> []" by simp
+  moreover have "target (p@[t]) (initial M) = initial M"
+    using \<open>t_target t = initial M\<close> unfolding target.simps visited_states.simps by auto
+  ultimately have "\<not> acyclic M"
+    using cyclic_cycle_rev by metis
+  then show "False"
+    using assms by auto
+qed
+
+(* TODO: move *)
+lemma cyclic_path_shift : 
+  assumes "path M q p"
+  and     "target p q = q"
+shows "path M (target (take i p) q) ((drop i p) @ (take i p))"
+  and "target ((drop i p) @ (take i p)) (target (take i p) q) = (target (take i p) q)"
+proof -
+  show "path M (target (take i p) q) ((drop i p) @ (take i p))"
+    by (metis append_take_drop_id assms(1) assms(2) path_append path_append_elim path_append_target)
+  show "target ((drop i p) @ (take i p)) (target (take i p) q) = (target (take i p) q)"
+    by (metis append_take_drop_id assms(2) path_append_target)
+qed
+
+
+(*
+lemma list_transition_property :
+  assumes "P (xs ! i)"
+  and     "\<And> j . Suc j < length xs \<Longrightarrow> P (xs ! j) \<Longrightarrow> P (xs ! (Suc j))"
+  and     "i < length xs"
+shows "\<forall> x \<in> set (drop i xs) . P x"
+  using assms proof (induction xs rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc x xs)
+  show ?case proof (cases xs rule: rev_cases)
+    case Nil
+    then show ?thesis using snoc by auto
+  next
+    case (snoc xs' x')
+    show ?thesis proof (cases "i < length xs")
+      case True
+      then show ?thesis using snoc snoc.prems snoc.IH sorry
+    next
+      case False
+      then show ?thesis using snoc snoc.prems snoc.IH
+        by (metis append_eq_conv_conj in_set_conv_nth length_append_singleton less_SucE list.size(3) not_less_zero nth_append_length set_ConsD) 
+    qed   
+  qed
+qed
+*)
+
+lemma list_set_sym :
+  "set (x@y) = set (y@x)" by auto
+
+lemma path_source_target_index :
+  assumes "Suc i < length p"
+  and     "path M q p"
+shows "t_target (p ! i) = t_source (p ! (Suc i))"
+  using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc t ps)
+  then have "path M q ps" and "t_source t = target ps q" and "t \<in> h M" by auto
+  
+  show ?case proof (cases "Suc i < length ps")
+    case True
+    then have "t_target (ps ! i) = t_source (ps ! Suc i)" 
+      using snoc.IH \<open>path M q ps\<close> by auto
+    then show ?thesis
+      by (simp add: Suc_lessD True nth_append) 
+  next
+    case False
+    then have "Suc i = length ps"
+      using snoc.prems(1) by auto
+    then have "(ps @ [t]) ! Suc i = t"
+      by auto
+
+    show ?thesis proof (cases "ps = []")
+      case True
+      then show ?thesis using \<open>Suc i = length ps\<close> by auto
+    next
+      case False
+      then have "target ps q = t_target (last ps)"
+        unfolding target.simps visited_states.simps
+        by (simp add: last_map) 
+      then have "target ps q = t_target (ps ! i)"
+        using \<open>Suc i = length ps\<close>
+        by (metis False diff_Suc_1 last_conv_nth) 
+      then show ?thesis 
+        using \<open>t_source t = target ps q\<close>
+        by (metis \<open>(ps @ [t]) ! Suc i = t\<close> \<open>Suc i = length ps\<close> lessI nth_append) 
+    qed
+  qed   
+qed
+
+lemma cyclic_path_transition_source_property :
+  assumes "\<exists> t \<in> set p . P (t_source t)"
+  and     "\<forall> t \<in> set p . P (t_source t) \<longrightarrow> P (t_target t)"
+  and     "path M q p"
+  and     "target p q = q"
+shows "\<forall> t \<in> set p . P (t_source t)"
+  and "\<forall> t \<in> set p . P (t_target t)"
+proof -
+  obtain t0 where "t0 \<in> set p" and "P (t_source t0)"
+    using assms(1) by blast
+  then obtain i where "i < length p" and "p ! i = t0"
+    by (meson in_set_conv_nth)
+
+  let ?p = "(drop i p @ take i p)"
+  have "path M (target (take i p) q) ?p"
+    using cyclic_path_shift(1)[OF assms(3,4), of i] by assumption
+  
+  have "set ?p = set p"
+  proof -
+    have "set ?p = set (take i p @ drop i p)" 
+      using list_set_sym by metis
+    then show ?thesis by auto
+  qed
+  then have "\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)"
+    using assms(2) by blast
+  
+  have "\<And> j . j < length ?p \<Longrightarrow> P (t_source (?p ! j))"
+  proof -
+    fix j assume "j < length ?p"
+    then show "P (t_source (?p ! j))"
+    proof (induction j)
+      case 0
+      then show ?case 
+        using \<open>p ! i = t0\<close> \<open>P (t_source t0)\<close>
+        by (metis \<open>i < length p\<close> drop_eq_Nil hd_append2 hd_conv_nth hd_drop_conv_nth leD length_greater_0_conv)  
+    next
+      case (Suc j)
+      then have "P (t_source (?p ! j))"
+        by auto
+      then have "P (t_target (?p ! j))"
+        using Suc.prems \<open>\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)\<close>[of "?p ! j"]
+        using Suc_lessD nth_mem by blast 
+      moreover have "t_target (?p ! j) = t_source (?p ! (Suc j))"
+        using path_source_target_index[OF Suc.prems \<open>path M (target (take i p) q) ?p\<close>] by assumption
+      ultimately show ?case 
+        using \<open>\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)\<close>[of "?p ! j"]
+        by simp
+    qed
+  qed
+  then have "\<forall> t \<in> set ?p . P (t_source t)"
+    by (metis in_set_conv_nth)
+  then show "\<forall> t \<in> set p . P (t_source t)"
+    using \<open>set ?p = set p\<close> by blast
+  then show "\<forall> t \<in> set p . P (t_target t)"
+    using assms(2) by blast
+qed
+
+
+
+
+lemma cycle_incoming_transition_ex :
+  assumes "path M q p"
+  and     "p \<noteq> []"
+  and     "target p q = q"
+  and     "t \<in> set p"
+shows "\<exists> tI \<in> set p . t_target tI = t_source t"
+proof -
+  obtain i where "i < length p" and "p ! i = t"
+    using assms(4) by (meson in_set_conv_nth)
+
+  let ?p = "(drop i p @ take i p)"
+  have "path M (target (take i p) q) ?p"
+  and  "target ?p (target (take i p) q) = target (take i p) q"
+    using cyclic_path_shift[OF assms(1,3), of i] by linarith+
+
+  have "p = (take i p @ drop i p)" by auto
+  then have "path M (target (take i p) q) (drop i p)" 
+    using path_suffix assms(1) by metis
+  moreover have "t = hd (drop i p)"
+    using \<open>i < length p\<close> \<open>p ! i = t\<close>
+    by (simp add: hd_drop_conv_nth) 
+  ultimately have "path M (target (take i p) q) [t]"
+    by (metis \<open>i < length p\<close> append_take_drop_id assms(1) path_append_elim take_hd_drop)
+  then have "t_source t = (target (take i p) q)"
+    by auto  
+  moreover have "t_target (last ?p) = (target (take i p) q)"
+    using \<open>path M (target (take i p) q) ?p\<close> \<open>target ?p (target (take i p) q) = target (take i p) q\<close> assms(2)
+    unfolding target.simps visited_states.simps last.simps
+  proof -
+    assume a1: "(if map t_target (drop i p @ take i p) = [] then if map t_target (take i p) = [] then q else last (map t_target (take i p)) else last (map t_target (drop i p @ take i p))) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
+    have "drop i p @ take i p \<noteq> [] \<and> map t_target (drop i p @ take i p) \<noteq> []"
+      using \<open>p \<noteq> []\<close> by fastforce
+    moreover
+    { assume "map t_target (take i p) \<noteq> [] \<and> map t_target (drop i p @ take i p) \<noteq> []"
+      then have "t_target (last (drop i p @ take i p)) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
+        by (simp add: last_map) }
+    ultimately show "t_target (last (drop i p @ take i p)) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
+      using a1 by (metis (no_types) last_map)
+  qed
     
+  
+  moreover have "set ?p = set p"
+  proof -
+    have "set ?p = set (take i p @ drop i p)" 
+      using list_set_sym by metis
+    then show ?thesis by auto
+  qed
+
+  ultimately show ?thesis
+    by (metis \<open>i < length p\<close> append_is_Nil_conv drop_eq_Nil last_in_set leD) 
+qed
+
+  
+
 
 (* Proof sketch for strengthened assumptions on acyclicity and construction:
 
@@ -417,11 +664,173 @@ qed
   - contradiction
 *)
 
-lemma x :
-  assumes "\<not> (\<exists> t \<in> h M . t_target t = initial M)"
-  and "\<exists> t \<in> h M . t_source t = initial M \<and> t_target t = initial S \<and> (\<forall> t' \<in> h M . t_target t = initial S \<longrightarrow> t' = t)"
-  and 
-shows "False"
+lemma merge_FSMs_acyclic :
+  assumes "\<exists> t \<in> h M . t_source t = initial M \<and> t_target t = initial S \<and> (\<forall> t' \<in> h M . t_target t' = initial S \<longrightarrow> t' = t)"
+  and "initial M \<notin> nodes S"
+  and "acyclic M"
+  and "acyclic S"
+  and "inputs M = inputs S"
+  and "outputs M = outputs S"  
+shows "acyclic (merge_FSMs M S)" (is "acyclic ?MS")
+proof (rule ccontr)
+  assume "\<not> acyclic ?MS"
+  then obtain q p where "path ?MS q p" and "p \<noteq> []" and "target p q = q"
+    using cyclic_cycle by blast
+
+  have "\<exists> tS \<in> {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)} - (h M) . tS \<in> set p"
+  proof (rule ccontr)
+    assume "\<not> (\<exists>tS\<in> {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)} - (h M). tS \<in> set p)"
+    moreover have "set p \<subseteq> h ?MS"
+      using \<open>path ?MS q p\<close> by (meson path_h) 
+    ultimately have "set p \<subseteq> h M"
+      using merge_FSMs_h[OF assms(5,6)] by blast
+    
+    have "path M q p"
+      using transitions_subset_path[OF \<open>set p \<subseteq> h M\<close> \<open>p \<noteq> []\<close> \<open>path ?MS q p\<close>] by assumption
+    then have "\<not> acyclic M"
+      using \<open>p \<noteq> []\<close> \<open>target p q = q\<close> cyclic_cycle_rev by metis
+    then show "False"
+      using assms(3) by blast
+  qed
+
+
+  have "\<exists> tM \<in> (h M) - {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)} . tM \<in> set p"
+  proof (rule ccontr)
+    assume "\<not> (\<exists>tM\<in> (h M) - {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}. tM \<in> set p)"
+    moreover have "set p \<subseteq> h ?MS"
+      using \<open>path ?MS q p\<close> by (meson path_h) 
+    ultimately have "set p \<subseteq> h S"
+      using merge_FSMs_h[OF assms(5,6)] by blast
+    
+    have "path S q p"
+      using transitions_subset_path[OF \<open>set p \<subseteq> h S\<close> \<open>p \<noteq> []\<close> \<open>path ?MS q p\<close>] by assumption
+    then have "\<not> acyclic S"
+      using \<open>p \<noteq> []\<close> \<open>target p q = q\<close> cyclic_cycle_rev by metis
+    then show "False"
+      using assms(4) by blast
+  qed
+
+  
+  have "\<exists> t \<in> set p . t_source t = initial S"
+  proof (rule ccontr)
+    assume "\<not> (\<exists>t\<in>set p. t_source t = initial S)"
+    then have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<noteq> initial S" 
+      by blast
+    then have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_target t \<in> nodes M"
+      using merge_FSMs_h[OF assms(5,6)] path_h[OF \<open>path ?MS q p\<close>] by blast
+
+    have "\<exists> t \<in> set p . t_source t \<in> nodes M"
+      using \<open>\<exists> tS \<in> (h M) - {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}. tS \<in> set p\<close> by blast
+    
+    have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M"
+      using cyclic_path_transition_source_property(1)[OF \<open>\<exists> t \<in> set p . t_source t \<in> nodes M\<close> _ \<open>path ?MS q p\<close> \<open>target p q = q\<close>]
+            \<open>\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_target t \<in> nodes M\<close> 
+      by metis
+    then have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<and> t_source t \<noteq> initial S"
+      using \<open>\<not> (\<exists>t\<in>set p. t_source t = initial S)\<close> by blast
+    moreover have "\<exists> t \<in> set p . t_source t = initial S \<or> t_source t \<notin> nodes M"
+      using \<open>\<exists> tS \<in> {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)} - (h M) . tS \<in> set p\<close> by blast
+    ultimately show "False"
+      by blast
+  qed
+
+  then have "\<exists> t \<in> set p . t_target t = initial S"
+    using cycle_incoming_transition_ex[OF \<open>path ?MS q p\<close> \<open>p \<noteq> []\<close> \<open>target p q = q\<close>] by auto
+  then have "\<exists> t \<in> set p . t \<in> h ?MS \<and> t_target t = initial S"
+    using path_h[OF \<open>path ?MS q p\<close>] by blast
+  then have "\<exists> t \<in> set p . t \<in> h M \<and> t_target t = initial S"
+    using acyclic_initial[OF assms(4)] merge_FSMs_h[OF assms(5,6)] by blast
+  
+  moreover obtain tM where "tM \<in> h M" and "t_source tM = initial M" and "t_target tM = initial S" and "(\<forall> t' \<in> h M . t_target t' = initial S \<longrightarrow> t' = tM)"
+    using assms(1) by blast
+
+  ultimately have "tM \<in> set p" 
+    by blast
+  then have "\<exists> t \<in> set p . t_target t = initial M"
+    using cycle_incoming_transition_ex[OF \<open>path ?MS q p\<close> \<open>p \<noteq> []\<close> \<open>target p q = q\<close>, of tM] \<open>t_source tM = initial M\<close> by auto
+  then obtain t where "t \<in> set p" and "t_target t = initial M"
+    by blast
+  then consider (a) "t \<in> h M" | (b) "t \<in> h S" 
+    using path_h[OF \<open>path ?MS q p\<close>] merge_FSMs_h[OF assms(5,6)] by blast
+  then show "False" proof cases
+    case a
+    then show "False" 
+      using acyclic_initial[OF assms(3)] \<open>t_target t = initial M\<close> by blast
+  next
+    case b
+    then show ?thesis 
+      using \<open>t_target t = initial M\<close> wf_transition_target[OF b] assms(2) by auto
+  qed
+qed
+  
+    
+
+  
+    
+
+end (*    
+      
+
+
+      using * ** *** \<open>path ?MS q p\<close> proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case by auto
+    next
+      case (snoc a p)
+
+      have "path ?MS q p" using snoc.prems(5) by auto
+      
+      
+      then show ?case 
+    qed
+      
+      
+
+
+    then have "\<exists> t \<in> set p . t_source t \<notin> nodes M"
+      using \<open>\<exists> tS \<in> {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)} - (h M) . tS \<in> set p\<close> by blast 
+    moreover have "\<exists> t \<in> set p . t_source t \<in> nodes M"
+      using \<open>\<exists> tS \<in> (h M) - {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}. tS \<in> set p\<close> by blast
+    moreover have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_target t \<in> nodes M \<and> t_target t \<noteq> initial S"
+      using merge_FSMs_h[OF assms(4,5)] path_h[OF \<open>path ?MS q p\<close>] \<open>\<not> (\<exists>t\<in>set p. t_source t = initial S)\<close>  
+    ultimately show "False"
+      using \<open>\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_source t \<noteq> initial S \<Longrightarrow> t_target t \<in> nodes M\<close> 
+    
+    
+
+
+  have "set p \<subseteq> h ?MS"
+    using path_h[OF \<open>path ?MS q p\<close>] by assumption
+
+  then have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_source t \<noteq> initial S \<Longrightarrow> t_target t \<in> nodes M"
+    using merge_FSMs_h[OF assms(4,5)]  
+
+  have "\<exists> t \<in> set p . t_source t = initial S"
+  proof (rule ccontr)
+    assume "\<not> (\<exists>t\<in>set p. t_source t = initial S)"
+    moreover have "\<forall> t \<in> set p . t_source t \<in> nodes M \<or> t_source t \<in> nodes S"
+      using \<open>set p \<subseteq> h ?MS\<close> merge_FSMs_h[OF assms(4,5)] by blast
+
+
+  have "\<exists> t \<in> set p . t_source t \<in> nodes M \<and> t_target t = initial S"
+  proof -
+    have "\<exists> t \<in> set p . t_target t = initial S"
+  proof (rule ccontr)
+    assume "\<not> (\<exists> t \<in> set p . t_source t \<in> nodes M \<and> t_target t = initial S)"
+    
+
+  have "\<exists> t \<in> set p . t_source t \<in> nodes M \<and> t_target t = initial S"
+
+  obtain tM where "tM \<in> h M" and "t_source tM = initial M" and "t_target tM = initial S" and "(\<forall> t' \<in> h M . t_target t' = initial S \<longrightarrow> t' = tM)"
+    using assms(2) by blast
+  
+    
+  ultimately have "tM \<in> set p"
+    
+  
+
+  moreover have "\<forall> t \<in> h ?MS . 
+  then have "\<exists> t \<in> set p . t_target t = initial M" 
 
 end (*
 
