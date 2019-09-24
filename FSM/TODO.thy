@@ -851,7 +851,7 @@ fun calculate_separator_merge_list :: "(('a \<times> 'a), 'b) FSM_scheme \<Right
 fun calculate_separator_merge_alg :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a), 'b) FSM_scheme option" where
   "calculate_separator_merge_alg M q1 q2 = (let PR = (product (from_FSM M q1) (from_FSM M q2)) in 
     (case (calculate_separator_states_list PR (size PR) []) of
-      Some qqxs \<Rightarrow> (calculate_separator_merge_list PR (snd qqxs)) (q1,q2) |
+      Some qqxs \<Rightarrow> (calculate_separator_merge_list PR (fst qqxs @ snd qqxs)) (q1,q2) |
       None \<Rightarrow> None))"
 
 fun calculate_separator_merge_alg_full :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a), 'b) FSM_scheme option" where
@@ -872,12 +872,8 @@ fun calculate_separator_merge_alg_full :: "('a,'b) FSM_scheme \<Rightarrow> 'a \
 
 value "(let PR = (product (from_FSM M_ex_9 0) (from_FSM M_ex_9 3)) in (calculate_separator_states_list PR (size PR) []))"
 value "calculate_separator_merge_alg M_ex_9 1 3"
-value "calculate_separator_merge_alg_full M_ex_9 1 3"
-
-
-end (*
-\<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B"
-  
+value "calculate_separator_merge_alg_full M_ex_9 0 3"
+value "h (the (calculate_separator_merge_alg_full M_ex_9 0 3))"
 
 
 
@@ -905,6 +901,18 @@ definition induces_state_separator :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<t
     \<and> (\<forall> qq \<in> nodes S . deadlock_state S qq \<longrightarrow> (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) )
     \<and> retains_outputs_for_states_and_inputs (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))) S
 )"
+
+
+lemma calculate_separator_merge_induces_state_separator :
+  assumes "\<And> qq S. f qq = Some S \<Longrightarrow> induces_state_separator Q S"
+  and     "\<And> t . t \<in> h (product (from_FSM Q q1) (from_FSM Q q2)) 
+                \<Longrightarrow> t_source t = (q1,q2) 
+                \<Longrightarrow> t_input t = x 
+                \<Longrightarrow> f (t_target t) \<noteq> None"
+shows "induces_state_separator Q (calculate_separator_merge M (q1,q2) x f)"
+  (* TODO? *)
+
+end (*
 
 lemma merge_FSMs_induces_state_separator :
   assumes "\<exists> t \<in> h M . t_source t = initial M \<and> t_target t = initial S \<and> (\<forall> t' \<in> h M . t_target t' = initial S \<longrightarrow> t' = t)"
