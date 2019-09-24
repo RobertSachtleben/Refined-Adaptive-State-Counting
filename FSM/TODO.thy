@@ -768,69 +768,8 @@ qed
   
     
 
-end (*    
-      
 
 
-      using * ** *** \<open>path ?MS q p\<close> proof (induction p rule: rev_induct)
-      case Nil
-      then show ?case by auto
-    next
-      case (snoc a p)
-
-      have "path ?MS q p" using snoc.prems(5) by auto
-      
-      
-      then show ?case 
-    qed
-      
-      
-
-
-    then have "\<exists> t \<in> set p . t_source t \<notin> nodes M"
-      using \<open>\<exists> tS \<in> {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)} - (h M) . tS \<in> set p\<close> by blast 
-    moreover have "\<exists> t \<in> set p . t_source t \<in> nodes M"
-      using \<open>\<exists> tS \<in> (h M) - {t2 \<in> h S . (t_source t2 \<in> nodes (merge_FSMs M S)) \<and> (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)}. tS \<in> set p\<close> by blast
-    moreover have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_target t \<in> nodes M \<and> t_target t \<noteq> initial S"
-      using merge_FSMs_h[OF assms(4,5)] path_h[OF \<open>path ?MS q p\<close>] \<open>\<not> (\<exists>t\<in>set p. t_source t = initial S)\<close>  
-    ultimately show "False"
-      using \<open>\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_source t \<noteq> initial S \<Longrightarrow> t_target t \<in> nodes M\<close> 
-    
-    
-
-
-  have "set p \<subseteq> h ?MS"
-    using path_h[OF \<open>path ?MS q p\<close>] by assumption
-
-  then have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_source t \<noteq> initial S \<Longrightarrow> t_target t \<in> nodes M"
-    using merge_FSMs_h[OF assms(4,5)]  
-
-  have "\<exists> t \<in> set p . t_source t = initial S"
-  proof (rule ccontr)
-    assume "\<not> (\<exists>t\<in>set p. t_source t = initial S)"
-    moreover have "\<forall> t \<in> set p . t_source t \<in> nodes M \<or> t_source t \<in> nodes S"
-      using \<open>set p \<subseteq> h ?MS\<close> merge_FSMs_h[OF assms(4,5)] by blast
-
-
-  have "\<exists> t \<in> set p . t_source t \<in> nodes M \<and> t_target t = initial S"
-  proof -
-    have "\<exists> t \<in> set p . t_target t = initial S"
-  proof (rule ccontr)
-    assume "\<not> (\<exists> t \<in> set p . t_source t \<in> nodes M \<and> t_target t = initial S)"
-    
-
-  have "\<exists> t \<in> set p . t_source t \<in> nodes M \<and> t_target t = initial S"
-
-  obtain tM where "tM \<in> h M" and "t_source tM = initial M" and "t_target tM = initial S" and "(\<forall> t' \<in> h M . t_target t' = initial S \<longrightarrow> t' = tM)"
-    using assms(2) by blast
-  
-    
-  ultimately have "tM \<in> set p"
-    
-  
-
-  moreover have "\<forall> t \<in> h ?MS . 
-  then have "\<exists> t \<in> set p . t_target t = initial M" 
 
 end (*
 
