@@ -762,11 +762,159 @@ proof (rule ccontr)
       using \<open>t_target t = initial M\<close> wf_transition_target[OF b] assms(2) by auto
   qed
 qed
-  
-    
 
+
+
+lemma merge_FSMs_submachines :
+  assumes "is_submachine M (product Q1 Q2)"
+  assumes "is_submachine S (from_FSM (product Q1 Q2) (initial S))"
+  assumes "\<exists> t \<in> h M . t_source t = initial M \<and> t_target t = initial S \<and> (\<forall> t' \<in> h M . t_target t' = initial S \<longrightarrow> t' = t)"
+  and "initial M \<notin> nodes S"
+  and "acyclic M"
+  and "acyclic S"  
+shows "is_submachine (merge_FSMs M S) (product Q1 Q2)" (is "is_submachine ?MS ?PQ")
+proof -
+  have "inputs M = inputs S"
+    using assms(1,2) unfolding is_submachine.simps from_FSM.simps
+    by (metis select_convs(2)) 
+
+  have "outputs M = outputs S"
+    using assms(1,2) unfolding is_submachine.simps from_FSM.simps
+    by (metis select_convs(3))
+
+  have "initial ?MS = initial ?PQ" 
+    using assms(1) unfolding is_submachine.simps
+    by (metis select_convs(1)) 
+  moreover have "inputs ?MS = inputs ?PQ"
+    using assms(1) unfolding is_submachine.simps
+    by (metis select_convs(2)) 
+  moreover have "outputs ?MS = outputs ?PQ"
+    using assms(1) unfolding is_submachine.simps
+    by (metis select_convs(3)) 
+  moreover have "h ?MS \<subseteq> h ?PQ" 
+  proof -
+    have "h ?MS \<subseteq> h M \<union> h S"
+      using merge_FSMs_h[OF \<open>inputs M = inputs S\<close> \<open>outputs M = outputs S\<close>] by blast
+    moreover have "h M \<subseteq> h ?PQ"
+      using submachine_h[OF assms(1)] by assumption
+    moreover have "h S \<subseteq> h ?PQ"
+    proof -
+      have "initial S \<in> nodes M"
+        using assms(3) wf_transition_target by metis
+      then have "initial S \<in> nodes ?PQ"
+        using submachine_nodes[OF assms(1)] by blast
+      then have "h (from_FSM ?PQ (initial S)) \<subseteq> h ?PQ"
+        using from_FSM_h by metis
+      moreover have "h S \<subseteq> h (from_FSM ?PQ (initial S))"
+        using submachine_h[OF assms(2)] by assumption
+      ultimately show ?thesis by blast
+    qed
+    ultimately show ?thesis by blast
+  qed
+  ultimately show ?thesis
+    unfolding is_submachine.simps by presburger
+qed
   
-    
+
+
+
+
+fun calculate_separator_states_list :: "('a \<times> 'a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a) \<times> Input) list \<Rightarrow> ((('a \<times> 'a) \<times> Input) list \<times> (('a \<times> 'a) \<times> Input) list) option" where
+  "calculate_separator_states_list C 0 Q = None" |
+  "calculate_separator_states_list C (Suc k) Q = 
+    (case find 
+            (\<lambda> qx . (\<forall> qx' \<in> set Q . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h C . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set Q . fst qx' = (t_target t)))) 
+            (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs C)) (nodes_from_distinct_paths C)))
+      of Some qx \<Rightarrow> (if fst qx = initial C 
+                        then Some (filter (\<lambda>qx' . \<not>(\<exists> t \<in> h C . t_source t = fst qx' \<and> t_input t = snd qx')) (Q@[qx]), filter (\<lambda>qx' . \<exists> t \<in> h C . t_source t = fst qx' \<and> t_input t = snd qx') (Q@[qx]))
+                        else calculate_separator_states_list C k (Q@[qx])) | 
+         None \<Rightarrow> None)"
+
+(* Variation that calculates the transition relation only after selecting states and corresponding inputs *)
+fun calculate_separator_merge :: "(('a \<times> 'a), 'b) FSM_scheme \<Rightarrow> 'a \<times> 'a \<Rightarrow> Input \<Rightarrow> (('a \<times> 'a) \<Rightarrow> ((('a \<times> 'a), 'b) FSM_scheme option)) \<Rightarrow> (('a \<times> 'a), 'b) FSM_scheme" where
+  "calculate_separator_merge M qq x f = 
+    foldl 
+      merge_FSMs 
+      \<lparr> initial = qq, inputs = inputs M, outputs = outputs M, transitions = filter (\<lambda>t . t_source t = qq \<and> t_input t = x) (wf_transitions M), \<dots> = more M \<rparr>
+      (map 
+        (\<lambda> t . (case f (t_target t) of
+                    Some S \<Rightarrow> S |
+                    None \<Rightarrow> \<lparr> initial = t_target t, inputs = inputs M, outputs = outputs M, transitions = [], \<dots> = more M \<rparr>))
+        (filter
+          (\<lambda>t . t_source t = qq \<and> t_input t = x) (wf_transitions M)))" 
+
+fun calculate_separator_merge_list :: "(('a \<times> 'a), 'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> Input) list \<Rightarrow> (('a \<times> 'a) \<Rightarrow> ((('a \<times> 'a), 'b) FSM_scheme option))" where
+  "calculate_separator_merge_list M [] = (\<lambda> qq . None)" |
+  "calculate_separator_merge_list M (qqx#qqxs) = (let f = calculate_separator_merge_list M qqxs in
+    f(fst qqx := Some (calculate_separator_merge M (fst qqx) (snd qqx) f)))"
+
+fun calculate_separator_merge_alg :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a), 'b) FSM_scheme option" where
+  "calculate_separator_merge_alg M q1 q2 = (let PR = (product (from_FSM M q1) (from_FSM M q2)) in 
+    (case (calculate_separator_states_list PR (size PR) []) of
+      Some qqxs \<Rightarrow> (calculate_separator_merge_list PR (snd qqxs)) (q1,q2) |
+      None \<Rightarrow> None))"
+
+fun calculate_separator_merge_alg_full :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a), 'b) FSM_scheme option" where
+  "calculate_separator_merge_alg_full M q1 q2 = (let PR = (product (from_FSM M q1) (from_FSM M q2)) in 
+    (case (calculate_separator_states_list PR (size PR) []) of
+      Some qqxs \<Rightarrow> (let f = (calculate_separator_merge_list PR (fst qqxs @ snd qqxs)) in
+        (case f (q1,q2) of
+          Some S \<Rightarrow> Some \<lparr> initial = Inl (q1,q2), 
+                           inputs = inputs M,
+                           outputs = outputs M,
+                           transitions = (map shift_Inl (transitions S)) 
+                                            @ (concat (map (\<lambda> qqx . map (\<lambda>t . (Inl (fst qqx), t_input t, t_output t, Inr q1)) (filter (\<lambda>t. t_source t = fst (fst qqx) \<and> t_input t = snd qqx) (wf_transitions M))) (fst qqxs))) 
+                                            @ (concat (map (\<lambda> qqx . map (\<lambda>t . (Inl (fst qqx), t_input t, t_output t, Inr q2)) (filter (\<lambda>t. t_source t = snd (fst qqx) \<and> t_input t = snd qqx) (wf_transitions M))) (fst qqxs))), 
+                            \<dots> = more M\<rparr> |
+          None \<Rightarrow> None)) |
+      None \<Rightarrow> None))"
+
+
+value "(let PR = (product (from_FSM M_ex_9 0) (from_FSM M_ex_9 3)) in (calculate_separator_states_list PR (size PR) []))"
+value "calculate_separator_merge_alg M_ex_9 1 3"
+value "calculate_separator_merge_alg_full M_ex_9 1 3"
+
+
+end (*
+\<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B"
+  
+
+
+
+(*
+  definition is_state_separator_from_canonical_separator :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> bool" where
+  "is_state_separator_from_canonical_separator CSep q1 q2 S = (
+    is_submachine S CSep 
+    \<and> single_input S
+    \<and> acyclic S
+    \<and> deadlock_state S (Inr q1)
+    \<and> deadlock_state S (Inr q2)
+    \<and> ((Inr q1) \<in> nodes S)
+    \<and> ((Inr q2) \<in> nodes S)
+    \<and> (\<forall> q \<in> nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (isl q \<and> \<not> deadlock_state S q))
+    \<and> (\<forall> q \<in> nodes S . \<forall> x \<in> set (inputs CSep) . (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))
+)"
+*)
+
+definition induces_state_separator :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> bool" where
+  "induces_state_separator M S = (
+    (* initial S = (q1,q2) *)
+    is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
+    \<and> single_input S
+    \<and> acyclic S
+    \<and> (\<forall> qq \<in> nodes S . deadlock_state S qq \<longrightarrow> (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) )
+    \<and> retains_outputs_for_states_and_inputs (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))) S
+)"
+
+lemma merge_FSMs_induces_state_separator :
+  assumes "\<exists> t \<in> h M . t_source t = initial M \<and> t_target t = initial S \<and> (\<forall> t' \<in> h M . t_target t' = initial S \<longrightarrow> t' = t)"
+  and "\<forall> t \<in> h M . t_source t = initial M \<longrightarrow> induces_state_separator Q (from_FSM M (t_target t))
+  and "initial M \<notin> nodes S"
+  and "acyclic M"
+  and "acyclic S"
+  and "inputs M = inputs S"
+  and "outputs M = outputs S"  
+
 
 
 
