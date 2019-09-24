@@ -308,7 +308,104 @@ proof -
     by blast 
 qed
 
-(* Proof sketch for strengthened assumption on acyclicity and construction:
+
+
+(* TODO: move *)
+lemma non_distinct_repetition_indices :
+  assumes "\<not> distinct xs"
+  shows "\<exists> i j . i < j \<and> j < length xs \<and> xs ! i = xs ! j"
+  by (metis assms distinct_conv_nth le_neq_implies_less not_le)
+
+lemma list_contains_last_take :
+  assumes "x \<in> set xs"
+  shows "\<exists> i . 0 < i \<and> i \<le> length xs \<and> last (take i xs) = x"
+  by (metis Suc_leI assms hd_drop_conv_nth in_set_conv_nth last_snoc take_hd_drop zero_less_Suc)
+  
+lemma take_last_index :
+  assumes "i < length xs"
+  shows "last (take (Suc i) xs) = xs ! i"
+  by (simp add: assms take_Suc_conv_app_nth)
+
+
+(* TODO: move *)
+lemma acyclic_cycle :
+  assumes "\<not> acyclic M"
+  shows "\<exists> q p . path M q p \<and> p \<noteq> [] \<and> target p q = q" 
+proof -
+  have "(\<exists> p \<in> set (distinct_paths_up_to_length_from_initial M (size M)) . \<exists> t \<in> h M . path M (initial M) (p@[t]) \<and> \<not>distinct (visited_states (initial M) (p@[t])))"
+    using assms FSM.acyclic_code unfolding contains_cyclic_path.simps by metis
+  then obtain p t where "path M (initial M) (p@[t])" and "\<not>distinct (visited_states (initial M) (p@[t]))"
+    by meson
+
+  show ?thesis
+  proof (cases "initial M \<in> set (map t_target (p@[t]))")
+    case True
+    then obtain i where "last (take i (map t_target (p@[t]))) = initial M" and "i \<le> length (map t_target (p@[t]))" and "0 < i"
+      using list_contains_last_take by metis
+
+    let ?p = "take i (p@[t])"
+    have "path M (initial M) (?p@(drop i (p@[t])))" 
+      using \<open>path M (initial M) (p@[t])\<close>
+      by (metis append_take_drop_id)  
+    then have "path M (initial M) ?p" by auto
+    moreover have "?p \<noteq> []" using \<open>0 < i\<close> by auto
+    moreover have "target ?p (initial M) = initial M"
+      using \<open>last (take i (map t_target (p@[t]))) = initial M\<close> unfolding target.simps visited_states.simps
+      by (metis (no_types, lifting) calculation(2) last_ConsR list.map_disc_iff take_map) 
+    ultimately show ?thesis by blast
+  next
+    case False
+    then have "\<not> distinct (map t_target (p@[t]))"
+      using \<open>\<not>distinct (visited_states (initial M) (p@[t]))\<close> unfolding visited_states.simps by auto
+    then obtain i j where "i < j" and "j < length (map t_target (p@[t]))" and "(map t_target (p@[t])) ! i = (map t_target (p@[t])) ! j"
+      using non_distinct_repetition_indices by blast
+
+    let ?pre_i = "take (Suc i) (p@[t])"
+    let ?p = "take ((Suc j)-(Suc i)) (drop (Suc i) (p@[t]))"
+    let ?post_j = "drop ((Suc j)-(Suc i)) (drop (Suc i) (p@[t]))"
+
+    have "p@[t] = ?pre_i @ ?p @ ?post_j"
+      using \<open>i < j\<close> \<open>j < length (map t_target (p@[t]))\<close>
+      by (metis append_take_drop_id) 
+    then have "path M (target ?pre_i (initial M)) ?p" 
+      using \<open>path M (initial M) (p@[t])\<close>
+      by (metis path_prefix path_suffix) 
+
+    have "?p \<noteq> []"
+      using \<open>i < j\<close> \<open>j < length (map t_target (p@[t]))\<close> by auto
+
+    have "i < length (map t_target (p@[t]))"
+      using \<open>i < j\<close> \<open>j < length (map t_target (p@[t]))\<close> by auto
+    have "(target ?pre_i (initial M)) = (map t_target (p@[t])) ! i"
+      unfolding target.simps visited_states.simps  
+      using take_last_index[OF \<open>i < length (map t_target (p@[t]))\<close>]
+      by (metis (no_types, lifting) \<open>i < length (map t_target (p @ [t]))\<close> last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
+    
+    have "?pre_i@?p = take (Suc j) (p@[t])"
+      by (metis (no_types) \<open>i < j\<close> add_Suc add_diff_cancel_left' less_SucI less_imp_Suc_add take_add)
+    moreover have "(target (take (Suc j) (p@[t])) (initial M)) = (map t_target (p@[t])) ! j"
+      unfolding target.simps visited_states.simps  
+      using take_last_index[OF \<open>j < length (map t_target (p@[t]))\<close>]
+      by (metis (no_types, lifting) \<open>j < length (map t_target (p @ [t]))\<close> last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
+    ultimately have "(target (?pre_i@?p) (initial M)) = (map t_target (p@[t])) ! j"
+      by auto
+    then have "(target (?pre_i@?p) (initial M)) = (map t_target (p@[t])) ! i"
+      using \<open>(map t_target (p@[t])) ! i = (map t_target (p@[t])) ! j\<close> by simp
+    moreover have "(target (?pre_i@?p) (initial M)) = (target ?p (target ?pre_i (initial M)))"
+      unfolding target.simps visited_states.simps last.simps by auto
+    ultimately have "(target ?p (target ?pre_i (initial M))) = (map t_target (p@[t])) ! i"
+      by auto
+    then have "(target ?p (target ?pre_i (initial M))) = (target ?pre_i (initial M))"
+      using \<open>(target ?pre_i (initial M)) = (map t_target (p@[t])) ! i\<close> by auto
+
+    show ?thesis
+      using \<open>path M (target ?pre_i (initial M)) ?p\<close> \<open>?p \<noteq> []\<close> \<open>(target ?p (target ?pre_i (initial M))) = (target ?pre_i (initial M))\<close>
+      by blast
+  qed
+qed
+    
+
+(* Proof sketch for strengthened assumptions on acyclicity and construction:
 
   - assume MS acyclic
   - then obtain cycle
