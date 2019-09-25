@@ -1261,21 +1261,165 @@ lemma s_states_max_iterations :
   by simp 
 
 
-nitpick_params[timeout= 180]
+lemma s_states_by_index :
+  assumes "i < length (s_states M k)"
+  shows "(s_states M k) ! i = last (s_states M i)"
+  by (metis Suc_leI assms less_le_trans not_le s_states_length s_states_prefix take_last_index)
+
+
+(* TODO: check *)
+declare from_FSM.simps[simp del]
+declare product.simps[simp del]
+declare from_FSM_simps[simp del]
+declare product_simps[simp del]
+
+(* TODO: move *)
+lemma transition_subset_paths :
+  assumes "set (transitions S) \<subseteq> set (transitions M)"
+  and "initial S \<in> nodes M"
+  and "inputs S = inputs M"
+  and "outputs S = outputs M"
+  and "path S (initial S) p"
+shows "path M (initial S) p"
+  using assms(5) proof (induction p rule: rev_induct)
+case Nil
+  then show ?case using assms(2) by auto
+next
+  case (snoc t p)
+  then have "path S (initial S) p" 
+        and "t \<in> h S" 
+        and "t_source t = target p (initial S)" 
+        and "path M (initial S) p"
+    by auto
+
+  have "t \<in> set (transitions M)"
+    using assms(1) \<open>t \<in> h S\<close> by auto
+  moreover have "t_source t \<in> nodes M"
+    using \<open>t_source t = target p (initial S)\<close> \<open>path M (initial S) p\<close>
+    using path_target_is_node by fastforce 
+  ultimately have "t \<in> h M"
+    using \<open>t \<in> h S\<close> assms(3,4) by auto
+  then show ?case
+    using \<open>path M (initial S) p\<close>
+    using snoc.prems by auto 
+qed 
+
+lemma transition_subset_h :
+  assumes "set (transitions S) \<subseteq> set (transitions M)"
+  and "initial S \<in> nodes M"
+  and "inputs S = inputs M"
+  and "outputs S = outputs M"
+shows "h S \<subseteq> h M"
+proof 
+  fix t assume "t \<in> h S"
+  then obtain p where "path S (initial S) p" and "target p (initial S) = t_source t"
+    by (metis path_begin_node path_to_node single_transition_path)
+  then have "t_source t \<in> nodes M"
+    using transition_subset_paths[OF assms, of p] path_target_is_node[of M "initial S" p] by auto
+  then show "t \<in> h M"
+    using \<open>t \<in> h S\<close> assms(1,3,4) by auto
+qed
+
+(* TODO: remove/move *)
+lemma submachine_from_h_origin :
+  assumes "t \<in> h S"
+  and     "is_submachine S (from_FSM M q)"
+  and     "q \<in> nodes M"
+shows "t \<in> h M"
+  by (meson assms contra_subsetD from_FSM_h submachine_h)
 
 lemma s_states_induce_state_separator :
-  assumes "(s_states (product (from_FSM M q1) (from_FSM M q2)) k) \<noteq> []"
+  assumes "(s_states (product (from_FSM M q1) (from_FSM M q2)) k) \<noteq> []" 
   and "q1 \<in> nodes M"
   and "q2 \<in> nodes M"
   and "q1 \<noteq> q2"
 shows "induces_state_separator M \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) k)),
-                                   inputs = inputs M,
-                                   outputs = outputs M,
+                                   inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+                                   outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
                                    transitions = 
                                       filter 
                                         (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                                        (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>" 
-  nitpick
+                                        (*(wf_transitions (product (from_FSM M q1) (from_FSM M q2)))*)
+                                        (wf_transitions (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) k))))) \<rparr>"
+
+
+
+
+using assms proof (induction k)
+  case 0
+
+  let ?PM = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?S = " \<lparr> initial = fst (last (s_states ?PM k)),
+                                   inputs = inputs ?PM,
+                                   outputs = outputs ?PM,
+                                   transitions = 
+                                      filter 
+                                        (\<lambda>t . \<exists> qqx \<in> set (s_states ?PM k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                                        (wf_transitions (from_FSM ?PM (fst (last (s_states ?PM k))))) \<rparr>"
+  
+  obtain qx where qx_def: "s_states ?PM 0 = [qx]"
+    using "0.prems"(1) unfolding s_states.simps
+    by (metis (mono_tags, lifting) option.case_eq_if) 
+  then have "(s_states ?PM 0) ! 0 = qx" and "last (s_states ?PM 0) = qx"
+    by auto
+    
+  have "0 < length (s_states ?PM 0)"
+    using "0.prems"(1) by blast
+  have "fst qx \<in> nodes ?PM"
+    using s_states_index_properties(1)[OF \<open>0 < length (s_states ?PM 0)\<close>] \<open>(s_states ?PM 0) ! 0 = qx\<close> by auto
+  have "snd qx \<in> set (inputs ?PM)"
+    using s_states_index_properties(2)[OF \<open>0 < length (s_states ?PM 0)\<close>] \<open>(s_states ?PM 0) ! 0 = qx\<close> by auto  
+  have "\<not>(\<exists> t \<in> h ?PM. t_source t = fst qx \<and> t_input t = snd qx)"
+    using s_states_index_properties(4)[OF \<open>0 < length (s_states ?PM 0)\<close>] \<open>(s_states ?PM 0) ! 0 = qx\<close>
+    by (metis length_pos_if_in_set less_numeral_extra(3) list.size(3) take_eq_Nil) 
+
+  let ?PS = "(from_FSM ?PM (fst (last (s_states ?PM k))))"
+  have "initial ?S = initial ?PS"
+    by (simp add: from_FSM_simps(1) product_simps(1)) 
+  moreover have "inputs ?S = inputs ?PS"
+    by (simp add: from_FSM_simps(2) product_simps(2)) 
+  moreover have "outputs ?S = outputs ?PS"
+    by (simp add: from_FSM_simps(3) product_simps(3)) 
+  moreover have "h ?S \<subseteq> h ?PS"
+  proof -
+    have "initial ?S \<in> nodes ?PS"
+      using calculation(1) nodes.initial
+      by (metis (no_types, lifting)) 
+    have "set (transitions ?S) \<subseteq> set (transitions ?PS)"
+      by (metis (no_types, lifting) filter_filter filter_is_subset from_FSM_transitions select_convs(4) wf_transitions.simps)
+    show ?thesis
+      using transition_subset_h[OF \<open>set (transitions ?S) \<subseteq> set (transitions ?PS)\<close> \<open>initial ?S \<in> nodes ?PS\<close> calculation(2,3)] by assumption
+  qed
+  ultimately have "is_submachine ?S ?PS"
+    unfolding is_submachine.simps by blast
+
+  (* TODO *)
+  
+
+  from qx_def have "find
+              (\<lambda>qx. \<not> (\<exists>t\<in>set (wf_transitions (product (from_FSM M q1) (from_FSM M q2))).
+                        t_source t = fst qx \<and> t_input t = snd qx))
+               (concat
+                 (map (\<lambda>q. map (Pair q) (inputs (product (from_FSM M q1) (from_FSM M q2))))
+                   (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))))) = Some qx "
+    unfolding s_states.simps 
+    by (metis (mono_tags, lifting) \<open>s_states ?PM 0 = [qx]\<close> \<open>s_states ?PM 0 \<noteq> []\<close> list.sel(1) option.case_eq_if option.collapse)
+
+  have "(last (s_states (product (from_FSM M q1) (from_FSM M q2)) 0)) = qx"
+    using qx_def 
+    by (metis last.simps)
+
+  
+
+  have "is_submachine ?S ?PM"
+    using 0 
+  then show ?case unfolding induces_state_separator_def
+next
+  case (Suc k)
+  then show ?case sorry
+qed
+
+
 using assms proof (induction i)
   case 0
   then show ?case sorry
