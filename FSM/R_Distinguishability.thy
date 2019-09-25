@@ -1043,12 +1043,12 @@ qed
 subsection \<open>Deciding R-Distinguishability\<close>
 
 fun r_distinguishable_k_least :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (nat \<times> Input) option" where
-  "r_distinguishable_k_least M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) of
+  "r_distinguishable_k_least M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs M)) of
     Some x \<Rightarrow> Some (0,x) |
     None \<Rightarrow> None)" |
   "r_distinguishable_k_least M q1 q2 (Suc n) = (case r_distinguishable_k_least M q1 q2 n of
     Some k \<Rightarrow> Some k |
-    None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (inputs M) of
+    None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs M)) of
       Some x \<Rightarrow> Some (Suc n,x) |
       None \<Rightarrow> None))"
 
@@ -1069,9 +1069,14 @@ using assms proof (induction k)
   case 0
   show ?case proof (rule ccontr)
     assume "\<not> \<not> r_distinguishable_k M q1 q2 0"
-
-    then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x"
-      unfolding r_distinguishable_k.simps using find_None_iff[of "\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" "inputs M"] by blast
+    then have "(\<exists>x\<in>set (sort (inputs M)).
+                 \<not> (\<exists>t1\<in>set (wf_transitions M).
+                        \<exists>t2\<in>set (wf_transitions M).
+                           t_source t1 = q1 \<and>
+                           t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))"
+      unfolding r_distinguishable_k.simps by auto
+    then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs M)) = Some x"
+      unfolding r_distinguishable_k.simps using find_None_iff[of "\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" "sort (inputs M)"] by blast
     then have "r_distinguishable_k_least M q1 q2 0 = Some (0,x)"
       unfolding r_distinguishable_k_least.simps by auto
     then show "False" using 0 by simp
@@ -1091,11 +1096,11 @@ next
                         t_source t1 = q1 \<and>
                         t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<longrightarrow>
                         r_distinguishable_k M (t_target t1) (t_target t2) k)
-             (inputs M)  = None"
+             (sort (inputs M))  = None"
     using Suc.prems \<open>r_distinguishable_k_least M q1 q2 k = None\<close> unfolding r_distinguishable_k_least.simps
     using option.disc_eq_case(2) by force 
 
-  then have **: "\<not>(\<exists> x \<in> set (inputs M) .  (\<forall>t1\<in>set (wf_transitions M).
+  then have **: "\<not>(\<exists> x \<in> set (sort (inputs M)) .  (\<forall>t1\<in>set (wf_transitions M).
                      \<forall>t2\<in>set (wf_transitions M).
                         t_source t1 = q1 \<and>
                         t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<longrightarrow>
@@ -1104,39 +1109,118 @@ next
                      \<forall>t2\<in>set (wf_transitions M).
                         t_source t1 = q1 \<and>
                         t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<longrightarrow>
-                        r_distinguishable_k M (t_target t1) (t_target t2) k)" "(inputs M)"] by auto
+                        r_distinguishable_k M (t_target t1) (t_target t2) k)" "(sort (inputs M))"] by auto
   
     
   show ?case using * ** unfolding r_distinguishable_k.simps by auto
 qed
   
 
+(* TODO: move *)
+lemma find_sort_containment :
+  assumes "find P (sort xs) = Some x"
+shows "x \<in> set xs"
+  using assms find_set by force
+
+
+lemma integer_singleton_least :
+  assumes "{x . P x} = {a::integer}"
+  shows "a = (LEAST x . P x)"
+  by (metis Collect_empty_eq Least_equality assms insert_not_empty mem_Collect_eq order_refl singletonD)
+
+(*
+lemma find_sort_duplicate :
+  assumes "set xs = set ys"
+  shows "find P (sort xs) = find P (sort ys)" 
+*)
+
+lemma sort_list_split :
+  "\<forall> x \<in> set (take i (sort xs)) . \<forall> y \<in> set (drop i (sort xs)) . x \<le> y"
+  using sorted_append by fastforce
+
+lemma find_sort_index :
+  assumes "find P xs = Some x"
+  shows "\<exists> i < length xs . xs ! i = x \<and> (\<forall> j < i . \<not> P (xs ! j))"
+using assms proof (induction xs arbitrary: x)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  show ?case proof (cases "P a")
+    case True
+    then show ?thesis 
+      using Cons.prems unfolding find.simps by auto
+  next
+    case False
+    then have "find P (a#xs) = find P xs"
+      unfolding find.simps by auto
+    then have "find P xs = Some x"
+      using Cons.prems by auto
+    then show ?thesis 
+      using Cons.IH False
+      by (metis Cons.prems find_Some_iff)  
+  qed
+qed
+
+
+lemma find_sort_least :
+  assumes "find P (sort xs) = Some x"
+  shows "\<forall> x' \<in> set xs . x \<le> x' \<or> \<not> P x'"
+  and   "x = (LEAST x' \<in> set xs . P x')"
+proof -
+  obtain i where "i < length (sort xs)" and "(sort xs) ! i = x" and "(\<forall> j < i . \<not> P ((sort xs) ! j))"
+    using find_sort_index[OF assms] by blast
+  
+  have "\<And> j . j > i \<Longrightarrow> j < length xs \<Longrightarrow> (sort xs) ! i \<le> (sort xs) ! j"
+    by (simp add: sorted_nth_mono)
+  then have "\<And> j . j < length xs \<Longrightarrow> (sort xs) ! i \<le> (sort xs) ! j \<or> \<not> P ((sort xs) ! j)"
+    using \<open>(\<forall> j < i . \<not> P ((sort xs) ! j))\<close>
+    by (metis not_less_iff_gr_or_eq order_refl) 
+  then show "\<forall> x' \<in> set xs . x \<le> x' \<or> \<not> P x'"
+    by (metis \<open>sort xs ! i = x\<close> in_set_conv_nth length_sort set_sort)
+  then show "x = (LEAST x' \<in> set xs . P x')"
+    using find_set[OF assms] find_condition[OF assms]
+    by (metis (mono_tags, lifting) Least_equality set_sort) 
+qed
+  
+
+
+
 lemma r_distinguishable_k_least_0_correctness :
   assumes  "r_distinguishable_k_least M q1 q2 n = Some (0,x)"  
-  shows "r_distinguishable_k M q1 q2 0 \<and> 0 = (LEAST k . r_distinguishable_k M q1 q2 k) \<and> (x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))"
+  shows "r_distinguishable_k M q1 q2 0 \<and> 0 = 
+            (LEAST k . r_distinguishable_k M q1 q2 k) 
+            \<and> (x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+            \<and> (\<forall> x' \<in> set (inputs M) . x' < x \<longrightarrow> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x' \<and> t_input t2 = x' \<and> t_output t1 = t_output t2))"
 using assms proof (induction n)
   case 0
-  then obtain x' where x'_def : "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M) = Some x'"
+  then obtain x' where x'_def : "find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs M)) = Some x'"
     unfolding r_distinguishable_k_least.simps by fastforce 
   then have "x = x'" using 0 unfolding r_distinguishable_k_least.simps by fastforce
-  then have "x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" using 0 unfolding r_distinguishable_k_least.simps r_distinguishable_k.simps 
+  then have "x \<in> set (sort (inputs M)) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" using 0 unfolding r_distinguishable_k_least.simps r_distinguishable_k.simps 
     using find_condition[OF x'_def] find_set[OF x'_def] by blast
   moreover have "r_distinguishable_k M q1 q2 0"
-    using calculation unfolding r_distinguishable_k.simps by blast
+    using calculation List.linorder_class.set_sort unfolding r_distinguishable_k.simps by metis 
   moreover have "0 = (LEAST k . r_distinguishable_k M q1 q2 k)"
     using calculation(2) by auto
-  ultimately show ?case by presburger    
+  moreover have "(\<forall> x' \<in> set (inputs M) . x' < x \<longrightarrow> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x' \<and> t_input t2 = x' \<and> t_output t1 = t_output t2))"
+    using find_sort_least(1)[OF x'_def] \<open>x = x'\<close>
+    using leD by blast  
+  ultimately show ?case
+    by force  
 next
   case (Suc n)
   then show ?case proof (cases "r_distinguishable_k_least M q1 q2 n")
     case None
     then have "r_distinguishable_k_least M q1 q2 (Suc n) \<noteq> Some (0, x)"
-      using Suc.prems unfolding r_distinguishable_k_least.simps
+      using Suc.prems 
     proof -
       have "find (\<lambda>i. \<forall>p. p \<in> set (wf_transitions M) \<longrightarrow> (\<forall>pa. pa \<in> set (wf_transitions M) \<longrightarrow> t_source p = q1 \<and> t_source pa = q2 \<and> t_input p = i \<and> t_input pa = i \<and> t_output p = t_output pa \<longrightarrow> r_distinguishable_k M (t_target p) (t_target pa) n)) (inputs M) \<noteq> None \<or> (case find (\<lambda>i. \<forall>p. p \<in> set (wf_transitions M) \<longrightarrow> (\<forall>pa. pa \<in> set (wf_transitions M) \<longrightarrow> t_source p = q1 \<and> t_source pa = q2 \<and> t_input p = i \<and> t_input pa = i \<and> t_output p = t_output pa \<longrightarrow> r_distinguishable_k M (t_target p) (t_target pa) n)) (inputs M) of None \<Rightarrow> None | Some i \<Rightarrow> Some (Suc n, i)) \<noteq> Some (0, x)"
         by force
-      then show "(case r_distinguishable_k_least M q1 q2 n of None \<Rightarrow> (case find (\<lambda>i. \<forall>p\<in>set (wf_transitions M). \<forall>pa\<in>set (wf_transitions M). t_source p = q1 \<and> t_source pa = q2 \<and> t_input p = i \<and> t_input pa = i \<and> t_output p = t_output pa \<longrightarrow> r_distinguishable_k M (t_target p) (t_target pa) n) (inputs M) of None \<Rightarrow> None | Some i \<Rightarrow> Some (Suc n, i)) | Some x \<Rightarrow> Some x) \<noteq> Some (0, x)"
-        using \<open>r_distinguishable_k_least M q1 q2 n = None\<close> by auto
+      then show ?thesis
+        unfolding r_distinguishable_k_least.simps
+        using \<open>r_distinguishable_k_least M q1 q2 n = None\<close>
+        by (simp add: option.case_eq_if) 
     qed
     then show ?thesis using Suc.prems by auto
   next
@@ -1149,27 +1233,30 @@ qed
 
 lemma r_distinguishable_k_least_Suc_correctness :
   assumes  "r_distinguishable_k_least M q1 q2 n = Some (Suc k,x)"  
-  shows "r_distinguishable_k M q1 q2 (Suc k) \<and> (Suc k) = (LEAST k . r_distinguishable_k M q1 q2 k) \<and> (x \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
+  shows "r_distinguishable_k M q1 q2 (Suc k) \<and> (Suc k) = 
+          (LEAST k . r_distinguishable_k M q1 q2 k) 
+          \<and> (x \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))
+          \<and> (\<forall> x' \<in> set (inputs M) . x' < x \<longrightarrow> \<not>(\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x' \<and> t_input t2 = x' \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
 using assms proof (induction n)
   case 0
   then show ?case by (cases " find
          (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
                      \<exists>t2\<in>set (wf_transitions M).
                         t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-         (inputs M)"; auto)
+         (sort (inputs M))"; auto)
 next
   case (Suc n)
   then show ?case proof (cases "r_distinguishable_k_least M q1 q2 n")
     case None
-    then have *: "(case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (inputs M) of
+    then have *: "(case find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs M)) of
       Some x \<Rightarrow> Some (Suc n,x) |
       None \<Rightarrow> None) = Some (Suc k,x)"
       using Suc.prems unfolding r_distinguishable_k_least.simps by auto
-    then obtain x' where x'_def : "find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (inputs M) =  Some x'" 
+    then obtain x' where x'_def : "find (\<lambda> x . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs M)) =  Some x'" 
       by fastforce
     then have "x = x'" using * by fastforce
     then have p3: "x \<in> set (inputs M) \<and> (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n)"  
-      using find_condition[OF x'_def] find_set[OF x'_def] by blast
+      using find_condition[OF x'_def] find_set[OF x'_def] set_sort by metis
     then have p1: "r_distinguishable_k M q1 q2 (Suc n)"
       unfolding r_distinguishable_k.simps by blast
     moreover have "\<not> r_distinguishable_k M q1 q2 n"
@@ -1177,8 +1264,11 @@ next
     ultimately have p2: "(Suc n) = (LEAST k . r_distinguishable_k M q1 q2 k)"
       by (metis LeastI Least_le le_SucE r_distinguishable_k_by_larger)
 
-    from * have "k = n" using x'_def by auto 
-    then show ?thesis using p1 p2 p3 by blast
+    from * have "k = n" using x'_def by auto
+    then have "(\<forall> x' \<in> set (inputs M) . x' < x \<longrightarrow> \<not>(\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x' \<and> t_input t2 = x' \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
+      using find_sort_least(1)[OF x'_def] \<open>x = x'\<close>
+      using leD by blast
+    then show ?thesis using p1 p2 p3 \<open>k = n\<close> by blast
   next
     case (Some a)
     then have "r_distinguishable_k_least M q1 q2 n = Some (Suc k, x)"
