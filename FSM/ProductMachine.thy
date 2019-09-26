@@ -1084,4 +1084,95 @@ proof -
   ultimately show ?thesis by blast
 qed
 
+
+(* TODO: check *)
+declare from_FSM.simps[simp del]
+declare product.simps[simp del]
+declare from_FSM_simps[simp del]
+declare product_simps[simp del]
+
+(* TODO: move *)
+lemma zip_path_merge :
+  "(zip_path (left_path p) (right_path p)) = p"
+  by (induction p; auto)
+
+lemma product_from_path' :
+  assumes "path (product (from_FSM M q1) (from_FSM M q2)) (q1', q2') p"
+shows "path (product (from_FSM M q1') (from_FSM M q2')) (q1', q2') p"
+  using assms proof (induction p rule: rev_induct)
+  case Nil
+  show ?case using product_simps(1) from_FSM_simps(1) nodes.initial
+    by (metis nil)
+next
+  case (snoc t p)
+
+  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
+
+  have "path (from_FSM M q1) q1' (left_path (p@[t]))" 
+       "path (from_FSM M q2) q2' (right_path (p@[t]))" 
+    using snoc.prems product_path[of "(from_FSM M q1)" "(from_FSM M q2)" q1' q2' "p@[t]"] by simp+
+
+  have "path (from_FSM M q1') (initial (from_FSM M q1'))  (left_path (p@[t]))"
+    using from_FSM_path_rev_initial[OF \<open>path (from_FSM M q1) q1' (left_path (p@[t]))\<close>] by (simp add: from_FSM_simps)
+  moreover have "path (from_FSM M q2') (initial (from_FSM M q2')) (right_path (p@[t]))"
+    using from_FSM_path_rev_initial[OF \<open>path (from_FSM M q2) q2' (right_path (p@[t]))\<close>] by (simp add: from_FSM_simps)
+  moreover have "p_io (left_path (p@[t])) = p_io (right_path (p@[t]))"
+    by auto
+  ultimately have "path ?P' (initial ?P') (zip_path (left_path (p@[t])) (right_path (p@[t])))"
+    using product_path_from_paths(1) by blast
+  then show "path ?P' (q1',q2') (p@[t])"
+    by (simp add: product_simps(1) from_FSM_simps(1) zip_path_merge)
+qed
+    
+
+
+lemma from_product_from_h :
+  assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+shows "h (product (from_FSM M q1') (from_FSM M q2')) = h (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1',q2'))" 
+      (is "h ?P' = h ?Pf")
+proof -
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+
+  have "\<And> t . t \<in> h ?P' \<Longrightarrow> t \<in> h ?Pf"
+  proof -
+    fix t assume "t \<in> h ?P'"
+    then have "t_source t \<in> nodes ?P'" by auto
+    then obtain p where "path ?P' (q1',q2') p" and "target p (q1',q2') = t_source t"
+      using product_simps(1) from_FSM_simps(1)
+      by (metis path_to_node) 
+    then have "path ?P' (q1',q2') (p@[t])"
+      using \<open>t \<in> h ?P'\<close> \<open>t_source t \<in> nodes ?P'\<close> by auto
+    then have "path ?P (q1',q2') (p@[t])" 
+      using product_from_path[OF assms] by auto 
+    then have "path ?Pf (q1',q2') (p@[t])"
+      by (simp add: from_FSM_path_rev_initial)  
+    then show "t \<in> h ?Pf"
+      by auto
+  qed
+  moreover have "\<And> t . t \<in> h ?Pf \<Longrightarrow> t \<in> h ?P'"
+  proof -
+    fix t assume "t \<in> h ?Pf"
+    then have "t_source t \<in> nodes ?Pf" by auto
+    then obtain p where "path ?Pf (q1',q2') p" and "target p (q1',q2') = t_source t"
+      using from_FSM_simps(1)
+      by (metis path_to_node) 
+    then have "path ?Pf (q1',q2') (p@[t])"
+      using \<open>t \<in> h ?Pf\<close> \<open>t_source t \<in> nodes ?Pf\<close> by auto
+    then have "path ?P (q1',q2') (p@[t])"
+      by (meson assms from_FSM_path) 
+    then have "path ?P' (q1',q2') (p@[t])"
+      using product_from_path' by metis
+    then show "t \<in> h ?P'"
+      by auto
+  qed
+  ultimately show ?thesis by blast
+qed 
+
+(* TODO: check *)
+declare from_FSM.simps[simp]
+declare product.simps[simp]
+declare from_FSM_simps[simp]
+declare product_simps[simp]
+    
+
 end
