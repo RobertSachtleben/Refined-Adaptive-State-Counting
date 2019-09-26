@@ -1395,6 +1395,615 @@ qed
 
 
 
+
+lemma s_states_induces_state_separator_helper_h :
+  assumes "t \<in> h \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) k)),
+                      inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+                      outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
+                      transitions = 
+                         filter 
+                           (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+  shows "(t_source t, t_input t) \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k)" 
+  using assms by force
+
+lemma s_states_induces_state_separator_helper_single_input :
+  "single_input \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) k)),
+                      inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+                      outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
+                      transitions = 
+                         filter 
+                           (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+  (is "single_input ?S")
+proof -
+  have "\<And> t1 t2 . t1 \<in> h ?S \<Longrightarrow> t2 \<in> h ?S \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t_input t1 = t_input t2"
+  proof -
+    fix t1 t2 assume "t1 \<in> h ?S"
+                 and "t2 \<in> h ?S"
+                 and "t_source t1 = t_source t2"
+
+    have "(t_source t1, t_input t1) \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k)"
+      using s_states_induces_state_separator_helper_h[OF \<open>t1 \<in> h ?S\<close>] by assumption
+    moreover have "(t_source t1, t_input t2) \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k)"
+      using s_states_induces_state_separator_helper_h[OF \<open>t2 \<in> h ?S\<close>] \<open>t_source t1 = t_source t2\<close> by auto
+    ultimately show "t_input t1 = t_input t2"
+      using s_states_distinct_states[of "product (from_FSM M q1) (from_FSM M q2)" k]
+      by (meson eq_key_imp_eq_value) 
+  qed
+  then show ?thesis
+    unfolding single_input.simps by blast
+qed
+
+
+lemma s_states_induces_state_separator_helper_retains_outputs :
+  "retains_outputs_for_states_and_inputs 
+          (product (from_FSM M q1) (from_FSM M q2)) 
+              \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) k)),
+                inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+                outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
+                transitions = 
+                   filter 
+                     (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+  (is "retains_outputs_for_states_and_inputs ?PM ?S")
+proof -
+  have "\<And> tS tM . tS \<in> h ?S \<Longrightarrow> tM \<in> h ?PM \<Longrightarrow> t_source tS = t_source tM \<Longrightarrow> t_input tS = t_input tM \<Longrightarrow> tM \<in> h ?S"
+  proof -
+    fix tS tM assume "tS \<in> h ?S" 
+                 and "tM \<in> h ?PM" 
+                 and "t_source tS = t_source tM" 
+                 and "t_input tS = t_input tM"
+
+    have "(t_source tS, t_input tS) \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k)"
+      using s_states_induces_state_separator_helper_h[OF \<open>tS \<in> h ?S\<close>] by assumption
+    then have "\<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source tS = fst qqx \<and> t_input tS = snd qqx"
+      by force
+    then have "\<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source tM = fst qqx \<and> t_input tM = snd qqx"
+      using \<open>t_source tS = t_source tM\<close> \<open>t_input tS = t_input tM\<close> by simp
+    then have "tM \<in> set (transitions ?S)"
+      using \<open>tM \<in> h ?PM\<close> by force
+    moreover have "t_source tM \<in> nodes ?S"
+      using \<open>t_source tS = t_source tM\<close> \<open>tS \<in> h ?S\<close>
+      by (metis (no_types, lifting) wf_transition_simp) 
+    ultimately show "tM \<in> h ?S"
+      by simp
+  qed
+  then show ?thesis
+    unfolding retains_outputs_for_states_and_inputs_def by blast
+qed
+
+
+lemma s_states_transitions_nil :
+  "\<not>(\<exists> t \<in> h M . (t_source t, t_input t) \<in> set (s_states M 0))"
+  proof (cases "find (\<lambda>qx. \<not> (\<exists>t\<in>set (wf_transitions M).
+                                         t_source t = fst qx \<and> t_input t = snd qx))
+                         (concat (map (\<lambda>q. map (Pair q) (inputs M)) (nodes_from_distinct_paths M)))")
+  case None
+  then show ?thesis unfolding s_states.simps by auto
+next
+  case (Some qx)
+  then have "set (s_states M 0) = {qx}"
+    unfolding s_states.simps by auto
+  moreover have "\<not> (\<exists>t\<in>set (wf_transitions M). (t_source t, t_input t) \<in> {qx})"
+    using find_condition[OF Some]
+    by fastforce 
+  ultimately show ?thesis 
+    by blast
+qed
+
+
+lemma s_states_subset :
+  "set (s_states M k) \<subseteq> set (s_states M (Suc k))"
+  unfolding s_states.simps
+  by (simp add: option.case_eq_if subsetI) 
+
+lemma s_states_last :
+  assumes "s_states M (Suc k) \<noteq> s_states M k"
+  shows "\<exists> qx . s_states M (Suc k) = (s_states M k)@[qx]
+                \<and> (\<forall> qx' \<in> set (s_states M k) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h M . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states M k) . fst qx' = (t_target t)))
+                \<and> fst qx \<in> nodes M
+                \<and> snd qx \<in> set (inputs M)"
+proof -
+  have *: "\<not> (length (s_states M k) \<le> k) \<and> find
+          (\<lambda>qx. (\<forall>qx'\<in>set (s_states M k). fst qx \<noteq> fst qx') \<and>
+                (\<forall>t\<in>set (wf_transitions M).
+                    t_source t = fst qx \<and> t_input t = snd qx \<longrightarrow>
+                    (\<exists>qx'\<in>set (s_states M k). fst qx' = t_target t)))
+          (concat (map (\<lambda>q. map (Pair q) (inputs M)) (nodes_from_distinct_paths M))) \<noteq> None"
+    using assms unfolding s_states.simps
+    by (metis (no_types, lifting) option.simps(4))
+
+  then obtain qx where qx_find: "find
+          (\<lambda>qx. (\<forall>qx'\<in>set (s_states M k). fst qx \<noteq> fst qx') \<and>
+                (\<forall>t\<in>set (wf_transitions M).
+                    t_source t = fst qx \<and> t_input t = snd qx \<longrightarrow>
+                    (\<exists>qx'\<in>set (s_states M k). fst qx' = t_target t)))
+          (concat (map (\<lambda>q. map (Pair q) (inputs M)) (nodes_from_distinct_paths M))) = Some qx"
+    by blast
+
+  then have "s_states M (Suc k) = (s_states M k)@[qx]"
+    using * by auto
+  moreover have "(\<forall> qx' \<in> set (s_states M k) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h M . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states M k) . fst qx' = (t_target t)))"
+    using find_condition[OF qx_find] by assumption
+  moreover have "fst qx \<in> nodes M
+                \<and> snd qx \<in> set (inputs M)"
+    using find_set[OF qx_find]
+  proof -
+    have "fst qx \<in> set (nodes_from_distinct_paths M) \<and> snd qx \<in> set (inputs M)"
+      using \<open>qx \<in> set (concat (map (\<lambda>q. map (Pair q) (inputs M)) (nodes_from_distinct_paths M)))\<close> concat_pair_set by blast
+    then show ?thesis
+      by (metis (no_types) nodes_code)
+  qed 
+  ultimately show ?thesis by blast
+qed
+  
+
+lemma s_states_transition_target :
+  assumes "(t_source t, t_input t) \<in> set (s_states M k)"
+  and     "t \<in> h M"
+shows "t_target t \<in> set (map fst (s_states M (k-1)))"
+  and "t_target t \<noteq> t_source t"
+proof -
+  have "t_target t \<in> set (map fst (s_states M (k-1))) \<and> t_target t \<noteq> t_source t"
+    using assms(1) proof (induction k)
+    case 0
+    then show ?case using assms(2) s_states_transitions_nil[of M] by blast
+  next
+    case (Suc k)
+    show ?case proof (cases "(t_source t, t_input t) \<in> set (s_states M k)")
+      case True
+      then have "t_target t \<in> set (map fst (s_states M (k - 1))) \<and> t_target t \<noteq> t_source t"
+        using Suc.IH by auto
+      moreover have "set (s_states M (k - 1)) \<subseteq> set (s_states M (Suc k - 1))"
+        using s_states_subset
+        by (metis Suc_pred' diff_Suc_1 diff_is_0_eq' nat_less_le order_refl zero_le) 
+      ultimately show ?thesis by auto
+    next
+      case False
+      then have "set (s_states M k) \<noteq> set (s_states M (Suc k))"
+        using Suc.prems by blast
+      then have "s_states M (Suc k) \<noteq> s_states M k"
+        by auto
+      
+      obtain qx where    "s_states M (Suc k) = s_states M k @ [qx]"
+                  and    "(\<forall>qx'\<in>set (s_states M k). fst qx \<noteq> fst qx')"
+                  and *: "(\<forall>t\<in>set (wf_transitions M).
+                                 t_source t = fst qx \<and> t_input t = snd qx \<longrightarrow> (\<exists>qx'\<in>set (s_states M k). fst qx' = t_target t))"
+                  and    "fst qx \<in> nodes M \<and> snd qx \<in> set (inputs M)"
+        using s_states_last[OF \<open>s_states M (Suc k) \<noteq> s_states M k\<close>] by blast
+      
+      have "qx = (t_source t, t_input t)"
+        using Suc.prems False \<open>s_states M (Suc k) = s_states M k @ [qx]\<close>
+        by auto
+      then have "(\<exists>qx'\<in>set (s_states M k). fst qx' = t_target t)"
+        using assms(2) by (simp add: "*")
+      then have "t_target t \<in> set (map fst (s_states M (Suc k-1)))"
+        by (metis diff_Suc_1 in_set_zipE prod.collapse zip_map_fst_snd) 
+      moreover have \<open>t_target t \<noteq> t_source t\<close>
+        using \<open>\<exists>qx'\<in>set (s_states M k). fst qx' = t_target t\<close> \<open>\<forall>qx'\<in>set (s_states M k). fst qx \<noteq> fst qx'\<close> \<open>qx = (t_source t, t_input t)\<close> by fastforce
+      ultimately show ?thesis by blast
+    qed
+  qed
+  then show "t_target t \<in> set (map fst (s_states M (k-1)))"
+        and "t_target t \<noteq> t_source t" by simp+
+qed
+
+
+
+fun pathlike :: "'a Transition list \<Rightarrow> bool" where
+ "pathlike [] = True" |
+ "pathlike [t] = True" |
+ "pathlike (t1#t2#ts) = ((t_source t2 = t_target t1) \<and> pathlike (t2#ts))"
+
+lemma pathlike_paths :
+  assumes "path M q p"
+  shows "pathlike p"
+using assms proof (induction p arbitrary: q rule: list.induct)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t1 ts)
+  show ?case proof (cases ts)
+    case Nil
+    then show ?thesis by auto
+  next
+    case (Cons t2 ts')
+    then have "path M q (t1 # t2 # ts')"
+      using \<open>path M q (t1 # ts)\<close> by auto
+    then have "path M (t_target t1) (t2#ts')" and "t_source t2 = t_target t1"
+      by auto
+    then have "pathlike ts"
+      using Cons \<open>\<And> q . path M q ts \<Longrightarrow> pathlike ts\<close> by auto
+    then show ?thesis 
+      using \<open>t_source t2 = t_target t1\<close> Cons by auto    
+  qed
+qed
+
+lemma pathlike_property :
+  assumes "\<And> p . pathlike p \<Longrightarrow> set p \<subseteq> h M \<Longrightarrow> P p"
+  and     "path M q p"
+shows "P p"
+  using assms(1)[OF pathlike_paths[OF assms(2)] path_h[OF assms(2)]] by assumption
+
+lemma s_states_last_ex :
+  assumes "qx1 \<in> set (s_states M k)"
+  shows "\<exists> k' . qx1 = last (s_states M k') \<and> (\<forall> k'' < k' . qx1 \<noteq> last (s_states M k''))"
+proof -
+  obtain k' where "qx1 = last (s_states M k')"
+    by (metis assms in_set_conv_nth s_states_by_index)
+
+  let ?k = "LEAST k' . qx1 = last (s_states M k')"
+  have "qx1 = last (s_states M ?k)"
+    by (meson LeastI \<open>\<And>thesis. (\<And>k'. qx1 = last (s_states M k') \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close>)
+  moreover have "(\<forall> k'' < ?k . qx1 \<noteq> last (s_states M k''))"
+    using not_less_Least by blast
+  ultimately show ?thesis by blast
+qed
+    
+
+lemma s_states_last_least : 
+  assumes "qx1 \<in> set (s_states M k)"
+  shows "(k' = (LEAST k' . qx1 \<in> set (s_states M k'))) \<longleftrightarrow> (qx1 = last (s_states M k') \<and> (\<forall> k'' < k' . qx1 \<noteq> last (s_states M k'')))" 
+proof 
+  show "k' = (LEAST k'. qx1 \<in> set (s_states M k')) \<Longrightarrow> qx1 = last (s_states M k') \<and> (\<forall> k'' < k' . qx1 \<noteq> last (s_states M k''))"
+  proof -
+    assume "k' = (LEAST k'. qx1 \<in> set (s_states M k'))"
+    then have "qx1 \<in> set (s_states M k')" 
+      using assms by (meson LeastI)
+    then have "\<forall> k'' . k'' < k' \<longrightarrow> \<not>(qx1 \<in> set (s_states M k''))"
+      using \<open>k' = (LEAST k'. qx1 \<in> set (s_states M k'))\<close>
+      using not_less_Least by blast 
+    have "qx1 = last (s_states M k') "
+    proof (rule ccontr)
+      assume "qx1 \<noteq> last (s_states M k')"
+      then have "qx1 \<in> set (butlast (s_states M k'))"
+        using \<open>qx1 \<in> set (s_states M k')\<close>
+        by (metis Un_iff append_butlast_last_id insert_iff list.simps(15) set_append) 
+      then have "qx1 \<in> set (s_states M (k'-1))"
+      proof -
+      have f1: "\<forall>n. \<not> 0 < n \<or> n = Suc (n - 1)"
+        by (meson Suc_pred')
+        have f2: "\<forall>p ps. (p::'a \<times> integer) \<notin> set ps \<or> 0 < length ps"
+          by (meson length_pos_if_in_set)
+        then have f3: "length (s_states M k') - 1 = Suc (length (s_states M k') - 1 - 1)"
+          using f1 by (metis \<open>qx1 \<in> set (butlast (s_states M k'))\<close> length_butlast)
+        then have f4: "\<not> Suc k' \<le> length (s_states M k') - 1 \<longrightarrow> \<not> k' < length (butlast (s_states M k')) - 1"
+          by auto
+        have "0 < length (s_states M k')"
+          using f2 \<open>qx1 \<in> set (s_states M k')\<close> by blast
+        then have "Suc k' \<le> length (s_states M k') - 1"
+          using f4 f3 f1 by (metis (no_types) Suc_n_not_le_n \<open>\<forall>k''<k'. qx1 \<notin> set (s_states M k'')\<close> \<open>qx1 \<in> set (butlast (s_states M k'))\<close> leI length_butlast nat_less_le s_states_prefix take_all take_butlast)
+        then show ?thesis
+          using f2 f1 by (metis (no_types) Suc_n_not_le_n \<open>qx1 \<in> set (s_states M k')\<close> order_trans s_states_length)
+      qed
+      then show "False"
+        using \<open>\<forall> k'' . k'' < k' \<longrightarrow> \<not>(qx1 \<in> set (s_states M k''))\<close>
+      proof -
+      have "\<forall>n. (0::nat) = n \<or> 0 < n"
+        by blast
+        then show ?thesis
+          by (metis Suc_pred' \<open>\<forall>k''<k'. qx1 \<notin> set (s_states M k'')\<close> \<open>qx1 \<in> set (butlast (s_states M k'))\<close> \<open>qx1 \<in> set (s_states M (k' - 1))\<close> diff_le_self length_butlast length_pos_if_in_set nat_less_le not_less_eq s_states_length)
+      qed 
+    qed
+    moreover have "(\<forall> k'' < k' . qx1 \<noteq> last (s_states M k''))"
+      using \<open>\<forall> k'' . k'' < k' \<longrightarrow> \<not>(qx1 \<in> set (s_states M k''))\<close>
+      by (metis \<open>qx1 \<in> set (s_states M k')\<close> in_set_conv_nth le_neq_implies_less lessI less_imp_Suc_add s_states_by_index s_states_length s_states_self_length) 
+    ultimately show "qx1 = last (s_states M k') \<and> (\<forall> k'' < k' . qx1 \<noteq> last (s_states M k''))"
+      by blast
+  qed
+
+  have "qx1 = last (s_states M k') \<Longrightarrow> (\<forall>k''<k'. qx1 \<noteq> last (s_states M k'')) \<Longrightarrow> k' = (LEAST k'. qx1 \<in> set (s_states M k'))"
+  proof -
+    assume "qx1 = last (s_states M k')" and "(\<forall>k''<k'. qx1 \<noteq> last (s_states M k''))"
+    
+    have "qx1 \<in> set (s_states M k')" using \<open>qx1 = last (s_states M k')\<close> assms
+      by (metis cancel_comm_monoid_add_class.diff_cancel diff_le_self diff_less last_conv_nth less_numeral_extra(1) not_le not_less_eq_eq nth_mem s_states_prefix take_all take_eq_Nil) 
+    moreover have "(\<forall>k''<k'. qx1 \<notin> set (s_states M k''))"
+      using \<open>(\<forall>k''<k'. qx1 \<noteq> last (s_states M k''))\<close>
+      by (metis Suc_lessI ex_least_nat_le in_set_conv_nth lessI less_le_trans not_less0 s_states_by_index s_states_length) 
+    ultimately show ?thesis
+      by (meson LeastI nat_neq_iff not_less_Least) 
+  qed
+  then show "qx1 = last (s_states M k') \<and> (\<forall>k''<k'. qx1 \<noteq> last (s_states M k'')) \<Longrightarrow> k' = (LEAST k'. qx1 \<in> set (s_states M k'))" 
+    by blast
+qed
+
+
+lemma s_states_distinct_least :
+  assumes "t \<in> set (filter 
+                           (\<lambda>t . \<exists> qqx \<in> set (s_states M k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                        (wf_transitions M))"
+  shows "(LEAST k' . t_target t \<in> set (map fst (s_states M k'))) < (LEAST k' . t_source t \<in> set (map fst (s_states M k')))"
+    and "t_source t \<in> set (map fst (s_states M k))"
+    and "t_target t \<in> set (map fst (s_states M k))"
+proof -
+  have "(LEAST k' . t_target t \<in> set (map fst (s_states M k'))) < (LEAST k' . t_source t \<in> set (map fst (s_states M k')))
+         \<and> t_source t \<in> set (map fst (s_states M k))
+         \<and> t_target t \<in> set (map fst (s_states M k))"
+  using assms proof (induction k)
+    case 0
+    then show ?case
+    proof -
+      have f1: "t \<in> set (filter (\<lambda>p. \<exists>pa. pa \<in> set (s_states M 0) \<and> t_source p = fst pa \<and> t_input p = snd pa) (wf_transitions M))"
+        by (metis (full_types) "0.prems")
+      then have f2: "t \<in> set (wf_transitions M)"
+        by (meson filter_is_subset subsetCE)
+      have "\<exists>p. p \<in> set (s_states M 0) \<and> t_source t = fst p \<and> t_input t = snd p"
+        using f1 by simp
+      then show ?thesis
+        using f2 by (metis (no_types) prod.collapse s_states_transitions_nil)
+    qed 
+  next
+    case (Suc k)
+    show ?case proof (cases "s_states M (Suc k) = s_states M k")
+      case True
+      then show ?thesis using Suc by auto
+    next
+      case False
+  
+      obtain qx where "s_states M (Suc k) = s_states M k @ [qx]"
+                      "(\<forall>qx'\<in>set (s_states M k). fst qx \<noteq> fst qx')"
+                      "(\<forall>t\<in>set (wf_transitions M).
+                         t_source t = fst qx \<and> t_input t = snd qx \<longrightarrow>
+                         (\<exists>qx'\<in>set (s_states M k). fst qx' = t_target t))"
+                      "fst qx \<in> nodes M \<and> snd qx \<in> set (inputs M)"
+        using s_states_last[OF False] by blast
+  
+      
+  
+      then show ?thesis proof (cases "t_source t = fst qx")
+        case True
+  
+        
+        
+        have "fst qx \<notin> set (map fst (s_states M k))"
+          using \<open>\<forall>qx'\<in>set (s_states M k). fst qx \<noteq> fst qx'\<close> by auto
+        then have "\<And> k' . k' < Suc k \<Longrightarrow> fst qx \<notin> set (map fst (s_states M k'))"
+          using s_states_prefix[of _ k M]
+          by (metis \<open>\<forall>qx'\<in>set (s_states M k). fst qx \<noteq> fst qx'\<close> in_set_takeD less_Suc_eq_le list_map_source_elem) 
+        moreover have "fst qx \<in> set (map fst (s_states M (Suc k)))"
+          using \<open>s_states M (Suc k) = s_states M k @ [qx]\<close> by auto
+          
+        ultimately have "(LEAST k' . fst qx \<in> set (map fst (s_states M k'))) = Suc k"
+        proof -
+          have "\<not> (LEAST n. fst qx \<in> set (map fst (s_states M n))) < Suc k"
+            by (meson LeastI_ex \<open>\<And>k'. k' < Suc k \<Longrightarrow> fst qx \<notin> set (map fst (s_states M k'))\<close> \<open>fst qx \<in> set (map fst (s_states M (Suc k)))\<close>)
+          then show ?thesis
+            by (meson \<open>fst qx \<in> set (map fst (s_states M (Suc k)))\<close> not_less_Least not_less_iff_gr_or_eq)
+        qed 
+  
+  
+        have "(t_source t, t_input t) \<in> set (s_states M (Suc k)) \<and> t \<in> set (wf_transitions M)"
+          using Suc.prems by auto 
+        then have "t_target t \<in> set (map fst (s_states M k))"
+          using s_states_transition_target(1)[of t M "Suc k"] by auto
+        then have "(LEAST k' . t_target t \<in> set (map fst (s_states M k'))) \<le> k"
+          by (simp add: Least_le)
+        then have "(LEAST k'. t_target t \<in> set (map fst (s_states M k'))) < (LEAST k'. t_source t \<in> set (map fst (s_states M k')))" 
+          using \<open>(LEAST k' . fst qx \<in> set (map fst (s_states M k'))) = Suc k\<close> True by force
+        then show ?thesis
+          using \<open>fst qx \<in> set (map fst (s_states M (Suc k)))\<close> True 
+                \<open>t_target t \<in> set (map fst (s_states M k))\<close>
+                \<open>s_states M (Suc k) = s_states M k @ [qx]\<close> by auto
+      next
+        case False
+        then show ?thesis
+          using Suc.IH Suc.prems \<open>s_states M (Suc k) = s_states M k @ [qx]\<close> by fastforce 
+      qed
+    qed
+  qed
+
+  then show "(LEAST k' . t_target t \<in> set (map fst (s_states M k'))) < (LEAST k' . t_source t \<in> set (map fst (s_states M k')))"
+        and "t_source t \<in> set (map fst (s_states M k))"
+        and "t_target t \<in> set (map fst (s_states M k))" by simp+
+qed
+
+
+
+lemma s_states_induces_state_separator_helper_distinct_pathlikes :
+  assumes (*"pathlike p"*)
+          "\<And> i . (Suc i) < length p \<Longrightarrow> t_source (p ! (Suc i)) = t_target (p ! i)"
+  assumes "set p \<subseteq> set (filter 
+                           (\<lambda>t . \<exists> qqx \<in> set (s_states M k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                        (wf_transitions M))"
+  shows "distinct (map t_target p)" 
+proof - 
+
+  have "\<And> t . t \<in> set p \<Longrightarrow> \<exists> k' \<le> k . (t_source t, t_input t) \<in> set (s_states M k')"
+    using assms(2)
+  proof -
+    fix t :: "'a \<times> integer \<times> integer \<times> 'a"
+    assume a1: "t \<in> set p"
+    have f2: "set p \<subseteq> Set.filter (\<lambda>p. \<exists>pa. pa \<in> set (s_states M k) \<and> t_source p = fst pa \<and> t_input p = snd pa) (set (wf_transitions M))"
+      by (metis assms(2) filter_set)
+    have "\<And>pa P. \<not> set p \<subseteq> Set.filter pa P \<or> pa t"
+      using a1 by (meson contra_subsetD member_filter)
+    then show "\<exists>n\<le>k. (t_source t, t_input t) \<in> set (s_states M n)"
+      using f2 by auto
+  qed 
+
+
+
+
+
+
+
+  let ?f = "(\<lambda> t . LEAST k' . (t_source t, t_input t) \<in> set (s_states M k'))"
+  
+
+  let ?pf = "map ?f p"
+  
+  have "\<And> i . (Suc i) < length p \<Longrightarrow> ?f (p ! i) > ?f (p ! (Suc i))"
+  proof -
+    fix i assume "Suc i < length p"
+    let ?t1 = "(p ! i)"
+    let ?t2 = "(p ! (Suc i))"
+
+    have "?t1 \<in> set p" and "?t2 \<in> set p"
+      using \<open>Suc i < length p\<close> by auto
+
+    have "?t1 \<in> h M"
+      using assms(2) using \<open>p ! i \<in> set p\<close> by auto 
+    have "?t2 \<in> h M"
+      using assms(2) using \<open>p ! (Suc i) \<in> set p\<close> by auto 
+
+    have "(t_source ?t1,t_input ?t1) = last (s_states M (?f ?t1))" 
+    and  "(\<forall> k'' < (?f ?t1) . (t_source ?t1,t_input ?t1) \<noteq> last (s_states M k''))"
+      using s_states_last_least
+      using \<open>\<And>t. t \<in> set p \<Longrightarrow> \<exists>k'\<le>k. (t_source t, t_input t) \<in> set (s_states M k')\<close> \<open>p ! i \<in> set p\<close> by blast+
+
+    have "(t_source ?t2,t_input ?t2) = last (s_states M (?f ?t2))" 
+    and  "(\<forall> k'' < (?f ?t2) . (t_source ?t2,t_input ?t2) \<noteq> last (s_states M k''))"
+      using s_states_last_least
+      using \<open>\<And>t. t \<in> set p \<Longrightarrow> \<exists>k'\<le>k. (t_source t, t_input t) \<in> set (s_states M k')\<close> \<open>p ! (Suc i) \<in> set p\<close> by blast+
+
+    have "(t_source (p ! i), t_input (p ! i)) \<in> set (s_states M (?f ?t1))"
+      using \<open>p ! i \<in> set p\<close>
+      by (meson LeastI \<open>\<And>t. t \<in> set p \<Longrightarrow> \<exists>k'\<le>k. (t_source t, t_input t) \<in> set (s_states M k')\<close>) 
+    then have "t_target ?t1 \<in> set (map fst (s_states M ((?f ?t1) - 1)))"
+      using s_states_transition_target[OF _ \<open>?t1 \<in> h M\<close>] by blast
+    
+
+    have "t_source ?t2 = t_target ?t1"
+      using assms(1) \<open>Suc i < length p\<close> by auto
+    
+      
+    ultimately have "?f ?t2 < (?f ?t1)"
+      
+    ultimately have "?f ?t2 \<le> ((?f ?t1) - 1)"
+
+
+end (*
+lemma s_states_induces_state_separator_helper_distinct_pathlikes :
+  assumes "pathlike p"
+  assumes "set p \<subseteq> set (filter 
+                           (\<lambda>t . \<exists> qqx \<in> set (s_states M k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                        (wf_transitions M))"
+  shows "distinct (map t_target p)" 
+proof - 
+
+  have "\<And> t . t \<in> set p \<Longrightarrow> \<exists> k' \<le> k . (t_source t, t_input t) \<in> set (s_states M k')"
+    using assms(2)
+  proof -
+    fix t :: "'a \<times> integer \<times> integer \<times> 'a"
+    assume a1: "t \<in> set p"
+    have f2: "set p \<subseteq> Set.filter (\<lambda>p. \<exists>pa. pa \<in> set (s_states M k) \<and> t_source p = fst pa \<and> t_input p = snd pa) (set (wf_transitions M))"
+      by (metis assms(2) filter_set)
+    have "\<And>pa P. \<not> set p \<subseteq> Set.filter pa P \<or> pa t"
+      using a1 by (meson contra_subsetD member_filter)
+    then show "\<exists>n\<le>k. (t_source t, t_input t) \<in> set (s_states M n)"
+      using f2 by auto
+  qed 
+
+  let ?f = "(\<lambda> t . LEAST k' . (t_source t, t_input t) \<in> set (s_states M k'))"
+  
+
+  let ?pf = "map ?f p"
+  
+  have "\<And> i . (Suc i) < length p \<Longrightarrow> ?f (p ! i) > ?f (p ! (Suc i))"
+  proof -
+    fix i assume "Suc i < length p"
+    let ?t1 = "(p ! i)"
+    let ?t2 = "(p ! (Suc i))"
+
+    have "?t1 \<in> set p" and "?t2 \<in> set p"
+      using \<open>Suc i < length p\<close> by auto
+
+    have "?t1 \<in> h M"
+      using assms(2) using \<open>p ! i \<in> set p\<close> by auto 
+    have "?t2 \<in> h M"
+      using assms(2) using \<open>p ! (Suc i) \<in> set p\<close> by auto 
+
+    have "(t_source ?t1,t_input ?t1) = last (s_states M (?f ?t1))" 
+    and  "(\<forall> k'' < (?f ?t1) . (t_source ?t1,t_input ?t1) \<noteq> last (s_states M k''))"
+      using s_states_last_least
+      using \<open>\<And>t. t \<in> set p \<Longrightarrow> \<exists>k'\<le>k. (t_source t, t_input t) \<in> set (s_states M k')\<close> \<open>p ! i \<in> set p\<close> by blast+
+
+    have "(t_source ?t2,t_input ?t2) = last (s_states M (?f ?t2))" 
+    and  "(\<forall> k'' < (?f ?t2) . (t_source ?t2,t_input ?t2) \<noteq> last (s_states M k''))"
+      using s_states_last_least
+      using \<open>\<And>t. t \<in> set p \<Longrightarrow> \<exists>k'\<le>k. (t_source t, t_input t) \<in> set (s_states M k')\<close> \<open>p ! (Suc i) \<in> set p\<close> by blast+
+
+    have "(t_source (p ! i), t_input (p ! i)) \<in> set (s_states M (?f ?t1))"
+      using \<open>p ! i \<in> set p\<close>
+      by (meson LeastI \<open>\<And>t. t \<in> set p \<Longrightarrow> \<exists>k'\<le>k. (t_source t, t_input t) \<in> set (s_states M k')\<close>) 
+    then have "t_target ?t1 \<in> set (map fst (s_states M ((?f ?t1) - 1)))"
+      using s_states_transition_target[OF _ \<open>?t1 \<in> h M\<close>] by blast
+    moreover have "t_source ?t2 = t_target ?t1"
+      using assms(1) \<open>Suc i < length p\<close> proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case by auto
+    next
+      case (snoc t p)
+      then show ?case proof (cases "Suc i < length p"; auto)
+    qed 
+    then have "?f ?t2 \<le> ((?f ?t1) - 1)"
+      
+
+    
+    
+
+end (*
+
+(rule ccontr)
+  assume "\<not> distinct (map t_target p)"
+  then obtain 
+  
+
+using assms proof (induction p)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t1 p')
+  show ?case proof (cases "p' = []")
+    case True
+    then show ?thesis by auto
+  next
+    case False
+    then obtain t2 ts where "p' = t2#ts"
+      using list.exhaust_sel by blast 
+    then have "t_source t2 = t_target t1"
+      using Cons.prems(1) by auto
+    then have "True"
+      using s_states_transition_target
+      
+    then show ?thesis 
+  qed
+qed
+
+
+lemma s_states_induces_state_separator_helper_distinct_paths :
+  assumes "path \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))),
+                      inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+                      outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
+                      transitions = 
+                         filter 
+                           (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>
+                 (fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))))
+                 p"
+    (is "path ?S (fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)))) p")
+  shows "distinct (visited_states (fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)))) p)" 
+proof -
+
+
+
+lemma s_states_induces_state_separator_helper_h_prefix :
+  assumes "t \<in> h \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))),
+                      inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+                      outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
+                      transitions = 
+                         filter 
+                           (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+    (is "t \<in> h ?S")
+  shows "t_target t \<in> set (map fst (s_states (product (from_FSM M q1) (from_FSM M q2)) k))" 
+proof -
+  
+
+
+
 (* slightly modified version *)
 definition induces_state_separator_for_prod :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> bool" where
   "induces_state_separator_for_prod M q1 q2 S = (
@@ -1404,6 +2013,10 @@ definition induces_state_separator_for_prod :: "('a, 'b) FSM_scheme \<Rightarrow
     \<and> (\<forall> qq \<in> nodes S . deadlock_state S qq \<longrightarrow> (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) )
     \<and> retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) S
 )"
+
+
+end (*
+
 
 lemma s_states_induces_state_separator :
   assumes "(s_states (product (from_FSM M q1) (from_FSM M q2)) k) \<noteq> []" 
