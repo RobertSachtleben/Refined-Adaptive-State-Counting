@@ -1601,6 +1601,10 @@ using assms(1) proof (induction k rule: less_induct)
     next
       case False
 
+      then have "s_states (product (from_FSM M q1) (from_FSM M q2)) x = s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)"
+                "s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k) \<noteq> []"
+        using Suc less.prems by auto
+
       let ?PM = "product (from_FSM M q1) (from_FSM M q2)"
       let ?S = "\<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))),
                   inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
@@ -1646,37 +1650,43 @@ using assms(1) proof (induction k rule: less_induct)
 
       then have "qx = last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))"
         by auto
+      then have "(s_states ?PM (Suc k)) ! (Suc k) = qx"
+        using \<open>length (s_states ?PM (Suc k)) = Suc (Suc k)\<close>
+        by (metis lessI s_states_by_index) 
+      have "(Suc k) < length (s_states ?PM (Suc k))"
+        using \<open>length (s_states ?PM (Suc k)) = Suc (Suc k)\<close> by auto
 
       
-        
+      have "fst qx \<in> nodes ?PM"
+        using s_states_index_properties(1)[OF \<open>(Suc k) < length (s_states ?PM (Suc k))\<close>] \<open>(s_states ?PM (Suc k)) ! (Suc k) = qx\<close> by auto
+      have "snd qx \<in> set (inputs ?PM)"
+        using s_states_index_properties(2)[OF \<open>(Suc k) < length (s_states ?PM (Suc k))\<close>] \<open>(s_states ?PM (Suc k)) ! (Suc k) = qx\<close> by auto 
+      then have "snd qx \<in> set (inputs M)"
+        by (simp add: product_simps(2) from_FSM_simps(2))
+      have "\<forall> qx' \<in> set (take (Suc k) (s_states ?PM (Suc k))). fst qx \<noteq> fst qx'"
+        using s_states_index_properties(3)[OF \<open>(Suc k) < length (s_states ?PM (Suc k))\<close>] \<open>(s_states ?PM (Suc k)) ! (Suc k) = qx\<close> by blast
+      have "\<forall> t \<in> h ?PM.
+               t_source t = fst qx \<and>
+               t_input t = snd qx \<longrightarrow>
+               (\<exists>qx'\<in>set (take (Suc k) (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))).
+                   fst qx' = t_target t)"
+        using s_states_index_properties(4)[OF \<open>(Suc k) < length (s_states ?PM (Suc k))\<close>] \<open>(s_states ?PM (Suc k)) ! (Suc k) = qx\<close> by blast
 
+      
+
+    
+
+      (* avoid handling the entire term of ?S *)
+      obtain S where "S = ?S" by blast
+    
+      
+    
+      (* single input *)
+    
+      
+    
+    
       then show ?thesis sorry
-    qed
-
-    then have "s_states (product (from_FSM M q1) (from_FSM M q2)) x = s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)"
-              "s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k) \<noteq> []"
-      using less.prems by auto
-
-    let ?PM = "(product (from_FSM M q1) (from_FSM M q2))"
-    let ?S = " \<lparr> initial = fst (last (s_states ?PM (Suc k))),
-                                     inputs = inputs ?PM,
-                                     outputs = outputs ?PM,
-                                     transitions = 
-                                        filter 
-                                          (\<lambda>t . \<exists> qqx \<in> set (s_states ?PM (Suc k)) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                                          (wf_transitions ?PM) \<rparr>"
-
-    (* avoid handling the entire term of ?S *)
-    obtain S where "S = ?S" by blast
-
-    
-
-    (* single input *)
-
-    
-
-
-    then show ?thesis sorry
   qed
 qed
  
