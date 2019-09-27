@@ -70,8 +70,9 @@ fun calculate_separator_states :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Right
 
 (* Variation that calculates the transition relation only after selecting states and corresponding inputs *)
 fun calculate_separator_from_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a), 'b) FSM_scheme option" where
+(* TODO: replace dummy inputs for Inr-values *)
   "calculate_separator_from_states M q1 q2 = (let C = (canonical_separator M q1 q2) in 
-    (case calculate_separator_states C (size C) {(Inr q1,0), (Inr q2,0)} of (* TODO: replace dummy inputs for Inr-values *)
+    (case calculate_separator_states C (size C) {(Inr q1,0), (Inr q2,0)} of 
       Some Q \<Rightarrow> Some \<lparr> initial = Inl (q1,q2), inputs = inputs C, outputs = outputs C, transitions = filter (\<lambda> t . (t_source t,t_input t) \<in> Q) (wf_transitions C), \<dots> = FSM.more M\<rparr> |
     None \<Rightarrow> None))" 
 
@@ -124,7 +125,6 @@ value "merge_sub_intersections
 abbreviation "merge_FSMs M S \<equiv> (\<lparr> initial = initial M, 
                                           inputs = inputs M, 
                                           outputs = outputs M, 
-                                          (*transitions = (wf_transitions M) @ (filter (\<lambda> t2 . \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)) (wf_transitions S)), *)
                                           transitions = (wf_transitions M) @ (filter (\<lambda> t2 . (t_source t2 = initial S \<or> t_source t2 \<notin> nodes M) \<and> \<not> (\<exists> t1 \<in> h M . t_source t1 = t_source t2)) (wf_transitions S)),
                                           \<dots> = more M \<rparr>)"
 
@@ -894,7 +894,7 @@ value "h (the (calculate_separator_merge_alg_full M_ex_9 0 3))"
 
 definition induces_state_separator :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> bool" where
   "induces_state_separator M S = (
-    (* initial S = (q1,q2) *)
+    
     is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
     \<and> single_input S
     \<and> acyclic S
@@ -1803,9 +1803,8 @@ qed
 
 
 (* TODO: move *)
-(* TODO: remove integer constraint \<rightarrow> less_trans? *)
 lemma ordered_list_distinct :
-  fixes xs :: "nat list"
+  fixes xs :: "('a::preorder) list"
   assumes "\<And> i . Suc i < length xs \<Longrightarrow> (xs ! i) < (xs ! (Suc i))"
   shows "distinct xs"
 proof -
@@ -1859,13 +1858,13 @@ proof -
             
             have "(\<And>i. Suc i < length xs \<Longrightarrow> xs ! i < xs ! Suc i) \<Longrightarrow> xs ! i < xs ! (j - 1)"
               using snoc.IH[OF 1] snoc.prems(2) 2 by simp 
-            then have "(xs @ [a]) ! i < (xs @ [a]) ! (j -1)"
+            then have le1: "(xs @ [a]) ! i < (xs @ [a]) ! (j -1)"
               using snoc.prems(2)
               by (metis "2" False One_nat_def Suc_diff_Suc Suc_lessD diff_zero length_append_singleton less_SucE not_less_eq nth_append snoc.prems(1) snoc.prems(3))
-            moreover have "(xs @ [a]) ! (j -1) < (xs @ [a]) ! j"
+            moreover have le2: "(xs @ [a]) ! (j -1) < (xs @ [a]) ! j"
               using snoc.prems(2,3) 2
               by (metis (full_types) One_nat_def Suc_diff_Suc diff_zero less_numeral_extra(1) less_trans)  
-            ultimately show ?thesis using snoc.prems(1,2)
+            ultimately show ?thesis 
               using less_trans by blast
           next
             case 2
@@ -1880,15 +1879,14 @@ proof -
   qed
 
   then show ?thesis
-    by (metis non_distinct_repetition_indices not_less_iff_gr_or_eq)
+    by (metis less_asym non_distinct_repetition_indices)
 qed
 
 
 
 (* TODO: move *)
-(* TODO: remove integer constraint \<rightarrow> less_trans? *)
 lemma ordered_list_distinct_rev :
-  fixes xs :: "nat list"
+  fixes xs :: "('a::preorder) list"
   assumes "\<And> i . Suc i < length xs \<Longrightarrow> (xs ! i) > (xs ! (Suc i))"
   shows "distinct xs"
 proof -
