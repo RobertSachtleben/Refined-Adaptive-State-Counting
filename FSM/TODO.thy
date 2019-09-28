@@ -2642,6 +2642,11 @@ proof -
   let ?SSep = "state_separator_from_product_submachine M S"
   let ?PM = "(product (from_FSM M ?q1) (from_FSM M ?q2))"
 
+
+  (* TODO: ? *)
+  obtain SSep where ssep_var: "SSep = ?SSep" by blast
+  obtain CSep where csep_var: "CSep = ?CSep" by blast
+
   have "is_submachine S ?PM"
    and "single_input S"
    and "acyclic S"
@@ -2914,24 +2919,118 @@ proof -
                        (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
                          (nodes_from_distinct_paths
                            (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
-  have d_left_targets: "\<And> t . t \<in> set ?d_left \<Longrightarrow> t_target t = Inr ?q1" 
-  and  d_right_targets: "\<And> t . t \<in> set ?d_right \<Longrightarrow> t_target t = Inr ?q2"
+
+  obtain d_right::"(('a \<times> 'a) + 'a) Transition list"  where d_right_var: "d_right = ?d_right" by blast
+  obtain d_left::"(('a \<times> 'a) + 'a) Transition list"  where d_left_var: "d_left = ?d_left" by blast
+  obtain d_old::"(('a \<times> 'a) + 'a) Transition list"  where d_old_var: "d_old = ?d_old" by blast
+
+  have d_left_targets: "\<And> t . t \<in> set d_left \<Longrightarrow> t_target t = Inr ?q1" 
+  and  d_right_targets: "\<And> t . t \<in> set d_right \<Longrightarrow> t_target t = Inr ?q2"
   proof -
     have *: "\<And> xs t q . t \<in> set (map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), q)) xs) \<Longrightarrow> t_target t = q" by auto
-    show "\<And> t . t \<in> set ?d_left \<Longrightarrow> t_target t = Inr ?q1"
-      using * by blast
-    show "\<And> t . t \<in> set ?d_right \<Longrightarrow> t_target t = Inr ?q2"
-      using * by blast
+    show "\<And> t . t \<in> set d_left \<Longrightarrow> t_target t = Inr ?q1"
+      using * d_left_var by blast
+    show "\<And> t . t \<in> set d_right \<Longrightarrow> t_target t = Inr ?q2"
+      using * d_right_var by blast
   qed
 
-  have d_old_targets : "\<And> t . t \<in> set ?d_old \<Longrightarrow> isl (t_target t) \<and> (\<exists> qs qt . t_source t = Inl qs \<and> t_target t = Inl qt \<and> (qs,t_input t,t_output t, qt) \<in> h S)"
-  proof 
-    show "\<And> t . t \<in> set ?d_old \<Longrightarrow> isl (t_target t)" by auto
-    show "\<And> t . t \<in> set ?d_old \<Longrightarrow> (\<exists> qs qt . t_source t = Inl qs \<and> t_target t = Inl qt \<and> (qs,t_input t,t_output t, qt) \<in> h S)"
-    proof -
-      fix t :: "(('a \<times> 'a) + 'a) Transition" 
-      assume "t \<in> set ?d_old" 
+  have d_old_targets : "\<And> t . t \<in> set d_old \<Longrightarrow> isl (t_target t) \<and> (\<exists> t' \<in> h S . t = (Inl (t_source t'), t_input t', t_output t', Inl (t_target t')))"
+    using d_old_var by auto
+
+  
+
+      
+  have "transitions ?SSep = ?d_old @ ?d_left @ ?d_right"
+    unfolding state_separator_from_product_submachine.simps by (simp only: select_convs)
+  then have d_containment : "set (transitions ?SSep) = set ?d_old \<union> set ?d_left \<union> set ?d_right"
+    by (metis (no_types, lifting) append.assoc set_append)
+  then have d_containment_var : "set (transitions SSep) = set d_old \<union> set d_left \<union> set d_right"
+    using ssep_var d_old_var d_left_var d_right_var by blast
+  
+  have "\<And> qs x y qt . (Inl qs,x,y,Inl qt) \<in> set d_old \<Longrightarrow> (qs,x,y,qt) \<in> h S"
+    using d_old_targets
+    by auto 
+  moreover have "\<And> qs x y qt . (Inl qs,x,y,Inl qt) \<in> set (transitions SSep) \<Longrightarrow> (Inl qs,x,y,Inl qt) \<in> set d_old"
+    using d_containment_var d_left_targets d_right_targets
+    by fastforce 
+  ultimately have d_old_origins: "\<And> qs x y qt . (Inl qs,x,y,Inl qt) \<in> h SSep \<Longrightarrow> (qs,x,y,qt) \<in> h S"
+    by blast
+
+  
+
+  have "initial SSep = Inl (initial S)"
+    using ssep_var unfolding state_separator_from_product_submachine.simps
+    by (simp only: select_convs)
+  have "inputs SSep = inputs M"
+    using ssep_var unfolding state_separator_from_product_submachine.simps
+    by (simp only: select_convs)
+  then have "set (inputs SSep) = set (inputs S)"
+    using \<open>inputs S = inputs ?PM\<close>
+    by (simp add: from_FSM_product_inputs) 
+  have "outputs SSep = outputs M"
+    using ssep_var unfolding state_separator_from_product_submachine.simps
+    by (simp only: select_convs)
+  then have "set (outputs SSep) = set (outputs S)"
+    using \<open>outputs S = outputs ?PM\<close>
+    by (simp add: from_FSM_product_outputs)   
     
+
+  have "\<And> p . path S (initial S) p \<Longrightarrow> path SSep (initial SSep) (map shift_Inl p)"
+  proof - 
+    fix p assume "path S (initial S) p"
+    then show "path SSep (initial SSep) (map shift_Inl p)" proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case by auto 
+    next
+      case (snoc t p) 
+      then have "path S (initial S) p" and "t \<in> h S" and "t_source t = target p (initial S)"
+        by auto
+
+      have "shift_Inl t \<in> set d_old"
+        using d_old_var \<open>t \<in> h S\<close> by auto
+
+      have "target (map shift_Inl p) (Inl (initial S)) \<in> nodes SSep"
+        using snoc.IH[OF \<open>path S (initial S) p\<close>] \<open>initial SSep = Inl (initial S)\<close>
+        using path_target_is_node by fastforce 
+      moreover have "target (map shift_Inl p) (Inl (initial S)) = Inl (t_source t)"
+        using \<open>t_source t = target p (initial S)\<close> by (cases p rule: rev_cases; auto) 
+      ultimately have "Inl (t_source t) \<in> nodes SSep" 
+        using \<open>t_source t = target p (initial S)\<close>
+        by (metis \<open>target (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p) (Inl (initial S)) = Inl (t_source t)\<close> \<open>target (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p) (Inl (initial S)) \<in> nodes SSep\<close>)
+      then have "t_source (shift_Inl t) \<in> nodes SSep"
+        by auto
+      moreover have "t_input (shift_Inl t) \<in> set (inputs SSep)"
+        using \<open>t \<in> h S\<close> \<open>set (inputs SSep) = set (inputs S)\<close> by auto
+      moreover have "t_output (shift_Inl t) \<in> set (outputs SSep)"
+        using \<open>t \<in> h S\<close> \<open>set (outputs SSep) = set (outputs S)\<close> by auto
+      ultimately have "shift_Inl t \<in> h SSep"
+        using \<open>shift_Inl t \<in> set d_old\<close> d_containment_var by auto
+      
+      then show ?case 
+        using snoc.IH[OF \<open>path S (initial S) p\<close>]  \<open>target (map shift_Inl p) (Inl (initial S)) = Inl (t_source t)\<close> \<open>initial SSep = Inl (initial S)\<close>
+      proof -
+        have f1: "path SSep (Inl (t_source t)) [(Inl (t_source t), t_input t, t_output t, Inl (t_target t))]"
+          by (meson \<open>(Inl (t_source t), t_input t, t_output t, Inl (t_target t)) \<in> set (wf_transitions SSep)\<close> single_transitions_path)
+        have "map (\<lambda>p. (Inl (t_source p)::'a \<times> 'a + 'a, t_input p, t_output p, Inl (t_target p)::'a \<times> 'a + 'a)) [t] = [(Inl (t_source t), t_input t, t_output t, Inl (t_target t))]"
+          by auto
+        then have "path SSep (target (map (\<lambda>p. (Inl (t_source p), t_input p, t_output p, Inl (t_target p))) p) (Inl (initial S))) (map (\<lambda>p. (Inl (t_source p), t_input p, t_output p, Inl (t_target p))) [t])"
+          using f1 by (metis (no_types) \<open>target (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p) (Inl (initial S)) = Inl (t_source t)\<close>)
+        then have "path SSep (Inl (initial S)) (map (\<lambda>p. (Inl (t_source p), t_input p, t_output p, Inl (t_target p))) p @ map (\<lambda>p. (Inl (t_source p), t_input p, t_output p, Inl (t_target p))) [t])"
+          using \<open>initial SSep = Inl (initial S)\<close> \<open>path SSep (initial SSep) (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p)\<close> by force
+        then show ?thesis
+          using \<open>initial SSep = Inl (initial S)\<close> by auto
+      qed 
+    qed
+  qed
+
+
+  have "\<And> t . t \<in> h S \<Longrightarrow> shift_Inl t \<in> h SSep"
+  proof -
+  have "set (map shift_Inl (wf_transitions S)) \<subseteq> h SSep"
+    
+
+
+end (*
 
 
   have inl_prop: "\<And> q . q \<in> nodes ?SSep \<Longrightarrow> q \<noteq> Inr ?q1 \<Longrightarrow> q \<noteq> Inr ?q2 \<Longrightarrow>
@@ -3013,10 +3112,37 @@ proof -
 
         have "(Inl qq',t_input t, t_output t, Inl qq) \<in> h ?SSep"
           using \<open>t \<in> h ?SSep\<close> \<open>t_source t = Inl qq'\<close> \<open>t_target t = Inl qq\<close> using prod.collapse by metis
-        
-        
 
-        have "(qq',t_input t, t_output t,qq) \<in> h S"
+        then have "(qq',t_input t, t_output t,qq) \<in> h S" 
+          using ssep_var d_old_origins by blast 
+        then show ?thesis using wf_transition_target
+          by fastforce 
+      qed
+      
+      show "\<not> (deadlock_state ?SSep (Inl qq))"
+      proof (cases "deadlock_state S qq")
+        case True
+        show ?thesis using dl[OF \<open>qq \<in> nodes S\<close> True] sorry
+      next
+        case False
+        then show ?thesis sorry
+      qed
+
+
+        then have "(Inl qq',t_input t, t_output t, Inl qq) \<in> set (transitions ?SSep)"
+          by blast
+
+        then have "(Inl qq',t_input t, t_output t, Inl qq) \<in> set (transitions SSep)"
+          using ssep_var by blast
+        
+        
+        then have "(Inl qq',t_input t, t_output t, Inl qq) \<in> set d_old"
+          using d_left_targets[of "(Inl qq',t_input t, t_output t, Inl qq)"] d_right_targets[of "(Inl qq',t_input t, t_output t, Inl qq)"] d_containment_var
+          by auto
+        then have "(qq',t_input t, t_output t,qq) \<in> h S" 
+          using d_old_origins 
+          using d_old_targets[OF \<open>(Inl qq',t_input t, t_output t, Inl qq) \<in> set d_old\<close>] 
+          using \<open>(Inl qq',t_input t, t_output t, Inl qq) \<in> h ?SSep\<close>  
           
 
         then show ?thesis sorry
