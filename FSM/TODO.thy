@@ -2690,14 +2690,25 @@ proof -
     proof -
       fix qq t assume "qq \<in> nodes ?PM" and "t \<in> h M" and "t_source t = fst qq" and "s_states_deadlock_input M S qq = Some (t_input t)"
 
+
       have "qq \<in> nodes S" and "deadlock_state S qq" and f: "find
-         (\<lambda>x. x \<in> set (inputs M) \<and>
-              \<not> (\<exists>t1\<in>set (wf_transitions M).
+         (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
                      \<exists>t2\<in>set (wf_transitions M).
                         t_source t1 = fst qq \<and>
                         t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
          (inputs M) = Some (t_input t)"
         using \<open>s_states_deadlock_input M S qq = Some (t_input t)\<close> unfolding s_states_deadlock_input_def
+        
+        by (meson option.distinct(1))+
+
+      have "qq \<in> nodes S" and "deadlock_state S qq" and f: "find
+         (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                     \<exists>t2\<in>set (wf_transitions M).
+                        t_source t1 = fst qq \<and>
+                        t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+         (inputs M) = Some (t_input t)"
+        using \<open>s_states_deadlock_input M S qq = Some (t_input t)\<close> unfolding s_states_deadlock_input_def
+        
         by (meson option.distinct(1))+
       have "\<not> (\<exists>t1\<in>set (wf_transitions M).
                      \<exists>t2\<in>set (wf_transitions M).
@@ -2770,8 +2781,7 @@ proof -
       fix qq t assume "qq \<in> nodes ?PM" and "t \<in> h M" and "t_source t = snd qq" and "s_states_deadlock_input M S qq = Some (t_input t)"
 
       have "qq \<in> nodes S" and "deadlock_state S qq" and f: "find
-         (\<lambda>x. x \<in> set (inputs M) \<and>
-              \<not> (\<exists>t1\<in>set (wf_transitions M).
+         (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
                      \<exists>t2\<in>set (wf_transitions M).
                         t_source t1 = fst qq \<and>
                         t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
@@ -3178,7 +3188,7 @@ proof -
     qed
     *)
     
-    have "isl q" proof (cases "q = initial SSep")
+    have g1: "isl q" proof (cases "q = initial SSep")
       case True
       then have "q = Inl (initial S)"
         unfolding state_separator_from_product_submachine.simps \<open>initial SSep = Inl (initial S)\<close> by (simp only: select_convs)
@@ -3192,28 +3202,26 @@ proof -
         by (metis UnE \<open>t \<in> set (wf_transitions SSep)\<close> \<open>t_target t = q\<close> d_containment_var d_left_targets d_old_targets d_right_targets wf_transition_simp) 
     qed
 
-    have "\<And> qq . Inl qq \<in> nodes ?SSep \<Longrightarrow> \<not> (deadlock_state ?SSep (Inl qq))"
+    have "\<And> qq . Inl qq \<in> nodes SSep \<Longrightarrow> \<not> (deadlock_state SSep (Inl qq))"
     proof -
-      fix qq assume "Inl qq \<in> nodes ?SSep"
+      fix qq assume "Inl qq \<in> nodes SSep"
       
-      have "qq \<in> nodes S" proof (cases "Inl qq = initial ?SSep")
+      have "qq \<in> nodes S" proof (cases "Inl qq = initial SSep")
         case True
-        moreover have "initial ?SSep = Inl (initial S)" 
-          unfolding state_separator_from_product_submachine.simps by (simp only: select_convs(1))
-        ultimately have "Inl qq = Inl (initial S)"
+        then have "Inl qq = Inl (initial S)"
+          using \<open>initial SSep = Inl (initial S)\<close>
           by (metis sum.sel(1))
         then show ?thesis by auto
       next
         case False
-        then obtain t where "t \<in> h ?SSep" and "t_target t = Inl qq"
-          using nodes_initial_or_target \<open>Inl qq \<in> nodes ?SSep\<close> by metis
+        then obtain t where "t \<in> h SSep" and "t_target t = Inl qq"
+          using nodes_initial_or_target \<open>Inl qq \<in> nodes SSep\<close> by metis
         
         obtain qq' where "t_source t = Inl qq'"
-          using isl_source[OF \<open>t \<in> h ?SSep\<close>]
-          by (meson isl_def) 
+          by (metis \<open>t \<in> set (wf_transitions SSep)\<close> isl_def isl_source ssep_var)
 
-        have "(Inl qq',t_input t, t_output t, Inl qq) \<in> h ?SSep"
-          using \<open>t \<in> h ?SSep\<close> \<open>t_source t = Inl qq'\<close> \<open>t_target t = Inl qq\<close> using prod.collapse by metis
+        have "(Inl qq',t_input t, t_output t, Inl qq) \<in> h SSep"
+          using \<open>t \<in> h SSep\<close> \<open>t_source t = Inl qq'\<close> \<open>t_target t = Inl qq\<close> using prod.collapse by metis
 
         then have "(qq',t_input t, t_output t,qq) \<in> h S" 
           using ssep_var d_old_origins by blast 
@@ -3221,37 +3229,35 @@ proof -
           by fastforce 
       qed
       
-      show "\<not> (deadlock_state ?SSep (Inl qq))"
+      show "\<not> (deadlock_state SSep (Inl qq))"
       proof (cases "deadlock_state S qq")
         case True
         show ?thesis using s_deadlock_transitions_left[OF \<open>qq \<in> nodes S\<close> True]
-          unfolding deadlock_state.simps using ssep_var by 
+          unfolding deadlock_state.simps
+          by auto  
       next
-        case False
-        show ?thesis sorry
-          
+        case False 
+        then obtain t where "t \<in> h S" and "t_source t = qq"
+          unfolding deadlock_state.simps by blast
+        then have "shift_Inl t \<in> h SSep"
+          using ssep_transitions_from_old by blast 
+        then show ?thesis 
+          unfolding deadlock_state.simps
+          using \<open>t_source t = qq\<close> by auto 
       qed
+    qed
+    then have "\<not> deadlock_state SSep q"
+      by (metis \<open>q \<in> nodes SSep\<close> g1 isl_def) 
+
+    then show "isl q \<and> \<not> deadlock_state SSep q"
+      using g1 by simp
+  qed
+
+  then have has_inl_property: "\<forall>q\<in>nodes ?SSep.
+        q \<noteq> Inr ?q1 \<and> q \<noteq> Inr ?q2 \<longrightarrow>
+        isl q \<and> \<not> deadlock_state ?SSep q" using ssep_var by blast
 
 
-        then have "(Inl qq',t_input t, t_output t, Inl qq) \<in> set (transitions ?SSep)"
-          by blast
-
-        then have "(Inl qq',t_input t, t_output t, Inl qq) \<in> set (transitions SSep)"
-          using ssep_var by blast
-        
-        
-        then have "(Inl qq',t_input t, t_output t, Inl qq) \<in> set d_old"
-          using d_left_targets[of "(Inl qq',t_input t, t_output t, Inl qq)"] d_right_targets[of "(Inl qq',t_input t, t_output t, Inl qq)"] d_containment_var
-          by auto
-        then have "(qq',t_input t, t_output t,qq) \<in> h S" 
-          using d_old_origins 
-          using d_old_targets[OF \<open>(Inl qq',t_input t, t_output t, Inl qq) \<in> set d_old\<close>] 
-          using \<open>(Inl qq',t_input t, t_output t, Inl qq) \<in> h ?SSep\<close>  
-          
-
-        then show ?thesis sorry
-      qed
-        unfolding state_separator_from_product_submachine.simps
     
 
   
