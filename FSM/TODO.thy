@@ -2624,6 +2624,7 @@ fun state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rightarrow
 
 
 lemma state_separator_from_induces_separator :
+  fixes M :: "('a,'b) FSM_scheme"
   assumes "induces_state_separator M S"
   and "fst (initial S) \<in> nodes M"
   and "snd (initial S) \<in> nodes M"
@@ -2928,7 +2929,8 @@ proof -
     show "\<And> t . t \<in> set ?d_old \<Longrightarrow> isl (t_target t)" by auto
     show "\<And> t . t \<in> set ?d_old \<Longrightarrow> (\<exists> qs qt . t_source t = Inl qs \<and> t_target t = Inl qt \<and> (qs,t_input t,t_output t, qt) \<in> h S)"
     proof -
-      fix t assume "t \<in> set ?d_old"
+      fix t :: "(('a \<times> 'a) + 'a) Transition" 
+      assume "t \<in> set ?d_old" 
     
 
 
