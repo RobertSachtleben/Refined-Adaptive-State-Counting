@@ -2577,7 +2577,131 @@ using assms(1) proof (induction k rule: less_induct)
               retains_outputs
         using \<open>initial ?S = fst qx\<close>  \<open>s_states ?PM x = s_states ?PM (Suc k)\<close>
         by presburger 
+    qed
   qed
+qed
+
+
+
+
+definition s_states_deadlock_input :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a) \<Rightarrow> Input option" where
+  "s_states_deadlock_input M S qq = (if (qq \<in> nodes S \<and> deadlock_state S qq) 
+    then (find (\<lambda> x . x \<in> set (inputs M) \<and> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M))
+    else None)"
+
+
+
+
+fun state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme" where
+  "state_separator_from_product_submachine M S =
+    \<lparr> initial = Inl (initial S),
+      inputs = inputs S,
+      outputs = outputs S,
+      transitions = (map shift_Inl (wf_transitions S))
+                    @ (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
+                           (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                   (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
+                    @ (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
+                           (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                   (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))),
+      \<dots> = more M \<rparr>"
+
+(*
+                    @ (filter (\<lambda>t . s_states_deadlock_input M S (t_source t) = t_input t) (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))
+                    @ (filter (\<lambda>t . s_states_deadlock_input M S (t_source t) = t_input t) (distinguishing_transitions_right M (fst (initial S)) (snd (initial S))))
+
+
+
+                    @ (concat (map (\<lambda>qq . distinguishing_transitions_left M (fst qq) (snd qq))
+                                   (filter (\<lambda>qq . deadlock_state S qq)
+                                           (nodes_from_distinct_paths S))))
+                    @ (concat (map (\<lambda>qq . distinguishing_transitions_left M (fst qq) (snd qq))
+                                   (filter (\<lambda>qq . deadlock_state S qq)
+                                           (nodes_from_distinct_paths S)))),  
+*)
+
+
+lemma state_separator_from_induces_separator :
+  assumes "induces_state_separator M S"
+  shows "is_state_separator_from_canonical_separator
+            (canonical_separator M (fst (initial S)) (snd (initial S)))
+            (fst (initial S))
+            (snd (initial S))
+            (state_separator_from_product_submachine M S)"
+
+proof -
+
+  let ?q1 = "fst (initial S)"
+  let ?q2 = "snd (initial S)"
+  let ?CSep = "canonical_separator M ?q1 ?q2"
+  let ?SSep = "state_separator_from_product_submachine M S"
+  let ?PM = "(product (from_FSM M ?q1) (from_FSM M ?q2))"
+
+  have "is_submachine S ?PM"
+       "single_input S"
+       "acyclic S"
+       "\<forall>qq\<in>nodes S.
+          deadlock_state S qq \<longrightarrow>
+          (\<exists>x\<in>set (inputs M).
+              \<not> (\<exists>t1\<in>set (wf_transitions M).
+                     \<exists>t2\<in>set (wf_transitions M).
+                        t_source t1 = fst qq \<and>
+                        t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))"
+       "retains_outputs_for_states_and_inputs ?PM S"
+    using assms unfolding induces_state_separator_def by blast+
+
+  have "initial S = initial ?PM"
+       "inputs S = inputs ?PM"
+       "outputs S = outputs ?PM"
+       "h S \<subseteq> h ?PM"
+    using \<open>is_submachine S ?PM\<close> unfolding is_submachine.simps by blast+
+
+  have "set (map shift_Inl (wf_transitions S)) \<subseteq> set (transitions ?SSep)"
+    unfolding state_separator_from_product_submachine.simps
+    by (metis list_prefix_subset select_convs(4)) 
+  moreover have "set (map shift_Inl (wf_transitions S)) \<subseteq> set (map shift_Inl (wf_transitions ?PM))"
+    using \<open>h S \<subseteq> h ?PM\<close> by auto
+  moreover have "set (map shift_Inl (wf_transitions ?PM)) \<subseteq> set (transitions ?CSep)"
+    unfolding canonical_separator_def
+    by (metis canonical_separator_product_transitions_subset canonical_separator_simps(4) select_convs(4))
+  ultimately have "set (map shift_Inl (wf_transitions S)) \<subseteq> set (transitions ?CSep)"
+    by blast
+
+
+  have "set (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
+                           (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                   (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
+       \<subseteq> set (distinguishing_transitions_left M ?q1 ?q2)"
+      
+  (* TODO *)
+     
+
+    
+  have is_sub: "is_submachine ?SSep ?CSep" sorry
+  have is_single_input : "single_input ?SSep" sorry
+  have is_acyclic : "acyclic ?SSep" sorry
+  have has_deadlock_left: "deadlock_state ?SSep (Inr ?q1)" sorry
+  have has_deadlock_right: "deadlock_state ?SSep (Inr ?q2)" sorry
+  have has_node_left: "Inr ?q1 \<in> nodes ?SSep" sorry
+  have has_node_right: "Inr ?q2 \<in> nodes ?SSep" sorry
+  have has_inl_property: "\<forall>q\<in>nodes ?SSep.
+        q \<noteq> Inr ?q1 \<and> q \<noteq> Inr ?q2 \<longrightarrow>
+        isl q \<and> \<not> deadlock_state ?SSep q" sorry
+  have has_retains_property: "\<forall>q\<in>nodes ?SSep.
+        \<forall>x\<in>set (inputs ?CSep).
+           (\<exists>t \<in> h ?SSep . t_source t = q \<and> t_input t = x) \<longrightarrow>
+           (\<forall>t' \<in> h ?CSep.
+               t_source t' = q \<and> t_input t' = x \<longrightarrow>
+               t' \<in> h ?SSep)" sorry
+
+
+  show ?thesis
+    unfolding is_state_separator_from_canonical_separator_def
+    using is_sub is_single_input is_acyclic has_deadlock_left has_deadlock_right has_node_left has_node_right has_inl_property has_retains_property
+    by presburger
 qed
 
 
