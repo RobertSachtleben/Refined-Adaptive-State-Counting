@@ -2625,6 +2625,8 @@ fun state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rightarrow
 
 lemma state_separator_from_induces_separator :
   assumes "induces_state_separator M S"
+  and "fst (initial S) \<in> nodes M"
+  and "snd (initial S) \<in> nodes M"
   shows "is_state_separator_from_canonical_separator
             (canonical_separator M (fst (initial S)) (snd (initial S)))
             (fst (initial S))
@@ -2640,16 +2642,16 @@ proof -
   let ?PM = "(product (from_FSM M ?q1) (from_FSM M ?q2))"
 
   have "is_submachine S ?PM"
-       "single_input S"
-       "acyclic S"
-       "\<forall>qq\<in>nodes S.
-          deadlock_state S qq \<longrightarrow>
+   and "single_input S"
+   and "acyclic S"
+   and dl: "\<And> qq . qq \<in> nodes S \<Longrightarrow>
+          deadlock_state S qq \<Longrightarrow>
           (\<exists>x\<in>set (inputs M).
               \<not> (\<exists>t1\<in>set (wf_transitions M).
                      \<exists>t2\<in>set (wf_transitions M).
                         t_source t1 = fst qq \<and>
                         t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))"
-       "retains_outputs_for_states_and_inputs ?PM S"
+   and "retains_outputs_for_states_and_inputs ?PM S"
     using assms unfolding induces_state_separator_def by blast+
 
   have "initial S = initial ?PM"
@@ -2675,7 +2677,49 @@ proof -
                                    (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
                                                 (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
        \<subseteq> set (distinguishing_transitions_left M ?q1 ?q2)"
-      
+  proof -
+    have "\<And> qq t . qq \<in> nodes ?PM \<Longrightarrow> t \<in> h M \<Longrightarrow> t_source t = fst qq \<Longrightarrow> s_states_deadlock_input M S qq = Some (t_input t) 
+            \<Longrightarrow> \<not>(\<exists> t' \<in> set (transitions M) . t_source t' = snd qq \<and> t_input t' = t_input t \<and> t_output t' = t_output t)"
+    proof -
+      fix qq t assume "qq \<in> nodes ?PM" and "t \<in> h M" and "t_source t = fst qq" and "s_states_deadlock_input M S qq = Some (t_input t)"
+
+      have "qq \<in> nodes S" and "deadlock_state S qq" and f: "find
+         (\<lambda>x. x \<in> set (inputs M) \<and>
+              \<not> (\<exists>t1\<in>set (wf_transitions M).
+                     \<exists>t2\<in>set (wf_transitions M).
+                        t_source t1 = fst qq \<and>
+                        t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+         (inputs M) = Some (t_input t)"
+        using \<open>s_states_deadlock_input M S qq = Some (t_input t)\<close> unfolding s_states_deadlock_input_def
+        by (meson option.distinct(1))+
+      have "\<not> (\<exists>t1\<in>set (wf_transitions M).
+                     \<exists>t2\<in>set (wf_transitions M).
+                        t_source t1 = fst qq \<and>
+                        t_source t2 = snd qq \<and> t_input t1 = t_input t \<and> t_input t2 = t_input t \<and> t_output t1 = t_output t2)"
+        using find_condition[OF f] by blast
+      then have "\<not> (\<exists>t2\<in>set (wf_transitions M).
+                        t_source t2 = snd qq \<and> t_input t2 = t_input t \<and> t_output t = t_output t2)"
+        using \<open>t \<in> h M\<close> \<open>t_source t = fst qq\<close> by blast
+      moreover have "\<And> t' . t' \<in> set (transitions M) \<Longrightarrow> t_source t' = snd qq \<Longrightarrow> t_input t' = t_input t \<Longrightarrow> t_output t' = t_output t\<Longrightarrow> t' \<in> h M"
+      proof -
+        fix t' assume "t' \<in> set (transitions M)" and "t_source t' = snd qq" and "t_input t' = t_input t" and "t_output t' = t_output t"        
+
+        have "snd qq \<in> nodes M"
+          using \<open>qq \<in> nodes ?PM\<close>  product_nodes[of "from_FSM M ?q1" "from_FSM M ?q2"] from_FSM_nodes[OF assms(3)] by force
+        then have "t_source t' \<in> nodes M"
+          using \<open>t_source t' = snd qq\<close> by auto
+        then show "t' \<in> h M"
+          using \<open>t_input t' = t_input t\<close> \<open>t_output t' = t_output t\<close> \<open>t \<in> h M\<close>
+          by (simp add: \<open>t' \<in> set (transitions M)\<close>) 
+      qed
+
+      ultimately show "\<not>(\<exists> t' \<in> set (transitions M) . t_source t' = snd qq \<and> t_input t' = t_input t \<and> t_output t' = t_output t)"
+        by auto
+    qed
+
+    then show ?thesis 
+      unfolding distinguishing_transitions_left_def   
+        
   (* TODO *)
      
 
