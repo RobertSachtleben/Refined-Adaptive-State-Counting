@@ -3992,6 +3992,24 @@ proof -
       qed
     next
       case False
+
+      have "t_target t' \<in> nodes CSep"
+        using \<open>t' \<in> h CSep\<close> by auto
+
+      have *: "set (transitions ?CSep) = (set (shifted_transitions M ?q1 ?q2)) \<union> (set (distinguishing_transitions_left M ?q1 ?q2)) \<union> (set (distinguishing_transitions_right M ?q1 ?q2))"
+        using canonical_separator_simps(4)[of M ?q1 ?q2] by auto
+      then consider 
+          (a) "t' \<in> set (shifted_transitions M ?q1 ?q2)" | 
+          (b) "t' \<in> set (distinguishing_transitions_left M ?q1 ?q2)" | 
+          (c) "t' \<in> set (distinguishing_transitions_right M ?q1 ?q2)" 
+        using \<open>CSep = ?CSep\<close> \<open>t' \<in> h CSep\<close> by blast
+      
+
+      note canonical_separator_targets[OF \<open>t' \<in> h ?CSep\<close> assms(2,3,4)]
+      note distinguishing_transitions_left_sources_targets
+      note distinguishing_transitions_right_sources_targets
+
+      then have 
         
         
 
