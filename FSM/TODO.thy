@@ -3579,12 +3579,13 @@ proof -
       using \<open>t_source t = Inl qs\<close> \<open>(qs,t_input t,t_output t,qt) \<in> h S\<close> \<open>\<not> (deadlock_state S qs)\<close> by auto
   qed
 
-
+(*
   have "\<And> t . t \<in> set d_left \<Longrightarrow> t \<in> h SSep"
   proof -
     fix t assume "t \<in> set d_left"
     then have "t \<in> set ?d_left"
       using \<open>d_left = ?d_left\<close> by blast
+*)
 
 
 
@@ -3758,7 +3759,7 @@ proof -
       using wf_transition_target
       by fastforce
   qed
-  then have has_node_left: "Inr ?q2 \<in> nodes ?SSep" 
+  then have has_node_right: "Inr ?q2 \<in> nodes ?SSep" 
     using \<open>SSep = ?SSep\<close> by blast
 
 
@@ -3824,15 +3825,99 @@ proof -
     qed
   qed
 
-  have "acyclic SSep"
+  have "\<And> p . path SSep (initial SSep) p \<Longrightarrow> distinct (visited_states (initial SSep) p)"
   proof -
+    fix p assume "path SSep (initial SSep) p"
+    show "distinct (visited_states (initial SSep) p)"
+    proof (cases "isl (target p (initial SSep))")
+      case True
+      then obtain p' where "path S (initial S) p'" and "p = map shift_Inl p'"
+        using \<open>\<And> p . path SSep (initial SSep) p \<Longrightarrow> isl (target p (initial SSep)) \<Longrightarrow> (\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')\<close>
+              \<open>path SSep (initial SSep) p\<close> 
+        by blast
+
+      have "map t_target p = map Inl (map t_target p')"
+        using \<open>p = map shift_Inl p'\<close> by auto
+      then have "visited_states (initial SSep) p = map Inl (visited_states (initial S) p')"
+        using \<open>initial SSep = Inl (initial S)\<close> unfolding target.simps visited_states.simps
+        by simp 
+      moreover have "distinct (visited_states (initial S) p')"
+        using \<open>acyclic S\<close> \<open>path S (initial S) p'\<close> unfolding acyclic.simps by blast
+      moreover have "\<And> xs :: ('a \<times> 'a) list . distinct xs = distinct (map Inl xs)" 
+      proof -
+        fix xs :: "('a \<times> 'a) list"
+        show "distinct xs = distinct (map Inl xs)" by (induction xs; auto)
+      qed
+      ultimately show ?thesis
+        by force         
+    next
+      case False 
+
+      have "deadlock_state SSep (target p (initial SSep))"
+        using False \<open>\<And> q . q \<in> nodes SSep \<Longrightarrow> \<not> isl q \<Longrightarrow> deadlock_state SSep q\<close>
+        using \<open>path SSep (initial SSep) p\<close> nodes_path_initial by blast
+
+      have "target p (initial SSep) \<noteq> initial SSep"
+        using False \<open>initial SSep = Inl (initial S)\<close> by auto
+      then have "p \<noteq> []"
+        by auto
+      then obtain t p' where "p = p'@[t]"
+        using rev_exhaust by blast
+      then have "\<not> (isl (t_target t))"
+        using False unfolding target.simps visited_states.simps by auto
+
+      have "path SSep (initial SSep) p'"
+        using \<open>p = p'@[t]\<close> \<open>path SSep (initial SSep) p\<close> by auto
+      
+      show ?thesis proof (cases p' rule: rev_cases)
+        case Nil
+        then show ?thesis 
+          using \<open>\<not> (isl (t_target t))\<close> \<open>p = p'@[t]\<close> unfolding target.simps visited_states.simps
+          using \<open>target p (initial SSep) \<noteq> initial SSep\<close> by auto 
+      next
+        case (snoc p'' t')
+        
+
+
+        then have "isl (target p' (initial SSep))" 
+          using \<open>p = p'@[t]\<close> deadlock_prefix[OF \<open>path SSep (initial SSep) p\<close>, of t']
+          by (metis \<open>path SSep (initial SSep) p\<close> isl_source not_Cons_self2 path.cases path_suffix ssep_var)
+        then obtain pS where "path S (initial S) pS" and "p' = map shift_Inl pS"
+          using \<open>\<And> p . path SSep (initial SSep) p \<Longrightarrow> isl (target p (initial SSep)) \<Longrightarrow> (\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')\<close>
+                [OF \<open>path SSep (initial SSep) p'\<close>] by blast
+
+        have "map t_target p' = map Inl (map t_target pS)"
+          using \<open>p' = map shift_Inl pS\<close> by auto
+        then have "visited_states (initial SSep) p' = map Inl (visited_states (initial S) pS)"
+          using \<open>initial SSep = Inl (initial S)\<close> unfolding target.simps visited_states.simps
+          by simp 
+        moreover have "distinct (visited_states (initial S) pS)"
+          using \<open>acyclic S\<close> \<open>path S (initial S) pS\<close> unfolding acyclic.simps by blast
+        moreover have "\<And> xs :: ('a \<times> 'a) list . distinct xs = distinct (map Inl xs)" 
+        proof -
+          fix xs :: "('a \<times> 'a) list"
+          show "distinct xs = distinct (map Inl xs)" by (induction xs; auto)
+        qed
+        ultimately have "distinct (visited_states (initial SSep) p')"
+          by force
+        moreover have "t_target t \<notin> set (visited_states (initial SSep) p')"
+          using \<open>visited_states (initial SSep) p' = map Inl (visited_states (initial S) pS)\<close> \<open>\<not> (isl (t_target t))\<close>
+          by auto 
+        ultimately have "distinct ((visited_states (initial SSep) p')@[t_target t])"
+          by auto
+        then show ?thesis using \<open>p = p'@[t]\<close> unfolding target.simps visited_states.simps
+          by simp 
+      qed  
+    qed
+  qed 
+  
+
+  then have "acyclic SSep"
+    unfolding acyclic.simps by blast
     
   
-  have is_acyclic : "acyclic ?SSep" sorry
-    (* sketch:
-      - S is acyclic
-      - any path in SSep is either a path in S or a path in S appended by a single transition to q1 | q2, both of which are \<not>isl and hence not in the prefix that is an S path
-     *)
+  then have is_acyclic : "acyclic ?SSep" 
+    using \<open>SSep = ?SSep\<close> by blast
 
 
   
@@ -3842,7 +3927,9 @@ proof -
            (\<exists>t \<in> h ?SSep . t_source t = q \<and> t_input t = x) \<longrightarrow>
            (\<forall>t' \<in> h ?CSep.
                t_source t' = q \<and> t_input t' = x \<longrightarrow>
-               t' \<in> h ?SSep)" sorry
+               t' \<in> h ?SSep)" 
+    using \<open>retains_outputs_for_states_and_inputs ?PM S\<close>
+    sorry
     (* sketch: 
       - cases (isl q ?) 
       \<longrightarrow> TRUE \<longrightarrow> use retains-property of S
