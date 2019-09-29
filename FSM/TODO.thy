@@ -3920,7 +3920,142 @@ proof -
     using \<open>SSep = ?SSep\<close> by blast
 
 
+  have "\<And> t t' . t \<in> h SSep \<Longrightarrow> t' \<in> h CSep \<Longrightarrow> t_source t = t_source t' \<Longrightarrow> t_input t = t_input t' \<Longrightarrow> t' \<in> h SSep"
+  proof -
+    fix t t' assume "t \<in> h SSep" and "t' \<in> h CSep" and "t_source t = t_source t'" and "t_input t = t_input t'"
+
+    have "t' \<in> h ?CSep"
+          using \<open>t' \<in> h CSep\<close> \<open>CSep = ?CSep\<close> by auto
+
+    show "t' \<in> h SSep"
+    proof (cases "isl (t_target t')")
+      case True
+
+      obtain tP where "tP \<in> h ?PM" and "t' = (Inl (t_source tP), t_input tP, t_output tP, Inl (t_target tP))"
+        using canonical_separator_product_h_isl[OF _ True]
+        using \<open>t' \<in> h CSep\<close> \<open>CSep = ?CSep\<close>
+        by metis
+
+      from \<open>t \<in> h SSep\<close> consider 
+        (old)         "t \<in> set d_old"  |
+        (left_right)  "t \<in> set d_left \<or> t \<in> set d_right"
+        using d_containment_var by blast
+      then show "t' \<in> h SSep" proof cases
+        case old
+
+        obtain tS where "tS \<in> h S" and "t = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))"
+          using d_old_targets[OF old] by auto
   
+        then have "tP \<in> h S"
+          using \<open>retains_outputs_for_states_and_inputs ?PM S\<close>
+          unfolding retains_outputs_for_states_and_inputs_def 
+          using \<open>tP \<in> h ?PM\<close> \<open>t' = (Inl (t_source tP), t_input tP, t_output tP, Inl (t_target tP))\<close> \<open>t_source t = t_source t'\<close> \<open>t_input t = t_input t'\<close>
+          by (metis \<open>\<And>y x qt qs. (Inl qs, x, y, Inl qt) \<in> set d_old \<Longrightarrow> (qs, x, y, qt) \<in> set (wf_transitions S)\<close> fst_conv old snd_conv)
+        then have "shift_Inl tP \<in> h SSep"
+          using ssep_transitions_from_old by blast   
+        then show ?thesis
+          using \<open>t' = (Inl (t_source tP), t_input tP, t_output tP, Inl (t_target tP))\<close> by blast  
+      next
+        case left_right
+        then obtain q1 where "t_source t = Inl q1"
+                  and "q1 \<in> nodes S"
+                  and "deadlock_state S q1"
+                  and f1: "find
+                         (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                     \<exists>t2\<in>set (wf_transitions M).
+                                        t_source t1 = fst q1 \<and>
+                                        t_source t2 = snd q1 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                         (inputs M) = Some (t_input t)"
+          using d_left_sources[of t] d_right_sources[of t]
+          by blast 
+        have "\<not> (\<exists>t1\<in>set (wf_transitions M).
+                         \<exists>t2\<in>set (wf_transitions M).
+                            t_source t1 = fst q1 \<and>
+                            t_source t2 = snd q1 \<and> t_input t1 = t_input t \<and> t_input t2 = t_input t \<and> t_output t1 = t_output t2)"
+          using f1
+          using find_condition by force 
+        then have "\<not> (\<exists>t1\<in>set (wf_transitions (from_FSM M ?q1)).
+                         \<exists>t2\<in>set (wf_transitions (from_FSM M ?q2)).
+                            t_source t1 = fst q1 \<and>
+                            t_source t2 = snd q1 \<and> t_input t1 = t_input t \<and> t_input t2 = t_input t \<and> t_output t1 = t_output t2)" 
+          using from_FSM_h[OF assms(2)] from_FSM_h[OF assms(3)] by blast
+        then have "\<not> (\<exists> tPM \<in> h ?PM . t_source tPM = q1 \<and> t_input tPM = t_input t)"
+          by (metis product_transition_split_ob)
+
+        
+        moreover have "\<exists> tPM \<in> h ?PM . t_source tPM = q1 \<and> t_input tPM = t_input t" 
+          using canonical_separator_product_h_isl[OF \<open>t' \<in> h ?CSep\<close> True] 
+          using \<open>t_source t = t_source t'\<close> \<open>t_source t = Inl q1\<close> \<open>t_input t = t_input t'\<close>
+          by force 
+        ultimately have "False" by blast
+        then show ?thesis by blast
+      qed
+    next
+      case False
+        
+        
+
+
+end (*
+
+    have "t' \<in> set (transitions SSep)" proof (rule ccontr)
+      assume "t' \<notin> set (transitions SSep)"
+      then have "t' \<notin> set d_old"
+            and "t' \<notin> set d_left"
+            and "t' \<notin> set d_right"  
+        using d_containment_var by auto
+
+      
+
+
+    from \<open>t \<in> h SSep\<close> consider 
+      (old)   "t \<in> set d_old"  |
+      (left)  "t \<in> set d_left" |
+      (right) "t \<in> set d_right"
+      using d_containment_var by blast
+    then show "t' \<in> h SSep" proof cases
+      case old
+
+      
+
+      have "isl (t_target t)" 
+        using d_old_targets[OF old] by auto
+      obtain tS where "tS \<in> h S" and "t = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))"
+        using d_old_targets[OF old] by auto
+
+      (*then have "isl (t_target t')"
+        using canonical_separator_product_h_isl*)
+
+      have "tS \<in> h ?PM"
+        using submachine_h[OF \<open>is_submachine S ?PM\<close>] \<open>tS \<in> h S\<close> by blast
+
+      have "(Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS)) \<in> h CSep"
+        using canonical_separator_h_from_product[OF \<open>tS \<in> h ?PM\<close>] \<open>CSep = ?CSep\<close> by blast
+      then have "t \<in> h CSep"
+        using \<open>t = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))\<close> by simp
+
+      then obtain tP where "tP \<in> h ?PM" and "t = (Inl (t_source tP), t_input tP, t_output tP, Inl (t_target tP))"
+        using canonical_separator_product_h_isl
+        using \<open>t = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))\<close> \<open>tS \<in> set (wf_transitions (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))\<close> by blast 
+
+      then have "True"
+        using \<open>retains_outputs_for_states_and_inputs ?PM S\<close>
+        unfolding retains_outputs_for_states_and_inputs_def 
+
+      then show ?thesis sorry
+    next
+      case left
+      then show ?thesis sorry
+    next
+      case right
+      then show ?thesis sorry
+    qed  
+    
+
+end (*
+
+  have "\<And> qq x . qq \<in> nodes SSep \<Longrightarrow> x \<in> set (inputs CSep) \<Longrightarrow>
+                  (\<exists> t \<in> h SSep 
 
   have has_retains_property: "\<forall>q\<in>nodes ?SSep.
         \<forall>x\<in>set (inputs ?CSep).
@@ -3928,7 +4063,7 @@ proof -
            (\<forall>t' \<in> h ?CSep.
                t_source t' = q \<and> t_input t' = x \<longrightarrow>
                t' \<in> h ?SSep)" 
-    using \<open>retains_outputs_for_states_and_inputs ?PM S\<close>
+    
     sorry
     (* sketch: 
       - cases (isl q ?) 
