@@ -3004,7 +3004,16 @@ proof -
     using isl_source unfolding deadlock_state.simps
     by (metis sum.disc(2)) 
 
-  (* TODO: introducxe earlier *)
+  (* TODO: introduce earlier *)
+
+
+  (* TODO: d_left and d_right are too weak
+    \<longrightarrow> must also include transitions from non-deadlock states of S
+    \<longrightarrow> i.e., x/y1 only occurs for q1, but x/y2 occurs for both q1 and q2
+        \<longrightarrow> x/y1 to Inr q1
+        \<longrightarrow> x/y2 in d_old
+  *)
+
   let ?d_old = "map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (wf_transitions S)"
   let ?d_left = "map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
                    (filter
@@ -3773,7 +3782,7 @@ proof -
       using has_deadlock_left has_deadlock_right \<open>SSep = ?SSep\<close> by blast
   qed
 
-  have "\<And> p . path SSep (initial SSep) p \<Longrightarrow> isl (target p (initial SSep)) \<Longrightarrow> (\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')"
+  have isl_target_paths : "\<And> p . path SSep (initial SSep) p \<Longrightarrow> isl (target p (initial SSep)) \<Longrightarrow> (\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')"
   proof -
     fix p assume "path SSep (initial SSep) p" and "isl (target p (initial SSep))"
     then show "(\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')" 
@@ -3996,13 +4005,97 @@ proof -
       have "t_target t' \<in> nodes CSep"
         using \<open>t' \<in> h CSep\<close> by auto
 
+      
+      have "t' \<notin> (set (shifted_transitions M ?q1 ?q2))"
+        using False by (meson shifted_transitions_targets) 
+
+      
+      
+      
+      
       have *: "set (transitions ?CSep) = (set (shifted_transitions M ?q1 ?q2)) \<union> (set (distinguishing_transitions_left M ?q1 ?q2)) \<union> (set (distinguishing_transitions_right M ?q1 ?q2))"
         using canonical_separator_simps(4)[of M ?q1 ?q2] by auto
       then consider 
-          (a) "t' \<in> set (shifted_transitions M ?q1 ?q2)" | 
-          (b) "t' \<in> set (distinguishing_transitions_left M ?q1 ?q2)" | 
-          (c) "t' \<in> set (distinguishing_transitions_right M ?q1 ?q2)" 
-        using \<open>CSep = ?CSep\<close> \<open>t' \<in> h CSep\<close> by blast
+          (*(a) "t' \<in> set (shifted_transitions M ?q1 ?q2)" | *)
+          (a) "t' \<in> set (distinguishing_transitions_left M ?q1 ?q2)" | 
+          (b) "t' \<in> set (distinguishing_transitions_right M ?q1 ?q2)" 
+        using \<open>CSep = ?CSep\<close> \<open>t' \<in> h CSep\<close> 
+        using canonical_separator_targets(1)[OF \<open>t' \<in> h ?CSep\<close> assms(2,3,4)] False
+        by (metis UnE shifted_transitions_targets wf_transition_simp)
+      then show ?thesis proof cases
+        case a
+
+        obtain q1' q2' tC where "t_source t' = Inl (q1', q2')"
+                             and "q1' \<in> nodes M"
+                             and "q2' \<in> nodes M"
+                             and "tC \<in> set (wf_transitions M)"
+                             and "t_source tC = q1'"
+                             and "t_input tC = t_input t'"
+                             and "t_output tC = t_output t'"
+                             and "\<not> (\<exists>t''\<in>set (wf_transitions M). t_source t'' = q2' \<and> t_input t'' = t_input t' \<and> t_output t'' = t_output t')"
+          using distinguishing_transitions_left_sources_targets[OF a assms(2,3)] by blast
+
+        have "t_source t \<in> nodes SSep"
+          using \<open>t \<in> h SSep\<close> by auto
+        then have "Inl (q1',q2') \<in> nodes SSep"
+          using \<open>t_source t' = Inl (q1', q2')\<close> \<open>t_source t = t_source t'\<close> by auto
+
+        obtain p' where "path SSep (initial SSep) p'" and "Inl (q1', q2') = target p' (initial SSep)"
+          using path_to_node[OF \<open>Inl (q1',q2') \<in> nodes SSep\<close>] by auto
+        then have "isl (target p' (initial SSep))"
+          by (metis sum.disc(1)) 
+        obtain pS' where "path S (initial S) pS'" and "p' = map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) pS'"
+          using isl_target_paths[OF \<open>path SSep (initial SSep) p'\<close> \<open>isl (target p' (initial SSep))\<close>] by auto
+        have "map t_target p' = map Inl (map t_target pS')"
+          using \<open>p' = map shift_Inl pS'\<close> by auto
+        then have "(target p' (initial SSep)) = Inl (target pS' (initial S))"
+          using \<open>initial SSep = Inl (initial S)\<close> unfolding target.simps visited_states.simps
+          by (simp add: last_map) 
+        then have "target pS' (initial S) = (q1',q2')"
+          using \<open>Inl (q1', q2') = target p' (initial SSep)\<close> 
+          unfolding target.simps visited_states.simps by auto
+        then have "(q1',q2') \<in> nodes S"
+          using path_target_is_node[OF \<open>path S (initial S) pS'\<close>] 
+          by auto
+
+        (* show that ?PM has no transition for x at qq *)
+
+        have "\<And> M1 M2 q2 x y . \<not>(\<exists> t2 \<in> h M2 . t_source t2 = q2 \<and> t_input t2 = x \<and> t_output t2 = y) \<Longrightarrow> \<not>(\<exists> tt \<in> h (product M1 M2) . snd (t_source tt) = q2 \<and> t_input tt = x \<and> t_output tt = y)"
+          by (metis product_transition_split_ob)
+        moreover have "\<not> (\<exists>t''\<in> h (from_FSM M ?q2). t_source t'' = q2' \<and> t_input t'' = t_input t' \<and> t_output t'' = t_output t')"
+          using \<open>\<not> (\<exists>t''\<in>set (wf_transitions M). t_source t'' = q2' \<and> t_input t'' = t_input t' \<and> t_output t'' = t_output t')\<close>
+          using from_FSM_h[OF assms(3)] by blast
+        ultimately have "\<not> (\<exists> tPM \<in> h ?PM . t_source tPM = (q1',q2') \<and> t_input tPM = t_input t' \<and> t_output tPM = t_output t')"
+          by fastforce
+        then have "\<not> (\<exists> tPM \<in> h S . t_source tPM = (q1',q2') \<and> t_input tPM = t_input t' \<and> t_output tPM = t_output t')"
+          using submachine_h[OF \<open>is_submachine S ?PM\<close>] by blast
+
+
+        have "\<And> t . t \<in> h SSep \<Longrightarrow> \<not> (isl (t_target t)) \<Longrightarrow> \<not>(\<exists> t' \<in> h SSep . t_source t' = t_source t \<and> (isl (t_target t')))"
+          using \<open>d_old = ?d_old\<close> 
+
+
+
+        then have "\<not> (\<exists> tPM \<in> h S . t_source tPM = (q1',q2') \<and> t_input tPM = t_input t \<and> t_output tPM = t_output t')"
+          using \<open>t_input t = t_input t'\<close> by auto          
+        then have "t \<notin> set d_old"   
+          using d_old_transitions[of t] sorry
+        
+
+        have "s_states_deadlock_input M S (q1',q2') = Some (t_input t')"
+          unfolding s_states_deadlock_input_def
+          using \<open>(q1',q2') \<in> nodes S\<close> 
+        note \<open>d_left = ?d_left\<close>
+
+        then show ?thesis sorry
+      next
+        case b
+
+        note distinguishing_transitions_left_sources_targets[OF b assms(2,3)]
+
+        then show ?thesis sorry
+      qed
+        
       
 
       note canonical_separator_targets[OF \<open>t' \<in> h ?CSep\<close> assms(2,3,4)]
