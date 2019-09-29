@@ -2628,6 +2628,7 @@ lemma state_separator_from_induces_separator :
   assumes "induces_state_separator M S"
   and "fst (initial S) \<in> nodes M"
   and "snd (initial S) \<in> nodes M"
+  and "fst (initial S) \<noteq> snd (initial S)"
   and "completely_specified M"
   shows "is_state_separator_from_canonical_separator
             (canonical_separator M (fst (initial S)) (snd (initial S)))
@@ -3308,14 +3309,298 @@ proof -
         isl q \<and> \<not> deadlock_state ?SSep q" using ssep_var by blast
 
 
+
+  have d_left_sources : "\<And> t . t \<in> set d_left \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst q \<and>
+                                                                t_source t2 = snd q \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M) = Some (t_input t))"
+  proof -
+    fix t assume "t \<in> set d_left"
+
+    have f1: "\<And> t xs f . t \<in> set (map f xs) \<Longrightarrow> (\<exists> x \<in> set xs . t = f x)" by auto
+    have f2: "\<And> x xs f . x \<in> set (filter f xs) \<Longrightarrow> f x" by auto
+
+    obtain qqt where *:  "t = (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S)))) qqt" 
+                 and **: "qqt \<in> set (filter
+                                   (\<lambda>qqt. t_source (snd qqt) = fst (fst qqt) \<and>
+                                          (if fst qqt \<in> nodes S \<and> deadlock_state S (fst qqt)
+                                           then find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst (fst qqt) \<and>
+                                                                t_source t2 = snd (fst qqt) \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M)
+                                           else None) =
+                                          Some (t_input (snd qqt)))
+                                   (concat
+                                     (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                                       (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
+      using \<open>t \<in> set d_left\<close> \<open>d_left = ?d_left\<close> unfolding s_states_deadlock_input_def 
+      using f1[of t "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))"] by blast
+
     
 
+    have "t_source (snd qqt) = fst (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
+           (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = fst (fst qqt) \<and>
+                          t_source t2 = snd (fst qqt) \<and>
+                          t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+           (inputs M) = Some (t_input (snd qqt))"
+      using f2[OF **]
+      by (meson option.distinct(1)) 
+    then have "t_source t = Inl (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
+           (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = fst (fst qqt) \<and>
+                          t_source t2 = snd (fst qqt) \<and>
+                          t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+           (inputs M) = Some (t_input t)"
+      using * by auto
+    then show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst q \<and>
+                                                                t_source t2 = snd q \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M) = Some (t_input t))" by blast
+      
+  qed
+
+  have d_right_sources : "\<And> t . t \<in> set d_right \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst q \<and>
+                                                                t_source t2 = snd q \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M) = Some (t_input t))"
+  proof -
+    fix t assume "t \<in> set d_right"
+
+    have f1: "\<And> t xs f . t \<in> set (map f xs) \<Longrightarrow> (\<exists> x \<in> set xs . t = f x)" by auto
+    have f2: "\<And> x xs f . x \<in> set (filter f xs) \<Longrightarrow> f x" by auto
+
+    obtain qqt where *:  "t = (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S)))) qqt" 
+                 and **: "qqt \<in> set (filter
+                                   (\<lambda>qqt. t_source (snd qqt) = snd (fst qqt) \<and>
+                                          (if fst qqt \<in> nodes S \<and> deadlock_state S (fst qqt)
+                                           then find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst (fst qqt) \<and>
+                                                                t_source t2 = snd (fst qqt) \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M)
+                                           else None) =
+                                          Some (t_input (snd qqt)))
+                                   (concat
+                                     (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                                       (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
+      using \<open>t \<in> set d_right\<close> \<open>d_right = ?d_right\<close> unfolding s_states_deadlock_input_def 
+      using f1[of t "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))"] by blast
+    
+    have "t_source (snd qqt) = snd (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst (fst qqt) \<and>
+                                                                t_source t2 = snd (fst qqt) \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M) = Some (t_input (snd qqt))"
+      using f2[OF **]
+      by (meson option.distinct(1)) 
+    then have "t_source t = Inl (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst (fst qqt) \<and>
+                                                                t_source t2 = snd (fst qqt) \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M) = Some (t_input t)"
+      using * by auto
+    then show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
+                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                                             \<exists>t2\<in>set (wf_transitions M).
+                                                                t_source t1 = fst q \<and>
+                                                                t_source t2 = snd q \<and>
+                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                                                 (inputs M) = Some (t_input t))"
+      by blast
+  qed
+
+  have d_old_sources : "\<And> t . t \<in> set d_old \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
+  proof -
+    fix t assume "t \<in> set d_old"
+    then have "isl (t_target t)"
+      by (simp add: d_old_targets) 
+    then obtain qt where "t_target t = Inl qt"
+      by (metis sum.collapse(1)) 
+    
+    have "isl (t_source t)"
+      using \<open>t \<in> set d_old\<close> d_old_targets isl_source ssep_transitions_from_old ssep_var by blast
+    then obtain qs where "t_source t = Inl qs"
+      by (metis sum.collapse(1)) 
+
+    have "(qs,t_input t,t_output t,qt) \<in> h S"
+      using d_old_origins
+      by (metis \<open>\<And>y x qt qs. (Inl qs, x, y, Inl qt) \<in> set d_old \<Longrightarrow> (qs, x, y, qt) \<in> set (wf_transitions S)\<close> \<open>t \<in> set d_old\<close> \<open>t_source t = Inl qs\<close> \<open>t_target t = Inl qt\<close> prod.collapse)
+    then have "\<not> (deadlock_state S qs)"
+      unfolding deadlock_state.simps
+      by (meson fst_conv) 
+
+    show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
+      using \<open>t_source t = Inl qs\<close> \<open>(qs,t_input t,t_output t,qt) \<in> h S\<close> \<open>\<not> (deadlock_state S qs)\<close> by auto
+  qed
+
+     
+  have "set d_old \<inter> set d_left = {}"
+    using d_old_targets \<open>d_left = ?d_left\<close>
+    by (metis (no_types, lifting) Inr_Inl_False d_left_targets disjoint_iff_not_equal prod.collapse prod.inject)
+  have "set d_old \<inter> set d_right = {}"
+    using d_old_targets \<open>d_right = ?d_right\<close>
+    by (metis (no_types, lifting) Inr_Inl_False d_right_targets disjoint_iff_not_equal prod.collapse prod.inject)
+  have "set d_left \<inter> set d_right = {}"
+    using d_left_targets d_right_targets \<open>fst (initial S) \<noteq> snd (initial S)\<close>
+    by fastforce 
+
+  have d_source_split : "\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right \<Longrightarrow> t_source t1 \<noteq> t_source t2"
+  proof -
+    fix t1 t2 assume "t1 \<in> set d_old" 
+                 and "t2 \<in> set d_left \<or> t2 \<in> set d_right"
+
+    then consider "t2 \<in> set d_left" | "t2 \<in> set d_right" by blast
+    then show "t_source t1 \<noteq> t_source t2" proof cases
+      case 1
+      show ?thesis 
+        using d_old_sources[OF \<open>t1 \<in> set d_old\<close>] d_left_sources[OF 1]
+        by fastforce 
+    next
+      case 2
+      show ?thesis 
+        using d_old_sources[OF \<open>t1 \<in> set d_old\<close>] d_right_sources[OF 2]
+        by fastforce 
+    qed 
+  qed
+
   
-  have is_single_input : "single_input ?SSep" sorry
-    (* sketch:
-      - S is single_input
-      - added transitions are single-input by construction
-     *)
+
+
+  have "\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_old"
+  proof -
+    fix t1 t2 assume "t1 \<in> set d_old" and "t2 \<in> h SSep" and "t_source t1 = t_source t2"
+
+    have "\<not>(t2 \<in> set d_left \<or> t2 \<in> set d_right)"
+      using d_source_split[OF \<open>t1 \<in> set d_old\<close>, of t2] \<open>t_source t1 = t_source t2\<close> by auto
+    then show "t2 \<in> set d_old"
+      using d_containment_var \<open>t2 \<in> h SSep\<close> by blast
+  qed
+
+  have "\<And> t1 t2 . t1 \<in> set d_left \<or> t1 \<in> set d_right \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right"
+  proof -
+    fix t1 t2 assume "t1 \<in> set d_left \<or> t1 \<in> set d_right" and "t2 \<in> h SSep" and "t_source t1 = t_source t2"
+
+    have "\<not>(t2 \<in> set d_old)"
+      using d_source_split[OF _ \<open>t1 \<in> set d_left \<or> t1 \<in> set d_right\<close>, of t2] \<open>t_source t1 = t_source t2\<close> by auto
+    then show "t2 \<in> set d_left \<or> t2 \<in> set d_right"
+      using d_containment_var \<open>t2 \<in> h SSep\<close> by blast
+  qed
+
+
+  (* TODO: remove repetitions *)
+  have d_old_transitions : "\<And> t . t \<in> set d_old \<Longrightarrow> (\<exists> qs qt . t = (Inl qs,t_input t, t_output t, Inl qt) \<and> (qs,t_input t, t_output t, qt) \<in> h S)"
+  proof -
+    fix t assume "t \<in> set d_old"
+    then have "isl (t_target t)"
+      by (simp add: d_old_targets) 
+    then obtain qt where "t_target t = Inl qt"
+      by (metis sum.collapse(1)) 
+    have "isl (t_source t)"
+      using \<open>t \<in> set d_old\<close> d_old_sources isl_def by blast
+    then obtain qs where "t_source t = Inl qs"
+      by (metis sum.collapse(1)) 
+    have "(qs,t_input t,t_output t,qt) \<in> h S"
+      using d_old_origins
+      by (metis \<open>\<And>y x qt qs. (Inl qs, x, y, Inl qt) \<in> set d_old \<Longrightarrow> (qs, x, y, qt) \<in> set (wf_transitions S)\<close> \<open>t \<in> set d_old\<close> \<open>t_source t = Inl qs\<close> \<open>t_target t = Inl qt\<close> prod.collapse)
+    then show "(\<exists> qs qt . t = (Inl qs,t_input t, t_output t, Inl qt) \<and> (qs,t_input t, t_output t, qt) \<in> h S)"
+      using \<open>t_target t = Inl qt\<close> \<open>t_source t = Inl qs\<close>
+      by (metis prod.collapse) 
+  qed
+
+  
+
+  have "\<And> t1 t2 . t1 \<in> h SSep \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t_input t1 = t_input t2"
+  proof -
+    fix t1 t2 assume "t1 \<in> h SSep"
+                 and "t2 \<in> h SSep"
+                 and "t_source t1 = t_source t2"
+
+    let ?q = "t_source t1"
+
+    consider "t1 \<in> set d_old" | "t1 \<in> set d_left \<or> t1 \<in> set d_right"
+      using d_containment_var \<open>t1 \<in> h SSep\<close> by auto
+    then show "t_input t1 = t_input t2" proof cases
+      case 1
+      then have "t2 \<in> set d_old"
+        using \<open>\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_old\<close> \<open>t2 \<in> h SSep\<close> \<open>t_source t1 = t_source t2\<close> by blast
+
+      obtain qs1 qt1 where "t1 = (Inl qs1, t_input t1, t_output t1, Inl qt1)" 
+                       and "(qs1, t_input t1, t_output t1, qt1) \<in> h S"
+        using d_old_transitions[OF \<open>t1 \<in> set d_old\<close>] by blast
+
+      obtain qt2 where "t2 = (Inl qs1, t_input t2, t_output t2, Inl qt2)" 
+                   and "(qs1, t_input t2, t_output t2, qt2) \<in> h S"
+        using d_old_transitions[OF \<open>t2 \<in> set d_old\<close>] \<open>t_source t1 = t_source t2\<close>
+        by (metis Inl_inject \<open>t1 = (Inl qs1, t_input t1, t_output t1, Inl qt1)\<close> fst_conv) 
+
+      show ?thesis
+        using \<open>single_input S\<close> unfolding single_input.simps
+        using \<open>(qs1, t_input t1, t_output t1, qt1) \<in> h S\<close> \<open>(qs1, t_input t2, t_output t2, qt2) \<in> h S\<close>
+        by (metis fst_conv snd_conv)
+    next
+      case 2 
+      then have "t2 \<in> set d_left \<or> t2 \<in> set d_right"
+        using \<open>\<And> t1 t2 . t1 \<in> set d_left \<or> t1 \<in> set d_right \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right\<close> \<open>t2 \<in> h SSep\<close> \<open>t_source t1 = t_source t2\<close> by blast
+
+      obtain q1 where "t_source t1 = Inl q1"
+                  and "q1 \<in> nodes S"
+                  and "deadlock_state S q1"
+                  and f1: "find
+                         (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                     \<exists>t2\<in>set (wf_transitions M).
+                                        t_source t1 = fst q1 \<and>
+                                        t_source t2 = snd q1 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                         (inputs M) = Some (t_input t1)"
+        using d_left_sources[of t1] d_right_sources[of t1]
+        using "2" by blast 
+
+      obtain q2 where "t_source t2 = Inl q2"
+                  and "q2 \<in> nodes S"
+                  and "deadlock_state S q2"
+                  and f2 : "find
+                         (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                     \<exists>t2\<in>set (wf_transitions M).
+                                        t_source t1 = fst q2 \<and>
+                                        t_source t2 = snd q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+                         (inputs M) = Some (t_input t2)"
+        using d_left_sources[of t2] d_right_sources[of t2]
+        using \<open>t2 \<in> set d_left \<or> t2 \<in> set d_right\<close> by blast 
+
+      
+
+      show ?thesis
+        using f1 f2 \<open>t_source t1 = t_source t2\<close>
+        using \<open>t_source t1 = Inl q1\<close> \<open>t_source t2 = Inl q2\<close> by auto 
+    qed
+  qed
+  then have "single_input SSep"
+    unfolding single_input.simps by blast
+  
+  then have is_single_input : "single_input ?SSep" 
+    using ssep_var by blast
+
+
 
   have is_acyclic : "acyclic ?SSep" sorry
     (* sketch:
