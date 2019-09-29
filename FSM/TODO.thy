@@ -2623,6 +2623,64 @@ fun state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rightarrow
 *)
 
 
+
+(* TODO: move *)
+lemma max_length_elem :
+  fixes xs :: "'a list set"
+  assumes "finite xs"
+  and     "xs \<noteq> {}"
+shows "\<exists> x \<in> xs . \<not>(\<exists> y \<in> xs . length y > length x)" 
+using assms proof (induction xs)
+  case empty
+  then show ?case by auto
+next
+  case (insert x F)
+  then show ?case proof (cases "F = {}")
+    case True
+    then show ?thesis by blast
+  next
+    case False
+    then obtain y where "y \<in> F" and "\<not>(\<exists> y' \<in> F . length y' > length y)"
+      using insert.IH by blast
+    then show ?thesis using dual_order.strict_trans by (cases "length x > length y"; auto)
+  qed
+qed
+
+(* TODO: move *)
+lemma acyclic_deadlock_states :
+  assumes "acyclic M"
+  shows "\<exists> q \<in> nodes M . deadlock_state M q"
+proof (rule ccontr)
+  assume "\<not> (\<exists>q\<in>nodes M. deadlock_state M q)"
+  then have *: "\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists> t \<in> h M . t_source t = q)"
+    unfolding deadlock_state.simps by blast
+
+  let ?p = "arg_max_on length {p. path M (initial M) p}"
+  
+
+  have "finite {p. path M (initial M) p}"
+    using acyclic_finite_paths assms by auto
+  moreover have "{p. path M (initial M) p} \<noteq> {}" 
+    by auto
+  ultimately obtain p where "path M (initial M) p" and "\<And> p' . path M (initial M) p' \<Longrightarrow> length p' \<le> length p" 
+    using max_length_elem
+    by (metis mem_Collect_eq not_le_imp_less)
+
+  then obtain t where "t \<in> h M" and "t_source t = target p (initial M)"
+    using * path_target_is_node by metis
+
+  then have "path M (initial M) (p@[t])"
+    using \<open>path M (initial M) p\<close>
+    by (simp add: path_append_last) 
+
+  then show "False"
+    using \<open>\<And> p' . path M (initial M) p' \<Longrightarrow> length p' \<le> length p\<close>
+    by (metis impossible_Cons length_rotate1 rotate1.simps(2)) 
+qed
+    
+
+
+
 lemma state_separator_from_induces_separator :
   fixes M :: "('a,'b) FSM_scheme"
   assumes "induces_state_separator M S"
@@ -3310,18 +3368,21 @@ proof -
 
 
 
-  have d_left_sources : "\<And> t . t \<in> set d_left \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
+  have d_left_sources : "\<And> t . t \<in> set d_left \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (find
                                                  (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
                                                              \<exists>t2\<in>set (wf_transitions M).
                                                                 t_source t1 = fst q \<and>
                                                                 t_source t2 = snd q \<and>
                                                                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                                                 (inputs M) = Some (t_input t))"
+                                                 (inputs M) = Some (t_input t))
+                                               \<and> t_input t \<in> set (inputs SSep)
+                                               \<and> t_output t \<in> set (outputs SSep))"
   proof -
     fix t assume "t \<in> set d_left"
 
     have f1: "\<And> t xs f . t \<in> set (map f xs) \<Longrightarrow> (\<exists> x \<in> set xs . t = f x)" by auto
     have f2: "\<And> x xs f . x \<in> set (filter f xs) \<Longrightarrow> f x" by auto
+    have f3: "\<And> x xs f . x \<in> set (filter f xs) \<Longrightarrow> x \<in> set xs" by auto
 
     obtain qqt where *:  "t = (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S)))) qqt" 
                  and **: "qqt \<in> set (filter
@@ -3342,15 +3403,23 @@ proof -
       using \<open>t \<in> set d_left\<close> \<open>d_left = ?d_left\<close> unfolding s_states_deadlock_input_def 
       using f1[of t "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))"] by blast
 
-    
+    have "snd qqt \<in> h M"
+      using f3[OF **] concat_pair_set by blast
+    then have "t_input (snd qqt) \<in> set (inputs M)" and "t_output (snd qqt) \<in> set (outputs M)"
+      by auto
+    then have "t_input (snd qqt) \<in> set (inputs SSep)" and "t_output (snd qqt) \<in> set (outputs SSep)"
+      by (simp only: \<open>inputs SSep = inputs M\<close> \<open>outputs SSep = outputs M\<close>)+
+      
 
-    have "t_source (snd qqt) = fst (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
+    then have "t_source (snd qqt) = fst (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
            (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
                        \<exists>t2\<in>set (wf_transitions M).
                           t_source t1 = fst (fst qqt) \<and>
                           t_source t2 = snd (fst qqt) \<and>
                           t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-           (inputs M) = Some (t_input (snd qqt))"
+           (inputs M) = Some (t_input (snd qqt))
+          \<and> t_input (snd qqt) \<in> set (inputs SSep)
+          \<and> t_output (snd qqt) \<in> set (outputs SSep)"
       using f2[OF **]
       by (meson option.distinct(1)) 
     then have "t_source t = Inl (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
@@ -3359,7 +3428,9 @@ proof -
                           t_source t1 = fst (fst qqt) \<and>
                           t_source t2 = snd (fst qqt) \<and>
                           t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-           (inputs M) = Some (t_input t)"
+           (inputs M) = Some (t_input t)
+          \<and> t_input t \<in> set (inputs SSep)
+          \<and> t_output t \<in> set (outputs SSep)"
       using * by auto
     then show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
                                                  (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
@@ -3367,22 +3438,27 @@ proof -
                                                                 t_source t1 = fst q \<and>
                                                                 t_source t2 = snd q \<and>
                                                                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                                                 (inputs M) = Some (t_input t))" by blast
+                                                 (inputs M) = Some (t_input t)
+                                                 \<and> t_input t \<in> set (inputs SSep)
+                                                 \<and> t_output t \<in> set (outputs SSep))" by blast
       
   qed
 
-  have d_right_sources : "\<And> t . t \<in> set d_right \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
+  have d_right_sources : "\<And> t . t \<in> set d_right \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> (find
                                                  (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
                                                              \<exists>t2\<in>set (wf_transitions M).
                                                                 t_source t1 = fst q \<and>
                                                                 t_source t2 = snd q \<and>
                                                                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                                                 (inputs M) = Some (t_input t))"
+                                                 (inputs M) = Some (t_input t))
+                                               \<and> t_input t \<in> set (inputs SSep)
+                                               \<and> t_output t \<in> set (outputs SSep))"
   proof -
     fix t assume "t \<in> set d_right"
 
     have f1: "\<And> t xs f . t \<in> set (map f xs) \<Longrightarrow> (\<exists> x \<in> set xs . t = f x)" by auto
     have f2: "\<And> x xs f . x \<in> set (filter f xs) \<Longrightarrow> f x" by auto
+    have f3: "\<And> x xs f . x \<in> set (filter f xs) \<Longrightarrow> x \<in> set xs" by auto
 
     obtain qqt where *:  "t = (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S)))) qqt" 
                  and **: "qqt \<in> set (filter
@@ -3402,23 +3478,35 @@ proof -
                                        (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
       using \<open>t \<in> set d_right\<close> \<open>d_right = ?d_right\<close> unfolding s_states_deadlock_input_def 
       using f1[of t "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))"] by blast
-    
-    have "t_source (snd qqt) = snd (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
-                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
-                                                             \<exists>t2\<in>set (wf_transitions M).
-                                                                t_source t1 = fst (fst qqt) \<and>
-                                                                t_source t2 = snd (fst qqt) \<and>
-                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                                                 (inputs M) = Some (t_input (snd qqt))"
+
+    have "snd qqt \<in> h M"
+      using f3[OF **] concat_pair_set by blast
+    then have "t_input (snd qqt) \<in> set (inputs M)" and "t_output (snd qqt) \<in> set (outputs M)"
+      by auto
+    then have "t_input (snd qqt) \<in> set (inputs SSep)" and "t_output (snd qqt) \<in> set (outputs SSep)"
+      by (simp only: \<open>inputs SSep = inputs M\<close> \<open>outputs SSep = outputs M\<close>)+
+      
+
+    then have "t_source (snd qqt) = snd (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
+           (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = fst (fst qqt) \<and>
+                          t_source t2 = snd (fst qqt) \<and>
+                          t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+           (inputs M) = Some (t_input (snd qqt))
+          \<and> t_input (snd qqt) \<in> set (inputs SSep)
+          \<and> t_output (snd qqt) \<in> set (outputs SSep)"
       using f2[OF **]
       by (meson option.distinct(1)) 
     then have "t_source t = Inl (fst qqt) \<and> (fst qqt) \<in> nodes S \<and> deadlock_state S (fst qqt) \<and> find
-                                                 (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
-                                                             \<exists>t2\<in>set (wf_transitions M).
-                                                                t_source t1 = fst (fst qqt) \<and>
-                                                                t_source t2 = snd (fst qqt) \<and>
-                                                                t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                                                 (inputs M) = Some (t_input t)"
+           (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
+                       \<exists>t2\<in>set (wf_transitions M).
+                          t_source t1 = fst (fst qqt) \<and>
+                          t_source t2 = snd (fst qqt) \<and>
+                          t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
+           (inputs M) = Some (t_input t)
+          \<and> t_input t \<in> set (inputs SSep)
+          \<and> t_output t \<in> set (outputs SSep)"
       using * by auto
     then show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q \<and> find
                                                  (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
@@ -3426,9 +3514,13 @@ proof -
                                                                 t_source t1 = fst q \<and>
                                                                 t_source t2 = snd q \<and>
                                                                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-                                                 (inputs M) = Some (t_input t))"
-      by blast
+                                                 (inputs M) = Some (t_input t)
+                                                 \<and> t_input t \<in> set (inputs SSep)
+                                                 \<and> t_output t \<in> set (outputs SSep))" by blast
+      
   qed
+
+  
 
   have d_old_sources : "\<And> t . t \<in> set d_old \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
   proof -
@@ -3453,6 +3545,16 @@ proof -
     show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
       using \<open>t_source t = Inl qs\<close> \<open>(qs,t_input t,t_output t,qt) \<in> h S\<close> \<open>\<not> (deadlock_state S qs)\<close> by auto
   qed
+
+
+  have "\<And> t . t \<in> set d_left \<Longrightarrow> t \<in> h SSep"
+  proof -
+    fix t assume "t \<in> set d_left"
+    then have "t \<in> set ?d_left"
+      using \<open>d_left = ?d_left\<close> by blast
+
+
+
 
      
   have "set d_old \<inter> set d_left = {}"
@@ -3602,18 +3704,45 @@ proof -
 
 
 
+  have "Inr ?q1 \<in> nodes SSep"
+  proof -
+    obtain qd where "qd \<in> nodes S" and "deadlock_state S qd"
+      using acyclic_deadlock_states[OF \<open>acyclic S\<close>] by blast
+    show ?thesis
+      using s_deadlock_transitions_left[OF \<open>qd \<in> nodes S\<close> \<open>deadlock_state S qd\<close>] 
+      using wf_transition_target
+      by fastforce
+  qed
+  then have has_node_left: "Inr ?q1 \<in> nodes ?SSep" 
+    using \<open>SSep = ?SSep\<close> by blast
+
+  have "Inr ?q2 \<in> nodes SSep"
+  proof -
+    obtain qd where "qd \<in> nodes S" and "deadlock_state S qd"
+      using acyclic_deadlock_states[OF \<open>acyclic S\<close>] by blast
+    show ?thesis
+      using s_deadlock_transitions_right[OF \<open>qd \<in> nodes S\<close> \<open>deadlock_state S qd\<close>] 
+      using wf_transition_target
+      by fastforce
+  qed
+  then have has_node_left: "Inr ?q2 \<in> nodes ?SSep" 
+    using \<open>SSep = ?SSep\<close> by blast
+
+
+  have "\<And> p . path SSep (initial SSep) p \<Longrightarrow> isl (target p (initial SSep)) \<Longrightarrow> (\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')"
+    
+
+  have "acyclic SSep"
+  proof -
+    
+  
   have is_acyclic : "acyclic ?SSep" sorry
     (* sketch:
       - S is acyclic
       - any path in SSep is either a path in S or a path in S appended by a single transition to q1 | q2, both of which are \<not>isl and hence not in the prefix that is an S path
      *)
 
-  have has_node_left: "Inr ?q1 \<in> nodes ?SSep" sorry
-  have has_node_right: "Inr ?q2 \<in> nodes ?SSep" sorry
-    (* sketch
-      - acyclicity of S implies existence of deadlock states (proof?)
-        \<longrightarrow> transitions to both q1 and q2 exist (s_deadlock_transitions_left | s_deadlock_transitions_right)
-     *)
+
   
 
   have has_retains_property: "\<forall>q\<in>nodes ?SSep.
