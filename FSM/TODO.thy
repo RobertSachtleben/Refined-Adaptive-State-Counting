@@ -2677,7 +2677,40 @@ proof (rule ccontr)
     using \<open>\<And> p' . path M (initial M) p' \<Longrightarrow> length p' \<le> length p\<close>
     by (metis impossible_Cons length_rotate1 rotate1.simps(2)) 
 qed
+
+(* TODO: move *)
+lemma deadlock_prefix :
+  assumes "path M q p"
+  and     "t \<in> set (butlast p)"
+shows "\<not> (deadlock_state M (t_target t))"
+  using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc t' p')
+  
+  show ?case proof (cases "t \<in> set (butlast p')")
+    case True
+    show ?thesis 
+      using snoc.IH[OF _ True] snoc.prems(1)
+      by blast 
+  next
+    case False
+    then have "p' = (butlast p')@[t]"
+      using snoc.prems(2) by (metis append_butlast_last_id append_self_conv2 butlast_snoc in_set_butlast_appendI list_prefix_elem set_ConsD)
+    then have "path M q ((butlast p'@[t])@[t'])"
+      using snoc.prems(1)
+      by auto 
     
+    have "t' \<in> h M" and "t_source t' = target (butlast p'@[t]) q"
+      using path_suffix[OF \<open>path M q ((butlast p'@[t])@[t'])\<close>]
+      by auto
+    then have "t' \<in> h M \<and> t_source t' = t_target t"
+      unfolding target.simps visited_states.simps by auto
+    then show ?thesis 
+      unfolding deadlock_state.simps using \<open>t' \<in> h M\<close> by blast
+  qed
+qed
 
 
 
