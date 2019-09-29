@@ -3762,8 +3762,67 @@ proof -
     using \<open>SSep = ?SSep\<close> by blast
 
 
+
+  have "\<And> q . q \<in> nodes SSep \<Longrightarrow> \<not> isl q \<Longrightarrow> deadlock_state SSep q"
+  proof -
+    fix q assume "q \<in> nodes SSep" and "\<not> isl q"
+    have "q = Inr ?q1 \<or> q = Inr ?q2"
+      using inl_prop[OF \<open>q \<in> nodes SSep\<close>] \<open>\<not> isl q\<close> by blast
+    then show "deadlock_state SSep q" 
+      using has_deadlock_left has_deadlock_right \<open>SSep = ?SSep\<close> by blast
+  qed
+
   have "\<And> p . path SSep (initial SSep) p \<Longrightarrow> isl (target p (initial SSep)) \<Longrightarrow> (\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')"
-    
+  proof -
+    fix p assume "path SSep (initial SSep) p" and "isl (target p (initial SSep))"
+    then show "(\<exists> p' . path S (initial S) p' \<and> p = map shift_Inl p')" 
+    proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case by auto
+    next
+      case (snoc t p)
+      then have "path SSep (initial SSep) p" by auto
+      moreover have "\<not> (deadlock_state SSep (target p (initial SSep)))"
+        using deadlock_prefix[OF snoc.prems(1)]
+        by (metis calculation deadlock_state.simps path_cons_elim path_equivalence_by_h path_suffix snoc.prems(1))  
+      ultimately have "isl (target p (initial SSep))"
+        using \<open>\<And> q . q \<in> nodes SSep \<Longrightarrow> \<not> isl q \<Longrightarrow> deadlock_state SSep q\<close>
+        using nodes_path_initial by blast 
+
+      then obtain p' where "path S (initial S) p'" and "p = map shift_Inl p'"
+        using snoc.IH[OF \<open>path SSep (initial SSep) p\<close>] by blast
+
+      have "isl (t_source t)"
+        using \<open>isl (target p (initial SSep))\<close> snoc.prems(1)
+        by auto 
+      moreover have "isl (t_target t)"
+        using snoc.prems(2) unfolding target.simps visited_states.simps by auto
+
+      ultimately obtain qs qt where "t = (Inl qs, t_input t, t_output t, Inl qt)"
+        by (metis prod.collapse sum.collapse(1))
+      then have "(Inl qs, t_input t, t_output t, Inl qt) \<in> h SSep"
+        using snoc.prems(1) by auto
+      then have "(qs, t_input t, t_output t, qt) \<in> h S"
+        using d_old_origins by blast
+
+
+      have "map t_target p = map Inl (map t_target p')"
+        using \<open>p = map shift_Inl p'\<close> by auto
+      then have "(target p (initial SSep)) = Inl (target p' (initial S))"
+        using \<open>initial SSep = Inl (initial S)\<close> unfolding target.simps visited_states.simps
+        by (simp add: last_map) 
+
+
+      then have "path S (initial S) (p'@[(qs, t_input t, t_output t, qt)])" 
+        using \<open>path S (initial S) p'\<close> snoc.prems(1)
+        by (metis (no_types, lifting) Inl_inject \<open>(qs, t_input t, t_output t, qt) \<in> set (wf_transitions S)\<close> \<open>t = (Inl qs, t_input t, t_output t, Inl qt)\<close> fst_conv list.inject not_Cons_self2 path.cases path_append_last path_suffix) 
+
+      moreover have "p@[t] = map shift_Inl (p'@[(qs, t_input t, t_output t, qt)])"
+        using \<open>p = map shift_Inl p'\<close> \<open>t = (Inl qs, t_input t, t_output t, Inl qt)\<close> by auto
+      ultimately show ?case
+        by meson 
+    qed
+  qed
 
   have "acyclic SSep"
   proof -
