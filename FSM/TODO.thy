@@ -1403,7 +1403,7 @@ lemma s_states_induces_state_separator_helper_h :
                       transitions = 
                          filter 
                            (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M \<rparr>"
   shows "(t_source t, t_input t) \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k)" 
   using assms by force
 
@@ -1414,7 +1414,7 @@ lemma s_states_induces_state_separator_helper_single_input :
                       transitions = 
                          filter 
                            (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M \<rparr>"
   (is "single_input ?S")
 proof -
   have "\<And> t1 t2 . t1 \<in> h ?S \<Longrightarrow> t2 \<in> h ?S \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t_input t1 = t_input t2"
@@ -1445,7 +1445,7 @@ lemma s_states_induces_state_separator_helper_retains_outputs :
                 transitions = 
                    filter 
                      (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+                (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M \<rparr>"
   (is "retains_outputs_for_states_and_inputs ?PM ?S")
 proof -
   have "\<And> tS tM . tS \<in> h ?S \<Longrightarrow> tM \<in> h ?PM \<Longrightarrow> t_source tS = t_source tM \<Longrightarrow> t_input tS = t_input tM \<Longrightarrow> tM \<in> h ?S"
@@ -2023,7 +2023,7 @@ lemma s_states_induces_state_separator_helper_distinct_paths :
                       transitions = 
                          filter 
                            (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M \<rparr>
                  q
                  p"
     (is "path ?S q p")
@@ -2063,7 +2063,7 @@ lemma s_states_induces_state_separator_helper_acyclic :
                       transitions = 
                          filter 
                            (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M \<rparr>"
     (is "acyclic ?S")
 
 proof -
@@ -2180,7 +2180,8 @@ shows "induces_state_separator_for_prod M q1 q2 \<lparr> initial = fst (last (s_
                                                   transitions = 
                                                      filter 
                                                        (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                                                  (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>"
+                                                  (wf_transitions (product (from_FSM M q1) (from_FSM M q2))),
+                                                  \<dots> = more M\<rparr>"
 using assms(1) proof (induction k rule: less_induct)
   case (less x)
   then show ?case proof (cases x)
@@ -2196,7 +2197,7 @@ using assms(1) proof (induction k rule: less_induct)
                                      transitions = 
                                         filter 
                                           (\<lambda>t . \<exists> qqx \<in> set (s_states ?PM 0) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                                          (wf_transitions ?PM) \<rparr>"
+                                          (wf_transitions ?PM), \<dots> = more M \<rparr>"
   
     (* avoid handling the entire term of ?S *)
     obtain S where "S = ?S" by blast
@@ -2332,7 +2333,7 @@ using assms(1) proof (induction k rule: less_induct)
   
     have retains_outputs : "retains_outputs_for_states_and_inputs ?PM ?S"
       unfolding retains_outputs_for_states_and_inputs_def
-      using \<open>\<And>t. t \<in> set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) 0)), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) 0). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>) \<Longrightarrow> False\<close> by blast 
+      using \<open>\<And>t. t \<in> set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) 0)), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) 0). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>) \<Longrightarrow> False\<close> by blast 
     
   
     (* collect properties *)
@@ -2374,7 +2375,7 @@ using assms(1) proof (induction k rule: less_induct)
                   transitions = 
                      filter 
                        (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                  (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
+                  (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M \<rparr>"
 
 
       obtain qx where "s_states ?PM (Suc k) = s_states ?PM k @ [qx]"
@@ -2462,10 +2463,10 @@ using assms(1) proof (induction k rule: less_induct)
           have "t \<in> h ?PM"
             using \<open>t \<in> h ?S\<close>
           proof -
-            have f1: "t \<in> set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>p. \<exists>pa. pa \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) \<and> t_source p = fst pa \<and> t_input p = snd pa) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>)"
-              by (metis \<open>t \<in> set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>)\<close>)
-            have "set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>p. \<exists>pa. pa \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) \<and> t_source p = fst pa \<and> t_input p = snd pa) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>) \<subseteq> set (wf_transitions (product (from_FSM M (fst (fst qx))) (from_FSM M (snd (fst qx)))))"
-              by (metis (full_types) \<open>set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>) \<subseteq> set (wf_transitions (product (from_FSM M (fst (fst qx))) (from_FSM M (snd (fst qx)))))\<close>)
+            have f1: "t \<in> set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>p. \<exists>pa. pa \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) \<and> t_source p = fst pa \<and> t_input p = snd pa) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>)"
+              by (metis \<open>t \<in> set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>)\<close>)
+            have "set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>p. \<exists>pa. pa \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) \<and> t_source p = fst pa \<and> t_input p = snd pa) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>) \<subseteq> set (wf_transitions (product (from_FSM M (fst (fst qx))) (from_FSM M (snd (fst qx)))))"
+              by (metis (full_types) \<open>set (wf_transitions \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>) \<subseteq> set (wf_transitions (product (from_FSM M (fst (fst qx))) (from_FSM M (snd (fst qx)))))\<close>)
             then have f2: "t \<in> set (wf_transitions (product (from_FSM M (fst (fst qx))) (from_FSM M (snd (fst qx)))))"
               using f1 by blast
             have "(fst (fst qx), snd (fst qx)) = fst qx"
@@ -2528,7 +2529,7 @@ using assms(1) proof (induction k rule: less_induct)
             by simp 
           then have "t \<in> h ?S"
             using \<open>t \<in> h ?PM\<close>
-            by (metis (no_types, lifting) \<open>qq \<in> nodes \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>\<close> \<open>t_source t = qq\<close> select_convs(2) select_convs(3) wf_transition_simp) 
+            by (metis (no_types, lifting) \<open>qq \<in> nodes \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>\<close> \<open>t_source t = qq\<close> select_convs(2) select_convs(3) wf_transition_simp) 
           then have "\<not> (deadlock_state ?S qq)"
             unfolding deadlock_state.simps using \<open>t_source t = qq\<close>
             by blast 
@@ -2751,7 +2752,7 @@ qed
 
 
 
-lemma state_separator_from_induces_separator :
+lemma state_separator_from_induces_state_separator :
   fixes M :: "('a,'b) FSM_scheme"
   assumes "induces_state_separator M S"
   and "fst (initial S) \<in> nodes M"
@@ -4442,6 +4443,213 @@ qed
 
 
 
+lemma induces_from_prod: "induces_state_separator M S = induces_state_separator_for_prod M (fst (initial S)) (snd (initial S)) S"
+  unfolding induces_state_separator_def induces_state_separator_for_prod_def by blast
+
+
+
+  
+                                                           
+(*
+  is_state_separator_from_canonical_separator
+            (canonical_separator M (fst (initial S)) (snd (initial S)))
+            (fst (initial S))
+            (snd (initial S))
+            (state_separator_from_product_submachine M S)
+
+
+
+  induces_state_separator_for_prod M q1 q2 \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) k)),
+                                                  inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+                                                  outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
+                                                  transitions = 
+                                                     filter 
+                                                       (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                                                  (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))
+*)
+
+(* TODO: move *)
+fun find_index :: "('a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> nat option" where
+  "find_index f []  = None" |
+  "find_index f (x#xs) = (if f x then Some 0 else (case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None))" 
+
+lemma find_index_index :
+  assumes "find_index f xs = Some k"
+  shows "k < length xs" and "f (xs ! k)"
+proof -
+  have "k < length xs \<and> f (xs ! k)"
+    using assms proof (induction xs arbitrary: k)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons x xs)
+    
+    show ?case proof (cases "f x")
+      case True
+      then show ?thesis using Cons.prems by auto
+    next
+      case False
+      then have "find_index f (x#xs) = (case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None)"
+        by auto
+      then have "(case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None) = Some k"
+        using Cons.prems by auto
+      then obtain k' where "find_index f xs = Some k'" and "k = Suc k'"
+        by (metis option.case_eq_if option.collapse option.distinct(1) option.sel)
+        
+      show ?thesis using Cons.IH[OF \<open>find_index f xs = Some k'\<close>] using \<open>k = Suc k'\<close> by auto
+    qed
+  qed
+  then show "k < length xs" and "f (xs ! k)" by simp+
+qed
+
+lemma find_index_exhaustive : 
+  assumes "\<exists> x \<in> set xs . f x"
+  shows "find_index f xs \<noteq> None"
+  using assms proof (induction xs)
+case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then show ?case by (cases "f x"; auto)
+qed
+
+
+
+
+definition calculate_state_separator_from_s_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme option" where
+  "calculate_state_separator_from_s_states M q1 q2 = 
+    (let PR = product (from_FSM M q1) (from_FSM M q2); SS = (s_states_opt PR (size PR))  in
+      (case find_index (\<lambda>qqt . fst qqt = (q1,q2)) SS of
+        Some i \<Rightarrow> Some (state_separator_from_product_submachine M \<lparr> initial = (q1,q2),
+                                                    inputs = inputs PR,
+                                                    outputs = outputs PR,
+                                                    transitions = 
+                                                       filter 
+                                                         (\<lambda>t . \<exists> qqx \<in> set (take (Suc i) SS) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                                                       (wf_transitions PR),
+                                                    \<dots> = more M\<rparr>) |
+        None \<Rightarrow> None))"
+
+
+value "calculate_state_separator_from_s_states M_ex_9 0 1"
+value "calculate_state_separator_from_s_states M_ex_9 0 2"
+value "calculate_state_separator_from_s_states M_ex_9 0 3"
+value "calculate_state_separator_from_s_states M_ex_9 3 1"
+value "calculate_state_separator_from_canonical_separator_naive M_ex_9 0 3"
+
+
+
+lemma calculate_state_separator_from_s_states_soundness :
+  assumes "calculate_state_separator_from_s_states M q1 q2 = Some S"
+  and "q1 \<in> nodes M"
+  and "q2 \<in> nodes M"
+  and "q1 \<noteq> q2"
+  and "completely_specified M"
+  shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+proof -
+  let ?PR = " product (from_FSM M q1) (from_FSM M q2)"
+  let ?SS = "(s_states_opt ?PR (size ?PR))"
+
+  obtain i where i_def: "find_index (\<lambda>qqt . fst qqt = (q1,q2)) ?SS = Some i"
+    using assms unfolding calculate_state_separator_from_s_states_def Let_def
+    by fastforce 
+  then have s1: "S = 
+        (state_separator_from_product_submachine M
+          \<lparr>initial = (q1, q2), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
+             outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
+             transitions =
+               filter
+                (\<lambda>t. \<exists>qqx\<in>set (take (Suc i)
+                                 (s_states_opt (product (from_FSM M q1) (from_FSM M q2))
+                                   (FSM.size (product (from_FSM M q1) (from_FSM M q2))))).
+                        t_source t = fst qqx \<and> t_input t = snd qqx)
+                (wf_transitions (product (from_FSM M q1) (from_FSM M q2))),
+             \<dots> = more M\<rparr>)"
+    using assms(1) unfolding calculate_state_separator_from_s_states_def Let_def
+    by (metis (mono_tags, lifting) option.inject option.simps(5)) 
+  
+  
+  have "(s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2))))
+                 = s_states ?PR (size ?PR)"
+    using s_states_code by metis
+  then have "take (Suc i) (s_states ?PR (size ?PR)) = take (Suc i) (s_states ?PR (size ?PR))"
+    by force
+  
+  have "i < length (s_states ?PR (size ?PR))"
+    using find_index_index(1)[OF i_def] using s_states_code by metis
+  moreover have "length (s_states ?PR (size ?PR)) \<le> size ?PR"
+    using s_states_size by blast
+  ultimately have "i \<le> size ?PR" by force
+
+
+  have "fst (last (take (Suc i) (s_states_opt ?PR (size ?PR)))) = (q1,q2)"
+    using find_index_index(2)[OF i_def]
+    using \<open>i < length (s_states (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2))))\<close> \<open>s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2))) = s_states (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))\<close> take_last_index by force 
+
+  have "(take (Suc i) (s_states_opt ?PR (size ?PR))) = s_states ?PR i"
+    using s_states_prefix[OF \<open>i \<le> size ?PR\<close>] s_states_code by metis
+
+  let ?S = "\<lparr>initial = fst (last (s_states ?PR i)), inputs = inputs ?PR,
+             outputs = outputs ?PR,
+             transitions =
+               filter
+                (\<lambda>t. \<exists>qqx\<in>set (s_states ?PR i).
+                        t_source t = fst qqx \<and> t_input t = snd qqx)
+                (wf_transitions ?PR),
+             \<dots> = more M\<rparr>"
+
+  have s2 : "S = (state_separator_from_product_submachine M ?S)"
+    using s1
+  proof -
+    have "fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) i)) = (q1, q2)"
+      by (metis \<open>fst (last (take (Suc i) (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))))) = (q1, q2)\<close> \<open>take (Suc i) (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))) = s_states (product (from_FSM M q1) (from_FSM M q2)) i\<close>)
+    then show ?thesis
+      using \<open>S = state_separator_from_product_submachine M \<lparr>initial = (q1, q2), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (take (Suc i) (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2))))). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>\<close> \<open>take (Suc i) (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))) = s_states (product (from_FSM M q1) (from_FSM M q2)) i\<close> by presburger
+  qed 
+
+  have "s_states ?PR i \<noteq> []"
+    using \<open>i < length (s_states (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2))))\<close> \<open>s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2))) = s_states (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))\<close> \<open>take (Suc i) (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))) = s_states (product (from_FSM M q1) (from_FSM M q2)) i\<close> by auto
+
+  have "induces_state_separator_for_prod M q1 q2 ?S"
+    using  s_states_induces_state_separator[OF \<open>s_states ?PR i \<noteq> []\<close> assms(2,3,4)] by assumption
+
+  then have "induces_state_separator M ?S" 
+    using \<open>fst (last (take (Suc i) (s_states_opt ?PR (size ?PR)))) = (q1,q2)\<close> \<open>(take (Suc i) (s_states_opt ?PR (size ?PR))) = s_states ?PR i\<close> 
+    using induces_from_prod by force
+
+
+  have "fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) i)) = (q1,q2)"
+    using \<open>fst (last (take (Suc i) (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))))) = (q1, q2)\<close> \<open>take (Suc i) (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (FSM.size (product (from_FSM M q1) (from_FSM M q2)))) = s_states (product (from_FSM M q1) (from_FSM M q2)) i\<close> by auto 
+  
+  have "fst (initial ?S) = q1"
+    using \<open>fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) i)) = (q1,q2)\<close> by force
+  then have "fst (initial ?S) \<in> nodes M"
+    using assms(2) by auto
+
+  have "snd (initial ?S) = q2"
+    using \<open>fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) i)) = (q1,q2)\<close> by force
+  then have "snd (initial ?S) \<in> nodes M"
+    using assms(3) by auto
+
+  have "fst (initial ?S) \<noteq> snd (initial ?S)"
+    using \<open>fst (initial ?S) = q1\<close> \<open>snd (initial ?S) = q2\<close> assms(4) by auto
+
+  have "is_state_separator_from_canonical_separator
+   (canonical_separator M (fst (initial ?S)) (snd (initial ?S))) (fst (initial ?S)) (snd (initial ?S))
+   (state_separator_from_product_submachine M ?S)"
+    using state_separator_from_induces_state_separator
+          [OF \<open>induces_state_separator M ?S\<close>
+              \<open>fst (initial ?S) \<in> nodes M\<close>
+              \<open>snd (initial ?S) \<in> nodes M\<close>
+              \<open>fst (initial ?S) \<noteq> snd (initial ?S)\<close>
+              \<open>completely_specified M\<close>] by assumption
+
+  then show ?thesis using s2
+    by (metis \<open>fst (initial \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) i)), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) i). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>) = q1\<close> \<open>snd (initial \<lparr>initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) i)), inputs = inputs (product (from_FSM M q1) (from_FSM M q2)), outputs = outputs (product (from_FSM M q1) (from_FSM M q2)), transitions = filter (\<lambda>t. \<exists>qqx\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2)) i). t_source t = fst qqx \<and> t_input t = snd qqx) (wf_transitions (product (from_FSM M q1) (from_FSM M q2))), \<dots> = more M\<rparr>) = q2\<close>) 
+qed
+
+
+  
 
 end (*
           
@@ -4449,7 +4657,6 @@ end (*
 
 
 (* TODO:
-  - finish algorithm for state_separator calculation that uses s_states and cuts of as soon as the origin is reached
   - Show that r-d implies that this alg produces a result (?)
 *)
 
@@ -4462,7 +4669,53 @@ end (*
 
 
 
+(*
+lemma induces_from_prod :
+  assumes "q1 \<in> nodes M"
+  and "q2 \<in> nodes M"
+shows "induces_state_separator M S = induces_state_separator_for_prod M q1 q2 S"
+proof -
 
+  let ?PMS = "(product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))"
+  let ?PM = "(product (from_FSM M q1) (from_FSM M q2))"
+
+  obtain P where P_def: "P = (is_submachine S ?PMS \<and>
+                                single_input S \<and>
+                                FSM.acyclic S \<and>
+                                (\<forall>qq\<in>nodes S.
+                                    deadlock_state S qq \<longrightarrow>
+                                    (\<exists>x\<in>set (inputs M).
+                                        \<not> (\<exists>t1\<in>set (wf_transitions M).
+                                               \<exists>t2\<in>set (wf_transitions M).
+                                                  t_source t1 = fst qq \<and>
+                                                  t_source t2 = snd qq \<and>
+                                                  t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))))" by blast
+
+  have p1: "induces_state_separator M S = (P \<and> (retains_outputs_for_states_and_inputs ?PMS S))"
+    unfolding induces_state_separator_def using P_def by blast
+  
+  have p2: "induces_state_separator_for_prod M q1 q2 S = (P \<and> retains_outputs_for_states_and_inputs ?PM S)"
+    unfolding induces_state_separator_for_prod_def using P_def by blast
+
+
+  show ?thesis proof (cases P)
+    case True
+    then have "is_submachine S ?PMS" using P_def by blast
+    
+
+    have "(retains_outputs_for_states_and_inputs (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))) S) = (retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) S)"
+      unfolding retains_outputs_for_states_and_inputs_def
+    proof 
+       
+
+    ultimately show ?thesis using p1 p2 by blast
+  next
+    case False
+    then show ?thesis using p1 p2 by blast
+  qed
+qed
+
+*)
 
 
 
