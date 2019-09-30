@@ -2592,37 +2592,74 @@ definition s_states_deadlock_input :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<t
 
 
 
-fun state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme" where
+definition state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme" where
   "state_separator_from_product_submachine M S =
     \<lparr> initial = Inl (initial S),
       inputs = inputs M,
       outputs = outputs M,
-      transitions = (map shift_Inl (wf_transitions S))
-                    @ (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
-                           (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                   (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
-                    @ (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
-                           (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                   (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))),
+      transitions = (let
+                        t_old = (map shift_Inl (wf_transitions S));
+                    t_left = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
+                                   (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                           (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                        (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))));
+                    t_right = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
+                                     (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                             (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                          (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
+        in (t_old 
+            @ t_left 
+            @ t_right 
+            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
+                              (\<exists> t' \<in> set t_old . t_source t = t_source t' \<and> t_input t = t_input t'))
+                       (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))     
+            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
+                              (\<exists> t' \<in> set t_old . t_source t = t_source t' \<and> t_input t = t_input t'))
+                       (distinguishing_transitions_right M (fst (initial S)) (snd (initial S)))))), 
+                                        
       \<dots> = more M \<rparr>"
 
 (*
-                    @ (filter (\<lambda>t . s_states_deadlock_input M S (t_source t) = t_input t) (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))
-                    @ (filter (\<lambda>t . s_states_deadlock_input M S (t_source t) = t_input t) (distinguishing_transitions_right M (fst (initial S)) (snd (initial S))))
-
-
-
-                    @ (concat (map (\<lambda>qq . distinguishing_transitions_left M (fst qq) (snd qq))
-                                   (filter (\<lambda>qq . deadlock_state S qq)
-                                           (nodes_from_distinct_paths S))))
-                    @ (concat (map (\<lambda>qq . distinguishing_transitions_left M (fst qq) (snd qq))
-                                   (filter (\<lambda>qq . deadlock_state S qq)
-                                           (nodes_from_distinct_paths S)))),  
+transitions = (let
+                        t_old = (map shift_Inl (wf_transitions S));
+                    t_left = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
+                                   (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                           (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                        (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))));
+                    t_right = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
+                                     (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                             (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                          (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
+        in (t_old 
+            @ t_left 
+            @ t_right 
+            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
+                              (\<exists> t' \<in> set t_old \<union> set t_left \<union> set t_right . t_source t = t_source t' \<and> t_input t = t_input t'))
+                       (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))     
+            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
+                              (\<exists> t' \<in> set t_old \<union> set t_left \<union> set t_right . t_source t = t_source t' \<and> t_input t = t_input t'))
+                       (distinguishing_transitions_right M (fst (initial S)) (snd (initial S)))))),
 *)
 
+(*
+transitions = (let
+                        t_old = (map shift_Inl (wf_transitions S));
+                    t_left = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
+                                   (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                           (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                        (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))));
+                    t_right = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
+                                     (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
+                                             (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
+                                                          (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
+        in (t_old @ t_left @ t_right @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
+                                                      (\<exists> t' \<in> set t_old \<union> set t_left \<union> set t_right . t_source t = t_source t' \<and> t_input t = t_input t'))
+                                               (wf_transitions (canonical_separator M (fst (initial S)) (snd (initial S))))))),
+*)
 
+(*
+distinguishing_transitions_left M ?q1 ?q2
+*)
 
 (* TODO: move *)
 lemma max_length_elem :
@@ -2760,7 +2797,7 @@ proof -
     using \<open>is_submachine S ?PM\<close> unfolding is_submachine.simps by blast+
 
   have "set (map shift_Inl (wf_transitions S)) \<subseteq> set (transitions ?SSep)"
-    unfolding state_separator_from_product_submachine.simps
+    unfolding state_separator_from_product_submachine_def
     by (metis list_prefix_subset select_convs(4)) 
   moreover have "set (map shift_Inl (wf_transitions S)) \<subseteq> set (map shift_Inl (wf_transitions ?PM))"
     using \<open>h S \<subseteq> h ?PM\<close> by auto
@@ -2942,6 +2979,49 @@ proof -
   (* TODO *)
 
 
+  let ?d_old = "map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (wf_transitions S)"
+  let ?d_left = "map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
+                   (filter
+                     (\<lambda>qqt. t_source (snd qqt) = fst (fst qqt) \<and>
+                            s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt)))
+                     (concat
+                       (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                         (nodes_from_distinct_paths
+                           (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
+  let ?d_right = "map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
+                   (filter
+                     (\<lambda>qqt. t_source (snd qqt) = snd (fst qqt) \<and>
+                            s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt)))
+                     (concat
+                       (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                         (nodes_from_distinct_paths
+                           (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
+
+  let ?d_old_dist_left = "(filter (\<lambda>t . t \<notin> set ?d_old \<union> set ?d_left \<union> set ?d_right \<and>
+                                          (\<exists> t' \<in> set ?d_old . t_source t = t_source t' \<and> t_input t = t_input t'))
+                                   (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))"
+
+  let ?d_old_dist_right = "(filter (\<lambda>t . t \<notin> set ?d_old \<union> set ?d_left \<union> set ?d_right \<and>
+                                          (\<exists> t' \<in> set ?d_old . t_source t = t_source t' \<and> t_input t = t_input t'))
+                                   (distinguishing_transitions_right M (fst (initial S)) (snd (initial S))))"
+
+  
+  
+  obtain d_right::"(('a \<times> 'a) + 'a) Transition list"  where d_right_var: "d_right = ?d_right" by blast
+  obtain d_left::"(('a \<times> 'a) + 'a) Transition list"  where d_left_var: "d_left = ?d_left" by blast
+  obtain d_old::"(('a \<times> 'a) + 'a) Transition list"  where d_old_var: "d_old = ?d_old" by blast
+  obtain d_old_dist_left::"(('a \<times> 'a) + 'a) Transition list" where d_old_dist_left_var: "d_old_dist_left = (filter (\<lambda>t . t \<notin> set d_old \<union> set d_left \<union> set d_right \<and>
+                                          (\<exists> t' \<in> set d_old . t_source t = t_source t' \<and> t_input t = t_input t'))
+                                   (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))" by blast
+  obtain d_old_dist_right::"(('a \<times> 'a) + 'a) Transition list" where d_old_dist_right_var: "d_old_dist_right = (filter (\<lambda>t . t \<notin> set d_old \<union> set d_left \<union> set d_right \<and>
+                                          (\<exists> t' \<in> set d_old . t_source t = t_source t' \<and> t_input t = t_input t'))
+                                   (distinguishing_transitions_right M (fst (initial S)) (snd (initial S))))" by blast
+
+  
+      
+
+
+
   have "set ((map shift_Inl (wf_transitions S))
                     @ (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
                            (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
@@ -2961,9 +3041,42 @@ proof -
     then show ?thesis
       using list_append_subset3 subset_left subset_right by blast
   qed 
+  then have "set (d_old @ d_left @ d_right) \<subseteq> set (shifted_transitions M ?q1 ?q2
+                @ distinguishing_transitions_left M ?q1 ?q2
+                @ distinguishing_transitions_right M ?q1 ?q2)"
+    using d_old_var d_left_var d_right_var by blast
+  then have "set (d_old @ d_left @ d_right) \<subseteq> set (transitions ?CSep)"
+    unfolding canonical_separator_def by auto
+  
+  have "set ?d_old_dist_left \<subseteq> set (transitions ?CSep)"
+  proof 
+    fix t assume "t \<in> set ?d_old_dist_left"
+    have *: "\<And> f xs x . x \<in> set (filter f xs) \<Longrightarrow> x \<in> set xs" by auto
+    show "t \<in> set (transitions ?CSep)" using *[OF \<open>t \<in> set ?d_old_dist_left\<close>] unfolding canonical_separator_def by auto
+  qed
+  then have "set d_old_dist_left \<subseteq> set (transitions ?CSep)"
+    using d_old_dist_left_var d_old_var d_left_var d_right_var by blast
+  then have "set (d_old @ d_left @ d_right @ d_old_dist_left) \<subseteq> set (transitions ?CSep)"
+    using \<open>set (d_old @ d_left @ d_right) \<subseteq> set (transitions ?CSep)\<close> by force
 
+  have "set ?d_old_dist_right \<subseteq> set (transitions ?CSep)"
+  proof 
+    fix t assume "t \<in> set ?d_old_dist_right"
+    have *: "\<And> f xs x . x \<in> set (filter f xs) \<Longrightarrow> x \<in> set xs" by auto
+    show "t \<in> set (transitions ?CSep)" using *[OF \<open>t \<in> set ?d_old_dist_right\<close>] unfolding canonical_separator_def by auto
+  qed
+  then have "set d_old_dist_right \<subseteq> set (transitions ?CSep)"
+    using d_old_dist_right_var d_old_var d_left_var d_right_var by blast
+  then have "set (d_old @ d_left @ d_right @ d_old_dist_left @ d_old_dist_right) \<subseteq> set (transitions ?CSep)"
+    using \<open>set (d_old @ d_left @ d_right @ d_old_dist_left) \<subseteq> set (transitions ?CSep)\<close> by force
+
+  have "set (transitions ?SSep) = set (?d_old @ ?d_left @ ?d_right @ ?d_old_dist_left @ ?d_old_dist_right)"
+    unfolding Let_def state_separator_from_product_submachine_def by (simp only: select_convs)
+  then have "set (transitions ?SSep) = set (d_old @ d_left @ d_right @ d_old_dist_left @ d_old_dist_right)"
+    using d_old_dist_left_var d_old_dist_right_var d_old_var d_left_var d_right_var by blast
   then have "set (transitions ?SSep) \<subseteq> set (transitions ?CSep)"
-    unfolding canonical_separator_def state_separator_from_product_submachine.simps by (simp only: select_convs)
+    using \<open>set (d_old @ d_left @ d_right @ d_old_dist_left @ d_old_dist_right) \<subseteq> set (transitions ?CSep)\<close> by blast
+  
 
   
 
@@ -2974,13 +3087,13 @@ proof -
     by (simp only: from_FSM_simps(2) product_simps(2))
 
   have "initial ?SSep = initial ?CSep"
-    unfolding canonical_separator_def state_separator_from_product_submachine.simps
+    unfolding canonical_separator_def state_separator_from_product_submachine_def
     by (simp only: from_FSM_simps(1) product_simps(1) select_convs prod.collapse) 
   moreover have "inputs ?SSep = inputs ?CSep"
-    unfolding canonical_separator_def state_separator_from_product_submachine.simps
+    unfolding canonical_separator_def state_separator_from_product_submachine_def
     by (simp only: from_FSM_simps(2) product_simps(2)  select_convs)  
   moreover have "outputs ?SSep = outputs ?CSep"
-    unfolding canonical_separator_def state_separator_from_product_submachine.simps
+    unfolding canonical_separator_def state_separator_from_product_submachine_def
     by (simp only: from_FSM_simps(3) product_simps(3)  select_convs) 
   moreover have "h ?SSep \<subseteq> h ?CSep"
     using \<open>set (transitions ?SSep) \<subseteq> set (transitions ?CSep)\<close> calculation
@@ -3014,56 +3127,46 @@ proof -
         \<longrightarrow> x/y2 in d_old
   *)
 
-  let ?d_old = "map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (wf_transitions S)"
-  let ?d_left = "map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
-                   (filter
-                     (\<lambda>qqt. t_source (snd qqt) = fst (fst qqt) \<and>
-                            s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt)))
-                     (concat
-                       (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                         (nodes_from_distinct_paths
-                           (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
-  let ?d_right = "map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
-                   (filter
-                     (\<lambda>qqt. t_source (snd qqt) = snd (fst qqt) \<and>
-                            s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt)))
-                     (concat
-                       (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                         (nodes_from_distinct_paths
-                           (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))"
-
-  obtain d_right::"(('a \<times> 'a) + 'a) Transition list"  where d_right_var: "d_right = ?d_right" by blast
-  obtain d_left::"(('a \<times> 'a) + 'a) Transition list"  where d_left_var: "d_left = ?d_left" by blast
-  obtain d_old::"(('a \<times> 'a) + 'a) Transition list"  where d_old_var: "d_old = ?d_old" by blast
+  
 
   have d_left_targets: "\<And> t . t \<in> set d_left \<Longrightarrow> t_target t = Inr ?q1" 
   and  d_right_targets: "\<And> t . t \<in> set d_right \<Longrightarrow> t_target t = Inr ?q2"
+  and  d_old_dist_left_targets: "\<And> t . t \<in> set d_old_dist_left \<Longrightarrow> t_target t = Inr ?q1"
+  and  d_old_dist_right_targets: "\<And> t . t \<in> set d_old_dist_right \<Longrightarrow> t_target t = Inr ?q2"
   proof -
     have *: "\<And> xs t q . t \<in> set (map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), q)) xs) \<Longrightarrow> t_target t = q" by auto
     show "\<And> t . t \<in> set d_left \<Longrightarrow> t_target t = Inr ?q1"
       using * d_left_var by blast
     show "\<And> t . t \<in> set d_right \<Longrightarrow> t_target t = Inr ?q2"
       using * d_right_var by blast
+
+    have **: "\<And> xs t q f . t \<in> set (filter f (map (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), q)) xs)) \<Longrightarrow> t_target t = q" by auto
+    show "\<And> t . t \<in> set d_old_dist_left \<Longrightarrow> t_target t = Inr ?q1"
+      using ** d_old_dist_left_var unfolding distinguishing_transitions_left_def by blast
+    show "\<And> t . t \<in> set d_old_dist_right \<Longrightarrow> t_target t = Inr ?q2"
+      using ** d_old_dist_right_var unfolding distinguishing_transitions_right_def by blast
   qed
+
+  
 
   have d_old_targets : "\<And> t . t \<in> set d_old \<Longrightarrow> isl (t_target t) \<and> (\<exists> t' \<in> h S . t = (Inl (t_source t'), t_input t', t_output t', Inl (t_target t')))"
     using d_old_var by auto
 
   
-
       
-  have "transitions ?SSep = ?d_old @ ?d_left @ ?d_right"
-    unfolding state_separator_from_product_submachine.simps by (simp only: select_convs)
-  then have d_containment : "set (transitions ?SSep) = set ?d_old \<union> set ?d_left \<union> set ?d_right"
-    by (metis (no_types, lifting) append.assoc set_append)
-  then have d_containment_var : "set (transitions SSep) = set d_old \<union> set d_left \<union> set d_right"
-    using ssep_var d_old_var d_left_var d_right_var by blast
   
+    
+  have d_containment_var : "set (transitions SSep) = set d_old \<union> set d_left \<union> set d_right \<union> set d_old_dist_left \<union> set d_old_dist_right"
+    using \<open>set (transitions ?SSep) = set (d_old @ d_left @ d_right @ d_old_dist_left @ d_old_dist_right)\<close>
+    using ssep_var by auto
+  then have d_containment : "set (transitions ?SSep) = set ?d_old \<union> set ?d_left \<union> set ?d_right \<union> set ?d_old_dist_left \<union> set ?d_old_dist_right"
+    using ssep_var d_old_dist_left_var d_old_dist_right_var d_old_var d_left_var d_right_var by blast
+
   have "\<And> qs x y qt . (Inl qs,x,y,Inl qt) \<in> set d_old \<Longrightarrow> (qs,x,y,qt) \<in> h S"
     using d_old_targets
     by auto 
   moreover have "\<And> qs x y qt . (Inl qs,x,y,Inl qt) \<in> set (transitions SSep) \<Longrightarrow> (Inl qs,x,y,Inl qt) \<in> set d_old"
-    using d_containment_var d_left_targets d_right_targets
+    using d_containment_var d_left_targets d_right_targets d_old_dist_left_targets d_old_dist_right_targets
     by fastforce 
   ultimately have d_old_origins: "\<And> qs x y qt . (Inl qs,x,y,Inl qt) \<in> h SSep \<Longrightarrow> (qs,x,y,qt) \<in> h S"
     by blast
@@ -3071,16 +3174,16 @@ proof -
   
 
   have "initial SSep = Inl (initial S)"
-    using ssep_var unfolding state_separator_from_product_submachine.simps
+    using ssep_var unfolding state_separator_from_product_submachine_def
     by (simp only: select_convs)
   have "inputs SSep = inputs M"
-    using ssep_var unfolding state_separator_from_product_submachine.simps
+    using ssep_var unfolding state_separator_from_product_submachine_def
     by (simp only: select_convs)
   then have "set (inputs SSep) = set (inputs S)"
     using \<open>inputs S = inputs ?PM\<close>
     by (simp add: from_FSM_product_inputs) 
   have "outputs SSep = outputs M"
-    using ssep_var unfolding state_separator_from_product_submachine.simps
+    using ssep_var unfolding state_separator_from_product_submachine_def
     by (simp only: select_convs)
   then have "set (outputs SSep) = set (outputs S)"
     using \<open>outputs S = outputs ?PM\<close>
@@ -3342,7 +3445,7 @@ proof -
    have g1: "isl q" proof (cases "q = initial SSep")
       case True
       then have "q = Inl (initial S)"
-        unfolding state_separator_from_product_submachine.simps \<open>initial SSep = Inl (initial S)\<close> by (simp only: select_convs)
+        unfolding state_separator_from_product_submachine_def \<open>initial SSep = Inl (initial S)\<close> by (simp only: select_convs)
       then show ?thesis by auto 
     next
       case False 
@@ -3350,7 +3453,7 @@ proof -
         by (meson \<open>q \<in> nodes SSep\<close> nodes_initial_or_target)
         
       show ?thesis using \<open>q \<noteq> Inr ?q1\<close> \<open>q \<noteq> Inr ?q2\<close>
-        by (metis UnE \<open>t \<in> set (wf_transitions SSep)\<close> \<open>t_target t = q\<close> d_containment_var d_left_targets d_old_targets d_right_targets wf_transition_simp) 
+        by (metis UnE \<open>t \<in> set (wf_transitions SSep)\<close> \<open>t_target t = q\<close> d_containment_var d_left_targets d_old_targets d_right_targets d_old_dist_left_targets d_old_dist_right_targets wf_transition_simp) 
     qed
 
     have "\<And> qq . Inl qq \<in> nodes SSep \<Longrightarrow> \<not> (deadlock_state SSep (Inl qq))"
@@ -3562,7 +3665,11 @@ proof -
       
   qed
 
+
+
   
+
+
 
   have d_old_sources : "\<And> t . t \<in> set d_old \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
   proof -
@@ -3588,13 +3695,29 @@ proof -
       using \<open>t_source t = Inl qs\<close> \<open>(qs,t_input t,t_output t,qt) \<in> h S\<close> \<open>\<not> (deadlock_state S qs)\<close> by auto
   qed
 
-(*
-  have "\<And> t . t \<in> set d_left \<Longrightarrow> t \<in> h SSep"
+  have d_old_dist_left_sources : "\<And> t . t \<in> set d_old_dist_left \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
   proof -
-    fix t assume "t \<in> set d_left"
-    then have "t \<in> set ?d_left"
-      using \<open>d_left = ?d_left\<close> by blast
-*)
+    fix t assume "t \<in> set d_old_dist_left"
+    then obtain t' where "t' \<in> set d_old" and "t_source t = t_source t'" and "t_input t = t_input t'"
+      using d_old_dist_left_var by auto
+    then show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
+      using d_old_sources by auto
+  qed
+
+  have d_old_dist_right_sources : "\<And> t . t \<in> set d_old_dist_right \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
+  proof -
+    fix t assume "t \<in> set d_old_dist_right"
+    then obtain t' where "t' \<in> set d_old" and "t_source t = t_source t'" and "t_input t = t_input t'"
+      using d_old_dist_right_var by auto
+    then show "(\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
+      using d_old_sources by auto
+  qed
+
+  have d_non_deadlock_sources : "\<And> t . t \<in> set d_old \<or> t \<in> set d_old_dist_left \<or> t \<in> set d_old_dist_right \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> \<not>deadlock_state S q)"
+    using d_old_sources d_old_dist_left_sources d_old_dist_right_sources by blast
+
+  have d_deadlock_sources : "\<And> t . t \<in> set d_left \<or> t \<in> set d_right \<Longrightarrow> (\<exists> q . t_source t = Inl q \<and> q \<in> nodes S \<and> deadlock_state S q)"
+    using d_left_sources d_right_sources by blast
 
 
 
@@ -3610,6 +3733,7 @@ proof -
     using d_left_targets d_right_targets \<open>fst (initial S) \<noteq> snd (initial S)\<close>
     by fastforce 
 
+  
   have d_source_split : "\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right \<Longrightarrow> t_source t1 \<noteq> t_source t2"
   proof -
     fix t1 t2 assume "t1 \<in> set d_old" 
@@ -3626,28 +3750,44 @@ proof -
       show ?thesis 
         using d_old_sources[OF \<open>t1 \<in> set d_old\<close>] d_right_sources[OF 2]
         by fastforce 
-    qed 
+    qed
   qed
 
-  
+  have d_source_split_deadlock : "\<And> t1 t2 . t1 \<in> set d_old \<or> t1 \<in> set d_old_dist_left \<or> t1 \<in> set d_old_dist_right \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right \<Longrightarrow> t_source t1 \<noteq> t_source t2"
+  proof -
+    fix t1 t2 assume *:  "t1 \<in> set d_old \<or> t1 \<in> set d_old_dist_left \<or> t1 \<in> set d_old_dist_right"
+                 and **: "t2 \<in> set d_left \<or> t2 \<in> set d_right"
+
+    obtain q1 where "t_source t1 = Inl q1" and "\<not> (deadlock_state S q1)"
+      using d_non_deadlock_sources[OF *] by blast
+    obtain q2 where "t_source t2 = Inl q2" and "(deadlock_state S q2)"
+      using d_deadlock_sources[OF **] by blast
+
+    have "q1 \<noteq> q2"
+      using \<open>\<not> (deadlock_state S q1)\<close> \<open>(deadlock_state S q2)\<close> by blast
+    then show "t_source t1 \<noteq> t_source t2" 
+      using \<open>t_source t1 = Inl q1\<close> \<open>t_source t2 = Inl q2\<close> by auto
+  qed
+         
 
 
-  have "\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_old"
+
+  have "\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_old \<or> t2 \<in> set d_old_dist_left \<or> t2 \<in> set d_old_dist_right"
   proof -
     fix t1 t2 assume "t1 \<in> set d_old" and "t2 \<in> h SSep" and "t_source t1 = t_source t2"
 
     have "\<not>(t2 \<in> set d_left \<or> t2 \<in> set d_right)"
       using d_source_split[OF \<open>t1 \<in> set d_old\<close>, of t2] \<open>t_source t1 = t_source t2\<close> by auto
-    then show "t2 \<in> set d_old"
-      using d_containment_var \<open>t2 \<in> h SSep\<close> by blast
+    then show "t2 \<in> set d_old \<or> t2 \<in> set d_old_dist_left \<or> t2 \<in> set d_old_dist_right"
+      using d_containment_var \<open>t2 \<in> h SSep\<close> by blast 
   qed
 
   have "\<And> t1 t2 . t1 \<in> set d_left \<or> t1 \<in> set d_right \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right"
   proof -
     fix t1 t2 assume "t1 \<in> set d_left \<or> t1 \<in> set d_right" and "t2 \<in> h SSep" and "t_source t1 = t_source t2"
 
-    have "\<not>(t2 \<in> set d_old)"
-      using d_source_split[OF _ \<open>t1 \<in> set d_left \<or> t1 \<in> set d_right\<close>, of t2] \<open>t_source t1 = t_source t2\<close> by auto
+    have "\<not>(t2 \<in> set d_old \<or> t2 \<in> set d_old_dist_left \<or> t2 \<in> set d_old_dist_right)"
+      using d_source_split_deadlock[OF _ \<open>t1 \<in> set d_left \<or> t1 \<in> set d_right\<close>, of t2] \<open>t_source t1 = t_source t2\<close> by auto
     then show "t2 \<in> set d_left \<or> t2 \<in> set d_right"
       using d_containment_var \<open>t2 \<in> h SSep\<close> by blast
   qed
