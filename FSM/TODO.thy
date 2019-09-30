@@ -4116,20 +4116,39 @@ proof -
         by metis
 
       from \<open>t \<in> h SSep\<close> consider 
-        (old)         "t \<in> set d_old"  |
+        (old)         "t \<in> set d_old \<or> t \<in> set d_old_dist_left \<or> t \<in> set d_old_dist_right"  |
         (left_right)  "t \<in> set d_left \<or> t \<in> set d_right"
-        using d_containment_var by blas
+        using d_containment_var by blast
       then show "t' \<in> h SSep" proof cases
         case old
 
-        obtain tS where "tS \<in> h S" and "t = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))"
-          using d_old_targets[OF old] by auto
-  
-        then have "tP \<in> h S"
+        then obtain tO where "tO \<in> set d_old" and "t_source t = t_source tO" and "t_input t = t_input tO"
+          using d_old_dist_left_d_old d_old_dist_right_d_old by blast
+
+        obtain tS where "tS \<in> h S" and "tO = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))"
+          using d_old_targets[OF \<open>tO \<in> set d_old\<close>] by auto
+        
+        have "t_source t = Inl (t_source tS)"
+          using \<open>t_source t = t_source tO\<close> 
+                \<open>tO = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))\<close> by (metis fst_conv)
+
+        have "t_source tS = t_source tP"
+          using \<open>t_source t = Inl (t_source tS)\<close>
+                \<open>t_source t = t_source t'\<close> 
+                \<open>t' = (Inl (t_source tP), t_input tP, t_output tP, Inl (t_target tP))\<close>
+          by auto
+
+        have "t_input tS = t_input tP"
+          using \<open>t_input t = t_input t'\<close>
+                \<open>t_input t = t_input tO\<close>
+                \<open>tO = (Inl (t_source tS), t_input tS, t_output tS, Inl (t_target tS))\<close>
+                \<open>t' = (Inl (t_source tP), t_input tP, t_output tP, Inl (t_target tP))\<close>
+          by auto
+
+        have "tP \<in> h S"
           using \<open>retains_outputs_for_states_and_inputs ?PM S\<close>
           unfolding retains_outputs_for_states_and_inputs_def 
-          using \<open>tP \<in> h ?PM\<close> \<open>t' = (Inl (t_source tP), t_input tP, t_output tP, Inl (t_target tP))\<close> \<open>t_source t = t_source t'\<close> \<open>t_input t = t_input t'\<close>
-          by (metis \<open>\<And>y x qt qs. (Inl qs, x, y, Inl qt) \<in> set d_old \<Longrightarrow> (qs, x, y, qt) \<in> set (wf_transitions S)\<close> fst_conv old snd_conv)
+          using \<open>tS \<in> h S\<close> \<open>tP \<in> h ?PM\<close> \<open>t_source tS = t_source tP\<close> \<open>t_input tS = t_input tP\<close> by blast
         then have "shift_Inl tP \<in> h SSep"
           using ssep_transitions_from_old by blast   
         then show ?thesis
