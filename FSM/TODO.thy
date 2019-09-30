@@ -3720,6 +3720,12 @@ proof -
     using d_left_sources d_right_sources by blast
 
 
+  have d_old_dist_left_d_old : "\<And> t . t \<in> set d_old_dist_left \<Longrightarrow> (\<exists> t' \<in> set d_old . t_source t = t_source t' \<and> t_input t = t_input t')"
+    using d_old_dist_left_var by auto
+
+  have d_old_dist_right_d_old : "\<And> t . t \<in> set d_old_dist_right \<Longrightarrow> (\<exists> t' \<in> set d_old . t_source t = t_source t' \<and> t_input t = t_input t')"
+    using d_old_dist_right_var by auto
+
 
 
      
@@ -3772,17 +3778,18 @@ proof -
 
 
 
-  have "\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_old \<or> t2 \<in> set d_old_dist_left \<or> t2 \<in> set d_old_dist_right"
+  have d_old_same_sources: "\<And> t1 t2 . t1 \<in> set d_old \<or> t1 \<in> set d_old_dist_left \<or> t1 \<in> set d_old_dist_right \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_old \<or> t2 \<in> set d_old_dist_left \<or> t2 \<in> set d_old_dist_right"
   proof -
-    fix t1 t2 assume "t1 \<in> set d_old" and "t2 \<in> h SSep" and "t_source t1 = t_source t2"
+    fix t1 t2 assume "t1 \<in> set d_old \<or> t1 \<in> set d_old_dist_left \<or> t1 \<in> set d_old_dist_right" and "t2 \<in> h SSep" and "t_source t1 = t_source t2"
 
     have "\<not>(t2 \<in> set d_left \<or> t2 \<in> set d_right)"
-      using d_source_split[OF \<open>t1 \<in> set d_old\<close>, of t2] \<open>t_source t1 = t_source t2\<close> by auto
+      using d_source_split_deadlock[OF \<open>t1 \<in> set d_old \<or> t1 \<in> set d_old_dist_left \<or> t1 \<in> set d_old_dist_right\<close>, of t2] \<open>t_source t1 = t_source t2\<close> by auto
     then show "t2 \<in> set d_old \<or> t2 \<in> set d_old_dist_left \<or> t2 \<in> set d_old_dist_right"
       using d_containment_var \<open>t2 \<in> h SSep\<close> by blast 
   qed
 
-  have "\<And> t1 t2 . t1 \<in> set d_left \<or> t1 \<in> set d_right \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right"
+
+  have d_left_right_same_sources: "\<And> t1 t2 . t1 \<in> set d_left \<or> t1 \<in> set d_right \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_left \<or> t2 \<in> set d_right"
   proof -
     fix t1 t2 assume "t1 \<in> set d_left \<or> t1 \<in> set d_right" and "t2 \<in> h SSep" and "t_source t1 = t_source t2"
 
@@ -3791,6 +3798,9 @@ proof -
     then show "t2 \<in> set d_left \<or> t2 \<in> set d_right"
       using d_containment_var \<open>t2 \<in> h SSep\<close> by blast
   qed
+
+
+  
 
 
   (* TODO: remove repetitions *)
@@ -3823,26 +3833,46 @@ proof -
 
     let ?q = "t_source t1"
 
-    consider "t1 \<in> set d_old" | "t1 \<in> set d_left \<or> t1 \<in> set d_right"
+    consider "t1 \<in> set d_old \<or> t1 \<in> set d_old_dist_left \<or> t1 \<in> set d_old_dist_right" | "t1 \<in> set d_left \<or> t1 \<in> set d_right"
       using d_containment_var \<open>t1 \<in> h SSep\<close> by auto
     then show "t_input t1 = t_input t2" proof cases
       case 1
-      then have "t2 \<in> set d_old"
-        using \<open>\<And> t1 t2 . t1 \<in> set d_old \<Longrightarrow> t2 \<in> h SSep \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t2 \<in> set d_old\<close> \<open>t2 \<in> h SSep\<close> \<open>t_source t1 = t_source t2\<close> by blast
+      then have "t2 \<in> set d_old \<or> t2 \<in> set d_old_dist_left \<or> t2 \<in> set d_old_dist_right"
+        using d_old_same_sources \<open>t2 \<in> h SSep\<close> \<open>t_source t1 = t_source t2\<close> by blast
+      then obtain t2' where "t2' \<in> set d_old" and "t_source t2 = t_source t2'" and "t_input t2 = t_input t2'"
+        using d_old_dist_left_d_old d_old_dist_right_d_old by metis 
+  
+      from 1 obtain t1' where "t1' \<in> set d_old" and "t_source t1 = t_source t1'" and "t_input t1 = t_input t1'"
+        using d_old_dist_left_d_old d_old_dist_right_d_old by blast
 
-      obtain qs1 qt1 where "t1 = (Inl qs1, t_input t1, t_output t1, Inl qt1)" 
-                       and "(qs1, t_input t1, t_output t1, qt1) \<in> h S"
-        using d_old_transitions[OF \<open>t1 \<in> set d_old\<close>] by blast
+      
 
-      obtain qt2 where "t2 = (Inl qs1, t_input t2, t_output t2, Inl qt2)" 
-                   and "(qs1, t_input t2, t_output t2, qt2) \<in> h S"
-        using d_old_transitions[OF \<open>t2 \<in> set d_old\<close>] \<open>t_source t1 = t_source t2\<close>
-        by (metis Inl_inject \<open>t1 = (Inl qs1, t_input t1, t_output t1, Inl qt1)\<close> fst_conv) 
+
+      obtain qs1 qt1 where "t1' = (Inl qs1, t_input t1, t_output t1', Inl qt1)" 
+                       and "(qs1, t_input t1, t_output t1', qt1) \<in> h S"
+        using d_old_transitions[OF \<open>t1' \<in> set d_old\<close>] \<open>t_source t1 = t_source t1'\<close> \<open>t_input t1 = t_input t1'\<close> by metis
+
+      obtain qs2 qt2 where "t2' = (Inl qs2, t_input t2, t_output t2', Inl qt2)" 
+                       and "(qs2, t_input t2, t_output t2', qt2) \<in> h S"
+        using d_old_transitions[OF \<open>t2' \<in> set d_old\<close>] \<open>t_source t2 = t_source t2'\<close> \<open>t_input t2 = t_input t2'\<close> by metis
+
+      have "qs1 = qs2"
+        using \<open>t1' = (Inl qs1, t_input t1, t_output t1', Inl qt1)\<close>
+              \<open>t_source t1 = t_source t1'\<close>
+              \<open>t_source t1 = t_source t2\<close>
+              \<open>t_source t2 = t_source t2'\<close>
+              \<open>t2' = (Inl qs2, t_input t2, t_output t2', Inl qt2)\<close>
+        by (metis fst_conv old.sum.inject(1))
+        
+      then have "(qs1, t_input t2, t_output t2', qt2) \<in> h S"
+        using \<open>(qs2, t_input t2, t_output t2', qt2) \<in> h S\<close> by auto
 
       show ?thesis
         using \<open>single_input S\<close> unfolding single_input.simps
-        using \<open>(qs1, t_input t1, t_output t1, qt1) \<in> h S\<close> \<open>(qs1, t_input t2, t_output t2, qt2) \<in> h S\<close>
+        using \<open>(qs1, t_input t1, t_output t1', qt1) \<in> h S\<close> \<open>(qs1, t_input t2, t_output t2', qt2) \<in> h S\<close>
         by (metis fst_conv snd_conv)
+
+
     next
       case 2 
       then have "t2 \<in> set d_left \<or> t2 \<in> set d_right"
@@ -4088,7 +4118,7 @@ proof -
       from \<open>t \<in> h SSep\<close> consider 
         (old)         "t \<in> set d_old"  |
         (left_right)  "t \<in> set d_left \<or> t \<in> set d_right"
-        using d_containment_var by blast
+        using d_containment_var by blas
       then show "t' \<in> h SSep" proof cases
         case old
 
