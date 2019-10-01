@@ -4649,7 +4649,113 @@ proof -
 qed
 
 
+(*
+lemma x:
+  assumes "r_distinguishable_k M q1 q2 0"
+  and "q1 \<in> nodes M"
+  and "q2 \<in> nodes M"
+  and "q1 \<noteq> q2"
+shows "\<exists> qqt \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (size (product (from_FSM M q1) (from_FSM M q2)))) . fst qqt = (q1,q2)"
+*)
+
+
+lemma s_states_exhaustiveness :
+  assumes "r_distinguishable_k M q1 q2 k"
+  and "q1 \<in> nodes M"
+  and "q2 \<in> nodes M"
+  and "q1 \<noteq> q2"
+shows "\<exists> qqt \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (size (product (from_FSM M q1) (from_FSM M q2)))) . fst qqt = (q1,q2)" 
+using assms proof (induction k arbitrary: q1 q2)
+  case 0
+
+  let ?PM = "product (from_FSM M q1) (from_FSM M q2)"
+
+  from 0 obtain x where "x \<in> set (inputs M)"
+                  and "\<not> (\<exists>t1\<in>set (wf_transitions M).
+                            \<exists>t2\<in>set (wf_transitions M).
+                               t_source t1 = q1 \<and>
+                               t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"
+    unfolding r_distinguishable_k.simps by blast
+  then have *: "\<not> (\<exists>t1 \<in> h (from_FSM M q1).
+                            \<exists>t2 \<in> h (from_FSM M q2).
+                               t_source t1 = q1 \<and>
+                               t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"
+    using from_FSM_h[OF "0.prems"(2)] from_FSM_h[OF "0.prems"(3)] by blast
+
+  then have "\<And> t . t \<in> h ?PM \<Longrightarrow> \<not>(t_source t = (q1,q2) \<and> t_input t = x)"
+  proof -
+    fix t assume "t \<in> h ?PM"
+    show "\<not>(t_source t = (q1,q2) \<and> t_input t = x)"
+    proof 
+      assume "t_source t = (q1, q2) \<and> t_input t = x"
+      then have "(q1, x, t_output t, fst (t_target t)) \<in> set (wf_transitions (from_FSM M q1))"
+            and "(q2, x, t_output t, snd (t_target t)) \<in> set (wf_transitions (from_FSM M q2))"
+        using product_transition_split[OF \<open>t \<in> h ?PM\<close>] by auto
+      then show "False"
+        using * by force
+    qed
+  qed
+
+  have "(q1,q2) \<in> set (nodes_from_distinct_paths ?PM)"
+    using nodes_code nodes.initial product_simps(1) from_FSM_simps(1) by metis
   
+  have "\<And> k' . (\<forall> t \<in> h ?PM . (t_source t = fst ((q1,q2),x) \<and> t_input t = snd ((q1,q2),x) \<longrightarrow> (\<exists> qx' \<in> set (s_states ?PM k') . fst qx' = (t_target t))))"
+    by (simp add: \<open>\<And>t. t \<in> set (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<Longrightarrow> \<not> (t_source t = (q1, q2) \<and> t_input t = x)\<close>)
+
+  have "((q1,q2),x) \<in> set (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs ?PM)) (nodes_from_distinct_paths ?PM)))"
+    using concat_pair_set \<open>x \<in> set (inputs M)\<close> \<open>(q1,q2) \<in> set (nodes_from_distinct_paths ?PM)\<close>
+  proof -
+    have f1: "\<forall>a ps aa f. set (concat (map (\<lambda>p. map (Pair (p::'a \<times> 'a)) (inputs (product (from_FSM (f::('a, 'b) FSM_scheme) a) (from_FSM f aa)))) ps)) = set (concat (map (\<lambda>p. map (Pair p) (inputs f)) ps))"
+      by (simp add: from_FSM_product_inputs)
+    have "\<forall>is p ps. p \<in> set (concat (map (\<lambda>p. map (Pair (p::'a \<times> 'a)) is) ps)) \<or> \<not> (fst p \<in> set ps \<and> (snd p::integer) \<in> set is)"
+      using concat_pair_set by blast
+    then show ?thesis
+      using f1 by (metis \<open>(q1, q2) \<in> set (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))\<close> \<open>x \<in> set (inputs M)\<close> fst_conv snd_conv)
+  qed 
+
+  have "((q1,q2),x) \<in> set (s_states ?PM (size ?PM))"
+  proof (rule ccontr)
+    assume "((q1,q2),x) \<notin> set (s_states ?PM (size ?PM))"
+
+    let ?l = "length (s_states ?PM (size ?PM))"
+    have "s_states ?PM (size ?PM) = s_states ?PM ?l"
+      by (metis (no_types, hide_lams) s_states.simps(2) s_states_self_length s_states_size)
+
+    
+
+    have "s_states ?PM (size ?PM) = s_states ?PM (Suc (size ?PM))"
+      using s_states_size by auto
+
+    then have "s_states ?PM (Suc (size ?PM)) = []"
+      unfolding s_states.simps
+    
+
+  
+  then have "\<exists> k' . "
+
+
+  then show ?case sorry
+next
+  case (Suc k)
+(* cases Suc k = LEAST,
+  \<longrightarrow> FALSE: then also k \<longrightarrow> by IH
+  \<longrightarrow> TRUE
+    \<longrightarrow> \<noteq> 0
+    \<longrightarrow> \<dots>
+*)
+  then show ?case sorry
+qed
+
+
+end (*
+OPT: 
+  shows "\<exists> qqt \<in> set (s_states_opt (product (from_FSM M q1) (from_FSM M q2)) (size (product (from_FSM M q1) (from_FSM M q2)))) . fst qqt = (q1,q2)"
+
+product (from_FSM M q1) (from_FSM M q2); SS = (s_states_opt PR (size PR)) 
+
+lemma calculate_state_separator_from_s_states_exhaustiveness
+
+find_index (\<lambda>qqt . fst qqt = (q1,q2)) SS
 
 end (*
           
