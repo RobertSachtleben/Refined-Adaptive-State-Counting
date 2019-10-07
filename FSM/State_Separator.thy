@@ -4757,6 +4757,137 @@ next
 qed
 
 
+lemma s_states_step_prod :
+  assumes "qqx \<in> set (s_states (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t)))) k)"
+  and "t \<in> h (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
+shows "\<exists> qqx' \<in> set (s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))))) . fst qqx = fst qqx'"
+  using assms(1) proof (induction k arbitrary: qqx)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+
+  let ?PMT = "(product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))"
+  let ?PMS = "(product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
+  
+  show ?case proof (cases "qqx \<in> set (s_states ?PMT k)")
+    case True
+    then show ?thesis using Suc.IH by blast
+  next
+    case False
+
+    let ?l = "length (s_states ?PMS (size ?PMS))"
+    have "s_states ?PMS (size ?PMS) = s_states ?PMS ?l"
+      using s_states_self_length by blast
+    then have "s_states ?PMS ?l = s_states ?PMS (Suc ?l)"
+    proof -
+      have f1: "\<forall>n. n \<le> Suc n"
+        using Suc_leD by blast
+      then have f2: "\<forall>f. s_states (f::('a \<times> 'a, 'b) FSM_scheme) (Suc (Suc (FSM.size f))) = s_states f (FSM.size f)"
+        by (meson Suc_leD s_states_max_iterations)
+      have "\<forall>f. length (s_states (f::('a \<times> 'a, 'b) FSM_scheme) (FSM.size f)) \<le> Suc (FSM.size f)"
+        using f1 by (metis (no_types) s_states_length s_states_max_iterations)
+      then show ?thesis
+        using f2 f1 by (metis (no_types) Suc_le_mono \<open>s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))) = s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (length (s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))))))\<close> s_states_prefix take_all)
+    qed
+      
+      
+
+    have "\<exists>qqx'\<in>set (s_states ?PMS ?l). fst qqx = fst qqx'"  proof (rule ccontr)
+      assume c_assm: "\<not> (\<exists>qqx'\<in>set (s_states ?PMS ?l). fst qqx = fst qqx')"
+      
+
+      from False have *: "(s_states ?PMT (Suc k)) \<noteq> (s_states ?PMT k)"
+        using Suc.prems by auto
+      have qqx_last: "(s_states ?PMT (Suc k)) = (s_states ?PMT k) @ [qqx]"
+        using Suc.prems False s_states_last[OF *]
+        by force
+      
+      have "(\<forall>qx'\<in>set (s_states ?PMT k). fst qqx \<noteq> fst qx')" 
+      and **: "(\<forall>t\<in>set (wf_transitions ?PMT).
+                  t_source t = fst qqx \<and> t_input t = snd qqx \<longrightarrow>
+                  (\<exists>qx'\<in>set (s_states ?PMT k). fst qx' = t_target t))"
+      and  "fst qqx \<in> nodes ?PMT"
+      and  "snd qqx \<in> set (inputs ?PMT)"
+        using s_states_find_props[OF qqx_last] by blast+
+
+      have "(fst (t_target t), snd (t_target t)) \<in> nodes ?PMS"
+        using assms(2) by auto
+      have "fst qqx \<in> nodes ?PMS"
+      proof -
+        obtain p where "path ?PMT (initial ?PMT) p" and "target p (initial ?PMT) = fst qqx"
+          using \<open>fst qqx \<in> nodes ?PMT\<close>
+          using path_to_node by force 
+        then have "path ?PMT (fst (t_target t), snd (t_target t)) p" 
+        and       "target p (fst (t_target t), snd (t_target t)) = fst qqx"
+          by (simp add: from_FSM_product_initial)+
+
+        then have "path (from_FSM ?PMS (fst (t_target t), snd (t_target t))) (fst (t_target t), snd (t_target t)) p"
+          using product_from_next'_path[OF assms(2)] by auto
+        then have "path ?PMS (fst (t_target t), snd (t_target t)) p"
+          using from_FSM_path[OF \<open>(fst (t_target t), snd (t_target t)) \<in> nodes ?PMS\<close>] by metis
+        then have "target p (fst (t_target t), snd (t_target t)) \<in> nodes ?PMS" 
+          using path_target_is_node by metis
+        then show ?thesis 
+          using \<open>target p (fst (t_target t), snd (t_target t)) = fst qqx\<close> by simp
+      qed
+
+      have "snd qqx \<in> set (inputs ?PMS)"
+        using \<open>snd qqx \<in> set (inputs ?PMT)\<close>
+        by (simp add: from_FSM_simps(2) product_simps(2)) 
+
+      
+
+     
+
+
+      have "(\<forall>qx'\<in>set (s_states ?PMS ?l). fst qqx \<noteq> fst qx')"
+        using c_assm by blast
+      moreover have "\<And> t . t \<in> h ?PMS \<Longrightarrow>
+                t_source t = fst qqx \<Longrightarrow> 
+                t_input t = snd qqx \<Longrightarrow>
+                (\<exists>qx'\<in>set (s_states ?PMS ?l). fst qx' = t_target t)"
+        using Suc.IH ** \<open>s_states ?PMS (size ?PMS) = s_states ?PMS ?l\<close> 
+        using \<open>fst qqx \<in> nodes ?PMS\<close> \<open>snd qqx \<in> set (inputs ?PMS)\<close>
+      proof -
+        fix ta :: "('a \<times> 'a) \<times> integer \<times> integer \<times> 'a \<times> 'a"
+        assume a1: "t_source ta = fst qqx"
+        assume a2: "t_input ta = snd qqx"
+        assume a3: "ta \<in> set (wf_transitions (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))))"
+        have "\<forall>p. p = (fst p::'a, snd p::'a)"
+          by simp
+        then show "\<exists>p\<in>set (s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (length (s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))))))). fst p = t_target ta"
+          using a3 a2 a1 by (metis (no_types) "**" Suc.IH \<open>fst qqx \<in> nodes (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))\<close> \<open>fst qqx \<in> nodes (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))\<close> \<open>s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))) = s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (length (s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))))))\<close> from_FSM_transition_initial from_product_from_h product_from_transition_shared_node)
+      qed
+      ultimately have "(\<lambda> qx . (\<forall> qx' \<in> set (s_states ?PMS ?l) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h ?PMS . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states ?PMS ?l) . fst qx' = (t_target t)))) qqx"
+        by auto
+      moreover have "qqx \<in> set (concat (map (\<lambda>q. map (Pair q) (inputs ?PMS)) (nodes_from_distinct_paths ?PMS)))"
+      proof -
+        
+        have "fst qqx \<in> set (nodes_from_distinct_paths ?PMS)" 
+          using \<open>fst qqx \<in> nodes ?PMS\<close> nodes_code[of ?PMS] 
+          by blast
+        then show ?thesis using concat_pair_set[of "inputs ?PMS" "nodes_from_distinct_paths ?PMS"]
+          using \<open>snd qqx \<in> set (inputs ?PMS)\<close> by blast 
+      qed
+      ultimately have "find 
+                  (\<lambda> qx . (\<forall> qx' \<in> set (s_states ?PMS ?l) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h ?PMS . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states ?PMS ?l) . fst qx' = (t_target t)))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs ?PMS)) (nodes_from_distinct_paths ?PMS))) \<noteq> None"
+        using find_from[of "(concat (map (\<lambda>q. map (Pair q) (inputs ?PMS)) (nodes_from_distinct_paths ?PMS)))" "(\<lambda> qx . (\<forall> qx' \<in> set (s_states ?PMS ?l) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h ?PMS . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states ?PMS ?l) . fst qx' = (t_target t))))"] by blast
+
+      then have "s_states ?PMS (Suc ?l) \<noteq> s_states ?PMS ?l"
+        unfolding s_states.simps
+        using \<open>s_states ?PMS (size ?PMS) = s_states ?PMS ?l\<close> by auto
+      then show "False"
+        using \<open>s_states ?PMS ?l = s_states ?PMS (Suc ?l)\<close>
+        by simp
+    qed
+
+    then show ?thesis
+      using \<open>s_states ?PMS (size ?PMS) = s_states ?PMS ?l\<close> by auto
+  qed
+qed
+
 
 
 
@@ -5030,9 +5161,8 @@ next
 
 
     have "\<And> t . t \<in> h ?PM \<Longrightarrow> t_source t = (q1,q2) \<Longrightarrow> t_input t = x \<Longrightarrow> 
-                (\<exists>qqt\<in>set (s_states (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))
-                                    (FSM.size (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t)))))).
-                   fst qqt = (fst (t_target t), snd (t_target t)))"
+                (\<exists>qqt\<in>set (s_states ?PM (size ?PM)) .
+                   fst qqt = t_target t)"
     proof -
       fix t assume "t \<in> h ?PM" and "t_source t = (q1,q2)" and "t_input t = x"
 
@@ -5051,13 +5181,30 @@ next
       moreover have "snd (t_target t) \<in> nodes M"
         using from_FSM_nodes[OF Suc.prems(3)] wf_transition_target[OF **] by auto
 
-      ultimately show "\<exists>qqt\<in>set (s_states (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))
+      ultimately have "\<exists>qqt\<in>set (s_states (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))
                                   (FSM.size (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t)))))).
                          fst qqt = (fst (t_target t), snd (t_target t))"
         using Suc.IH[of "(fst (t_target t))" "(snd (t_target t))"] by blast
-    qed
 
-    note s_states_step
+      then obtain qqt where qqt_def: "qqt\<in>set (s_states (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))
+                                  (FSM.size (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))))"
+                      and   "fst qqt = (fst (t_target t), snd (t_target t))" 
+        by blast
+
+
+      let ?PM' = "product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))"
+      have "?PM = ?PM'"
+        using \<open>t_source t = (q1,q2)\<close> by auto
+      then have "t \<in> h ?PM'"
+        using \<open>t \<in> h ?PM\<close> by simp
+
+      show "\<exists>qqt\<in>set (s_states (product (from_FSM M q1) (from_FSM M q2))
+                     (FSM.size (product (from_FSM M q1) (from_FSM M q2)))).
+            fst qqt = t_target t"
+        using s_states_step_prod[OF qqt_def \<open>t \<in> h ?PM'\<close>] \<open>?PM = ?PM'\<close> 
+              \<open>fst qqt = (fst (t_target t), snd (t_target t))\<close>
+        by (metis prod.collapse)
+    qed
 
     
 
