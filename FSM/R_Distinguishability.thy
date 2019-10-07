@@ -11,6 +11,10 @@ definition r_compatible :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> '
 
 abbreviation(input) "r_distinguishable M q1 q2 \<equiv> \<not> r_compatible M q1 q2"
 
+(* Note: If an input is not defined on states q and q', then they are r(0)-distinguishable.
+         In particular, any state with some undefined input is r-distinguishable from itself 
+         This behaviour is justified by the assumption that tested machines are complete.
+*)
 
 fun r_distinguishable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
   "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" |
