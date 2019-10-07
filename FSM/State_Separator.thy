@@ -5137,6 +5137,18 @@ using assms proof (induction k arbitrary: q1 q2)
 next
   case (Suc k)
 
+  (* sketch: 
+    \<longrightarrow> cases Suc k = LEAST,
+      \<longrightarrow> FALSE: then also k \<longrightarrow> by IH
+      \<longrightarrow> TRUE
+        \<longrightarrow> \<noteq> 0
+        \<longrightarrow> exists input x such that for every ((q1,q2),x,y,(s1,s2)) \<in> h ?PM , s1 and s2 are r(k)-d
+          \<longrightarrow> (s1,s2) is contained in s_states for product for s1 s2
+          \<longrightarrow> also: (s1,s2) (initial state of the above) is a node of product for q1 q2
+          \<longrightarrow> then (s1,s2) is in s_states for product for q1 q2
+          \<longrightarrow> by construction there must then exist some x' s.t. ((q1,q2),x') \<in> s_states 
+  *)
+  
   let ?PM = "(product (from_FSM M q1) (from_FSM M q2))"
 
   show ?case proof (cases "r_distinguishable_k M q1 q2 k")
@@ -5160,7 +5172,7 @@ next
     
 
 
-    have "\<And> t . t \<in> h ?PM \<Longrightarrow> t_source t = (q1,q2) \<Longrightarrow> t_input t = x \<Longrightarrow> 
+    have x_prop: "\<And> t . t \<in> h ?PM \<Longrightarrow> t_source t = (q1,q2) \<Longrightarrow> t_input t = x \<Longrightarrow> 
                 (\<exists>qqt\<in>set (s_states ?PM (size ?PM)) .
                    fst qqt = t_target t)"
     proof -
@@ -5206,40 +5218,57 @@ next
         by (metis prod.collapse)
     qed
 
-    
 
+    let ?l = "length (s_states ?PM (size ?PM))"
+    have "s_states ?PM (size ?PM) = s_states ?PM ?l"
+      using s_states_self_length by blast
+    then have "s_states ?PM ?l = s_states ?PM (Suc ?l)"
+      by (metis Suc_n_not_le_n nat_le_linear s_states_max_iterations s_states_prefix take_all)
 
+    have "\<exists>qqx'\<in>set (s_states ?PM ?l). (q1,q2) = fst qqx'"  proof (rule ccontr)
+      assume c_assm: "\<not> (\<exists>qqx'\<in>set (s_states ?PM ?l). (q1,q2) = fst qqx')"
+      
 
-end (*
-    
+      have "(\<forall>qx'\<in>set (s_states ?PM ?l). (q1,q2) \<noteq> fst qx')"
+        using c_assm by blast
+      moreover have "\<And> t . t \<in> h ?PM \<Longrightarrow>
+                t_source t = fst ((q1,q2),x) \<Longrightarrow> 
+                t_input t = snd ((q1,q2),x) \<Longrightarrow>
+                (\<exists>qx'\<in>set (s_states ?PM ?l). fst qx' = t_target t)"
+        using x_prop snd_conv[of "(q1,q2)" x] fst_conv[of "(q1,q2)" x] \<open>s_states ?PM (size ?PM) = s_states ?PM ?l\<close> by auto 
+      ultimately have "(\<lambda> qx . (\<forall> qx' \<in> set (s_states ?PM ?l) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h ?PM . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states ?PM ?l) . fst qx' = (t_target t)))) ((q1,q2),x)"
+        by auto
+      moreover have "((q1,q2),x) \<in> set (concat (map (\<lambda>q. map (Pair q) (inputs ?PM)) (nodes_from_distinct_paths ?PM)))"
+      proof -
+        have "fst ((q1,q2),x) \<in> set (nodes_from_distinct_paths ?PM)" 
+          using nodes.initial nodes_code 
+                fst_conv product_simps(1) from_FSM_simps(1)
+          by metis 
+        moreover have "snd ((q1,q2),x) \<in> set (inputs ?PM)"
+          using \<open>x \<in> set (inputs M)\<close>
+          by (simp add: from_FSM_simps(2) product_simps(2)) 
+        ultimately show ?thesis using concat_pair_set[of "inputs ?PM" "nodes_from_distinct_paths ?PM"]
+          by blast 
+      qed
+      ultimately have "find 
+                  (\<lambda> qx . (\<forall> qx' \<in> set (s_states ?PM ?l) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h ?PM . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states ?PM ?l) . fst qx' = (t_target t)))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs ?PM)) (nodes_from_distinct_paths ?PM))) \<noteq> None"
+        using find_from[of "(concat (map (\<lambda>q. map (Pair q) (inputs ?PM)) (nodes_from_distinct_paths ?PM)))" "(\<lambda> qx . (\<forall> qx' \<in> set (s_states ?PM ?l) . fst qx \<noteq> fst qx') \<and> (\<forall> t \<in> h ?PM . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (\<exists> qx' \<in> set (s_states ?PM ?l) . fst qx' = (t_target t))))"] by blast
 
-    then show ?thesis sorry
+      then have "s_states ?PM (Suc ?l) \<noteq> s_states ?PM ?l"
+        unfolding s_states.simps
+        using \<open>s_states ?PM (FSM.size ?PM) = s_states ?PM ?l\<close> by auto
+      then show "False"
+        using \<open>s_states ?PM ?l = s_states ?PM (Suc ?l)\<close>
+        by simp
+    qed
+
+    then show ?thesis
+      using \<open>s_states ?PM (size ?PM) = s_states ?PM ?l\<close>
+      by force 
   qed
-
-  (* sketch: 
-    \<longrightarrow> cases Suc k = LEAST,
-      \<longrightarrow> FALSE: then also k \<longrightarrow> by IH
-      \<longrightarrow> TRUE
-        \<longrightarrow> \<noteq> 0
-        \<longrightarrow> exists input x such that for every ((q1,q2),x,y,(s1,s2)) \<in> h ?PM , s1 and s2 are r(k)-d
-          \<longrightarrow> (s1,s2) is contained in s_states for product for s1 s2
-          \<longrightarrow> also: (s1,s2) (initial state of the above) is a node of product for q1 q2
-          \<longrightarrow> (TODO: proof) then (s1,s2) is in s_states for product for q1 q2
-          \<longrightarrow> moreover (s1,s2) \<noteq> (q1,q2) due to Suc k being the LEAST (case "=" also directly satisfies the goal)
-          \<longrightarrow> by construction there must then exist some x' s.t. ((q1,q2),x') \<in> s_states 
-  *)
-  then show ?case sorry
 qed
-
     
-
-
-
-
-
-
-
-
 
 
 end
