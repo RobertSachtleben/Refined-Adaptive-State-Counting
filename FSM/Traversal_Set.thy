@@ -1,8 +1,10 @@
 theory Traversal_Set
-imports R_Distinguishability
+imports R_Distinguishability Helper_Algorithms (* TODO: latter import only required for testing *)
 begin
 
+section \<open>Traversal Sets for State Counting\<close>
 
+subsection \<open>Calculating Traversal Paths\<close>
 
 
 fun m_traversal_paths_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
@@ -201,6 +203,20 @@ qed
 
 
 
+value "maximal_repetition_sets_from_separators M_ex_H"
+value "m_traversal_paths M_ex_H  1 (maximal_repetition_sets_from_separators M_ex_H) 4"
+value "m_traversal_paths M_ex_H  3 (maximal_repetition_sets_from_separators M_ex_H) 4"
+value "m_traversal_paths M_ex_H  4 (maximal_repetition_sets_from_separators M_ex_H) 4"
+
+
+
+
+
+subsection \<open>Calculating Traversal Sets\<close>
+
+(* TODO: decide whether to omit calculations as presented by Petrenko and only use traversal paths *)
+
+(*
 
 fun N :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list list" where
   "N M q D m = add_prefixes (map (\<lambda> p . map t_input p) (m_traversal_paths M q D m))"
@@ -548,4 +564,7 @@ qed
 fun m_traversal_sequences :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a set set \<Rightarrow> nat \<Rightarrow> Input list set" where
   "m_traversal_sequences M q D m = m_traversal_sequences' M q D m (Suc ((size M) * m)) {[]} {}"
 
+*)*)*)*)*)
+
 end
+

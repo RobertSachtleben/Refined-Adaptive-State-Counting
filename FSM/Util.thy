@@ -820,6 +820,11 @@ qed
 
 subsection \<open>Other Lemmata\<close>
 
+lemma list_append_subset3 : "set xs1 \<subseteq> set ys1 \<Longrightarrow> set xs2 \<subseteq> set ys2 \<Longrightarrow> set xs3 \<subseteq> set ys3 \<Longrightarrow> set (xs1@xs2@xs3) \<subseteq> set(ys1@ys2@ys3)" by auto
+
+lemma subset_filter : "set xs \<subseteq> set ys \<Longrightarrow> set xs = set (filter (\<lambda> x . x \<in> set xs) ys)"
+  by auto
+
 
 lemma filter_length_weakening :
   assumes "\<And> q . f1 q \<Longrightarrow> f2 q"
