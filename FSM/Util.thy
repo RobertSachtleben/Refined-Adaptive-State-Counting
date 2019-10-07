@@ -43,6 +43,62 @@ lemma find_from :
   shows "find P xs \<noteq> None"
   by (metis assms find_None_iff)
 
+
+lemma find_sort_containment :
+  assumes "find P (sort xs) = Some x"
+shows "x \<in> set xs"
+  using assms find_set by force
+
+
+lemma find_sort_index :
+  assumes "find P xs = Some x"
+  shows "\<exists> i < length xs . xs ! i = x \<and> (\<forall> j < i . \<not> P (xs ! j))"
+using assms proof (induction xs arbitrary: x)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  show ?case proof (cases "P a")
+    case True
+    then show ?thesis 
+      using Cons.prems unfolding find.simps by auto
+  next
+    case False
+    then have "find P (a#xs) = find P xs"
+      unfolding find.simps by auto
+    then have "find P xs = Some x"
+      using Cons.prems by auto
+    then show ?thesis 
+      using Cons.IH False
+      by (metis Cons.prems find_Some_iff)  
+  qed
+qed
+
+
+lemma find_sort_least :
+  assumes "find P (sort xs) = Some x"
+  shows "\<forall> x' \<in> set xs . x \<le> x' \<or> \<not> P x'"
+  and   "x = (LEAST x' \<in> set xs . P x')"
+proof -
+  obtain i where "i < length (sort xs)" and "(sort xs) ! i = x" and "(\<forall> j < i . \<not> P ((sort xs) ! j))"
+    using find_sort_index[OF assms] by blast
+  
+  have "\<And> j . j > i \<Longrightarrow> j < length xs \<Longrightarrow> (sort xs) ! i \<le> (sort xs) ! j"
+    by (simp add: sorted_nth_mono)
+  then have "\<And> j . j < length xs \<Longrightarrow> (sort xs) ! i \<le> (sort xs) ! j \<or> \<not> P ((sort xs) ! j)"
+    using \<open>(\<forall> j < i . \<not> P ((sort xs) ! j))\<close>
+    by (metis not_less_iff_gr_or_eq order_refl) 
+  then show "\<forall> x' \<in> set xs . x \<le> x' \<or> \<not> P x'"
+    by (metis \<open>sort xs ! i = x\<close> in_set_conv_nth length_sort set_sort)
+  then show "x = (LEAST x' \<in> set xs . P x')"
+    using find_set[OF assms] find_condition[OF assms]
+    by (metis (mono_tags, lifting) Least_equality set_sort) 
+qed
+
+
+
+
+
 subsection \<open>Enumerating Lists\<close>
 
 fun lists_of_length :: "'a list \<Rightarrow> nat \<Rightarrow> 'a list list" where
@@ -125,6 +181,9 @@ lemma filter_list_set_not_contained :
   and     "\<not> P x"
 shows "x \<notin> set (filter P xs)"
   by (simp add: assms(1) assms(2))
+
+
+lemma filter_map_elem : "t \<in> set (map g (filter f xs)) \<Longrightarrow> \<exists> x \<in> set xs . f x \<and> t = g x" by auto
 
 
 subsection \<open>Concat\<close>
@@ -519,7 +578,346 @@ next
 qed
 
 
+subsection \<open>Finding the Index of the First Element of a List Satisfying a Property\<close>
+
+
+fun find_index :: "('a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> nat option" where
+  "find_index f []  = None" |
+  "find_index f (x#xs) = (if f x then Some 0 else (case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None))" 
+
+lemma find_index_index :
+  assumes "find_index f xs = Some k"
+  shows "k < length xs" and "f (xs ! k)" and "\<And> j . j < k \<Longrightarrow> \<not> f (xs ! j)"
+proof -
+  have "(k < length xs) \<and> (f (xs ! k)) \<and> (\<forall> j < k . \<not> (f (xs ! j)))"
+    using assms proof (induction xs arbitrary: k)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons x xs)
+    
+    show ?case proof (cases "f x")
+      case True
+      then show ?thesis using Cons.prems by auto
+    next
+      case False
+      then have "find_index f (x#xs) = (case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None)"
+        by auto
+      then have "(case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None) = Some k"
+        using Cons.prems by auto
+      then obtain k' where "find_index f xs = Some k'" and "k = Suc k'"
+        by (metis option.case_eq_if option.collapse option.distinct(1) option.sel)
+        
+      have "k < length (x # xs) \<and> f ((x # xs) ! k)" using Cons.IH[OF \<open>find_index f xs = Some k'\<close>] using \<open>k = Suc k'\<close> by auto
+      moreover have "(\<forall>j<k. \<not> f ((x # xs) ! j))"
+        using Cons.IH[OF \<open>find_index f xs = Some k'\<close>] using \<open>k = Suc k'\<close> False
+        using less_Suc_eq_0_disj by auto 
+      ultimately show ?thesis by presburger
+    qed
+  qed
+  then show "k < length xs" and "f (xs ! k)" and "\<And> j . j < k \<Longrightarrow> \<not> f (xs ! j)" by simp+
+qed
+
+lemma find_index_exhaustive : 
+  assumes "\<exists> x \<in> set xs . f x"
+  shows "find_index f xs \<noteq> None"
+  using assms proof (induction xs)
+case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then show ?case by (cases "f x"; auto)
+qed
+
+
+
+subsection \<open>List Distinctness from Sorting\<close>
+
+lemma non_distinct_repetition_indices :
+  assumes "\<not> distinct xs"
+  shows "\<exists> i j . i < j \<and> j < length xs \<and> xs ! i = xs ! j"
+  by (metis assms distinct_conv_nth le_neq_implies_less not_le)
+
+lemma ordered_list_distinct :
+  fixes xs :: "('a::preorder) list"
+  assumes "\<And> i . Suc i < length xs \<Longrightarrow> (xs ! i) < (xs ! (Suc i))"
+  shows "distinct xs"
+proof -
+  have "\<And> i j . i < j \<Longrightarrow> j < length xs \<Longrightarrow> (xs ! i) < (xs ! j)"
+  proof -
+    fix i j assume "i < j" and "j < length xs"
+    then show "xs ! i < xs ! j"
+      using assms proof (induction xs arbitrary: i j rule: rev_induct)
+      case Nil
+      then show ?case by auto
+    next
+      case (snoc a xs)
+      show ?case proof (cases "j < length xs")
+        case True
+        show ?thesis using snoc.IH[OF snoc.prems(1) True] snoc.prems(3)
+        proof -
+          have f1: "i < length xs"
+            using True less_trans snoc.prems(1) by blast
+          have f2: "\<forall>is isa n. if n < length is then (is @ isa) ! n = (is ! n::integer) else (is @ isa) ! n = isa ! (n - length is)"
+            by (meson nth_append)
+          then have f3: "(xs @ [a]) ! i = xs ! i"
+            using f1
+            by (simp add: nth_append)
+          have "xs ! i < xs ! j"
+            using f2
+            by (metis Suc_lessD \<open>(\<And>i. Suc i < length xs \<Longrightarrow> xs ! i < xs ! Suc i) \<Longrightarrow> xs ! i < xs ! j\<close> butlast_snoc length_append_singleton less_SucI nth_butlast snoc.prems(3)) 
+          then show ?thesis
+            using f3 f2 True
+            by (simp add: nth_append) 
+        qed
+      next
+        case False
+        then have "(xs @ [a]) ! j = a"
+          using snoc.prems(2)
+          by (metis length_append_singleton less_SucE nth_append_length)  
+        
+        consider "j = 1" | "j > 1"
+          using \<open>i < j\<close>
+          by linarith 
+        then show ?thesis proof cases
+          case 1
+          then have "i = 0" and "j = Suc i" using \<open>i < j\<close> by linarith+ 
+          then show ?thesis 
+            using snoc.prems(3)
+            using snoc.prems(2) by blast 
+        next
+          case 2
+          then consider "i < j - 1" | "i = j - 1" using \<open>i < j\<close> by linarith+
+          then show ?thesis proof cases
+            case 1
+            
+            have "(\<And>i. Suc i < length xs \<Longrightarrow> xs ! i < xs ! Suc i) \<Longrightarrow> xs ! i < xs ! (j - 1)"
+              using snoc.IH[OF 1] snoc.prems(2) 2 by simp 
+            then have le1: "(xs @ [a]) ! i < (xs @ [a]) ! (j -1)"
+              using snoc.prems(2)
+              by (metis "2" False One_nat_def Suc_diff_Suc Suc_lessD diff_zero length_append_singleton less_SucE not_less_eq nth_append snoc.prems(1) snoc.prems(3))
+            moreover have le2: "(xs @ [a]) ! (j -1) < (xs @ [a]) ! j"
+              using snoc.prems(2,3) 2
+              by (metis (full_types) One_nat_def Suc_diff_Suc diff_zero less_numeral_extra(1) less_trans)  
+            ultimately show ?thesis 
+              using less_trans by blast
+          next
+            case 2
+            then have "j = Suc i" using \<open>1 < j\<close> by linarith
+            then show ?thesis 
+              using snoc.prems(3)
+              using snoc.prems(2) by blast
+          qed
+        qed
+      qed
+    qed 
+  qed
+
+  then show ?thesis
+    by (metis less_asym non_distinct_repetition_indices)
+qed
+
+
+
+
+lemma ordered_list_distinct_rev :
+  fixes xs :: "('a::preorder) list"
+  assumes "\<And> i . Suc i < length xs \<Longrightarrow> (xs ! i) > (xs ! (Suc i))"
+  shows "distinct xs"
+proof -
+  have "\<And> i . Suc i < length (rev xs) \<Longrightarrow> ((rev xs) ! i) < ((rev xs) ! (Suc i))"
+    using assms
+  proof -
+    fix i :: nat
+    assume a1: "Suc i < length (rev xs)"
+    obtain nn :: "nat \<Rightarrow> nat \<Rightarrow> nat" where
+      "\<forall>x0 x1. (\<exists>v2. x1 = Suc v2 \<and> v2 < x0) = (x1 = Suc (nn x0 x1) \<and> nn x0 x1 < x0)"
+      by moura
+    then have f2: "\<forall>n na. (\<not> n < Suc na \<or> n = 0 \<or> n = Suc (nn na n) \<and> nn na n < na) \<and> (n < Suc na \<or> n \<noteq> 0 \<and> (\<forall>nb. n \<noteq> Suc nb \<or> \<not> nb < na))"
+      by (meson less_Suc_eq_0_disj)
+    have f3: "Suc (length xs - Suc (Suc i)) = length (rev xs) - Suc i"
+      using a1 by (simp add: Suc_diff_Suc)
+    have "i < length (rev xs)"
+      using a1 by (meson Suc_lessD)
+    then have "i < length xs"
+      by simp
+    then show "rev xs ! i < rev xs ! Suc i"
+      using f3 f2 a1 by (metis (no_types) assms diff_less length_rev not_less_iff_gr_or_eq rev_nth)
+  qed 
+  then have "distinct (rev xs)" 
+    using ordered_list_distinct[of "rev xs"] by blast
+  then show ?thesis by auto
+qed
+
+
+subsection \<open>Calculating Prefixes\<close>
+
+
+fun prefixes :: "'a list \<Rightarrow> 'a list list" where
+  "prefixes [] = [[]]" |
+  "prefixes (x#xs) = [] # (map (\<lambda> xs' . x#xs') (prefixes xs))"
+
+value "prefixes [1::nat,2,3,4]"
+
+lemma prefixes_set : "set (prefixes xs) = {xs' . \<exists> xs'' . xs'@xs'' = xs}"
+proof (induction xs)
+  case Nil
+  then show ?case unfolding prefixes.simps by auto
+next
+  case (Cons a xs)
+
+  have "set (prefixes (a#xs)) = insert [] (set (map (\<lambda> xs' . a#xs') (prefixes xs)))"
+    unfolding prefixes.simps by auto
+  then have "set (prefixes (a#xs)) = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
+    using Cons.IH by auto
+
+  moreover have "{xs'. \<exists>xs''. xs' @ xs'' = a # xs} = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}" 
+  proof -
+    have "\<And> xs' . xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
+    proof - 
+      fix xs' 
+      show "xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
+        by (cases xs'; auto)
+    qed
+    then show ?thesis by blast
+  qed
+
+  ultimately show ?case by auto
+qed
+  
+
+
+
+fun add_prefixes :: "'a list list \<Rightarrow> 'a list list" where
+  "add_prefixes xs = concat (map prefixes xs)"
+
+value "add_prefixes [[1::nat,2,3], [], [10,100,1000,1000]]"
+
+lemma add_prefixes_set : "set (add_prefixes xs) = {xs' . \<exists> xs'' . xs'@xs'' \<in> set xs}"
+proof -
+  have "set (add_prefixes xs) = {xs' . \<exists> x \<in> set xs . xs' \<in> set (prefixes x)}"
+    unfolding add_prefixes.simps by auto
+  also have "\<dots> = {xs' . \<exists> xs'' . xs'@xs'' \<in> set xs}"
+  proof (induction xs)
+    case Nil
+    then show ?case using prefixes_set by auto
+  next
+    case (Cons a xs)
+    then show ?case 
+    proof -
+      have "\<And> xs' . xs' \<in> {xs'. \<exists>x\<in>set (a # xs). xs' \<in> set (prefixes x)} \<longleftrightarrow> xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' \<in> set (a # xs)}"
+      proof -
+        fix xs' 
+        show "xs' \<in> {xs'. \<exists>x\<in>set (a # xs). xs' \<in> set (prefixes x)} \<longleftrightarrow> xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' \<in> set (a # xs)}"
+          using prefixes_set by (cases "xs' \<in> set (prefixes a)"; auto)
+      qed
+      then show ?thesis by blast
+    qed
+  qed
+  finally show ?thesis by blast
+qed
+
+
 subsection \<open>Other Lemmata\<close>
+
+
+lemma filter_length_weakening :
+  assumes "\<And> q . f1 q \<Longrightarrow> f2 q"
+  shows "length (filter f1 p) \<le> length (filter f2 p)"
+proof (induction p)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a p)
+  then show ?case using assms by (cases "f1 a"; auto)
+qed
+
+lemma max_length_elem :
+  fixes xs :: "'a list set"
+  assumes "finite xs"
+  and     "xs \<noteq> {}"
+shows "\<exists> x \<in> xs . \<not>(\<exists> y \<in> xs . length y > length x)" 
+using assms proof (induction xs)
+  case empty
+  then show ?case by auto
+next
+  case (insert x F)
+  then show ?case proof (cases "F = {}")
+    case True
+    then show ?thesis by blast
+  next
+    case False
+    then obtain y where "y \<in> F" and "\<not>(\<exists> y' \<in> F . length y' > length y)"
+      using insert.IH by blast
+    then show ?thesis using dual_order.strict_trans by (cases "length x > length y"; auto)
+  qed
+qed
+
+lemma list_property_from_index_property :
+  assumes "\<And> i . i < length xs \<Longrightarrow> P (xs ! i)"
+  shows "\<And> x . x \<in> set xs \<Longrightarrow> P x"
+  by (metis assms in_set_conv_nth) 
+
+lemma list_distinct_prefix :
+  assumes "\<And> i . i < length xs \<Longrightarrow> xs ! i \<notin> set (take i xs)"
+  shows "distinct xs"
+proof -
+  have "\<And> j . distinct (take j xs)"
+  proof -
+    fix j 
+    show "distinct (take j xs)"
+    proof (induction j)
+      case 0
+      then show ?case by auto
+    next
+      case (Suc j)
+      then show ?case proof (cases "Suc j \<le> length xs")
+        case True
+        then have "take (Suc j) xs = (take j xs) @ [xs ! j]"
+          by (simp add: Suc_le_eq take_Suc_conv_app_nth)
+        then show ?thesis using Suc.IH assms[of j] True by auto
+      next
+        case False
+        then have "take (Suc j) xs = take j xs" by auto
+        then show ?thesis using Suc.IH by auto
+      qed
+    qed 
+  qed
+  then have "distinct (take (length xs) xs)"
+    by blast
+  then show ?thesis by auto 
+qed
+
+
+lemma concat_pair_set :
+  "set (concat (map (\<lambda>x. map (Pair x) ys) xs)) = {xy . fst xy \<in> set xs \<and> snd xy \<in> set ys}"
+  by auto
+
+lemma list_set_sym :
+  "set (x@y) = set (y@x)" by auto
+
+
+
+lemma list_contains_last_take :
+  assumes "x \<in> set xs"
+  shows "\<exists> i . 0 < i \<and> i \<le> length xs \<and> last (take i xs) = x"
+  by (metis Suc_leI assms hd_drop_conv_nth in_set_conv_nth last_snoc take_hd_drop zero_less_Suc)
+  
+lemma take_last_index :
+  assumes "i < length xs"
+  shows "last (take (Suc i) xs) = xs ! i"
+  by (simp add: assms take_Suc_conv_app_nth)
+
+lemma integer_singleton_least :
+  assumes "{x . P x} = {a::integer}"
+  shows "a = (LEAST x . P x)"
+  by (metis Collect_empty_eq Least_equality assms insert_not_empty mem_Collect_eq order_refl singletonD)
+
+
+lemma sort_list_split :
+  "\<forall> x \<in> set (take i (sort xs)) . \<forall> y \<in> set (drop i (sort xs)) . x \<le> y"
+  using sorted_append by fastforce
+
 
 lemma set_map_subset :
   assumes "x \<in> set xs"

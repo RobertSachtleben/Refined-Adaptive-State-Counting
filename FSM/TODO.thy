@@ -85,12 +85,7 @@ value "is_state_separator_from_canonical_separator (canonical_separator M_ex_9 0
 value "calculate_separator M_ex_H 1 3"
 value "calculate_separator'' (canonical_separator M_ex_9 0 3) (size (canonical_separator M_ex_9 0 3)) {Inr 0, Inr 3} [] []"
 
-(* TODO: move *)
-lemma submachine_transitive :
-  assumes "is_submachine S M"
-  and     "is_submachine S' S"
-shows "is_submachine S' M"
-  using assms unfolding is_submachine.simps by force
+
 
 
 
@@ -310,344 +305,25 @@ qed
 
 
 
-(* TODO: move *)
-lemma non_distinct_repetition_indices :
-  assumes "\<not> distinct xs"
-  shows "\<exists> i j . i < j \<and> j < length xs \<and> xs ! i = xs ! j"
-  by (metis assms distinct_conv_nth le_neq_implies_less not_le)
-
-lemma list_contains_last_take :
-  assumes "x \<in> set xs"
-  shows "\<exists> i . 0 < i \<and> i \<le> length xs \<and> last (take i xs) = x"
-  by (metis Suc_leI assms hd_drop_conv_nth in_set_conv_nth last_snoc take_hd_drop zero_less_Suc)
-  
-lemma take_last_index :
-  assumes "i < length xs"
-  shows "last (take (Suc i) xs) = xs ! i"
-  by (simp add: assms take_Suc_conv_app_nth)
-
-
-(* TODO: move *)
-lemma cyclic_cycle :
-  assumes "\<not> acyclic M"
-  shows "\<exists> q p . path M q p \<and> p \<noteq> [] \<and> target p q = q" 
-proof -
-  have "(\<exists> p \<in> set (distinct_paths_up_to_length_from_initial M (size M)) . \<exists> t \<in> h M . path M (initial M) (p@[t]) \<and> \<not>distinct (visited_states (initial M) (p@[t])))"
-    using assms FSM.acyclic_code unfolding contains_cyclic_path.simps by metis
-  then obtain p t where "path M (initial M) (p@[t])" and "\<not>distinct (visited_states (initial M) (p@[t]))"
-    by meson
-
-  show ?thesis
-  proof (cases "initial M \<in> set (map t_target (p@[t]))")
-    case True
-    then obtain i where "last (take i (map t_target (p@[t]))) = initial M" and "i \<le> length (map t_target (p@[t]))" and "0 < i"
-      using list_contains_last_take by metis
-
-    let ?p = "take i (p@[t])"
-    have "path M (initial M) (?p@(drop i (p@[t])))" 
-      using \<open>path M (initial M) (p@[t])\<close>
-      by (metis append_take_drop_id)  
-    then have "path M (initial M) ?p" by auto
-    moreover have "?p \<noteq> []" using \<open>0 < i\<close> by auto
-    moreover have "target ?p (initial M) = initial M"
-      using \<open>last (take i (map t_target (p@[t]))) = initial M\<close> unfolding target.simps visited_states.simps
-      by (metis (no_types, lifting) calculation(2) last_ConsR list.map_disc_iff take_map) 
-    ultimately show ?thesis by blast
-  next
-    case False
-    then have "\<not> distinct (map t_target (p@[t]))"
-      using \<open>\<not>distinct (visited_states (initial M) (p@[t]))\<close> unfolding visited_states.simps by auto
-    then obtain i j where "i < j" and "j < length (map t_target (p@[t]))" and "(map t_target (p@[t])) ! i = (map t_target (p@[t])) ! j"
-      using non_distinct_repetition_indices by blast
-
-    let ?pre_i = "take (Suc i) (p@[t])"
-    let ?p = "take ((Suc j)-(Suc i)) (drop (Suc i) (p@[t]))"
-    let ?post_j = "drop ((Suc j)-(Suc i)) (drop (Suc i) (p@[t]))"
-
-    have "p@[t] = ?pre_i @ ?p @ ?post_j"
-      using \<open>i < j\<close> \<open>j < length (map t_target (p@[t]))\<close>
-      by (metis append_take_drop_id) 
-    then have "path M (target ?pre_i (initial M)) ?p" 
-      using \<open>path M (initial M) (p@[t])\<close>
-      by (metis path_prefix path_suffix) 
-
-    have "?p \<noteq> []"
-      using \<open>i < j\<close> \<open>j < length (map t_target (p@[t]))\<close> by auto
-
-    have "i < length (map t_target (p@[t]))"
-      using \<open>i < j\<close> \<open>j < length (map t_target (p@[t]))\<close> by auto
-    have "(target ?pre_i (initial M)) = (map t_target (p@[t])) ! i"
-      unfolding target.simps visited_states.simps  
-      using take_last_index[OF \<open>i < length (map t_target (p@[t]))\<close>]
-      by (metis (no_types, lifting) \<open>i < length (map t_target (p @ [t]))\<close> last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
-    
-    have "?pre_i@?p = take (Suc j) (p@[t])"
-      by (metis (no_types) \<open>i < j\<close> add_Suc add_diff_cancel_left' less_SucI less_imp_Suc_add take_add)
-    moreover have "(target (take (Suc j) (p@[t])) (initial M)) = (map t_target (p@[t])) ! j"
-      unfolding target.simps visited_states.simps  
-      using take_last_index[OF \<open>j < length (map t_target (p@[t]))\<close>]
-      by (metis (no_types, lifting) \<open>j < length (map t_target (p @ [t]))\<close> last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
-    ultimately have "(target (?pre_i@?p) (initial M)) = (map t_target (p@[t])) ! j"
-      by auto
-    then have "(target (?pre_i@?p) (initial M)) = (map t_target (p@[t])) ! i"
-      using \<open>(map t_target (p@[t])) ! i = (map t_target (p@[t])) ! j\<close> by simp
-    moreover have "(target (?pre_i@?p) (initial M)) = (target ?p (target ?pre_i (initial M)))"
-      unfolding target.simps visited_states.simps last.simps by auto
-    ultimately have "(target ?p (target ?pre_i (initial M))) = (map t_target (p@[t])) ! i"
-      by auto
-    then have "(target ?p (target ?pre_i (initial M))) = (target ?pre_i (initial M))"
-      using \<open>(target ?pre_i (initial M)) = (map t_target (p@[t])) ! i\<close> by auto
-
-    show ?thesis
-      using \<open>path M (target ?pre_i (initial M)) ?p\<close> \<open>?p \<noteq> []\<close> \<open>(target ?p (target ?pre_i (initial M))) = (target ?pre_i (initial M))\<close>
-      by blast
-  qed
-qed
-
-lemma cyclic_cycle_rev :
-  assumes "\<exists> q p . path M q p \<and> p \<noteq> [] \<and> target p q = q"
-  shows "\<not> acyclic M"
-  using assms unfolding acyclic.simps target.simps visited_states.simps
-proof -
-  assume "\<exists>q p. path M q p \<and> p \<noteq> [] \<and> last (q # map t_target p) = q"
-  then obtain aa :: 'a and pps :: "('a \<times> integer \<times> integer \<times> 'a) list" where
-    f1: "path M aa pps \<and> pps \<noteq> [] \<and> last (aa # map t_target pps) = aa"
-    by blast
-  then have "map t_target pps \<noteq> []"
-    by blast
-  then show "\<not> (\<forall>ps. path M (initial M) ps \<longrightarrow> distinct (initial M # map t_target ps))"
-    using f1 by (metis (no_types) acyclic.elims(3) acyclic_paths_from_nodes distinct.simps(2) last.simps last_in_set visited_states.simps)
-qed 
-
-
-(* TODO: move *)
-lemma transitions_subset_path :
-  assumes "set p \<subseteq> h M"
-  and     "p \<noteq> []"
-  and     "path S q p"
-shows "path M q p"
-  using assms by (induction p arbitrary: q; auto)
-
-
-lemma acyclic_initial :
-  assumes "acyclic M"
-  shows "\<not> (\<exists> t \<in> h M . t_target t = initial M)" 
-proof 
-  assume "\<exists>t\<in>set (wf_transitions M). t_target t = initial M"
-  then obtain t where "t \<in> h M" and "t_target t = initial M"
-    by blast
-  then have "t_source t \<in> nodes M" by auto
-  then obtain p where "path M (initial M) p" and "target p (initial M) = t_source t" 
-    using path_to_node by metis
-  then have "path M (initial M) (p@[t])" 
-    using \<open>t \<in> h M\<close> by auto
-  moreover have "p@[t] \<noteq> []" by simp
-  moreover have "target (p@[t]) (initial M) = initial M"
-    using \<open>t_target t = initial M\<close> unfolding target.simps visited_states.simps by auto
-  ultimately have "\<not> acyclic M"
-    using cyclic_cycle_rev by metis
-  then show "False"
-    using assms by auto
-qed
-
-(* TODO: move *)
-lemma cyclic_path_shift : 
-  assumes "path M q p"
-  and     "target p q = q"
-shows "path M (target (take i p) q) ((drop i p) @ (take i p))"
-  and "target ((drop i p) @ (take i p)) (target (take i p) q) = (target (take i p) q)"
-proof -
-  show "path M (target (take i p) q) ((drop i p) @ (take i p))"
-    by (metis append_take_drop_id assms(1) assms(2) path_append path_append_elim path_append_target)
-  show "target ((drop i p) @ (take i p)) (target (take i p) q) = (target (take i p) q)"
-    by (metis append_take_drop_id assms(2) path_append_target)
-qed
-
-
-(*
-lemma list_transition_property :
-  assumes "P (xs ! i)"
-  and     "\<And> j . Suc j < length xs \<Longrightarrow> P (xs ! j) \<Longrightarrow> P (xs ! (Suc j))"
-  and     "i < length xs"
-shows "\<forall> x \<in> set (drop i xs) . P x"
-  using assms proof (induction xs rule: rev_induct)
-  case Nil
-  then show ?case by auto
-next
-  case (snoc x xs)
-  show ?case proof (cases xs rule: rev_cases)
-    case Nil
-    then show ?thesis using snoc by auto
-  next
-    case (snoc xs' x')
-    show ?thesis proof (cases "i < length xs")
-      case True
-      then show ?thesis using snoc snoc.prems snoc.IH sorry
-    next
-      case False
-      then show ?thesis using snoc snoc.prems snoc.IH
-        by (metis append_eq_conv_conj in_set_conv_nth length_append_singleton less_SucE list.size(3) not_less_zero nth_append_length set_ConsD) 
-    qed   
-  qed
-qed
-*)
-
-lemma list_set_sym :
-  "set (x@y) = set (y@x)" by auto
-
-lemma path_source_target_index :
-  assumes "Suc i < length p"
-  and     "path M q p"
-shows "t_target (p ! i) = t_source (p ! (Suc i))"
-  using assms proof (induction p rule: rev_induct)
-  case Nil
-  then show ?case by auto
-next
-  case (snoc t ps)
-  then have "path M q ps" and "t_source t = target ps q" and "t \<in> h M" by auto
-  
-  show ?case proof (cases "Suc i < length ps")
-    case True
-    then have "t_target (ps ! i) = t_source (ps ! Suc i)" 
-      using snoc.IH \<open>path M q ps\<close> by auto
-    then show ?thesis
-      by (simp add: Suc_lessD True nth_append) 
-  next
-    case False
-    then have "Suc i = length ps"
-      using snoc.prems(1) by auto
-    then have "(ps @ [t]) ! Suc i = t"
-      by auto
-
-    show ?thesis proof (cases "ps = []")
-      case True
-      then show ?thesis using \<open>Suc i = length ps\<close> by auto
-    next
-      case False
-      then have "target ps q = t_target (last ps)"
-        unfolding target.simps visited_states.simps
-        by (simp add: last_map) 
-      then have "target ps q = t_target (ps ! i)"
-        using \<open>Suc i = length ps\<close>
-        by (metis False diff_Suc_1 last_conv_nth) 
-      then show ?thesis 
-        using \<open>t_source t = target ps q\<close>
-        by (metis \<open>(ps @ [t]) ! Suc i = t\<close> \<open>Suc i = length ps\<close> lessI nth_append) 
-    qed
-  qed   
-qed
-
-lemma cyclic_path_transition_source_property :
-  assumes "\<exists> t \<in> set p . P (t_source t)"
-  and     "\<forall> t \<in> set p . P (t_source t) \<longrightarrow> P (t_target t)"
-  and     "path M q p"
-  and     "target p q = q"
-shows "\<forall> t \<in> set p . P (t_source t)"
-  and "\<forall> t \<in> set p . P (t_target t)"
-proof -
-  obtain t0 where "t0 \<in> set p" and "P (t_source t0)"
-    using assms(1) by blast
-  then obtain i where "i < length p" and "p ! i = t0"
-    by (meson in_set_conv_nth)
-
-  let ?p = "(drop i p @ take i p)"
-  have "path M (target (take i p) q) ?p"
-    using cyclic_path_shift(1)[OF assms(3,4), of i] by assumption
-  
-  have "set ?p = set p"
-  proof -
-    have "set ?p = set (take i p @ drop i p)" 
-      using list_set_sym by metis
-    then show ?thesis by auto
-  qed
-  then have "\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)"
-    using assms(2) by blast
-  
-  have "\<And> j . j < length ?p \<Longrightarrow> P (t_source (?p ! j))"
-  proof -
-    fix j assume "j < length ?p"
-    then show "P (t_source (?p ! j))"
-    proof (induction j)
-      case 0
-      then show ?case 
-        using \<open>p ! i = t0\<close> \<open>P (t_source t0)\<close>
-        by (metis \<open>i < length p\<close> drop_eq_Nil hd_append2 hd_conv_nth hd_drop_conv_nth leD length_greater_0_conv)  
-    next
-      case (Suc j)
-      then have "P (t_source (?p ! j))"
-        by auto
-      then have "P (t_target (?p ! j))"
-        using Suc.prems \<open>\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)\<close>[of "?p ! j"]
-        using Suc_lessD nth_mem by blast 
-      moreover have "t_target (?p ! j) = t_source (?p ! (Suc j))"
-        using path_source_target_index[OF Suc.prems \<open>path M (target (take i p) q) ?p\<close>] by assumption
-      ultimately show ?case 
-        using \<open>\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)\<close>[of "?p ! j"]
-        by simp
-    qed
-  qed
-  then have "\<forall> t \<in> set ?p . P (t_source t)"
-    by (metis in_set_conv_nth)
-  then show "\<forall> t \<in> set p . P (t_source t)"
-    using \<open>set ?p = set p\<close> by blast
-  then show "\<forall> t \<in> set p . P (t_target t)"
-    using assms(2) by blast
-qed
 
 
 
 
-lemma cycle_incoming_transition_ex :
-  assumes "path M q p"
-  and     "p \<noteq> []"
-  and     "target p q = q"
-  and     "t \<in> set p"
-shows "\<exists> tI \<in> set p . t_target tI = t_source t"
-proof -
-  obtain i where "i < length p" and "p ! i = t"
-    using assms(4) by (meson in_set_conv_nth)
 
-  let ?p = "(drop i p @ take i p)"
-  have "path M (target (take i p) q) ?p"
-  and  "target ?p (target (take i p) q) = target (take i p) q"
-    using cyclic_path_shift[OF assms(1,3), of i] by linarith+
 
-  have "p = (take i p @ drop i p)" by auto
-  then have "path M (target (take i p) q) (drop i p)" 
-    using path_suffix assms(1) by metis
-  moreover have "t = hd (drop i p)"
-    using \<open>i < length p\<close> \<open>p ! i = t\<close>
-    by (simp add: hd_drop_conv_nth) 
-  ultimately have "path M (target (take i p) q) [t]"
-    by (metis \<open>i < length p\<close> append_take_drop_id assms(1) path_append_elim take_hd_drop)
-  then have "t_source t = (target (take i p) q)"
-    by auto  
-  moreover have "t_target (last ?p) = (target (take i p) q)"
-    using \<open>path M (target (take i p) q) ?p\<close> \<open>target ?p (target (take i p) q) = target (take i p) q\<close> assms(2)
-    unfolding target.simps visited_states.simps last.simps
-  proof -
-    assume a1: "(if map t_target (drop i p @ take i p) = [] then if map t_target (take i p) = [] then q else last (map t_target (take i p)) else last (map t_target (drop i p @ take i p))) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
-    have "drop i p @ take i p \<noteq> [] \<and> map t_target (drop i p @ take i p) \<noteq> []"
-      using \<open>p \<noteq> []\<close> by fastforce
-    moreover
-    { assume "map t_target (take i p) \<noteq> [] \<and> map t_target (drop i p @ take i p) \<noteq> []"
-      then have "t_target (last (drop i p @ take i p)) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
-        by (simp add: last_map) }
-    ultimately show "t_target (last (drop i p @ take i p)) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
-      using a1 by (metis (no_types) last_map)
-  qed
-    
-  
-  moreover have "set ?p = set p"
-  proof -
-    have "set ?p = set (take i p @ drop i p)" 
-      using list_set_sym by metis
-    then show ?thesis by auto
-  qed
 
-  ultimately show ?thesis
-    by (metis \<open>i < length p\<close> append_is_Nil_conv drop_eq_Nil last_in_set leD) 
-qed
+
+
+
+
+
+
+
+
+
+
+
+
 
   
 
@@ -931,7 +607,7 @@ value "(let PR = (product (from_FSM M_ex_9 0) (from_FSM M_ex_9 3)) in s_states_o
 
 
 
-lemma s_states_code[code] : "s_states M k = s_states_opt M k"  
+lemma s_states_code : "s_states M k = s_states_opt M k"  
 proof (induction k)
   case 0
   then show ?case 
@@ -1048,10 +724,7 @@ lemma s_states_self_length :
   using s_states_prefix 
   by (metis (no_types) nat_le_linear s_states_length s_states_prefix take_all)
 
-(* TODO: move *)
-lemma concat_pair_set :
-  "set (concat (map (\<lambda>x. map (Pair x) ys) xs)) = {xy . fst xy \<in> set xs \<and> snd xy \<in> set ys}"
-  by auto
+
 
 lemma s_states_index_properties : 
   assumes "i < length (s_states M k)"
@@ -1187,36 +860,7 @@ qed
   
 
 
-(* TODO: move *)
-lemma list_distinct_prefix :
-  assumes "\<And> i . i < length xs \<Longrightarrow> xs ! i \<notin> set (take i xs)"
-  shows "distinct xs"
-proof -
-  have "\<And> j . distinct (take j xs)"
-  proof -
-    fix j 
-    show "distinct (take j xs)"
-    proof (induction j)
-      case 0
-      then show ?case by auto
-    next
-      case (Suc j)
-      then show ?case proof (cases "Suc j \<le> length xs")
-        case True
-        then have "take (Suc j) xs = (take j xs) @ [xs ! j]"
-          by (simp add: Suc_le_eq take_Suc_conv_app_nth)
-        then show ?thesis using Suc.IH assms[of j] True by auto
-      next
-        case False
-        then have "take (Suc j) xs = take j xs" by auto
-        then show ?thesis using Suc.IH by auto
-      qed
-    qed 
-  qed
-  then have "distinct (take (length xs) xs)"
-    by blast
-  then show ?thesis by auto 
-qed
+
 
 
 
@@ -1231,11 +875,7 @@ proof -
     using list_distinct_prefix[of "map fst (s_states M k)"] by blast
 qed
 
-(* TODO: move *)
-lemma list_property_from_index_property :
-  assumes "\<And> i . i < length xs \<Longrightarrow> P (xs ! i)"
-  shows "\<And> x . x \<in> set xs \<Longrightarrow> P x"
-  by (metis assms in_set_conv_nth) 
+
 
 lemma s_states_nodes : 
   "set (map fst (s_states M k)) \<subseteq> nodes M"
@@ -1274,122 +914,10 @@ declare product.simps[simp del]
 declare from_FSM_simps[simp del]
 declare product_simps[simp del]
 
-(* TODO: move *)
-lemma transition_subset_paths :
-  assumes "set (transitions S) \<subseteq> set (transitions M)"
-  and "initial S \<in> nodes M"
-  and "inputs S = inputs M"
-  and "outputs S = outputs M"
-  and "path S (initial S) p"
-shows "path M (initial S) p"
-  using assms(5) proof (induction p rule: rev_induct)
-case Nil
-  then show ?case using assms(2) by auto
-next
-  case (snoc t p)
-  then have "path S (initial S) p" 
-        and "t \<in> h S" 
-        and "t_source t = target p (initial S)" 
-        and "path M (initial S) p"
-    by auto
-
-  have "t \<in> set (transitions M)"
-    using assms(1) \<open>t \<in> h S\<close> by auto
-  moreover have "t_source t \<in> nodes M"
-    using \<open>t_source t = target p (initial S)\<close> \<open>path M (initial S) p\<close>
-    using path_target_is_node by fastforce 
-  ultimately have "t \<in> h M"
-    using \<open>t \<in> h S\<close> assms(3,4) by auto
-  then show ?case
-    using \<open>path M (initial S) p\<close>
-    using snoc.prems by auto 
-qed 
-
-lemma transition_subset_h :
-  assumes "set (transitions S) \<subseteq> set (transitions M)"
-  and "initial S \<in> nodes M"
-  and "inputs S = inputs M"
-  and "outputs S = outputs M"
-shows "h S \<subseteq> h M"
-proof 
-  fix t assume "t \<in> h S"
-  then obtain p where "path S (initial S) p" and "target p (initial S) = t_source t"
-    by (metis path_begin_node path_to_node single_transition_path)
-  then have "t_source t \<in> nodes M"
-    using transition_subset_paths[OF assms, of p] path_target_is_node[of M "initial S" p] by auto
-  then show "t \<in> h M"
-    using \<open>t \<in> h S\<close> assms(1,3,4) by auto
-qed
-
-(* TODO: remove/move *)
-lemma submachine_from_h_origin :
-  assumes "t \<in> h S"
-  and     "is_submachine S (from_FSM M q)"
-  and     "q \<in> nodes M"
-shows "t \<in> h M"
-  by (meson assms contra_subsetD from_FSM_h submachine_h)
 
 
-(* TODO: move *)
 
-lemma product_deadlock :
-  assumes "\<not> (\<exists> t \<in> h (product (from_FSM M q1) (from_FSM M q2)).
-               t_source t = qq \<and> t_input t = x)"
-  and "qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
-  and "x \<in> set (inputs M)"
-shows "\<not> (\<exists> t1 \<in> h M. \<exists> t2 \<in> h M.
-                 t_source t1 = fst qq \<and>
-                 t_source t2 = snd qq \<and>
-                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" 
-proof 
-  assume "\<exists> t1 \<in> h M. \<exists> t2 \<in> h M.
-                 t_source t1 = fst qq \<and>
-                 t_source t2 = snd qq \<and>
-                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2"
-  then obtain t1 t2 where "t1 \<in> h M"
-                      and "t2 \<in> h M"
-                      and "t_source t1 = fst qq"
-                      and "t_source t2 = snd qq"
-                      and "t_input t1 = x"
-                      and "t_input t2 = x" 
-                      and "t_output t1 = t_output t2"
-    by blast
 
-  have "fst qq \<in> nodes (from_FSM M q1)" and "snd qq \<in> nodes (from_FSM M q2)"
-    using product_nodes assms(2)
-    by fastforce+
-
- 
-  have "t_source t1 \<in> nodes (from_FSM M q1)"
-    using \<open>fst qq \<in> nodes (from_FSM M q1)\<close> \<open>t_source t1 = fst qq\<close> by simp
-  then have *: "(fst qq, x, t_output t1, t_target t1) \<in> h (from_FSM M q1)"
-    using from_FSM_nodes_transitions[OF \<open>t1 \<in> h M\<close>] \<open>t_input t1 = x\<close> \<open>t_source t1 = fst qq\<close>
-    by (metis prod.collapse) 
-
-  have "t_source t2 \<in> nodes (from_FSM M q2)"
-    using \<open>snd qq \<in> nodes (from_FSM M q2)\<close> \<open>t_source t2 = snd qq\<close> by simp
-  have **: "(snd qq, x, t_output t1, t_target t2) \<in> h (from_FSM M q2)"
-    using from_FSM_nodes_transitions[OF \<open>t2 \<in> h M\<close> \<open>t_source t2 \<in> nodes (from_FSM M q2)\<close>] \<open>t_source t2 = snd qq\<close> \<open>t_input t1 = x\<close> \<open>t_input t2 = x\<close> \<open>t_source t2 = snd qq\<close> \<open>t_output t1 = t_output t2\<close> 
-    by (metis prod.collapse)
-
-  have ***: "(\<exists>p1 p2.
-        path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
-        path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
-        target p1 (initial (from_FSM M q1)) = fst qq \<and>
-        target p2 (initial (from_FSM M q2)) = snd qq \<and> p_io p1 = p_io p2)"
-    using assms(2) product_node_from_path[of "fst qq" "snd qq" "from_FSM M q1" "from_FSM M q2"]
-          prod.collapse[of qq] 
-    by auto
-  
-  have "(qq, x, t_output t1, (t_target t1, t_target t2)) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
-    using product_transition[of "fst qq" "snd qq" "x" "t_output t1" "t_target t1" "t_target t2" "from_FSM M q1" "from_FSM M q2"]
-    using * ** *** prod.collapse[of qq] by auto
-  moreover have "t_source (qq, x, t_output t1, (t_target t1, t_target t2)) = qq"
-            and "t_input (qq, x, t_output t1, (t_target t1, t_target t2)) = x"
-    by auto
-  ultimately show "False"
-    using assms(1) by blast
-qed
 
 
 
@@ -1471,25 +999,7 @@ proof -
     unfolding retains_outputs_for_states_and_inputs_def by blast
 qed
 
-(*
-lemma s_states_transitions_nil :
-  "\<not>(\<exists> t \<in> h M . (t_source t, t_input t) \<in> set (s_states M 0))"
-  proof (cases "find (\<lambda>qx. \<not> (\<exists>t\<in>set (wf_transitions M).
-                                         t_source t = fst qx \<and> t_input t = snd qx))
-                         (concat (map (\<lambda>q. map (Pair q) (inputs M)) (nodes_from_distinct_paths M)))")
-  case None
-  then show ?thesis unfolding s_states.simps by auto
-next
-  case (Some qx)
-  then have "set (s_states M 0) = {qx}"
-    unfolding s_states.simps by auto
-  moreover have "\<not> (\<exists>t\<in>set (wf_transitions M). (t_source t, t_input t) \<in> {qx})"
-    using find_condition[OF Some]
-    by fastforce 
-  ultimately show ?thesis 
-    by blast
-qed
-*)
+
 
 lemma s_states_subset :
   "set (s_states M k) \<subseteq> set (s_states M (Suc k))"
@@ -1589,93 +1099,13 @@ qed
 
 
 
-fun pathlike :: "'a Transition list \<Rightarrow> bool" where
- "pathlike [] = True" |
- "pathlike [t] = True" |
- "pathlike (t1#t2#ts) = ((t_source t2 = t_target t1) \<and> pathlike (t2#ts))"
-
-lemma pathlike_paths :
-  assumes "path M q p"
-  shows "pathlike p"
-using assms proof (induction p arbitrary: q rule: list.induct)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons t1 ts)
-  show ?case proof (cases ts)
-    case Nil
-    then show ?thesis by auto
-  next
-    case (Cons t2 ts')
-    then have "path M q (t1 # t2 # ts')"
-      using \<open>path M q (t1 # ts)\<close> by auto
-    then have "path M (t_target t1) (t2#ts')" and "t_source t2 = t_target t1"
-      by auto
-    then have "pathlike ts"
-      using Cons \<open>\<And> q . path M q ts \<Longrightarrow> pathlike ts\<close> by auto
-    then show ?thesis 
-      using \<open>t_source t2 = t_target t1\<close> Cons by auto    
-  qed
-qed
-
-lemma pathlike_property :
-  assumes "\<And> p . pathlike p \<Longrightarrow> set p \<subseteq> h M \<Longrightarrow> P p"
-  and     "path M q p"
-shows "P p"
-  using assms(1)[OF pathlike_paths[OF assms(2)] path_h[OF assms(2)]] by assumption
 
 
 
 
 
-(* TODO: move *)
-fun find_index :: "('a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> nat option" where
-  "find_index f []  = None" |
-  "find_index f (x#xs) = (if f x then Some 0 else (case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None))" 
 
-lemma find_index_index :
-  assumes "find_index f xs = Some k"
-  shows "k < length xs" and "f (xs ! k)" and "\<And> j . j < k \<Longrightarrow> \<not> f (xs ! j)"
-proof -
-  have "(k < length xs) \<and> (f (xs ! k)) \<and> (\<forall> j < k . \<not> (f (xs ! j)))"
-    using assms proof (induction xs arbitrary: k)
-    case Nil
-    then show ?case by auto
-  next
-    case (Cons x xs)
-    
-    show ?case proof (cases "f x")
-      case True
-      then show ?thesis using Cons.prems by auto
-    next
-      case False
-      then have "find_index f (x#xs) = (case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None)"
-        by auto
-      then have "(case find_index f xs of Some k \<Rightarrow> Some (Suc k) | None \<Rightarrow> None) = Some k"
-        using Cons.prems by auto
-      then obtain k' where "find_index f xs = Some k'" and "k = Suc k'"
-        by (metis option.case_eq_if option.collapse option.distinct(1) option.sel)
-        
-      have "k < length (x # xs) \<and> f ((x # xs) ! k)" using Cons.IH[OF \<open>find_index f xs = Some k'\<close>] using \<open>k = Suc k'\<close> by auto
-      moreover have "(\<forall>j<k. \<not> f ((x # xs) ! j))"
-        using Cons.IH[OF \<open>find_index f xs = Some k'\<close>] using \<open>k = Suc k'\<close> False
-        using less_Suc_eq_0_disj by auto 
-      ultimately show ?thesis by presburger
-    qed
-  qed
-  then show "k < length xs" and "f (xs ! k)" and "\<And> j . j < k \<Longrightarrow> \<not> f (xs ! j)" by simp+
-qed
 
-lemma find_index_exhaustive : 
-  assumes "\<exists> x \<in> set xs . f x"
-  shows "find_index f xs \<noteq> None"
-  using assms proof (induction xs)
-case Nil
-  then show ?case by auto
-next
-  case (Cons x xs)
-  then show ?case by (cases "f x"; auto)
-qed
 
 
 
@@ -1743,94 +1173,7 @@ proof (rule ccontr)
     using assms(3) \<open>k'''>0\<close> \<open>k''' < k'\<close> \<open>qx1 = last (s_states M k''')\<close>  by blast
 qed
 
-(*
-lemma s_states_last_least : 
-  assumes "qx1 \<in> set (s_states M k)"
-  shows "(k' = (LEAST k' . qx1 \<in> set (s_states M k'))) \<longleftrightarrow> (qx1 = last (s_states M k') \<and> (\<forall> k'' < k' . qx1 \<noteq> last (s_states M k'')))" 
-proof 
-  show "k' = (LEAST k'. qx1 \<in> set (s_states M k')) \<Longrightarrow> qx1 = last (s_states M k') \<and> (\<forall> k'' < k' . qx1 \<noteq> last (s_states M k''))"
-  proof -
-    assume "k' = (LEAST k'. qx1 \<in> set (s_states M k'))"
-    then have "qx1 \<in> set (s_states M k')" 
-      using assms by (meson LeastI)
-    then have "\<forall> k'' . k'' < k' \<longrightarrow> \<not>(qx1 \<in> set (s_states M k''))"
-      using \<open>k' = (LEAST k'. qx1 \<in> set (s_states M k'))\<close>
-      using not_less_Least by blast 
-    have "qx1 = last (s_states M k') "
-    proof (rule ccontr)
-      assume "qx1 \<noteq> last (s_states M k')"
-      then have "qx1 \<in> set (butlast (s_states M k'))"
-        using \<open>qx1 \<in> set (s_states M k')\<close>
-        by (metis Un_iff append_butlast_last_id insert_iff list.simps(15) set_append) 
-      then have "qx1 \<in> set (s_states M (k'-1))"
-        by (metis \<open>\<forall>k''<k'. qx1 \<notin> set (s_states M k'')\<close> \<open>qx1 \<in> set (s_states M k')\<close> butlast_conv_take diff_le_self eq_iff leI s_states_length s_states_prefix s_states_self_length)
-      then show "False"
-        using \<open>\<forall> k'' . k'' < k' \<longrightarrow> \<not>(qx1 \<in> set (s_states M k''))\<close>
-        by (metis \<open>qx1 \<in> set (butlast (s_states M k'))\<close> butlast_conv_take diff_less in_set_conv_nth less_numeral_extra(1) list.size(3) not_gr0 not_less0 s_states_prefix take_eq_Nil zero_le)
-    qed
-    moreover have "\<And> k'' . Suc k'' < k' \<Longrightarrow> qx1 \<noteq> last (s_states M (Suc k''))"
-      using \<open>\<forall> k'' . k'' < k' \<longrightarrow> \<not>(qx1 \<in> set (s_states M k''))\<close>
 
-    moreover have "(\<forall> k'' < k' . qx1 \<noteq> last (s_states M k''))"
-      using \<open>\<forall> k'' . k'' < k' \<longrightarrow> \<not>(qx1 \<in> set (s_states M k''))\<close>
-
-    proof -
-      have "\<And> (xs::'a list) x i . (\<And> j . Suc j < i \<Longrightarrow> \<not> (x \<in> set (take (Suc j) xs))) \<Longrightarrow> (\<And> j . Suc j < i \<Longrightarrow> x \<noteq> last (take (Suc j) xs))"  
-      proof 
-        fix xs :: "'a list"
-        fix x i j assume "(\<And> j . Suc j < i \<Longrightarrow> \<not> (x \<in> set (take (Suc j) xs)))" and "Suc j < i" and "x = last (take (Suc j) xs)"
-        then show "False" proof (induction i)
-          case 0
-          then show ?case by auto
-        next
-          case (Suc i)
-          then show ?case proof (cases "Suc j < Suc i")
-            case True
-            then show ?thesis 
-          next
-            case False
-            then show ?thesis sorry
-          qed 
-        qed
-        
-        then show "False" proof (induction xs rule: rev_induct)
-          case Nil 
-          then show ?case  
-        next
-          case (snoc a xs) 
-          then show ?case proof (cases "x = last (take i xs)")
-            case True
-            then have "x \<in> set (take i xs)" by auto
-            show ?thesis using snoc.IH[OF] snoc.prems(1,2,5) snoc.prems(3)[OF snoc.prems(4)] 
-          next
-            case False
-            then show ?thesis sorry
-          qed
-        qed
-
- 
-    ultimately show "qx1 = last (s_states M k') \<and> (\<forall> k'' < k' . qx1 \<noteq> last (s_states M k''))"
-      by blast
-  qed
-
-
-  have "qx1 = last (s_states M k') \<Longrightarrow> (\<forall>k''<k'. qx1 \<noteq> last (s_states M k'')) \<Longrightarrow> k' = (LEAST k'. qx1 \<in> set (s_states M k'))"
-  proof -
-    assume "qx1 = last (s_states M k')" and "(\<forall>k''<k'. qx1 \<noteq> last (s_states M k''))"
-    
-    have "qx1 \<in> set (s_states M k')" using \<open>qx1 = last (s_states M k')\<close> assms
-      by (metis cancel_comm_monoid_add_class.diff_cancel diff_le_self diff_less last_conv_nth less_numeral_extra(1) not_le not_less_eq_eq nth_mem s_states_prefix take_all take_eq_Nil) 
-    moreover have "(\<forall>k''<k'. qx1 \<notin> set (s_states M k''))"
-      using \<open>(\<forall>k''<k'. qx1 \<noteq> last (s_states M k''))\<close>
-      by (metis Suc_lessI ex_least_nat_le in_set_conv_nth lessI less_le_trans not_less0 s_states_by_index s_states_length) 
-    ultimately show ?thesis
-      by (meson LeastI nat_neq_iff not_less_Least) 
-  qed
-  then show "qx1 = last (s_states M k') \<and> (\<forall>k''<k'. qx1 \<noteq> last (s_states M k'')) \<Longrightarrow> k' = (LEAST k'. qx1 \<in> set (s_states M k'))" 
-    by blast
-qed
-
-*)
 
 
 lemma s_states_distinct_least :
@@ -1915,124 +1258,13 @@ qed
 
 
 
-(* TODO: move *)
-lemma ordered_list_distinct :
-  fixes xs :: "('a::preorder) list"
-  assumes "\<And> i . Suc i < length xs \<Longrightarrow> (xs ! i) < (xs ! (Suc i))"
-  shows "distinct xs"
-proof -
-  have "\<And> i j . i < j \<Longrightarrow> j < length xs \<Longrightarrow> (xs ! i) < (xs ! j)"
-  proof -
-    fix i j assume "i < j" and "j < length xs"
-    then show "xs ! i < xs ! j"
-      using assms proof (induction xs arbitrary: i j rule: rev_induct)
-      case Nil
-      then show ?case by auto
-    next
-      case (snoc a xs)
-      show ?case proof (cases "j < length xs")
-        case True
-        show ?thesis using snoc.IH[OF snoc.prems(1) True] snoc.prems(3)
-        proof -
-          have f1: "i < length xs"
-            using True less_trans snoc.prems(1) by blast
-          have f2: "\<forall>is isa n. if n < length is then (is @ isa) ! n = (is ! n::integer) else (is @ isa) ! n = isa ! (n - length is)"
-            by (meson nth_append)
-          then have f3: "(xs @ [a]) ! i = xs ! i"
-            using f1
-            by (simp add: nth_append)
-          have "xs ! i < xs ! j"
-            using f2
-            by (metis Suc_lessD \<open>(\<And>i. Suc i < length xs \<Longrightarrow> xs ! i < xs ! Suc i) \<Longrightarrow> xs ! i < xs ! j\<close> butlast_snoc length_append_singleton less_SucI nth_butlast snoc.prems(3)) 
-          then show ?thesis
-            using f3 f2 True
-            by (simp add: nth_append) 
-        qed
-      next
-        case False
-        then have "(xs @ [a]) ! j = a"
-          using snoc.prems(2)
-          by (metis length_append_singleton less_SucE nth_append_length)  
-        
-        consider "j = 1" | "j > 1"
-          using \<open>i < j\<close>
-          by linarith 
-        then show ?thesis proof cases
-          case 1
-          then have "i = 0" and "j = Suc i" using \<open>i < j\<close> by linarith+ 
-          then show ?thesis 
-            using snoc.prems(3)
-            using snoc.prems(2) by blast 
-        next
-          case 2
-          then consider "i < j - 1" | "i = j - 1" using \<open>i < j\<close> by linarith+
-          then show ?thesis proof cases
-            case 1
-            
-            have "(\<And>i. Suc i < length xs \<Longrightarrow> xs ! i < xs ! Suc i) \<Longrightarrow> xs ! i < xs ! (j - 1)"
-              using snoc.IH[OF 1] snoc.prems(2) 2 by simp 
-            then have le1: "(xs @ [a]) ! i < (xs @ [a]) ! (j -1)"
-              using snoc.prems(2)
-              by (metis "2" False One_nat_def Suc_diff_Suc Suc_lessD diff_zero length_append_singleton less_SucE not_less_eq nth_append snoc.prems(1) snoc.prems(3))
-            moreover have le2: "(xs @ [a]) ! (j -1) < (xs @ [a]) ! j"
-              using snoc.prems(2,3) 2
-              by (metis (full_types) One_nat_def Suc_diff_Suc diff_zero less_numeral_extra(1) less_trans)  
-            ultimately show ?thesis 
-              using less_trans by blast
-          next
-            case 2
-            then have "j = Suc i" using \<open>1 < j\<close> by linarith
-            then show ?thesis 
-              using snoc.prems(3)
-              using snoc.prems(2) by blast
-          qed
-        qed
-      qed
-    qed 
-  qed
 
-  then show ?thesis
-    by (metis less_asym non_distinct_repetition_indices)
-qed
-
-
-
-(* TODO: move *)
-lemma ordered_list_distinct_rev :
-  fixes xs :: "('a::preorder) list"
-  assumes "\<And> i . Suc i < length xs \<Longrightarrow> (xs ! i) > (xs ! (Suc i))"
-  shows "distinct xs"
-proof -
-  have "\<And> i . Suc i < length (rev xs) \<Longrightarrow> ((rev xs) ! i) < ((rev xs) ! (Suc i))"
-    using assms
-  proof -
-    fix i :: nat
-    assume a1: "Suc i < length (rev xs)"
-    obtain nn :: "nat \<Rightarrow> nat \<Rightarrow> nat" where
-      "\<forall>x0 x1. (\<exists>v2. x1 = Suc v2 \<and> v2 < x0) = (x1 = Suc (nn x0 x1) \<and> nn x0 x1 < x0)"
-      by moura
-    then have f2: "\<forall>n na. (\<not> n < Suc na \<or> n = 0 \<or> n = Suc (nn na n) \<and> nn na n < na) \<and> (n < Suc na \<or> n \<noteq> 0 \<and> (\<forall>nb. n \<noteq> Suc nb \<or> \<not> nb < na))"
-      by (meson less_Suc_eq_0_disj)
-    have f3: "Suc (length xs - Suc (Suc i)) = length (rev xs) - Suc i"
-      using a1 by (simp add: Suc_diff_Suc)
-    have "i < length (rev xs)"
-      using a1 by (meson Suc_lessD)
-    then have "i < length xs"
-      by simp
-    then show "rev xs ! i < rev xs ! Suc i"
-      using f3 f2 a1 by (metis (no_types) assms diff_less length_rev not_less_iff_gr_or_eq rev_nth)
-  qed 
-  then have "distinct (rev xs)" 
-    using ordered_list_distinct[of "rev xs"] by blast
-  then show ?thesis by auto
-qed
 
 
 
 
 lemma s_states_induces_state_separator_helper_distinct_pathlikes :
-  assumes (*"pathlike p"*)
-          "\<And> i . (Suc i) < length (t#p) \<Longrightarrow> t_source ((t#p) ! (Suc i)) = t_target ((t#p) ! i)"
+  assumes "\<And> i . (Suc i) < length (t#p) \<Longrightarrow> t_source ((t#p) ! (Suc i)) = t_target ((t#p) ! i)"
   assumes "set (t#p) \<subseteq> set (filter 
                            (\<lambda>t . \<exists> qqx \<in> set (s_states M k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
                         (wf_transitions M))"
@@ -2040,7 +1272,6 @@ lemma s_states_induces_state_separator_helper_distinct_pathlikes :
   shows "distinct ((t_source t) # map t_target (t#p))" 
 proof - 
 
-  (*let ?f = "(\<lambda> t . LEAST k' . t_target t \<in> set (map fst (s_states M k')))"*) 
   let ?f = "\<lambda> q . LEAST k' . q \<in> set (map fst (s_states M k'))"
   let ?p = "(t_source t) # map t_target (t#p)"
 
@@ -2192,22 +1423,7 @@ qed
   
 
 
-(*
 
-
-
-lemma s_states_induces_state_separator_helper_h_prefix :
-  assumes "t \<in> h \<lparr> initial = fst (last (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k))),
-                      inputs = inputs (product (from_FSM M q1) (from_FSM M q2)),
-                      outputs = outputs (product (from_FSM M q1) (from_FSM M q2)),
-                      transitions = 
-                         filter 
-                           (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) (Suc k)) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                      (wf_transitions (product (from_FSM M q1) (from_FSM M q2))) \<rparr>"
-    (is "t \<in> h ?S")
-  shows "t_target t \<in> set (map fst (s_states (product (from_FSM M q1) (from_FSM M q2)) k))" 
-proof -
-*)
 
 
 
@@ -2572,7 +1788,6 @@ using assms(1) proof (induction k rule: less_induct)
         qed
 
 
-        (* TODO: extract and move *)
         moreover have "\<And> xs x . x \<in> set (map fst xs) \<Longrightarrow> (\<exists> y . (x,y) \<in> set xs)"
           by auto
 
@@ -2708,135 +1923,13 @@ definition state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rig
                                         
       \<dots> = more M \<rparr>"
 
-(*
-transitions = (let
-                        t_old = (map shift_Inl (wf_transitions S));
-                    t_left = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
-                                   (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                           (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                        (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))));
-                    t_right = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
-                                     (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                             (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                          (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
-        in (t_old 
-            @ t_left 
-            @ t_right 
-            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
-                              (\<exists> t' \<in> set t_old \<union> set t_left \<union> set t_right . t_source t = t_source t' \<and> t_input t = t_input t'))
-                       (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))     
-            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
-                              (\<exists> t' \<in> set t_old \<union> set t_left \<union> set t_right . t_source t = t_source t' \<and> t_input t = t_input t'))
-                       (distinguishing_transitions_right M (fst (initial S)) (snd (initial S)))))),
-*)
 
-(*
-transitions = (let
-                        t_old = (map shift_Inl (wf_transitions S));
-                    t_left = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
-                                   (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                           (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                        (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))));
-                    t_right = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
-                                     (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> s_states_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                             (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                          (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
-        in (t_old @ t_left @ t_right @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
-                                                      (\<exists> t' \<in> set t_old \<union> set t_left \<union> set t_right . t_source t = t_source t' \<and> t_input t = t_input t'))
-                                               (wf_transitions (canonical_separator M (fst (initial S)) (snd (initial S))))))),
-*)
 
-(*
-distinguishing_transitions_left M ?q1 ?q2
-*)
 
-(* TODO: move *)
-lemma max_length_elem :
-  fixes xs :: "'a list set"
-  assumes "finite xs"
-  and     "xs \<noteq> {}"
-shows "\<exists> x \<in> xs . \<not>(\<exists> y \<in> xs . length y > length x)" 
-using assms proof (induction xs)
-  case empty
-  then show ?case by auto
-next
-  case (insert x F)
-  then show ?case proof (cases "F = {}")
-    case True
-    then show ?thesis by blast
-  next
-    case False
-    then obtain y where "y \<in> F" and "\<not>(\<exists> y' \<in> F . length y' > length y)"
-      using insert.IH by blast
-    then show ?thesis using dual_order.strict_trans by (cases "length x > length y"; auto)
-  qed
-qed
 
-(* TODO: move *)
-lemma acyclic_deadlock_states :
-  assumes "acyclic M"
-  shows "\<exists> q \<in> nodes M . deadlock_state M q"
-proof (rule ccontr)
-  assume "\<not> (\<exists>q\<in>nodes M. deadlock_state M q)"
-  then have *: "\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists> t \<in> h M . t_source t = q)"
-    unfolding deadlock_state.simps by blast
 
-  let ?p = "arg_max_on length {p. path M (initial M) p}"
-  
 
-  have "finite {p. path M (initial M) p}"
-    using acyclic_finite_paths assms by auto
-  moreover have "{p. path M (initial M) p} \<noteq> {}" 
-    by auto
-  ultimately obtain p where "path M (initial M) p" and "\<And> p' . path M (initial M) p' \<Longrightarrow> length p' \<le> length p" 
-    using max_length_elem
-    by (metis mem_Collect_eq not_le_imp_less)
 
-  then obtain t where "t \<in> h M" and "t_source t = target p (initial M)"
-    using * path_target_is_node by metis
-
-  then have "path M (initial M) (p@[t])"
-    using \<open>path M (initial M) p\<close>
-    by (simp add: path_append_last) 
-
-  then show "False"
-    using \<open>\<And> p' . path M (initial M) p' \<Longrightarrow> length p' \<le> length p\<close>
-    by (metis impossible_Cons length_rotate1 rotate1.simps(2)) 
-qed
-
-(* TODO: move *)
-lemma deadlock_prefix :
-  assumes "path M q p"
-  and     "t \<in> set (butlast p)"
-shows "\<not> (deadlock_state M (t_target t))"
-  using assms proof (induction p rule: rev_induct)
-  case Nil
-  then show ?case by auto
-next
-  case (snoc t' p')
-  
-  show ?case proof (cases "t \<in> set (butlast p')")
-    case True
-    show ?thesis 
-      using snoc.IH[OF _ True] snoc.prems(1)
-      by blast 
-  next
-    case False
-    then have "p' = (butlast p')@[t]"
-      using snoc.prems(2) by (metis append_butlast_last_id append_self_conv2 butlast_snoc in_set_butlast_appendI list_prefix_elem set_ConsD)
-    then have "path M q ((butlast p'@[t])@[t'])"
-      using snoc.prems(1)
-      by auto 
-    
-    have "t' \<in> h M" and "t_source t' = target (butlast p'@[t]) q"
-      using path_suffix[OF \<open>path M q ((butlast p'@[t])@[t'])\<close>]
-      by auto
-    then have "t' \<in> h M \<and> t_source t' = t_target t"
-      unfolding target.simps visited_states.simps by auto
-    then show ?thesis 
-      unfolding deadlock_state.simps using \<open>t' \<in> h M\<close> by blast
-  qed
-qed
 
 
 

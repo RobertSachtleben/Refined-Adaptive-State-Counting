@@ -1091,7 +1091,7 @@ declare product.simps[simp del]
 declare from_FSM_simps[simp del]
 declare product_simps[simp del]
 
-(* TODO: move *)
+
 lemma zip_path_merge :
   "(zip_path (left_path p) (right_path p)) = p"
   by (induction p; auto)
@@ -1167,6 +1167,68 @@ proof -
   qed
   ultimately show ?thesis by blast
 qed 
+
+
+
+
+lemma product_deadlock :
+  assumes "\<not> (\<exists> t \<in> h (product (from_FSM M q1) (from_FSM M q2)).
+               t_source t = qq \<and> t_input t = x)"
+  and "qq \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+  and "x \<in> set (inputs M)"
+shows "\<not> (\<exists> t1 \<in> h M. \<exists> t2 \<in> h M.
+                 t_source t1 = fst qq \<and>
+                 t_source t2 = snd qq \<and>
+                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" 
+proof 
+  assume "\<exists> t1 \<in> h M. \<exists> t2 \<in> h M.
+                 t_source t1 = fst qq \<and>
+                 t_source t2 = snd qq \<and>
+                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2"
+  then obtain t1 t2 where "t1 \<in> h M"
+                      and "t2 \<in> h M"
+                      and "t_source t1 = fst qq"
+                      and "t_source t2 = snd qq"
+                      and "t_input t1 = x"
+                      and "t_input t2 = x" 
+                      and "t_output t1 = t_output t2"
+    by blast
+
+  have "fst qq \<in> nodes (from_FSM M q1)" and "snd qq \<in> nodes (from_FSM M q2)"
+    using product_nodes assms(2)
+    by fastforce+
+
+ 
+  have "t_source t1 \<in> nodes (from_FSM M q1)"
+    using \<open>fst qq \<in> nodes (from_FSM M q1)\<close> \<open>t_source t1 = fst qq\<close> by simp
+  then have *: "(fst qq, x, t_output t1, t_target t1) \<in> h (from_FSM M q1)"
+    using from_FSM_nodes_transitions[OF \<open>t1 \<in> h M\<close>] \<open>t_input t1 = x\<close> \<open>t_source t1 = fst qq\<close>
+    by (metis prod.collapse) 
+
+  have "t_source t2 \<in> nodes (from_FSM M q2)"
+    using \<open>snd qq \<in> nodes (from_FSM M q2)\<close> \<open>t_source t2 = snd qq\<close> by simp
+  have **: "(snd qq, x, t_output t1, t_target t2) \<in> h (from_FSM M q2)"
+    using from_FSM_nodes_transitions[OF \<open>t2 \<in> h M\<close> \<open>t_source t2 \<in> nodes (from_FSM M q2)\<close>] \<open>t_source t2 = snd qq\<close> \<open>t_input t1 = x\<close> \<open>t_input t2 = x\<close> \<open>t_source t2 = snd qq\<close> \<open>t_output t1 = t_output t2\<close> 
+    by (metis prod.collapse)
+
+  have ***: "(\<exists>p1 p2.
+        path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
+        path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
+        target p1 (initial (from_FSM M q1)) = fst qq \<and>
+        target p2 (initial (from_FSM M q2)) = snd qq \<and> p_io p1 = p_io p2)"
+    using assms(2) product_node_from_path[of "fst qq" "snd qq" "from_FSM M q1" "from_FSM M q2"]
+          prod.collapse[of qq] 
+    by auto
+  
+  have "(qq, x, t_output t1, (t_target t1, t_target t2)) \<in> h (product (from_FSM M q1) (from_FSM M q2))"
+    using product_transition[of "fst qq" "snd qq" "x" "t_output t1" "t_target t1" "t_target t2" "from_FSM M q1" "from_FSM M q2"]
+    using * ** *** prod.collapse[of qq] by auto
+  moreover have "t_source (qq, x, t_output t1, (t_target t1, t_target t2)) = qq"
+            and "t_input (qq, x, t_output t1, (t_target t1, t_target t2)) = x"
+    by auto
+  ultimately show "False"
+    using assms(1) by blast
+qed
 
 (* TODO: check *)
 declare from_FSM.simps[simp]

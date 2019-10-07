@@ -871,8 +871,7 @@ proof -
           by auto
       qed
 
-      (* TODO: extract *)
-
+      
       let ?hs = "{(t1,t2) | t1 t2 . t1 \<in> h M \<and> t2 \<in> h M \<and> t_source t1 = q1' \<and> t_source t2 = q2' \<and> t_input t1 = t_input t \<and> t_input t2 = t_input t \<and> t_output t1 = t_output t2}"
       have "finite ?hs"
       proof -
@@ -947,7 +946,7 @@ qed
 
 subsection \<open>State Separation Sets\<close>
 
-(* TODO: move *)
+(* TODO: move to new theory *)
 definition fault_domain :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ('a,'b) FSM_scheme set" where
   "fault_domain M m = { M' . inputs M' = inputs M \<and> outputs M' = outputs M \<and> size M' \<le> size M + m \<and> observable M' \<and> completely_specified M'}"
 
@@ -1014,12 +1013,7 @@ proof -
     using acyclic_finite_paths[OF \<open>acyclic S\<close>] unfolding state_separation_set_from_state_separator_def by simp 
 qed
 
-(* TODO: move *)
-lemma acyclic_path_length :
-  assumes "acyclic M" 
-  and     "path M (initial M) p" 
-  shows "length p < size M"
-  using distinct_path_length_limit_nodes[OF assms(2) acyclic_paths_from_nodes[OF assms]] by assumption
+
 
 
 
@@ -1084,68 +1078,9 @@ proof
 
 qed
 
-(* TODO: move *)
-lemma filter_map_elem : "t \<in> set (map g (filter f xs)) \<Longrightarrow> \<exists> x \<in> set xs . f x \<and> t = g x" by auto
 
-(* TODO: move *)
-lemma observable_path_language_step :
-  assumes "observable M"
-      and "path M q p"
-      and "\<not> (\<exists>t\<in>h M.
-               t_source t = target p q \<and>
-               t_input t = x \<and> t_output t = y)"
-    shows "(p_io p)@[(x,y)] \<notin> LS M q"
-using assms proof (induction p rule: rev_induct)
-  case Nil
-  show ?case proof
-    assume "p_io [] @ [(x, y)] \<in> LS M q"
-    then obtain p' where "path M q p'" and "p_io p' = [(x,y)]" unfolding LS.simps
-      by force 
-    then obtain t where "p' = [t]" by blast
-    
-    have "t\<in>h M" and "t_source t = target [] q"
-      using \<open>path M q p'\<close> \<open>p' = [t]\<close> by auto
-    moreover have "t_input t = x \<and> t_output t = y"
-      using \<open>p_io p' = [(x,y)]\<close> \<open>p' = [t]\<close> by auto
-    ultimately show "False"
-      using Nil.prems(3) by blast
-  qed
-next
-  case (snoc t p)
-  then have "path M q p" and "t_source t = target p q" and "t \<in> h M" by auto
 
-  show ?case proof
-    assume "p_io (p @ [t]) @ [(x, y)] \<in> LS M q"
-    then obtain p' where "path M q p'" and "p_io p' = p_io (p @ [t]) @ [(x, y)]"
-      by auto
-    then obtain p'' t' t'' where "p' = p''@[t']@[t'']"
-      by (metis (no_types, lifting) append.assoc map_butlast map_is_Nil_conv snoc_eq_iff_butlast)
-    then have "path M q p''" 
-      using \<open>path M q p'\<close> by blast
-    
-    
-    have "p_io p'' = p_io p"
-      using \<open>p' = p''@[t']@[t'']\<close> \<open>p_io p' = p_io (p @ [t]) @ [(x, y)]\<close> by auto
-    then have "p'' = p"
-      using observable_path_unique[OF assms(1) \<open>path M q p''\<close> \<open>path M q p\<close>] by blast
 
-    have "t_source t' = target p'' q" and "t' \<in> h M"
-      using \<open>path M q p'\<close> \<open>p' = p''@[t']@[t'']\<close> by auto
-    then have "t_source t' = t_source t"
-      using \<open>p'' = p\<close> \<open>t_source t = target p q\<close> by auto 
-    moreover have "t_input t' = t_input t \<and> t_output t' = t_output t"
-      using \<open>p_io p' = p_io (p @ [t]) @ [(x, y)]\<close> \<open>p' = p''@[t']@[t'']\<close> \<open>p'' = p\<close> by auto
-    ultimately have "t' = t"
-      using \<open>t \<in> h M\<close> \<open>t' \<in> h M\<close> assms(1) unfolding observable.simps by (meson prod.expand) 
-
-    have "t''\<in>h M" and "t_source t'' = target (p@[t]) q"
-      using \<open>path M q p'\<close> \<open>p' = p''@[t']@[t'']\<close> \<open>p'' = p\<close> \<open>t' = t\<close> by auto
-    moreover have "t_input t'' = x \<and> t_output t'' = y"
-      using \<open>p_io p' = p_io (p @ [t]) @ [(x, y)]\<close> \<open>p' = p''@[t']@[t'']\<close> by auto
-    ultimately show "False"
-      using snoc.prems(3) by blast
-  qed
-qed
 
 
 lemma shifted_transitions_targets :
@@ -1869,13 +1804,7 @@ qed
 
 
 
-(* TODO:
- - r_dist \<Longrightarrow> EX SSep 
 
- - State Separator (general def)
- - State Separator vs State Separator from CSep
- - State Separator Set
-*)
 
 
 

@@ -881,30 +881,6 @@ proof -
   ultimately show ?thesis by metis
 qed
 
-(* TODO: move *)
-lemma nodes_paths_by_same_h_initial :
-  assumes "initial A = initial B"
-      and "h A = h B"
-    shows "nodes A = nodes B"
-      and "path A q p = path B q p"
-proof -
-  show "nodes A = nodes B"
-  proof -
-    have "insert (initial A) {t_target p |p. p \<in> set (wf_transitions B)} = nodes B"
-      using assms(1) h_nodes by force
-    then show ?thesis
-      by (metis (no_types) assms(2) h_nodes)
-  qed 
-
-  then show "path A q p = path B q p" using assms by (induction p arbitrary: q; fast)
-qed
-
-lemma language_by_same_h_initial :
-  assumes "initial A = initial B"
-      and "h A = h B"
-    shows "L A = L B"
-  unfolding LS.simps using nodes_paths_by_same_h_initial(2)[OF assms]
-  using assms(1) by auto 
 
 
 

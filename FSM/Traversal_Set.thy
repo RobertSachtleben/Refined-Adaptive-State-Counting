@@ -23,16 +23,7 @@ value "m_traversal_paths_up_to_length M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3}
 
 
 
-lemma filter_length_weakening :
-  assumes "\<And> q . f1 q \<Longrightarrow> f2 q"
-  shows "length (filter f1 p) \<le> length (filter f2 p)"
-proof (induction p)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons a p)
-  then show ?case using assms by (cases "f1 a"; auto)
-qed
+
   
 lemma m_traversal_paths_up_to_length_max_length :
   assumes "\<forall> q \<in> nodes M . \<exists> d \<in> D . q \<in> fst d"
@@ -51,7 +42,7 @@ proof (rule ccontr)
         and "length p \<le> k"
         and "?f p"
         and "\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')"
-    using paths_up_to_length_or_condition_path_set_nil[OF \<open>path M q []\<close>, of k ?f] assms(4) by auto
+    using paths_up_to_length_or_condition_path_set_nil[OF assms(3), of k ?f] assms(4) by auto
   
 
   have "\<And> p . path M q p \<Longrightarrow> set (map t_target p) \<subseteq> nodes M"
@@ -183,7 +174,7 @@ proof -
     using assms(3) by auto
 
   have "\<And> p . p \<in> ?MTP \<Longrightarrow> p \<in> ?P"
-    using paths_up_to_length_or_condition_path_set_nil[of M q "(Suc (size M * m))" ?f] assms(3) 
+    using paths_up_to_length_or_condition_path_set_nil[of  q M "(Suc (size M * m))" ?f] assms(3) 
     unfolding m_traversal_paths.simps m_traversal_paths_up_to_length.simps by blast
   moreover have "\<And> p . p \<in> ?P \<Longrightarrow> p \<in> ?MTP"
   proof -
@@ -193,83 +184,21 @@ proof -
           and "\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')"
       by blast+
     then have "p \<in> set (m_traversal_paths_up_to_length M q D m (length p))"
-      using paths_up_to_length_or_condition_path_set_nil[of M q "length p" ?f] assms(3) by auto
+      using paths_up_to_length_or_condition_path_set_nil[of q M "length p" ?f] assms(3) by auto
     then have "length p \<le> Suc (size M * m)"
       using m_traversal_paths_up_to_length_max_length[OF assms] by blast
     
     show "p \<in> ?MTP"
       using \<open>path M q p\<close> \<open>length p \<le> Suc (size M * m)\<close> \<open>?f p\<close> \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')\<close>
-      using paths_up_to_length_or_condition_path_set_nil[of M q "(Suc (size M * m))" ?f, OF \<open>path M q []\<close>] 
-      unfolding m_traversal_paths.simps m_traversal_paths_up_to_length.simps by blast
+      using paths_up_to_length_or_condition_path_set_nil[of q M "(Suc (size M * m))" ?f]  
+      unfolding m_traversal_paths.simps m_traversal_paths_up_to_length.simps
+      using assms(3) by blast 
   qed
   ultimately show ?thesis
     by (meson subsetI subset_antisym) 
 qed
 
-(* TODO: move *)
-fun prefixes :: "'a list \<Rightarrow> 'a list list" where
-  "prefixes [] = [[]]" |
-  "prefixes (x#xs) = [] # (map (\<lambda> xs' . x#xs') (prefixes xs))"
 
-value "prefixes [1::nat,2,3,4]"
-
-lemma prefixes_set : "set (prefixes xs) = {xs' . \<exists> xs'' . xs'@xs'' = xs}"
-proof (induction xs)
-  case Nil
-  then show ?case unfolding prefixes.simps by auto
-next
-  case (Cons a xs)
-
-  have "set (prefixes (a#xs)) = insert [] (set (map (\<lambda> xs' . a#xs') (prefixes xs)))"
-    unfolding prefixes.simps by auto
-  then have "set (prefixes (a#xs)) = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
-    using Cons.IH by auto
-
-  moreover have "{xs'. \<exists>xs''. xs' @ xs'' = a # xs} = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}" 
-  proof -
-    have "\<And> xs' . xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
-    proof - 
-      fix xs' 
-      show "xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
-        by (cases xs'; auto)
-    qed
-    then show ?thesis by blast
-  qed
-
-  ultimately show ?case by auto
-qed
-  
-
-
-
-fun add_prefixes :: "'a list list \<Rightarrow> 'a list list" where
-  "add_prefixes xs = concat (map prefixes xs)"
-
-value "add_prefixes [[1::nat,2,3], [], [10,100,1000,1000]]"
-
-lemma add_prefixes_set : "set (add_prefixes xs) = {xs' . \<exists> xs'' . xs'@xs'' \<in> set xs}"
-proof -
-  have "set (add_prefixes xs) = {xs' . \<exists> x \<in> set xs . xs' \<in> set (prefixes x)}"
-    unfolding add_prefixes.simps by auto
-  also have "\<dots> = {xs' . \<exists> xs'' . xs'@xs'' \<in> set xs}"
-  proof (induction xs)
-    case Nil
-    then show ?case using prefixes_set by auto
-  next
-    case (Cons a xs)
-    then show ?case 
-    proof -
-      have "\<And> xs' . xs' \<in> {xs'. \<exists>x\<in>set (a # xs). xs' \<in> set (prefixes x)} \<longleftrightarrow> xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' \<in> set (a # xs)}"
-      proof -
-        fix xs' 
-        show "xs' \<in> {xs'. \<exists>x\<in>set (a # xs). xs' \<in> set (prefixes x)} \<longleftrightarrow> xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' \<in> set (a # xs)}"
-          using prefixes_set by (cases "xs' \<in> set (prefixes a)"; auto)
-      qed
-      then show ?thesis by blast
-    qed
-  qed
-  finally show ?thesis by blast
-qed
 
 
 
