@@ -287,9 +287,14 @@ value "d_reachable_states M_ex_9"
 
 fun maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets_from_separators M = image (\<lambda> S . (S, {q \<in> S . q \<in> set (d_reachable_states M)})) (maximal_pairwise_r_distinguishable_state_sets_from_separators M)"
+
+fun maximal_repetition_sets_from_separators_opt :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
+  "maximal_repetition_sets_from_separators_opt M = (let DR = set (d_reachable_states M) in image (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators M))"
 (*
 value "maximal_repetition_sets_from_separators M_ex_H"
 value "maximal_repetition_sets_from_separators M_ex_9"
+value "maximal_repetition_sets_from_separators_opt M_ex_H"
+value "maximal_repetition_sets_from_separators_opt M_ex_9"
 *)
 
 end

@@ -831,55 +831,23 @@ subsection \<open>Preamble Set Calculation\<close>
 definition calculate_preamble_set_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
   "calculate_preamble_set_naive M q = (let n = size M - 1 in
     (case 
-      (filter 
+      (find 
         (\<lambda> S . language_up_to_length S (Suc n) = language_up_to_length S n \<and>  is_preamble_set M q (set (language_up_to_length S n))) 
         (generate_submachines M)) of
-    [] \<Rightarrow> None |
-    SS \<Rightarrow> (Some (set (language_up_to_length (hd SS) n)))))" 
+    None \<Rightarrow> None |
+    Some S \<Rightarrow> (Some (set (language_up_to_length S n)))))"
+
+
+
+  
 
 
 
 lemma calculate_preamble_set_naive_soundness :
   assumes "calculate_preamble_set_naive M q = Some P"
-  shows "is_preamble_set M q P"
-proof -
-  have P_prop : "P = set (language_up_to_length (hd 
-              (filter 
-                (\<lambda> S . language_up_to_length S (Suc ( size M - 1 )) = language_up_to_length S ( size M - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( size M - 1 )))) 
-                (generate_submachines M))
-              ) ( size M - 1 ))"
-    using assms unfolding calculate_preamble_set_naive_def
-    by (metis (no_types, lifting) hd_Cons_tl list.case_eq_if option.discI option.inject)
-
-  have *: "filter 
-        (\<lambda> S . language_up_to_length S (Suc ( size M - 1 )) = language_up_to_length S ( size M - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( size M - 1 )))) 
-        (generate_submachines M) \<noteq> []"
-    by (metis (mono_tags, lifting) assms calculate_preamble_set_naive_def list.case_eq_if option.discI)
-
-  let ?S = "hd (filter 
-        (\<lambda> S . language_up_to_length S (Suc ( size M - 1 )) = language_up_to_length S ( size M - 1 ) \<and>  is_preamble_set M q (set (language_up_to_length S ( size M - 1 )))) 
-        (generate_submachines M))"
-
-  have "?S \<in> set (generate_submachines M)"
-    using * by (metis (no_types, lifting) filter_set hd_in_set member_filter) 
-  then have "is_submachine ?S M"
-    using generate_submachines_are_submachines[of ?S M] by fastforce
-  
-  have "(\<lambda> S . language_up_to_length S (Suc ( size M - 1 )) = language_up_to_length S ( size M - 1 ) \<and> is_preamble_set M q (set (language_up_to_length S ( size M - 1 )))) ?S"
-    using filter_list_set_not_contained[OF \<open>?S \<in> set (generate_submachines M)\<close>, of "(\<lambda> S . language_up_to_length S (Suc ( size M - 1 )) = language_up_to_length S ( size M - 1 ) \<and> is_preamble_set M q (set (language_up_to_length S ( size M - 1 ))))"] hd_in_set[OF *] by fastforce
-  then have "language_up_to_length ?S (Suc ( size M - 1 )) = language_up_to_length ?S ( size M - 1 )" and "is_preamble_set M q (set (language_up_to_length ?S ( size M - 1 )))"
-    by fastforce+
-  
-  have "set (language_up_to_length ?S ( size M - 1 )) = L ?S"
-    using sym[OF language_up_to_length_finite_language_fixpoint[OF \<open>language_up_to_length ?S (Suc ( size M - 1 )) = language_up_to_length ?S ( size M - 1 )\<close>]] by assumption
-  moreover have "P = set (language_up_to_length ?S ( size M - 1 ))"
-    using P_prop by fastforce
-  ultimately have "P = L ?S"
-    by metis
-  moreover have "is_preamble_set M q (L ?S)"
-    using \<open>is_preamble_set M q (set (language_up_to_length ?S ( size M - 1 )))\<close> sym[OF language_up_to_length_finite_language_fixpoint[OF \<open>language_up_to_length ?S (Suc ( size M - 1 )) = language_up_to_length ?S ( size M - 1 )\<close>]] by metis
-  ultimately show ?thesis by metis
-qed
+shows "is_preamble_set M q P"
+  using assms unfolding calculate_preamble_set_naive_def Let_def
+  by (metis (no_types, lifting) find_condition option.case_eq_if option.collapse option.distinct(1) option.sel) 
 
 
 
@@ -963,7 +931,7 @@ proof -
 
   then show "calculate_preamble_set_naive M q \<noteq> None"
     unfolding calculate_preamble_set_naive_def
-    by (metis (mono_tags, lifting) list.case_eq_if option.distinct(1))   
+    by (metis (no_types, lifting) filter_False find_None_iff option.case_eq_if option.distinct(1))  
 qed
 
 lemma calculate_preamble_set_naive_correctness : 
@@ -981,6 +949,8 @@ value[code] "calculate_preamble_set_naive M_ex_H 1"
 value[code] "calculate_preamble_set_naive M_ex_H 2"
 value[code] "calculate_preamble_set_naive M_ex_H 3"
 value[code] "calculate_preamble_set_naive M_ex_H 4"
+
+value[code] "calculate_preamble_set_naive M_ex_9 3"
 
 
 
