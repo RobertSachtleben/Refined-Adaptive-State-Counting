@@ -211,7 +211,6 @@ value "m_traversal_paths M_ex_H  4 (maximal_repetition_sets_from_separators M_ex
 
 
 
-
 subsection \<open>Calculating Traversal Sets\<close>
 
 (* TODO: decide whether to omit calculations as presented by Petrenko and only use traversal paths *)
