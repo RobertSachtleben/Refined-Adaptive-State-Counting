@@ -5075,6 +5075,31 @@ qed
 
 
 
+lemma calculate_state_separator_from_s_states_exhaustiveness :
+  assumes "r_distinguishable_k M q1 q2 k"
+  and "q1 \<in> nodes M"
+  and "q2 \<in> nodes M"   
+shows "calculate_state_separator_from_s_states M q1 q2 \<noteq> None" 
+proof -
+
+  let ?PM = "product (from_FSM M q1) (from_FSM M q2)"
+  let ?SS = "s_states_opt ?PM (FSM.size ?PM)"
+
+  have "\<exists> qqt \<in> set (s_states ?PM (size ?PM)) . fst qqt = (q1, q2)"
+    using s_states_exhaustiveness[OF \<open>r_distinguishable_k M q1 q2 k\<close> assms(2,3)] by blast
+
+  have "find_index (\<lambda>qqt. fst qqt = (q1, q2)) ?SS \<noteq> None"
+    using find_index_exhaustive[OF \<open>\<exists> qqt \<in> set (s_states ?PM (size ?PM)) . fst qqt = (q1, q2)\<close>]
+    by (simp add: s_states_code) 
+
+
+  then obtain S where "calculate_state_separator_from_s_states M q1 q2 = Some S"
+    unfolding calculate_state_separator_from_s_states_def Let_def
+    by (meson option.case_eq_if)
+
+  then show ?thesis by auto
+qed
+
 subsection \<open>State Separators and R-Distinguishability\<close>
 
 (* TODO: check *)
@@ -5299,17 +5324,8 @@ proof -
   obtain k where "r_distinguishable_k M q1 q2 k"
     by (meson assms r_distinguishable_alt_def) 
 
-  have "\<exists> qqt \<in> set (s_states ?PM (size ?PM)) . fst qqt = (q1, q2)"
-    using s_states_exhaustiveness[OF \<open>r_distinguishable_k M q1 q2 k\<close> assms(2,3)] by blast
-
-  have "find_index (\<lambda>qqt. fst qqt = (q1, q2)) ?SS \<noteq> None"
-    using find_index_exhaustive[OF \<open>\<exists> qqt \<in> set (s_states ?PM (size ?PM)) . fst qqt = (q1, q2)\<close>]
-    by (simp add: s_states_code) 
-
-
   then obtain S where "calculate_state_separator_from_s_states M q1 q2 = Some S"
-    unfolding calculate_state_separator_from_s_states_def Let_def
-    by (meson option.case_eq_if)
+    using calculate_state_separator_from_s_states_exhaustiveness[OF _ assms(2,3)] by blast
 
   show ?thesis
     using calculate_state_separator_from_s_states_soundness
