@@ -1762,4 +1762,83 @@ proof -
     using distinct_map[of ?f ?p] by linarith
 qed
 
+lemma d_states_last_ex_k :
+  assumes "qqx \<in> set (d_states M k q)"  
+  shows "\<exists> k' . d_states M (Suc k') q = (d_states M k' q) @ [qqx]"
+proof -
+  obtain k' where "k'\<le>k" and "0 < k'" and "qqx = last (d_states M k' q)" 
+                  "(\<forall>k''<k'. 0 < k'' \<longrightarrow> qqx \<noteq> last (d_states M k'' q))"
+    using d_states_last_ex[OF assms] by blast
+
+  have "k' = (LEAST k' . qqx \<in> set (d_states M k' q))"
+    by (metis \<open>0 < k'\<close> \<open>\<forall>k''<k'. 0 < k'' \<longrightarrow> qqx \<noteq> last (d_states M k'' q)\<close> \<open>qqx = last (d_states M k' q)\<close> assms nat_neq_iff d_states_last_ex d_states_last_least)
+
+  from \<open>0 < k'\<close> obtain k'' where Suc: "k' = Suc k''"
+    using gr0_conv_Suc by blast 
+
+  then have "qqx = last (d_states M (Suc k'') q)"
+    using \<open>qqx = last (d_states M k' q)\<close> by auto
+  have "Suc k'' = (LEAST k' . qqx \<in> set (d_states M k' q))"
+    using \<open>k' = (LEAST k' . qqx \<in> set (d_states M k' q))\<close> Suc by auto
+  then have "qqx \<notin> set (d_states M k'' q)"
+    by (metis lessI not_less_Least)
+  then have "(d_states M (Suc k'') q) \<noteq> (d_states M k'' q)"
+    using \<open>Suc k'' = (LEAST k' . qqx \<in> set (d_states M k' q))\<close>
+    by (metis Suc Suc_neq_Zero \<open>k' \<le> k\<close> \<open>qqx = last (d_states M (Suc k'') q)\<close> assms last_in_set d_states_prefix take_eq_Nil)
+
+  have "d_states M (Suc k'') q = d_states M k'' q @ [qqx]"
+    by (metis \<open>qqx = last (d_states M (Suc k'') q)\<close> \<open>d_states M (Suc k'') q \<noteq> d_states M k'' q\<close> last_snoc d_states_last)
+  then show ?thesis by blast
+qed
+
+
+
+
+
+
+
+
+
+
+
+thm is_preamble.simps
+
+
+lemma d_states_induces_state_preamble :
+  assumes "(d_states M k q) \<noteq> []"
+  and     "q \<noteq> initial M" (* TODO: add special case in final function, as *)
+  and     "S = \<lparr> initial = initial M,
+                 inputs = inputs M,
+                 outputs = outputs M,
+                 transitions = 
+                       filter 
+                         (\<lambda>t . \<exists> qqx \<in> set (d_states M k q) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                    (wf_transitions M),
+                 \<dots> = more M \<rparr>"
+shows "is_preamble S M q" 
+proof -
+
+  have is_acyclic: "acyclic S" sorry
+  have is_single_input: "single_input S" sorry
+  have is_sub: "is_submachine S M" sorry
+  have contains_q : "q \<in> nodes S" sorry
+  have has_deadlock_q : "deadlock_state S q" sorry
+  have has_nodes_prop : "(\<forall>q'\<in>nodes S.
+        (q = q' \<or> \<not> deadlock_state S q') \<and>
+        (\<forall>x\<in>set (inputs M).
+            (\<exists>t\<in>set (wf_transitions S). t_source t = q' \<and> t_input t = x) \<longrightarrow>
+            (\<forall>t'\<in>set (wf_transitions M). t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> set (wf_transitions S))))" sorry
+
+  show ?thesis
+    unfolding is_preamble.simps
+    using is_acyclic 
+          is_single_input 
+          is_sub
+          contains_q
+          has_deadlock_q
+          has_nodes_prop
+    by presburger
+qed
+
+
 end
