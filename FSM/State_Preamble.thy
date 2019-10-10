@@ -2691,7 +2691,28 @@ proof -
 qed 
    
 
+lemma calculate_state_preamble_from_d_states_exhaustiveness :
+  assumes "\<exists> S . is_preamble S M q"
+  shows "calculate_state_preamble_from_d_states M q \<noteq> None"
+proof (cases "q = initial M")
+  case True
+  then show ?thesis unfolding calculate_state_preamble_from_d_states_def by auto
+next
+  case False
 
+  obtain S where "is_preamble S M q" using assms by blast
+
+  have "(\<exists>qx\<in>set (d_states M (FSM.size M) q). fst qx = initial M)"
+    using d_states_exhaustiveness[OF \<open>is_preamble S M q\<close>] False by blast
+
+  then have "find_index (\<lambda>qqt. fst qqt = initial M) (d_states_opt M (FSM.size M) q) \<noteq> None"
+    using find_index_exhaustive
+    by (simp add: find_index_exhaustive d_states_code) 
+  
+
+  then show ?thesis 
+    unfolding calculate_state_preamble_from_d_states_def Let_def using False by force
+qed
 
 
 
