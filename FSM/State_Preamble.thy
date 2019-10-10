@@ -1007,7 +1007,7 @@ qed
 
 subsection \<open>Preamble Set Calculation\<close>
 
-(* TODO: define more efficient variant based on backwards reachability analysis as in d_states *)
+
 
 definition calculate_preamble_set_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
   "calculate_preamble_set_naive M q = (let n = size M - 1 in
@@ -2716,5 +2716,58 @@ qed
 
 
 
+
+definition calculate_preamble_set_from_d_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
+  "calculate_preamble_set_from_d_states M q = (case calculate_state_preamble_from_d_states M q of
+    Some S \<Rightarrow> Some (LS_acyclic S (initial S)) |
+    None \<Rightarrow> None)"
+
+lemma calculate_preamble_set_from_d_states_soundness :
+  assumes "calculate_preamble_set_from_d_states M q = Some P"
+  and     "observable M"
+shows "is_preamble_set M q P"
+proof -
+  obtain S where *:  "calculate_state_preamble_from_d_states M q = Some S" 
+             and **: "P = LS_acyclic S (initial S)"
+    using assms(1) unfolding calculate_preamble_set_from_d_states_def
+    by (metis (no_types, lifting) option.case_eq_if option.collapse option.distinct(1) option.inject) 
+
+  have "is_preamble S M q"
+    using calculate_state_preamble_from_d_states_soundness[OF *] by assumption
+
+  have "acyclic S"
+    by (metis (no_types) \<open>is_preamble S M q\<close> is_preamble.simps)
+
+  then have "LS_acyclic S (initial S) = L S"
+    using LS_acyclic_complete[of S "initial S"] nodes.initial[of S] by auto
+  
+  then show ?thesis using preamble_has_preamble_set[OF assms(2) \<open>is_preamble S M q\<close>] \<open>P = LS_acyclic S (initial S)\<close>
+    by presburger 
+qed
+
+
+
+
+lemma calculate_preamble_set_from_d_states_exhaustiveness :
+  assumes "\<exists> P . is_preamble_set M q P"
+  and     "observable M"
+shows "calculate_preamble_set_from_d_states M q \<noteq> None"
+  using preamble_set_implies_preamble(1)[OF assms(2), of q] calculate_state_preamble_from_d_states_exhaustiveness[of M q]
+proof -
+  have "calculate_state_preamble_from_d_states M q \<noteq> None"
+    using \<open>\<And>P. is_preamble_set M q P \<Longrightarrow> is_preamble (M\<lparr>transitions := filter (\<lambda>t. \<exists>xys xy. xys @ [xy] \<in> P \<and> t_source t = hd (io_targets_list M xys (initial M)) \<and> t_input t = fst xy \<and> t_output t = snd xy) (transitions M)\<rparr>) M q\<close> \<open>\<exists>S. is_preamble S M q \<Longrightarrow> calculate_state_preamble_from_d_states M q \<noteq> None\<close> assms(1) by blast
+  then show ?thesis
+    by (simp add: calculate_preamble_set_from_d_states_def option.case_eq_if)
+qed 
+
+
+(* TODO: implement faster acyclic language calculation, e.g. using paths_up_to_length_or_condition *)
+
+fun LS_acyclic_opt :: "('a,'b) FSM_scheme \<Rightarrow> "
+
+
+value "calculate_preamble_set_from_d_states M_ex_9 3
+value "calculate_preamble_set_from_d_states M_ex_DR 400
+  
 
 end
