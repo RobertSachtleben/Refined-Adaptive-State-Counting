@@ -2676,9 +2676,20 @@ proof -
     then show ?thesis
       using \<open>d_states ?M (size ?M) q = d_states ?M ?l q\<close>
       by force 
+    qed
   qed
-qed
 
+  then have *: "\<And> qa . qa \<in> nodes S \<Longrightarrow> qa = q \<or> (\<exists>qx\<in>set (d_states (from_FSM M qa) (FSM.size (from_FSM M qa)) q). fst qx = qa)"
+    by blast
+    
+  have "initial M \<in> nodes S" 
+    using \<open>is_submachine S M\<close> nodes.initial[of S] by auto
+
+  have "from_FSM M (initial M) = M" by auto
+  then show ?thesis
+    using *[OF \<open>initial M \<in> nodes S\<close>] by presburger
+qed 
+   
 
 
 
