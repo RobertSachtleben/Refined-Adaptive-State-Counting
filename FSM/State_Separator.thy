@@ -1163,8 +1163,6 @@ value[code] "image (\<lambda> qq . (qq, (case calculate_state_separator_from_can
 
 subsection \<open>Sufficient Condition to Induce a State Separator\<close>
 
-definition retains_outputs_for_states_and_inputs :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> bool" where
-  "retains_outputs_for_states_and_inputs M S = (\<forall> tS \<in> h S . \<forall> tM \<in> h M . (t_source tS = t_source tM \<and> t_input tS = t_input tM) \<longrightarrow> tM \<in> h S)"
 
 definition induces_state_separator :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> bool" where
   "induces_state_separator M S = (

@@ -1869,6 +1869,8 @@ fun completed_path :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a Tra
 fun minimal :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
   "minimal M = (\<forall> q \<in> nodes M . \<forall> q' \<in> nodes M . q \<noteq> q' \<longrightarrow> LS M q \<noteq> LS M q')"
 
+definition retains_outputs_for_states_and_inputs :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> bool" where
+  "retains_outputs_for_states_and_inputs M S = (\<forall> tS \<in> h S . \<forall> tM \<in> h M . (t_source tS = t_source tM \<and> t_input tS = t_input tM) \<longrightarrow> tM \<in> h S)"
 
 
 subsection \<open>IO Targets and Observability\<close>
