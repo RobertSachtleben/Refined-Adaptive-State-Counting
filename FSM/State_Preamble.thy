@@ -67,6 +67,65 @@ lemma is_preamble_set_code[code] :
 
 subsection \<open>Properties\<close>
 
+lemma is_preamble_initial : 
+  "is_preamble \<lparr> initial = initial M,
+                         inputs = inputs M,
+                         outputs = outputs M,
+                         transitions = [],
+                         \<dots> = more M \<rparr> 
+              M
+              (initial M)"
+  (is "is_preamble ?S M (initial M)")
+proof -
+  have "h ?S = {}"
+    by auto
+  then have *: "\<And> p q . path ?S q p \<Longrightarrow> p = []"
+    using path_h by fastforce 
+
+
+  from * have is_acyclic: "acyclic ?S" 
+    unfolding acyclic.simps by fastforce 
+    
+    
+  from * have is_single_input: "single_input ?S" 
+    unfolding single_input.simps by force
+
+
+  have "initial ?S = initial M"
+    by simp 
+  moreover have "inputs ?S = inputs M"
+    by simp 
+  moreover have "outputs ?S = outputs M"
+    by simp 
+  moreover have "h ?S \<subseteq> h M"
+    by force 
+  ultimately have is_sub : "is_submachine ?S M"
+    unfolding is_submachine.simps by blast
+
+  have contains_q : "initial M \<in> nodes ?S"
+    using nodes.initial[of ?S] by force 
+
+  have has_deadlock_q : "deadlock_state ?S (initial M)"
+    using * by auto
+
+  have has_nodes_prop : "(\<forall>q'\<in>nodes ?S.
+        (initial M = q' \<or> \<not> deadlock_state ?S q') \<and>
+        (\<forall>x\<in>set (inputs M).
+            (\<exists>t\<in>set (wf_transitions ?S). t_source t = q' \<and> t_input t = x) \<longrightarrow>
+            (\<forall>t'\<in>set (wf_transitions M). t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> set (wf_transitions ?S))))" 
+    using * nodes_initial_or_target by force 
+
+  show ?thesis
+    unfolding is_preamble.simps
+    using is_acyclic 
+          is_single_input 
+          is_sub
+          contains_q
+          has_deadlock_q
+          has_nodes_prop
+    by presburger
+qed
+
 lemma preamble_set_contains_empty_sequence :
   assumes "is_preamble_set M q P"
   shows "[] \<in> P" 
@@ -2083,5 +2142,96 @@ proof -
     by presburger
 qed
 
+
+definition calculate_state_preamble_from_d_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a  \<Rightarrow> ('a,'b) FSM_scheme option" where
+  "calculate_state_preamble_from_d_states M q = (if q = initial M
+    then Some \<lparr> initial = initial M,
+                         inputs = inputs M,
+                         outputs = outputs M,
+                         transitions = [],
+                         \<dots> = more M \<rparr>
+    else 
+      (let DS = (d_states_opt M (size M) q)  in
+        (case find_index (\<lambda>qqt . fst qqt = initial M) DS of
+          Some i \<Rightarrow> Some \<lparr> initial = initial M,
+                           inputs = inputs M,
+                           outputs = outputs M,
+                           transitions = 
+                                 filter 
+                                   (\<lambda>t . \<exists> qqx \<in> set (take (Suc i) DS) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                              (wf_transitions M),
+                           \<dots> = more M \<rparr> |
+          None \<Rightarrow> None)))"
+
+
+
+
+
+lemma calculate_state_preamble_from_d_states_soundness :
+  assumes "calculate_state_preamble_from_d_states M q = Some S"
+  shows "is_preamble S M q"
+proof (cases "q = initial M")
+  case True
+  then have "S = \<lparr> initial = initial M,
+                         inputs = inputs M,
+                         outputs = outputs M,
+                         transitions = [],
+                         \<dots> = more M \<rparr>" using assms unfolding calculate_state_preamble_from_d_states_def by auto
+  then show ?thesis 
+    using is_preamble_initial[of M] True by presburger
+next
+  case False
+  then have "calculate_state_preamble_from_d_states M q = (case find_index (\<lambda>qqt . fst qqt = initial M) (d_states M (size M) q) of
+          Some i \<Rightarrow> Some \<lparr> initial = initial M,
+                           inputs = inputs M,
+                           outputs = outputs M,
+                           transitions = 
+                                 filter 
+                                   (\<lambda>t . \<exists> qqx \<in> set (take (Suc i) (d_states M (size M) q)) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                              (wf_transitions M),
+                           \<dots> = more M \<rparr> |
+          None \<Rightarrow> None)"
+    unfolding calculate_state_preamble_from_d_states_def Let_def using assms
+    by (metis d_states_code) 
+  then obtain i where  *: "find_index (\<lambda>qqt . fst qqt = initial M) (d_states M (size M) q) = Some i"
+                  and **: "S = \<lparr> initial = initial M,
+                           inputs = inputs M,
+                           outputs = outputs M,
+                           transitions = 
+                                 filter 
+                                   (\<lambda>t . \<exists> qqx \<in> set (take (Suc i) (d_states M (size M) q)) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                              (wf_transitions M),
+                           \<dots> = more M \<rparr>"
+    by (metis (no_types, lifting) assms option.case_eq_if option.collapse option.distinct(1) option.inject) 
+
+  have "(take (Suc i) (d_states M (size M) q)) = d_states M (Suc i) q"
+    using find_index_index(1)[OF *]
+    by (metis Suc_leI d_states_prefix d_states_self_length) 
+
+  then have "\<exists>qx\<in>set (d_states M (Suc i) q). fst qx = initial M"
+    using find_index_index(1,2)[OF *]
+    by (metis d_states_by_index last_in_set length_0_conv nat.distinct(1) not_less0 take_eq_Nil)
+  moreover have "S = \<lparr> initial = initial M,
+                           inputs = inputs M,
+                           outputs = outputs M,
+                           transitions = 
+                                 filter 
+                                   (\<lambda>t . \<exists> qqx \<in> set (d_states M (Suc i) q) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                              (wf_transitions M),
+                           \<dots> = more M \<rparr>"
+    using ** \<open>(take (Suc i) (d_states M (size M) q)) = d_states M (Suc i) q\<close> by force
+
+  ultimately show ?thesis 
+    using d_states_induces_state_preamble[OF _ False] by blast
+qed
+
+
+(*
+value "calculate_state_preamble_from_d_states M_ex_9 3"
+value "calculate_preamble_set_naive M_ex_9 3"
+
+value "calculate_state_preamble_from_d_states M_ex_DR 400"
+value "calculate_preamble_set_naive M_ex_DR 400
+*)
 
 end
