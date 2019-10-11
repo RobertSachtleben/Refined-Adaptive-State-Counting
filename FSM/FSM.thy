@@ -509,7 +509,7 @@ subsection \<open>Properties of Paths Visiting Distinct Nodes Only\<close>
 
 lemma visited_states_prefix :
   assumes "q' \<in> set (visited_states q p)"
-  shows "\<exists> p1 p2 . p = p1@p2 \<and> target p1 q = q'"
+  shows   "\<exists> p1 p2 . p = p1@p2 \<and> target p1 q = q'"
 using assms proof (induction p arbitrary: q)
   case Nil
   then show ?case by auto
@@ -2457,9 +2457,9 @@ proof - (* TODO: refactor auto-generated code *)
       by blast }
   moreover
   { assume "pps (LS M (initial M)) (LS S (initial S)) \<noteq> p_io (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S) \<or> \<not> path S (initial M) (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S)"
-    then have "\<nexists>ps. pps (LS M (initial M)) (LS S (initial S)) = p_io ps \<and> path S (initial M) ps"
+    then have "\<not>(\<exists> ps. pps (LS M (initial M)) (LS S (initial S)) = p_io ps \<and> path S (initial M) ps)"
       using f2 by blast
-    then have "\<nexists>ps. pps (LS M (initial M)) (LS S (initial S)) = p_io ps \<and> path S (initial S) ps"
+    then have "~(\<exists>ps. pps (LS M (initial M)) (LS S (initial S)) = p_io ps \<and> path S (initial S) ps)"
       by (metis (no_types) assms is_submachine.simps)
     then have "pps (LS M (initial M)) (LS S (initial S)) \<notin> {p_io ps |ps. path S (initial S) ps}"
       by force

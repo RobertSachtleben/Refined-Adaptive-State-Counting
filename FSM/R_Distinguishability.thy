@@ -109,11 +109,11 @@ proof -
   then have "x \<in> set (inputs M)"
     by (metis from_FSM_product_inputs)
 
-  have *: "\<nexists>t1 t2.
+  have *: "\<not> (\<exists> t1 t2.
                 t1 \<in> h (from_FSM M q1) \<and>
                 t2 \<in> h (from_FSM M q2) \<and>
                 t_source t1 = q1 \<and>
-                t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2"
+                t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)"
   proof
 
     assume "\<exists>t1 t2.
@@ -375,7 +375,7 @@ proof
 
 
     assume "r_distinguishable M q1 q2"
-    assume c_assm: "\<nexists>k. r_distinguishable_k M q1 q2 k"
+    assume c_assm: "\<not> (\<exists>k. r_distinguishable_k M q1 q2 k)"
   
     let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
     (* filter function to restrict transitions of ?P *)
@@ -422,7 +422,7 @@ proof
           unfolding completely_specified_state.simps by blast
         then have "\<not>(\<exists> t \<in> h ?P . t_source t = q \<and> t_input t = x \<and> ?f t)"
           using transition_filter_state_transitions[of _ ?f ?P]
-          using \<open>q \<in> nodes (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> (\<nexists>k. r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k)) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>)\<close> by blast
+          using \<open>q \<in> nodes (product (from_FSM M q1) (from_FSM M q2) \<lparr>transitions := filter (\<lambda>t. \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> (\<not>(\<exists>k. r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k))) (transitions (product (from_FSM M q1) (from_FSM M q2)))\<rparr>)\<close> by blast
         then have not_f : "\<And> t . t \<in> h ?P \<Longrightarrow> t_source t = q \<Longrightarrow> t_input t = x \<Longrightarrow> \<not> ?f t"
           by blast
 
