@@ -2763,6 +2763,96 @@ qed
 
 (* TODO: implement faster acyclic language calculation, e.g. using paths_up_to_length_or_condition *)
 
+
+fun distinct_paths_up_to_length :: "'a Transition list \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
+  "distinct_paths_up_to_length H q 0 = [[]]" |
+  "distinct_paths_up_to_length H q (Suc n) = 
+      concat
+        (map 
+          (\<lambda> t . [t] # (map (\<lambda> p . t # p) (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) n)))
+          (filter (\<lambda> t . t_source t = q \<and> t_target t \<noteq> q) H))"
+
+lemma distinct_paths_up_to_length_set :
+  assumes "set H \<subseteq> h M"
+  and     "q \<in> nodes M"
+shows "set (distinct_paths_up_to_length H q k) = {p . path M q p \<and> distinct (visited_states q p) \<and> set p \<subseteq> set H \<and> length p \<le> k}"
+using assms proof (induction k arbitrary: q H)
+  case 0
+  then show ?case unfolding distinct_paths_up_to_length.simps by auto
+next
+  case (Suc k)
+
+  have "\<And> p . p \<in> set (distinct_paths_up_to_length H q (Suc k)) \<Longrightarrow> path M q p \<and> distinct (visited_states q p) \<and> set p \<subseteq> set H \<and> length p \<le> Suc k"
+  proof - 
+    fix p assume "p \<in> set (distinct_paths_up_to_length H q (Suc k))"
+    then obtain t where *:  "t \<in> set (filter (\<lambda>t . t_source t = q \<and> t_target t \<noteq> q) H)"
+                    and **: "p \<in> set ([t] #
+                                       map ((#) t)
+                                        (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)
+                                          (t_target t) k))"
+      unfolding distinct_paths_up_to_length.simps
+      by auto
+
+    have "t \<in> set H" and "t_source t = q" and "t_target t \<noteq> q"
+      using \<open>t \<in> set (filter (\<lambda>t . t_source t = q \<and> t_target t \<noteq> q) H)\<close> by auto
+    then have "t \<in> h M"
+      using Suc.prems(1) by auto
+    then have "t_target t \<in> nodes M"
+      by auto
+
+    from ** consider
+      (a) "p = [t]" |
+      (b) "\<exists> p' \<in> set (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) k) . p = t#p'"
+      by auto
+    then show "path M q p \<and> distinct (visited_states q p) \<and> set p \<subseteq> set H \<and> length p \<le> Suc k"
+    proof cases
+      case a
+      then show ?thesis using  \<open>t \<in> set H\<close> \<open>t \<in> h M\<close> \<open>t_source t = q\<close> \<open>t_target t \<noteq> q\<close> by force
+    next
+      case b
+      then obtain p' where "p' \<in> set (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) k)" and "p = t#p'"
+        by blast
+      moreover have "set (filter (\<lambda>p. t_source p \<noteq> q \<and> t_target p \<noteq> q) H) \<subseteq> set (wf_transitions M)"
+        by (meson Suc.prems(1) filter_is_subset subset_trans)
+      ultimately have "path M (t_target t) p'" 
+                  and "distinct (visited_states (t_target t) p')"
+                  and "set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)" 
+                  and "length p' \<le> k"
+        using Suc.IH[OF _ \<open>t_target t \<in> nodes M\<close>]
+        by blast+
+
+      have "q \<notin> set (map t_target p')"
+        using \<open>set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)\<close> by auto
+      then have "distinct (visited_states q p)"
+        unfolding visited_states.simps using \<open>t_target t \<noteq> q\<close>
+        using \<open>distinct (visited_states (t_target t) p')\<close> \<open>p = t # p'\<close> by auto 
+      then show ?thesis
+        using \<open>length p' \<le> k\<close> \<open>p = t # p'\<close> \<open>path M (t_target t) p'\<close> \<open>set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)\<close> \<open>t \<in> set (wf_transitions M)\<close> \<open>t \<in> set H\<close> \<open>t_source t = q\<close> by auto         
+    qed 
+  qed
+
+
+  moreover have "\<And> p . path M q p \<Longrightarrow> distinct (visited_states q p) \<Longrightarrow> set p \<subseteq> set H \<Longrightarrow> length p \<le> Suc k \<Longrightarrow> p \<in> set (distinct_paths_up_to_length H q (Suc k))"
+    sorry
+    
+
+  ultimately show ?case by blast
+qed
+
+end (*
+
+fun distinct_paths :: "('a,'b) FSM_scheme \<Rightarrow> 'a Transition list list" where
+  "distinct_paths M = distinct_paths_up_to_length' (wf_transitions M) (initial M) (size M)"
+
+lemma distinct_paths_set :
+  "set (distinct_paths M) = {p . path M (initial M) p \<and> distinct (visited_states (initial M) p)}"
+
+
+end (*
+
+
+value "distinct_paths_up_to_length' (wf_transitions M_ex_DR) 0 (size M_ex_DR)"
+
 fun LS_acyclic_opt :: "('a,'b) FSM_scheme \<Rightarrow> "
 
 
