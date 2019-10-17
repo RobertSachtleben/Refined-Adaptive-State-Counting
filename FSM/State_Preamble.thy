@@ -2767,10 +2767,12 @@ qed
 fun distinct_paths_up_to_length :: "'a Transition list \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
   "distinct_paths_up_to_length H q 0 = [[]]" |
   "distinct_paths_up_to_length H q (Suc n) = 
-      concat
+      [] # concat
         (map 
-          (\<lambda> t . [t] # (map (\<lambda> p . t # p) (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) n)))
+          (\<lambda> t . (map (\<lambda> p . t # p) (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) n)))
           (filter (\<lambda> t . t_source t = q \<and> t_target t \<noteq> q) H))"
+
+value "distinct_paths_up_to_length (wf_transitions M_ex_H) 1 3"
 
 lemma distinct_paths_up_to_length_set :
   assumes "set H \<subseteq> h M"
@@ -2785,57 +2787,78 @@ next
   have "\<And> p . p \<in> set (distinct_paths_up_to_length H q (Suc k)) \<Longrightarrow> path M q p \<and> distinct (visited_states q p) \<and> set p \<subseteq> set H \<and> length p \<le> Suc k"
   proof - 
     fix p assume "p \<in> set (distinct_paths_up_to_length H q (Suc k))"
-    then obtain t where *:  "t \<in> set (filter (\<lambda>t . t_source t = q \<and> t_target t \<noteq> q) H)"
-                    and **: "p \<in> set ([t] #
+    then obtain t where *:  "p = [] \<or> t \<in> set (filter (\<lambda>t . t_source t = q \<and> t_target t \<noteq> q) H)"
+                    and **: "p = [] \<or> p \<in> (set ( 
                                        map ((#) t)
                                         (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)
-                                          (t_target t) k))"
-      unfolding distinct_paths_up_to_length.simps
+                                          (t_target t) k)))"
+      unfolding distinct_paths_up_to_length.simps 
       by auto
 
-    have "t \<in> set H" and "t_source t = q" and "t_target t \<noteq> q"
-      using \<open>t \<in> set (filter (\<lambda>t . t_source t = q \<and> t_target t \<noteq> q) H)\<close> by auto
-    then have "t \<in> h M"
-      using Suc.prems(1) by auto
-    then have "t_target t \<in> nodes M"
-      by auto
-
-    from ** consider
-      (a) "p = [t]" |
-      (b) "\<exists> p' \<in> set (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) k) . p = t#p'"
-      by auto
-    then show "path M q p \<and> distinct (visited_states q p) \<and> set p \<subseteq> set H \<and> length p \<le> Suc k"
-    proof cases
-      case a
-      then show ?thesis using  \<open>t \<in> set H\<close> \<open>t \<in> h M\<close> \<open>t_source t = q\<close> \<open>t_target t \<noteq> q\<close> by force
+    show "path M q p \<and> distinct (visited_states q p) \<and> set p \<subseteq> set H \<and> length p \<le> Suc k"
+    proof (cases "p = []")
+      case True
+      then show ?thesis using Suc by force 
     next
-      case b
-      then obtain p' where "p' \<in> set (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) k)" and "p = t#p'"
-        by blast
-      moreover have "set (filter (\<lambda>p. t_source p \<noteq> q \<and> t_target p \<noteq> q) H) \<subseteq> set (wf_transitions M)"
-        by (meson Suc.prems(1) filter_is_subset subset_trans)
-      ultimately have "path M (t_target t) p'" 
-                  and "distinct (visited_states (t_target t) p')"
-                  and "set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)" 
-                  and "length p' \<le> k"
-        using Suc.IH[OF _ \<open>t_target t \<in> nodes M\<close>]
-        by blast+
+      case False
+      
+    
 
-      have "q \<notin> set (map t_target p')"
-        using \<open>set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)\<close> by auto
-      then have "distinct (visited_states q p)"
-        unfolding visited_states.simps using \<open>t_target t \<noteq> q\<close>
-        using \<open>distinct (visited_states (t_target t) p')\<close> \<open>p = t # p'\<close> by auto 
-      then show ?thesis
-        using \<open>length p' \<le> k\<close> \<open>p = t # p'\<close> \<open>path M (t_target t) p'\<close> \<open>set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)\<close> \<open>t \<in> set (wf_transitions M)\<close> \<open>t \<in> set H\<close> \<open>t_source t = q\<close> by auto         
-    qed 
+      have "t \<in> set H" and "t_source t = q" and "t_target t \<noteq> q"
+        using * False by auto
+      then have "t \<in> h M"
+        using Suc.prems(1) by auto
+      then have "t_target t \<in> nodes M"
+        by auto
+  
+      from ** consider
+        (a) "p = [t]" |
+        (b) "\<exists> p' \<in> set (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) k) . p = t#p'" 
+        using False by auto
+      then show "path M q p \<and> distinct (visited_states q p) \<and> set p \<subseteq> set H \<and> length p \<le> Suc k"
+      proof cases
+        case a
+        then show ?thesis using  \<open>t \<in> set H\<close> \<open>t \<in> h M\<close> \<open>t_source t = q\<close> \<open>t_target t \<noteq> q\<close> by force
+      next
+        case b
+        then obtain p' where "p' \<in> set (distinct_paths_up_to_length (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) k)" and "p = t#p'"
+          by blast
+        moreover have "set (filter (\<lambda>p. t_source p \<noteq> q \<and> t_target p \<noteq> q) H) \<subseteq> set (wf_transitions M)"
+          by (meson Suc.prems(1) filter_is_subset subset_trans)
+        ultimately have "path M (t_target t) p'" 
+                    and "distinct (visited_states (t_target t) p')"
+                    and "set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)" 
+                    and "length p' \<le> k"
+          using Suc.IH[OF _ \<open>t_target t \<in> nodes M\<close>]
+          by blast+
+  
+        have "q \<notin> set (map t_target p')"
+          using \<open>set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)\<close> by auto
+        then have "distinct (visited_states q p)"
+          unfolding visited_states.simps using \<open>t_target t \<noteq> q\<close>
+          using \<open>distinct (visited_states (t_target t) p')\<close> \<open>p = t # p'\<close> by auto 
+        then show ?thesis
+          using \<open>length p' \<le> k\<close> \<open>p = t # p'\<close> \<open>path M (t_target t) p'\<close> \<open>set p' \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)\<close> \<open>t \<in> set (wf_transitions M)\<close> \<open>t \<in> set H\<close> \<open>t_source t = q\<close> by auto         
+      qed
+    qed
   qed
 
 
   moreover have "\<And> p . path M q p \<Longrightarrow> distinct (visited_states q p) \<Longrightarrow> set p \<subseteq> set H \<Longrightarrow> length p \<le> Suc k \<Longrightarrow> p \<in> set (distinct_paths_up_to_length H q (Suc k))"
+  proof - 
+    fix p assume "path M q p" and "distinct (visited_states q p)" and "set p \<subseteq> set H" and "length p \<le> Suc k"
+    then show "p \<in> set (distinct_paths_up_to_length H q (Suc k))"
+    proof (induction p arbitrary: q rule: list.induct)
+      case Nil
+      then show ?case unfolding distinct_paths_up_to_length.simps by auto
+    next
+      case (Cons t p)
+      then show ?case sorry
+    qed
     sorry
     
 
+end (*
   ultimately show ?case by blast
 qed
 
