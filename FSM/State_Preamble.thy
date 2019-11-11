@@ -2774,6 +2774,67 @@ fun distinct_paths_up_to_length :: "'a Transition list \<Rightarrow> 'a \<Righta
 
 value "distinct_paths_up_to_length (wf_transitions M_ex_H) 1 3"
 
+(* TODO: move *)
+lemma path_sources : 
+  assumes "path M q (t#p)"
+  shows "map t_target (butlast (t#p)) = map t_source p"
+  using assms proof (induction p arbitrary: q t)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t' p)
+  then have "path M (t_target t) (t'#p)" using Cons.prems by auto
+  then have "map t_target (butlast (t' # p)) = map t_source p" using Cons.IH by auto
+  then show ?case using Cons.prems by auto
+qed
+
+lemma path_sources' : 
+  assumes "path M q (t#p@[t'])"
+  shows "map t_target (t#p@[t']) = (map t_source (p@[t'])) @ [t_target t']"
+  using path_sources[OF assms] by auto
+
+lemma distinct_path_sources :
+  assumes "path M q (t#p)"
+  and     "distinct (visited_states q (t#p))"
+shows "distinct (map t_source p)" and "t_source t \<notin> set (map t_source p)"
+proof -
+  have "distinct (map t_target (t#p))"
+    using assms(2) by auto
+  then show "distinct (map t_source p)"
+    using path_sources[OF assms(1)] 
+    by (metis distinct_butlast map_butlast)
+
+  show "t_source t \<notin> set (map t_source p)"
+  proof (cases p rule: rev_cases)
+    case Nil
+    then show ?thesis by auto
+  next
+    case (snoc p' t')
+    then have "path M q (t#p'@[t'])"
+          and "distinct (q # map t_target (t # p'@[t']))" 
+      using assms by simp+
+    
+    have "t_source t \<notin> set (map t_source (p'@[t']))"
+      using path_sources'[OF \<open>path M q (t#p'@[t'])\<close>]
+            \<open>distinct (q # map t_target (t # p'@[t']))\<close>
+    proof -
+      have "t_source t = q"
+        using \<open>path M q (t # p' @ [t'])\<close> by force
+      then show ?thesis
+        by (metis (no_types) \<open>distinct (q # map t_target (t # p' @ [t']))\<close> \<open>map t_target (t # p' @ [t']) = map t_source (p' @ [t']) @ [t_target t']\<close> butlast_snoc distinct.simps(2) in_set_butlastD)
+    qed
+      
+      
+    show ?thesis
+      using path_sources'[OF \<open>path M q (t#p'@[t'])\<close>]
+      using assms(2) snoc unfolding visited_states.simps
+      using \<open>t_source t \<notin> set (map t_source (p' @ [t']))\<close> by blast 
+  qed
+qed
+
+
+
+
 lemma distinct_paths_up_to_length_set :
   assumes "set H \<subseteq> h M"
   and     "q \<in> nodes M"
@@ -2843,17 +2904,170 @@ next
     qed
   qed
 
+  
 
-  moreover have "\<And> p . path M q p \<Longrightarrow> distinct (visited_states q p) \<Longrightarrow> set p \<subseteq> set H \<Longrightarrow> length p \<le> Suc k \<Longrightarrow> p \<in> set (distinct_paths_up_to_length H q (Suc k))"
+  moreover have "\<And> p . set H \<subseteq> h M \<Longrightarrow> path M q p \<Longrightarrow> distinct (visited_states q p) \<Longrightarrow> set p \<subseteq> set H \<Longrightarrow> length p \<le> Suc k \<Longrightarrow> p \<in> set (distinct_paths_up_to_length H q (Suc k))"
   proof - 
-    fix p assume "path M q p" and "distinct (visited_states q p)" and "set p \<subseteq> set H" and "length p \<le> Suc k"
+    fix p assume "set H \<subseteq> h M" and "path M q p" and "distinct (visited_states q p)" and "set p \<subseteq> set H" and "length p \<le> Suc k"
     then show "p \<in> set (distinct_paths_up_to_length H q (Suc k))"
+
+    proof (induction k arbitrary: p q H)
+      case 0
+      then consider (a) "p = []" | (b) "\<exists> t . p = [t]"
+        by (metis le_SucE le_zero_eq length_0_conv length_Suc_conv) 
+      then show ?case proof cases
+        case a
+        then show ?thesis by auto
+      next
+        case b
+        then show ?thesis unfolding distinct_paths_up_to_length.simps using 0 by auto
+      qed 
+    next
+      case (Suc k)
+      
+      show ?case using Suc.prems proof (induction p  rule: list.induct)
+        case Nil
+        then show ?case unfolding distinct_paths_up_to_length.simps by auto
+      next
+        case (Cons t p)
+        have "t_source t = q"
+          using Cons.prems(2) by auto
+        moreover have "t_target t \<noteq> q"
+          using calculation Cons.prems(3) unfolding visited_states.simps by auto
+        moreover have "t \<in> set H"
+          using Cons.prems(4) by auto
+        ultimately have *: "t \<in> set (filter (\<lambda> t . t_source t = q \<and> t_target t \<noteq> q) H)"
+          by auto
+  
+        have "set (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) \<subseteq> h M"
+          using \<open>set H \<subseteq> set (wf_transitions M)\<close> by auto
+        have "t_target t \<in> nodes M"
+          using Cons.prems(2) by auto
+  
+        have "path M (t_target t) p"
+          using Cons by auto
+        have "distinct (visited_states (t_target t) p)"
+          using Cons by auto
+        
+        have "p \<in> set (distinct_paths_up_to_length H (t_target t) (Suc k))"
+          using Suc.IH[OF Cons.prems(1) \<open>path M (t_target t) p\<close> \<open>distinct (visited_states (t_target t) p)\<close> ] Cons.prems(4,5) by auto
+
+        have "set p \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)"
+        proof -
+          have "set p \<subseteq> set H"
+            using Cons.prems(4) by auto
+          moreover have "\<And> t . t \<in> set p \<Longrightarrow> t_target t \<noteq> q"
+            using Cons.prems(3) unfolding visited_states.simps 
+            by (metis (no_types, lifting) distinct.simps(2) image_eqI list.set_intros(2) set_map)
+          moreover have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<noteq> q"
+            using distinct_path_sources[OF Cons.prems(2)]
+            by (metis Cons.prems(3) \<open>t_source t = q\<close> image_eqI set_map)
+          ultimately show ?thesis
+            by (simp add: subset_iff) 
+        qed
+        
+        have **: "p \<in> set ((distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) (Suc k)))"
+          using Suc.IH[OF _ \<open>path M (t_target t) p\<close> \<open>distinct (visited_states (t_target t) p)\<close>, of "(filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H)" ] Cons.prems(3,4,5)
+          using \<open>set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H) \<subseteq> set (wf_transitions M)\<close> \<open>set p \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)\<close> by auto 
+
+        then have ***: "p \<in> set ((\<lambda>t. (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) (Suc k))) t)"
+          by auto
+
+        have concat_scheme1: "\<And> t p Y . p \<in> set (Y t) \<Longrightarrow> t # p \<in> set ((map (\<lambda>p . t # p) (Y t)))"
+          by auto
+        have concat_scheme2: "\<And> t p X Y . t # p \<in> set ((map (\<lambda>p . t # p) (Y t))) \<Longrightarrow> t \<in> set X \<Longrightarrow> t # p \<in> set (concat (map (\<lambda>t . map (\<lambda>p . t # p) (Y t)) X))"
+          by auto
+        
+        have "t#p \<in> set ( concat
+                                    (map 
+                                      (\<lambda> t . (map (\<lambda> p . t # p) (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) (Suc k))))
+                                      (filter (\<lambda> t . t_source t = q \<and> t_target t \<noteq> q) H)))"
+          using concat_scheme2[of t p "(\<lambda>t. (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) (Suc k)))" "filter (\<lambda> t . t_source t = q \<and> t_target t \<noteq> q) H", OF concat_scheme1[of p "(\<lambda>t. (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) (Suc k)))" t, OF ***] *  ]
+          by linarith
+          
+        moreover have "distinct_paths_up_to_length H q (Suc (Suc k)) = [] # concat
+                                                                      (map 
+                                                                        (\<lambda> t . (map (\<lambda> p . t # p) (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) (Suc k))))
+                                                                        (filter (\<lambda> t . t_source t = q \<and> t_target t \<noteq> q) H))"
+          by auto
+        
+        ultimately show ?case
+          by (metis (no_types, lifting) list.set_intros(2)) 
+      qed
+    qed
+  qed
+
+  ultimately show ?case
+    using Suc.prems(1) by blast 
+qed
+
+
+
+end (*
+    
     proof (induction p arbitrary: q rule: list.induct)
       case Nil
       then show ?case unfolding distinct_paths_up_to_length.simps by auto
     next
       case (Cons t p)
-      then show ?case sorry
+      have "t_source t = q"
+        using Cons.prems(1) by auto
+      moreover have "t_target t \<noteq> q"
+        using calculation Cons.prems(2) unfolding visited_states.simps by auto
+      moreover have "t \<in> set H"
+        using Cons.prems(3) by auto
+      ultimately have "t \<in> set (filter (\<lambda> t . t_source t = q \<and> t_target t \<noteq> q) H)"
+        by auto
+
+      have "set (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) \<subseteq> h M"
+        using Suc.prems(1) by auto
+      have "t_target t \<in> nodes M"
+        using Cons.prems(1) by auto
+
+      have "path M (t_target t) p"
+        using Cons by auto
+      moreover have "distinct (visited_states (t_target t) p)"
+        using Cons by auto
+      moreover have "set p \<subseteq> set (filter (\<lambda>t. t_source t \<noteq> q \<and> t_target t \<noteq> q) H)"
+      proof -
+        have "set p \<subseteq> set H"
+          using Cons.prems(3) by auto
+        moreover have "\<And> t . t \<in> set p \<Longrightarrow> t_target t \<noteq> q"
+          using Cons.prems(2) unfolding visited_states.simps 
+          by (metis (no_types, lifting) distinct.simps(2) image_eqI list.set_intros(2) set_map)
+        moreover have "\<And> t . t \<in> set p \<Longrightarrow> t_source t \<noteq> q"
+          using distinct_path_sources[OF Cons.prems(1)]
+          by (metis Cons.prems(2) \<open>t_source t = q\<close> image_eqI set_map)
+        ultimately show ?thesis
+          by (simp add: subset_iff) 
+      qed
+      
+      show ?case  using Cons.IH[OF \<open>path M (t_target t) p\<close> \<open>distinct (visited_states (t_target t) p)\<close> ] Cons.prems(3,4) 
+        unfolding distinct_paths_up_to_length.simps
+
+        proof -
+          (* TODO: extract *)
+          have "\<And> t p M q . path M q (t#p) \<Longrightarrow> distinct (map t_target (t#p)) \<Longrightarrow> distinct (map t_source p)" 
+          proof -
+            fix t p M q  assume "path M q (t#p)" and "distinct (map t_target (t#p))"
+            then show "distinct (map t_source p)" proof (induction p arbitrary: t)
+case Nil
+  then show ?case by auto
+next
+  case (Cons t' p)
+then show ?case 
+qed
+
+        using Cons.prems(2) 
+      moreover have "length p \<le> k"
+        using Cons by auto
+      
+      have "p \<in> set (distinct_paths_up_to_length (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) (t_target t) (Suc k))"
+        using Suc.IH [OF \<open>set (filter (\<lambda> t . t_source t \<noteq> q \<and> t_target t \<noteq> q) H) \<subseteq> h M\<close> \<open>t_target t \<in> nodes M\<close>]
+
+      then have "p \<in> set (distinct_paths_up_to_length H (t_target t) (Suc k))"
+        using Suc.IH[of] by auto
+      then show ?case unfolding 
     qed
     sorry
     
