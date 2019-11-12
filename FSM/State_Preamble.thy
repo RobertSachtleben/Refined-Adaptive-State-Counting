@@ -3031,18 +3031,53 @@ value "distinct_paths_up_to_length (wf_transitions M_ex_DR) 0 (size M_ex_DR)"
 fun LS_acyclic_opt :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list list" where 
   "LS_acyclic_opt M = map p_io (distinct_paths M)"
 
-lemma "set (LS_acyclic_opt M) = LS_acyclic M (initial M)" 
+lemma LS_acyclic_alt_def:
+  assumes "acyclic M" 
+  shows "set (LS_acyclic_opt M) = LS_acyclic M (initial M)" 
+proof -
+  have "set (distinct_paths M) = {p . path M (initial M) p}"
+    using distinct_paths_set[of M]
+    using acyclic_paths_from_nodes[OF assms, of "initial M"] 
+    by auto
+  then have "set (LS_acyclic_opt M) = {p_io p | p . path M (initial M) p}"
+    unfolding LS_acyclic_opt.simps by auto
+  then show ?thesis
+    using LS_acyclic_complete[OF assms, of "initial M", OF nodes.initial[of M]] by auto
+qed
 
-end (*
+
+definition calculate_preamble_set_from_d_states_opt :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set option" where
+  "calculate_preamble_set_from_d_states_opt M q = (case calculate_state_preamble_from_d_states M q of
+    Some S \<Rightarrow> Some (set (LS_acyclic_opt S)) |
+    None \<Rightarrow> None)"
 
 
-
-
-
-
-
-value "calculate_preamble_set_from_d_states M_ex_9 3
-value "calculate_preamble_set_from_d_states M_ex_DR 400
+lemma calculate_preamble_set_from_d_states_code[code] :
+  "calculate_preamble_set_from_d_states M q = calculate_preamble_set_from_d_states_opt M q"
+proof (cases "calculate_state_preamble_from_d_states M q")
+  case None
+  then show ?thesis 
+    unfolding calculate_preamble_set_from_d_states_def calculate_preamble_set_from_d_states_opt_def by auto
+next
+  case (Some S)
   
+
+  have "acyclic S" 
+    using calculate_state_preamble_from_d_states_soundness[OF Some]
+    unfolding is_preamble.simps 
+    by linarith 
+
+  have "calculate_preamble_set_from_d_states M q = Some (LS_acyclic S (initial S))"
+  and  "calculate_preamble_set_from_d_states_opt M q = Some (set (LS_acyclic_opt S))"
+    using Some unfolding calculate_preamble_set_from_d_states_def calculate_preamble_set_from_d_states_opt_def 
+    by auto
+  then show ?thesis 
+    using LS_acyclic_alt_def[OF \<open>acyclic S\<close>] by force
+qed
+
+value "calculate_preamble_set_from_d_states M_ex_9 3"
+value "calculate_preamble_set_from_d_states M_ex_DR 400"
+
+
 
 end
