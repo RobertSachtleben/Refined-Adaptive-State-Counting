@@ -171,6 +171,10 @@ value "r_distinguishable_state_pairs_with_separators M_ex_H"
 value "pairwise_r_distinguishable_state_sets_from_separators M_ex_H"
 value "maximal_pairwise_r_distinguishable_state_sets_from_separators M_ex_H"
 
+value "r_distinguishable_state_pairs_with_separators M_ex_9"
+value "pairwise_r_distinguishable_state_sets_from_separators M_ex_9"
+value "maximal_pairwise_r_distinguishable_state_sets_from_separators M_ex_9"
+
 
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_cover :
   assumes "q \<in> nodes M"
@@ -197,7 +201,7 @@ qed
 
 (* calculate d-reachable states and a fixed assignment of preambles *)
 definition d_reachable_states_with_preambles :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
-  "d_reachable_states_with_preambles M = map (\<lambda> qp . (fst qp, the (snd qp))) (filter (\<lambda> qp . snd qp \<noteq> None) (map (\<lambda> q . (q,calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M)))"
+  "d_reachable_states_with_preambles M = map (\<lambda> qp . (fst qp, the (snd qp))) (filter (\<lambda> qp . snd qp \<noteq> None) (map (\<lambda> q . (q, calculate_preamble_set_from_d_states M q)) (nodes_from_distinct_paths M)))"
 
 lemma d_reachable_states_with_preambles_exhaustiveness :
   assumes "\<exists> P . is_preamble_set M q P"
@@ -205,44 +209,45 @@ lemma d_reachable_states_with_preambles_exhaustiveness :
   and     "q \<in> nodes M"
 shows "\<exists> P . is_preamble_set M q P \<and> (q,P) \<in> set (d_reachable_states_with_preambles M)"
 proof -
-  have "calculate_preamble_set_naive M q \<noteq> None"
-    using calculate_preamble_set_naive_exhaustiveness[OF assms(2,1)] by assumption
-  then obtain P where "calculate_preamble_set_naive M q = Some P"
+  have "calculate_preamble_set_from_d_states M q \<noteq> None"
+    using calculate_preamble_set_from_d_states_exhaustiveness[OF assms(1,2)] by assumption
+  then obtain P where "calculate_preamble_set_from_d_states M q = Some P"
     by blast
   then have "(q,Some P) \<in> set ((filter (\<lambda>qp. snd qp \<noteq> None)
-               (map (\<lambda>q. (q, calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M))))"
-    by (metis (mono_tags, lifting) \<open>calculate_preamble_set_naive M q \<noteq> None\<close> assms(3) filter_list_set image_eqI nodes_code set_map snd_conv)
+               (map (\<lambda>q. (q, calculate_preamble_set_from_d_states M q)) (nodes_from_distinct_paths M))))"
+    by (metis (mono_tags, lifting) \<open>calculate_preamble_set_from_d_states M q \<noteq> None\<close> assms(3) filter_list_set image_eqI nodes_code set_map snd_conv)
     
   then have "(q,P) \<in> set (d_reachable_states_with_preambles M)" 
     unfolding d_reachable_states_with_preambles_def
   proof -
     have "(q, P) = (fst (q, Some P), the (snd (q, Some P)))"
       by auto
-    then have "(q, P) \<in> (\<lambda>p. (fst p, the (snd p))) ` set (filter (\<lambda>p. snd p \<noteq> None) (map (\<lambda>a. (a, calculate_preamble_set_naive M a)) (nodes_from_distinct_paths M)))"
-      using \<open>(q, Some P) \<in> set (filter (\<lambda>qp. snd qp \<noteq> None) (map (\<lambda>q. (q, calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M)))\<close> by blast
-    then show "(q, P) \<in> set (map (\<lambda>p. (fst p, the (snd p))) (filter (\<lambda>p. snd p \<noteq> None) (map (\<lambda>a. (a, calculate_preamble_set_naive M a)) (nodes_from_distinct_paths M))))"
+    then have "(q, P) \<in> (\<lambda>p. (fst p, the (snd p))) ` set (filter (\<lambda>p. snd p \<noteq> None) (map (\<lambda>a. (a, calculate_preamble_set_from_d_states M a)) (nodes_from_distinct_paths M)))"
+      using \<open>(q, Some P) \<in> set (filter (\<lambda>qp. snd qp \<noteq> None) (map (\<lambda>q. (q, calculate_preamble_set_from_d_states M q)) (nodes_from_distinct_paths M)))\<close> by blast
+    then show "(q, P) \<in> set (map (\<lambda>p. (fst p, the (snd p))) (filter (\<lambda>p. snd p \<noteq> None) (map (\<lambda>a. (a, calculate_preamble_set_from_d_states M a)) (nodes_from_distinct_paths M))))"
       by (metis (no_types) list.set_map)
   qed 
   then show ?thesis
-    by (meson \<open>calculate_preamble_set_naive M q = Some P\<close> calculate_preamble_set_naive_soundness) 
+    by (meson \<open>calculate_preamble_set_from_d_states M q = Some P\<close> assms(2) calculate_preamble_set_from_d_states_soundness)     
 qed
 
 lemma d_reachable_states_with_preambles_containment :
   assumes "(q,P) \<in> set (d_reachable_states_with_preambles M)"
+  and     "observable M"
   shows "is_preamble_set M q P"
     and "q \<in> nodes M"
 proof -
 
-  have "calculate_preamble_set_naive M q = Some P"
+  have "calculate_preamble_set_from_d_states M q = Some P"
     using assms unfolding d_reachable_states_with_preambles_def
     using image_iff by auto 
   then show "is_preamble_set M q P"
-    using calculate_preamble_set_naive_soundness by metis
+    using calculate_preamble_set_from_d_states_soundness assms(2) by metis
 
   show "q \<in> nodes M"
     using assms unfolding d_reachable_states_with_preambles_def
   proof -
-    assume "(q, P) \<in> set (map (\<lambda>qp. (fst qp, the (snd qp))) (filter (\<lambda>qp. snd qp \<noteq> None) (map (\<lambda>q. (q, calculate_preamble_set_naive M q)) (nodes_from_distinct_paths M))))"
+    assume "(q, P) \<in> set (map (\<lambda>qp. (fst qp, the (snd qp))) (filter (\<lambda>qp. snd qp \<noteq> None) (map (\<lambda>q. (q, calculate_preamble_set_from_d_states M q)) (nodes_from_distinct_paths M))))"
     then have "q \<in> set (nodes_from_distinct_paths M)"
       by fastforce
     then show ?thesis
@@ -256,6 +261,9 @@ value "d_reachable_states_with_preambles M_ex_H"
 
 
 
+
+
+
 fun d_reachable_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a list" where
   "d_reachable_states M = (map fst (d_reachable_states_with_preambles M))"
 
@@ -265,7 +273,8 @@ lemma d_reachable_states_set :
 proof -
   have "\<And> q . q \<in> set (d_reachable_states M) \<Longrightarrow> q \<in> {q \<in> nodes M. \<exists>P. is_preamble_set M q P}"
     unfolding d_reachable_states.simps using d_reachable_states_with_preambles_containment[of _ _ M]
-    by (metis (no_types, lifting) list_map_source_elem mem_Collect_eq prod.collapse)
+    by (metis (no_types, lifting) assms list_map_source_elem mem_Collect_eq prod.collapse)
+    
   moreover have "\<And> q . q \<in> {q \<in> nodes M. \<exists>P. is_preamble_set M q P} \<Longrightarrow> q \<in> set (d_reachable_states M)"
     unfolding d_reachable_states.simps using d_reachable_states_with_preambles_exhaustiveness[OF _ assms]
   proof -
@@ -279,22 +288,25 @@ proof -
   ultimately show ?thesis by blast
 qed
 
-(*
+
 value "d_reachable_states M_ex_H"
 value "d_reachable_states M_ex_9"
-*)
 
 
-fun maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
-  "maximal_repetition_sets_from_separators M = image (\<lambda> S . (S, {q \<in> S . q \<in> set (d_reachable_states M)})) (maximal_pairwise_r_distinguishable_state_sets_from_separators M)"
 
-fun maximal_repetition_sets_from_separators_opt :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
-  "maximal_repetition_sets_from_separators_opt M = (let DR = set (d_reachable_states M) in image (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators M))"
-(*
+definition maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
+  "maximal_repetition_sets_from_separators M = {(S, S \<inter> set (d_reachable_states M)) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}" 
+
+lemma maximal_repetition_sets_from_separators_code[code] :
+  "maximal_repetition_sets_from_separators M = (let DR = set (d_reachable_states M) in image (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators M))"
+  unfolding maximal_repetition_sets_from_separators_def Let_def
+  by (simp add: Setcompr_eq_image) 
+  
+
+
 value "maximal_repetition_sets_from_separators M_ex_H"
 value "maximal_repetition_sets_from_separators M_ex_9"
-value "maximal_repetition_sets_from_separators_opt M_ex_H"
-value "maximal_repetition_sets_from_separators_opt M_ex_9"
-*)
+
+
 
 end

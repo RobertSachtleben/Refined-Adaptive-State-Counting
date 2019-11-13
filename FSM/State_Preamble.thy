@@ -3078,6 +3078,6 @@ qed
 value "calculate_preamble_set_from_d_states M_ex_9 3"
 value "calculate_preamble_set_from_d_states M_ex_DR 400"
 
-
+value "image (\<lambda> s . calculate_preamble_set_from_d_states M_ex_9 s) (nodes M_ex_9)"
 
 end
