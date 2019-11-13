@@ -7,4 +7,4 @@ deriving instance Show a => Show (Set a)
 deriving instance (Show a, Show b) => Show (FSM_ext a b)
 
 
-main = putStrLn "hello Isabelle"
+main = putStrLn $ show $ maximal_repetition_sets_from_separators m_ex_DR

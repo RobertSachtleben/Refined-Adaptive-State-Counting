@@ -4,7 +4,12 @@ session FSM = HOL +
     "Util"
     "FSM"
     "ProductMachine"
-    "R_Distinguishability"
+    "IO_Sequence_Set"
+    "State_Preamble"
+    "R_Distinguishability"    
+    "State_Separator"
+    "Traversal_Set"
+    "Helper_Algorithms"
     "CodeExport"
   document_files
     "root.tex" 
