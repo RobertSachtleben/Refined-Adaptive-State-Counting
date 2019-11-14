@@ -1,5 +1,5 @@
 theory Traversal_Set
-imports R_Distinguishability Helper_Algorithms (* TODO: latter import only required for testing *)
+imports R_Distinguishability Helper_Algorithms 
 begin
 
 section \<open>Traversal Sets for State Counting\<close>
@@ -208,7 +208,41 @@ value "m_traversal_paths M_ex_H  1 (maximal_repetition_sets_from_separators M_ex
 value "m_traversal_paths M_ex_H  3 (maximal_repetition_sets_from_separators M_ex_H) 4"
 value "m_traversal_paths M_ex_H  4 (maximal_repetition_sets_from_separators M_ex_H) 4"
 
+value "m_traversal_paths M_ex_9  3 (maximal_repetition_sets_from_separators M_ex_9) 4"
 
+
+
+
+
+lemma maximal_repetition_sets_from_separators_cover :
+  assumes "q \<in> nodes M"
+  shows "\<exists> d \<in> (maximal_repetition_sets_from_separators M) . q \<in> fst d"
+  unfolding maximal_repetition_sets_from_separators_def
+  using maximal_pairwise_r_distinguishable_state_sets_from_separators_cover[OF assms] by auto
+
+lemma maximal_repetition_sets_from_separators_d_reachable_subset :
+  shows "\<forall> d \<in> (maximal_repetition_sets_from_separators M) . snd d \<subseteq> fst d"
+  unfolding maximal_repetition_sets_from_separators_def
+  by auto
+
+lemma m_traversal_paths_set_appl : 
+  assumes "q \<in> nodes M"
+  shows "set (m_traversal_paths M q (maximal_repetition_sets_from_separators M) m) =
+          {p. path M q p \<and>
+              (\<exists>d\<in>maximal_repetition_sets_from_separators M.
+                  Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) \<and>
+              (\<forall>p' p''.
+                  p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow>
+                  \<not> (\<exists>d\<in>maximal_repetition_sets_from_separators M.
+                         Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')))}"
+  using m_traversal_paths_set[of M "maximal_repetition_sets_from_separators M", OF _ _ assms]
+          maximal_repetition_sets_from_separators_d_reachable_subset 
+    by (metis (no_types, lifting) maximal_repetition_sets_from_separators_cover)
+
+
+
+
+ 
 
 
 subsection \<open>Calculating Traversal Sets\<close>
