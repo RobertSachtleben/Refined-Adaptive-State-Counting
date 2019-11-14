@@ -10,6 +10,7 @@ session FSM = HOL +
     "State_Separator"
     "Traversal_Set"
     "Helper_Algorithms"
+    "Test_Suite"
     "CodeExport"
   document_files
     "root.tex" 
