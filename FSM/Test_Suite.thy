@@ -81,6 +81,26 @@ proof -
   qed
 qed
 
+
+lemma contains_io_sequence_intersection :
+  assumes "q \<in> nodes M"
+shows "set xs \<inter> LS M q = set (filter (contains_io_sequence M q) xs)"
+  using contains_io_sequence_soundness[OF assms] contains_io_sequence_exhaustiveness[of _ M q] 
+  by force
+
+lemma contains_io_sequence_intersection_initial :
+shows "set xs \<inter> L M = set (filter (contains_io_sequence M (initial M)) xs)"
+  using contains_io_sequence_intersection[OF nodes.initial] by assumption
+
+lemma contains_io_sequence_intersection_initial_set :
+  "A \<inter> L M = { x \<in> A . contains_io_sequence M (initial M) x}"
+  using contains_io_sequence_soundness[OF nodes.initial] contains_io_sequence_exhaustiveness[of _ M "initial M"] 
+  by force
+  
+
+
+
+end (*
   
 
 (* TODO: only apply fail sequences? state_separation_fail_sequence_set_from_state_separator *)
