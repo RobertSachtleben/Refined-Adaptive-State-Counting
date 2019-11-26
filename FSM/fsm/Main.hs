@@ -3,10 +3,12 @@
 module Main where
 import FSM
 import qualified Data.List
+import qualified Data.Char
 
 
 deriving instance Show a => Show (Set a)
 deriving instance (Show a, Show b) => Show (FSM_ext a b)
+deriving instance (Show a, Show b) => Show (Sum a b)
 
 showIOSequence :: [(Integer, Integer)] -> String
 showIOSequence io = "(" ++ (concat $ map show (map fst io)) ++ "/" ++  (concat $ map show (map snd io)) ++ ")"
@@ -42,5 +44,60 @@ showTest' (Set pr, tts) =
 showTestSuite' :: [(Set [(Integer, Integer)], [([(Integer, Integer)], [[(Integer, Integer)]])])] -> String
 showTestSuite' ptts = "[\n" ++ (unlines $ map showTest' ptts) ++ "]" 
 
+
+
+transitionToDot :: (Show a) => (a, (Integer, (Integer, a))) -> String
+transitionToDot (q,(x,(y,q'))) = (dotShow q) ++ " -> " ++ (dotShow q') ++ " [ label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\" ];" 
+
+transitionToDotLR :: (Eq a, Show a) => (a, (Integer, (Integer, a))) -> a -> a -> String
+transitionToDotLR (q,(x,(y,q'))) ql qr = (dotShow q) ++ " -> " ++ (if q' == ql then "L" else if q' == qr then "R" else dotShow q') ++ " [ label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\" ];" 
+
+dotShow :: (Show a) => a -> String 
+dotShow = (map (\x -> if Data.Char.isAlphaNum x then x else '_')) . show
+
+fsmToDotInternal :: (Eq a, Show a) => FSM_ext a b -> String
+fsmToDotInternal m = 
+    "\trankdir=LR;\n"
+    ++ "\tnode [shape = doublecircle]; " ++ (dotShow $ initial m) ++ "\n"
+    ++ "\tnode [shape = circle];\n" 
+    ++ (unlines $ map (\t -> "\t" ++ transitionToDot t) (wf_transitions m)) ++ "\n"
+
+fsmToDotInternalLR :: (Eq a, Show a) => FSM_ext a b -> (a,a) -> String
+fsmToDotInternalLR m (ql,qr) = 
+    "\trankdir=LR;\n"
+    ++ "\tnode [shape = doublecircle]; " ++ (dotShow $ initial m) ++ "\n"
+    ++ "\tnode [shape = circle];\n" 
+    ++ (unlines $ map (\t -> "\t" ++ transitionToDotLR t ql qr) (wf_transitions m)) ++ "\n"
+
+fsmToDot :: (Eq a, Show a) => FSM_ext a b -> String
+fsmToDot m = 
+    "digraph fsm {\n"
+    ++ (fsmToDotInternal m) ++ "\n"
+    ++ "}"     
+
+separatorsToDots :: (Eq a, Show a) => FSM_ext a b -> String -> IO ()
+separatorsToDots m mName = mapM_ (\rs -> writeFile (mName ++ "_" ++ (dotShow $ fst $ fst rs) ++ "_" ++ (dotShow $ snd $ fst rs) ++ ".dot") (fsmToDot $ snd rs)) $ r_distinguishable_state_pairs_with_separators_naive m
+
+separatorsToDot :: (Eq a, Show a) => FSM_ext a b -> String -> IO ()
+separatorsToDot m mName = 
+    writeFile 
+        (mName ++ "_separators.dot") 
+        ("digraph fsm {\n"
+            ++ (unlines $ map (fsmToDotInternal . snd) $ r_distinguishable_state_pairs_with_separators_naive m)
+            ++ "}")
+
+fromInl :: Sum a b -> a
+fromInl (Inl x) = x            
+
+separatorsToDotLR :: (Eq a, Show a) => FSM_ext a b -> String -> IO ()
+separatorsToDotLR m mName = 
+    writeFile 
+        (mName ++ "_separators.dot") 
+        ("digraph fsm {\n"
+            ++ (unlines $ map (\rs -> fsmToDotInternalLR (snd rs) (Inr $ fst $ fst rs, Inr $ snd $ fst rs)) $ r_distinguishable_state_pairs_with_separators_naive m)
+            ++ "}")
+            
+f :: (Eq a, Show a, Show b) => FSM_ext a b -> IO ()
+f m = mapM_ (\rs -> putStrLn $ (show $ fst rs) ++ " " ++ (show $ ((fst $ fst rs) )) ++ "," ) $ r_distinguishable_state_pairs_with_separators_naive m
 
 main = putStrLn $ show $ maximal_repetition_sets_from_separators m_ex_DR

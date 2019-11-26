@@ -99,6 +99,63 @@ lemma contains_io_sequence_intersection_initial_set :
   
 
 
+fun io_target' :: "'a Transition list \<Rightarrow> 'a \<Rightarrow> IO_Sequence \<Rightarrow> 'a option" where
+  "io_target' H q [] = Some q" |
+  "io_target' H q (io#ios) = (case find (\<lambda> t . t_source t = q \<and> t_input t = fst io \<and> t_output t = snd io) H of
+    Some t \<Rightarrow> io_target' H (t_target t) ios |
+    None   \<Rightarrow> None)"
+
+value "io_target' (wf_transitions M_ex_H) 1 [(0,0)]"
+value "io_target' (wf_transitions M_ex_H) 1 [(0,1),(0,0)]"
+value "io_target' (wf_transitions M_ex_H) 1 [(0,1),(0,0),(0,1),(0,0),(0,1),(0,0),(0,1),(0,0)]"
+value "io_target' (wf_transitions M_ex_H) 1 [(0,1),(0,0),(0,1),(0,0),(0,1),(0,0),(0,1),(0,0),(0,0)]"
+
+
+definition io_target_opt :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> IO_Sequence \<Rightarrow> 'a option" where
+  "io_target_opt M q io = io_target' (wf_transitions M) q io"
+
+lemma io_target_soundness :
+  assumes "q \<in> nodes M"
+  and     "io_target_opt M q io = Some q'"
+shows "\<exists> p . path M q p \<and> p_io p = io \<and> target p q = q'"
+  using assms proof (induction io arbitrary: q q')
+    case Nil
+    then show ?case unfolding io_target_opt_def by auto
+  next
+    case (Cons io ios)
+    
+    obtain t where "t \<in> h M" and "t_source t = q" and "t_input t = fst io" and "t_output t = snd io" and "io_target_opt M (t_target t) ios = Some q'"
+      
+    proof (cases "find (\<lambda>t. t_source t = q \<and> t_input t = fst io \<and> t_output t = snd io) (wf_transitions M)")
+      case None
+      then show ?thesis 
+        using Cons.IH[OF Cons.prems(1)] Cons.prems(2) 
+        unfolding io_target_opt_def io_target'.simps by auto
+    next
+      case (Some a)
+      then have "io_target' (wf_transitions M) (t_target a) ios = Some q'"
+        using  Cons.prems(2) 
+        unfolding io_target_opt_def io_target'.simps by auto
+      then show ?thesis 
+          using Cons.IH[of "t_target a" q'] 
+         
+    qed 
+
+
+end (*
+    obtain p where "path M (t_target t) p" and "p_io p = ios"
+      using Cons.IH[OF wf_transition_target[OF \<open>t \<in> h M\<close>] \<open>contains_io_sequence M (t_target t) ios\<close>] by blast
+  
+    have "path M q (t#p)" 
+      using \<open>path M (t_target t) p\<close> \<open>t \<in> h M\<close> \<open>t_source t = q\<close> by auto
+    moreover have "p_io (t#p) = io#ios"
+      using \<open>p_io p = ios\<close> \<open>t_input t = fst io\<close> \<open>t_output t = snd io\<close> by auto
+    ultimately show ?case
+      by auto   
+  qed
+
+  then show ?thesis by auto
+qed
 
 end (*
   
