@@ -4,6 +4,7 @@ module Main where
 import FSM
 import qualified Data.List
 import qualified Data.Char
+import qualified System.Environment
 
 
 deriving instance Show a => Show (Set a)
@@ -97,7 +98,49 @@ separatorsToDotLR m mName =
             ++ (unlines $ map (\rs -> fsmToDotInternalLR (snd rs) (Inr $ fst $ fst rs, Inr $ snd $ fst rs)) $ r_distinguishable_state_pairs_with_separators_naive m)
             ++ "}")
             
-f :: (Eq a, Show a, Show b) => FSM_ext a b -> IO ()
-f m = mapM_ (\rs -> putStrLn $ (show $ fst rs) ++ " " ++ (show $ ((fst $ fst rs) )) ++ "," ) $ r_distinguishable_state_pairs_with_separators_naive m
 
-main = putStrLn $ show $ maximal_repetition_sets_from_separators m_ex_DR
+
+
+
+
+readTransition :: String -> Either String (Integer, (Integer, (Integer, Integer))) 
+readTransition line = 
+    if length ts /= 4
+        then Left $ "Not exactly 4 parameters for transition: " ++ line
+        else if all (all Data.Char.isDigit) ts
+            then Right (q1,(x,(y,q2)))
+            else Left $ "Contains parameter that is not a positive integer: " ++ line     
+    where  
+        ts = words line
+        q1 = read $ ts !! 0
+        x  = read $ ts !! 1
+        y  = read $ ts !! 2
+        q2 = read $ ts !! 3 
+
+
+readTransitions :: String -> Either String [(Integer, (Integer, (Integer, Integer)))]
+readTransitions ts = Prelude.foldr f (Right []) (zip [1::Integer ..] $ lines ts)
+    where
+        f (n,line) (Right ts) = case readTransition line of 
+                                Right t -> Right $ t:ts
+                                Left err -> Left $ "ERROR (line " ++ (show n) ++ "): " ++ err
+        f _ err = err
+        
+-- read .fsm file
+readFSM :: String -> Either String (FSM_ext Integer ())
+readFSM fsmStr = readTransitions fsmStr >>= (\ts -> Right $ FSM_ext 0 (map (fst . snd) ts) (map (fst . snd . snd) ts) ts ())
+
+
+
+readAndPrintFSM :: IO ()
+readAndPrintFSM = do
+    args <- System.Environment.getArgs
+    fsmFile <- readFile (args !! 0)
+    let destination = (args !! 1)
+    case readFSM fsmFile of 
+        Right fsm -> writeFile destination $ fsmToDot fsm
+        Left err  -> putStrLn err
+
+--main = putStrLn $ show $ maximal_repetition_sets_from_separators m_ex_DR
+--main = separatorsToDotLR m_ex_DR "m_ex_DR"
+main = readAndPrintFSM        
