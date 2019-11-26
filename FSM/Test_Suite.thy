@@ -99,6 +99,9 @@ lemma contains_io_sequence_intersection_initial_set :
   
 
 
+(* TODO: reevaluate necessity, if traversal paths are used, then no such function is required here *)
+(*
+
 fun io_target' :: "'a Transition list \<Rightarrow> 'a \<Rightarrow> IO_Sequence \<Rightarrow> 'a option" where
   "io_target' H q [] = Some q" |
   "io_target' H q (io#ios) = (case find (\<lambda> t . t_source t = q \<and> t_input t = fst io \<and> t_output t = snd io) H of
@@ -142,7 +145,10 @@ shows "\<exists> p . path M q p \<and> p_io p = io \<and> target p q = q'"
     qed 
 
 
-end (*
+
+
+
+
     obtain p where "path M (t_target t) p" and "p_io p = ios"
       using Cons.IH[OF wf_transition_target[OF \<open>t \<in> h M\<close>] \<open>contains_io_sequence M (t_target t) ios\<close>] by blast
   
@@ -156,8 +162,7 @@ end (*
 
   then show ?thesis by auto
 qed
-
-end (*
+*)
   
 
 (* TODO: only apply fail sequences? state_separation_fail_sequence_set_from_state_separator *)

@@ -142,5 +142,5 @@ readAndPrintFSM = do
         Left err  -> putStrLn err
 
 --main = putStrLn $ show $ maximal_repetition_sets_from_separators m_ex_DR
---main = separatorsToDotLR m_ex_DR "m_ex_DR"
-main = readAndPrintFSM        
+main = separatorsToDotLR m_ex_DR "m_ex_DR"
+--main = readAndPrintFSM        

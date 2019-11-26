@@ -3,8 +3,10 @@ imports Test_Suite
 begin 
 
 export_code set
-            nat (* TODO: how to automatically export constructors?*)
+            sum (* TODO: how to automatically export constructors?*)
       	    FSM_ext
+            FSM.initial
+            wf_transitions
             r_distinguishable_state_pairs_with_separators_naive
             maximal_pairwise_r_distinguishable_state_sets_from_separators
             d_reachable_states_with_preambles
