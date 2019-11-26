@@ -7,6 +7,7 @@ export_code set
       	    FSM_ext
             FSM.initial
             wf_transitions
+            from_FSM
             r_distinguishable_state_pairs_with_separators_naive
             maximal_pairwise_r_distinguishable_state_sets_from_separators
             d_reachable_states_with_preambles

@@ -72,7 +72,7 @@ fsmToDotInternalLR m (ql,qr) =
 
 fsmToDot :: (Eq a, Show a) => FSM_ext a b -> String
 fsmToDot m = 
-    "digraph fsm {\n"
+    "strict digraph fsm {\n"
     ++ (fsmToDotInternal m) ++ "\n"
     ++ "}"     
 
@@ -83,7 +83,7 @@ separatorsToDot :: (Eq a, Show a) => FSM_ext a b -> String -> IO ()
 separatorsToDot m mName = 
     writeFile 
         (mName ++ "_separators.dot") 
-        ("digraph fsm {\n"
+        ("strict digraph fsm {\n"
             ++ (unlines $ map (fsmToDotInternal . snd) $ r_distinguishable_state_pairs_with_separators_naive m)
             ++ "}")
 
@@ -94,7 +94,7 @@ separatorsToDotLR :: (Eq a, Show a) => FSM_ext a b -> String -> IO ()
 separatorsToDotLR m mName = 
     writeFile 
         (mName ++ "_separators.dot") 
-        ("digraph fsm {\n"
+        ("strict digraph fsm {\n"
             ++ (unlines $ map (\rs -> fsmToDotInternalLR (snd rs) (Inr $ fst $ fst rs, Inr $ snd $ fst rs)) $ r_distinguishable_state_pairs_with_separators_naive m)
             ++ "}")
             
