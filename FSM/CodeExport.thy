@@ -1,5 +1,5 @@
 theory CodeExport
-imports Test_Suite
+imports Test_Suite FSM_Enumerator
 begin 
 
 export_code set
@@ -16,6 +16,13 @@ export_code set
             M_ex_DR
             M_ex_H
             M_ex_9
+            (*enumerate_FSMs*)
+            find_FSM
+            (* member *)
+            completely_specified
+            observable
+            single_input
+            nodes
   in Haskell module_name FSM file_prefix fsm
 
 

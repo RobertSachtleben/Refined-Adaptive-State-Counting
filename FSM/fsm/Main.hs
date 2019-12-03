@@ -11,6 +11,11 @@ deriving instance Show a => Show (Set a)
 deriving instance (Show a, Show b) => Show (FSM_ext a b)
 deriving instance (Show a, Show b) => Show (Sum a b)
 
+-- TODO: bad implementation, use intermediate conversion to integer
+instance Show Nat where 
+    show Zero_nat = "0"
+    show (Suc n) = show $ 1 + read (show n)
+
 showIOSequence :: [(Integer, Integer)] -> String
 showIOSequence io = "(" ++ (concat $ map show (map fst io)) ++ "/" ++  (concat $ map show (map snd io)) ++ ")"
 
@@ -142,5 +147,54 @@ readAndPrintFSM = do
         Left err  -> putStrLn err
 
 --main = putStrLn $ show $ maximal_repetition_sets_from_separators m_ex_DR
-main = separatorsToDotLR m_ex_DR "m_ex_DR"
+--main = separatorsToDotLR m_ex_DR "m_ex_DR"
 --main = readAndPrintFSM        
+
+--main = mapM_ (putStrLn . show ) $ enumerate_FSMs 0 [0,1,2,3] [0,1] [0,1,2]
+--main = putStrLn . show . length $ enumerate_FSMs 0 [0,1,2,3] [0,1] [0,1,2]
+
+--main = putStrLn . show $ foldl (\b a -> (b+1)) 0 $ enumerate_FSMs 0 [0,1,2,3] [0,1] [0,1,2]
+--main = putStrLn . show . generate_sublists $ enumerate_transitions [0,1,2,3] [0,1] [0,1,2]
+
+main = putStrLn . show $ find_FSM (\fsm -> observable fsm && completely_specified fsm && single_input fsm && all (\q -> member q (nodes fsm)) [0,1,2,3]) 0 [0,1,2,3] [0,1] [0,1]
+
+
+{-
+find_FSMa ::
+  forall a.
+    (FSM_ext a () -> Bool) ->
+      a -> [Integer] ->
+             [Integer] ->
+               [(a, (Integer, (Integer, a)))] ->
+                 [Bool] -> Integer -> Maybe (FSM_ext a ());
+--find_FSMa f q xs ys ts bs Zero_nat = Nothing;
+find_FSMa f q xs ys ts bs k =
+  let {
+    m = FSM_ext q xs ys
+          (map_filter (\ x -> (if snd x then Just (fst x) else Nothing))
+            (zip ts bs))
+          ();
+  } in (if f m then Just m else (case next_boolean_list bs of {
+                                  Nothing -> Nothing;
+                                  Just bsa -> find_FSMa f q xs ys ts bsa (k-1);
+                                }));
+
+power :: forall a. (Power a) => a -> Nat -> a;
+power a Zero_nat = one;
+power a (Suc n) = times a (power a n);
+
+nat_to_Integer :: Nat -> Integer;
+nat_to_Integer Zero_nat = 0;
+nat_to_Integer (Suc k) = 1 + nat_to_Integer k;
+
+find_FSM ::
+  forall a.
+    (FSM_ext a () -> Bool) ->
+      a -> [a] -> [Integer] -> [Integer] -> Maybe (FSM_ext a ());
+find_FSM f q qs xs ys =
+  let {
+    ts = enumerate_transitions qs xs ys;
+  } in find_FSMa f q xs ys ts (replicate (size_list ts) True)
+         ((2::Integer) ^ (nat_to_Integer (size_list ts)));
+
+-}

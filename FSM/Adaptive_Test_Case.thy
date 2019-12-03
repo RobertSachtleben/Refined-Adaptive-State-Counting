@@ -125,7 +125,27 @@ proof -
   then show ?thesis using \<open>p_io p' = ios\<close> by auto
 qed
 
+(*nitpick_params[timeout=3600]*)
 
+lemma exercise_ex :
+  (*assumes "calculate_state_separator_from_s_states M q1 q2 = Some S"*)
+  assumes "size M = 4"
+  and     "inputs M = [0,1]"
+  and     "outputs M = [0,1,2]"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "q1 \<noteq> q2"
+  (*and     "observable M"*)
+  (*and     "completely_specified M"*)
+  (*and     "t1 \<in> h S"
+  and     "t2 \<in> h S"
+  and     "t_source t1 = t_source t2"*)
+shows "False"
+(*shows "t_output t1 = t_output t2"*)
+  nitpick
+
+
+end (*
 
 lemma pass_ATC'_io :
   assumes "pass_ATC' M A FS k"
@@ -332,6 +352,9 @@ proof -
        and  "io_targets A (io@[ioM]) (initial A) \<inter> FS = {}"
     by blast+
 qed
+
+
+
 
 
 end (*
