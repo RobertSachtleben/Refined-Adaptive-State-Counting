@@ -156,7 +156,7 @@ readAndPrintFSM = do
 --main = putStrLn . show $ foldl (\b a -> (b+1)) 0 $ enumerate_FSMs 0 [0,1,2,3] [0,1] [0,1,2]
 --main = putStrLn . show . generate_sublists $ enumerate_transitions [0,1,2,3] [0,1] [0,1,2]
 
-main = putStrLn . show $ find_FSM (\fsm -> observable fsm && completely_specified fsm && single_input fsm && all (\q -> member q (nodes fsm)) [0,1,2,3]) 0 [0,1,2,3] [0,1] [0,1]
+main = putStrLn . show $ find_FSM (\fsm -> observable fsm && single_input fsm && all (\q -> member q (nodes fsm)) [0,1,2]) 0 [0,1,2] [0,1] [0,1,2]
 
 
 {-

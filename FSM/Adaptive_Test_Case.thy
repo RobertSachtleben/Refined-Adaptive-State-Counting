@@ -125,27 +125,12 @@ proof -
   then show ?thesis using \<open>p_io p' = ios\<close> by auto
 qed
 
-(*nitpick_params[timeout=3600]*)
-
-lemma exercise_ex :
-  (*assumes "calculate_state_separator_from_s_states M q1 q2 = Some S"*)
-  assumes "size M = 4"
-  and     "inputs M = [0,1]"
-  and     "outputs M = [0,1,2]"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
-  and     "q1 \<noteq> q2"
-  (*and     "observable M"*)
-  (*and     "completely_specified M"*)
-  (*and     "t1 \<in> h S"
-  and     "t2 \<in> h S"
-  and     "t_source t1 = t_source t2"*)
-shows "False"
-(*shows "t_output t1 = t_output t2"*)
-  nitpick
 
 
-end (*
+
+
+
+
 
 lemma pass_ATC'_io :
   assumes "pass_ATC' M A FS k"
@@ -339,21 +324,128 @@ proof -
                         \<open>length (io'' @ [ioA]) \<le> k\<close>]
         by blast+
 
-      have "io' # (io'' @ [ioM]) \<in> LS A (initial A)"
-        using \<open>io'' @ [ioM] \<in> LS (from_FSM A (t_target tA)) (initial (from_FSM A (t_target tA)))\<close>
-              \<open>t_input tA = fst io'\<close> \<open>t_output tA = snd io'\<close>
+      then obtain pA where "path (from_FSM A (t_target tA)) (initial (from_FSM A (t_target tA))) pA" and "p_io pA = io'' @ [ioM]"
+        by auto
 
+      have "path A (initial A) (tA#pA)"
+        using \<open>path (from_FSM A (t_target tA)) (initial (from_FSM A (t_target tA))) pA\<close> \<open>tA \<in> h A\<close> 
+        by (metis \<open>t_source tA = initial A\<close> cons from_FSM_path_initial wf_transition_target)
+      moreover have "p_io (tA#pA) = io' # io'' @ [ioM]"
+        using \<open>t_input tA = fst io'\<close> \<open>t_output tA = snd io'\<close> \<open>p_io pA = io'' @ [ioM]\<close> by auto
+      ultimately have "io' # io'' @ [ioM] \<in> L A"
+        unfolding LS.simps
+        by (metis (mono_tags, lifting) mem_Collect_eq) 
+      then have "io @ [ioM] \<in> L A"
+        using Cons by auto
+
+      have "observable A"
+        using Suc.prems(2) is_ATC_def by blast
+
+      (* TODO: maybe move *)
+      have ex_scheme: "\<And> xs P x . (\<exists>! x' . x' \<in> set xs \<and> P x') \<Longrightarrow> x \<in> set xs \<Longrightarrow> P x \<Longrightarrow> set (filter P xs) = {x}"
+        by force
+        
+      have "set (filter (\<lambda>t. t_source t = initial A \<and> t_input t = fst io' \<and> t_output t = snd io') (wf_transitions A)) = {tA}"
+        using ex_scheme[of "wf_transitions A" "(\<lambda> t' . t_source t' = initial A \<and> t_input t' = fst io' \<and> t_output t' = snd io')", OF
+                          observable_transition_unique[OF \<open>observable A\<close> \<open>tA \<in> h A\<close> \<open>t_source tA = initial A\<close> \<open>t_input tA = fst io'\<close> \<open>t_output tA = snd io'\<close>]]
+        using \<open>tA \<in> h A\<close> \<open>t_source tA = initial A\<close> \<open>t_input tA = fst io'\<close> \<open>t_output tA = snd io'\<close>
+        by blast
+
+
+      have concat_scheme: "\<And> f g h xs x. set (filter h xs) = {x} \<Longrightarrow> set (concat (map f (map g (filter h xs)))) = set (f (g x))"
+      proof -
+        {
+          fix x :: 'a 
+          and xs h 
+          and g :: "'a \<Rightarrow> 'b"
+          and f :: "'b \<Rightarrow> 'c list"
+          assume "set (filter h xs) = {x}"
+          then have "\<And> y . y \<in> set (map f (map g (filter h xs))) \<Longrightarrow> y = f (g x)"
+            by auto
+          then have "\<And> y . y \<in> set (concat (map f (map g (filter h xs)))) \<Longrightarrow> y \<in> set (f (g x))"
+            by fastforce
+          moreover have "\<And> y . y \<in> set (f (g x)) \<Longrightarrow> y \<in> set (concat (map f (map g (filter h xs))))"
+          proof -
+            fix y :: 'c
+            assume a1: "y \<in> set (f (g x))"
+            have "set (filter h xs) \<noteq> {}"
+              using \<open>set (filter h xs) = {x}\<close> by fastforce
+            then have "filter h xs \<noteq> []"
+              by blast
+            then show "y \<in> set (concat (map f (map g (filter h xs))))"
+              using a1 by (metis (no_types) UN_I \<open>\<And>y. y \<in> set (map f (map g (filter h xs))) \<Longrightarrow> y = f (g x)\<close> ex_in_conv list.map_disc_iff set_concat set_empty)
+          qed
+          ultimately have "set (concat (map f (map g (filter h xs)))) = set (f (g x))" by blast
+        }
+        thus "\<And> f g h xs x. set (filter h xs) = {x} \<Longrightarrow> set (concat (map f (map g (filter h xs)))) = set (f (g x))"
+          by simp 
+      qed
+        
+
+      have "set (io_targets_list A (io' # (io'' @ [ioM])) (initial A)) = set (io_targets_list A (io'' @ [ioM]) (t_target tA))"
+        unfolding io_targets_list.simps 
+        using concat_scheme[OF \<open>set (filter (\<lambda>t. t_source t = initial A \<and> t_input t = fst io' \<and> t_output t = snd io') (wf_transitions A)) = {tA}\<close>]
+        by metis
+
+      then have "io_targets A (io' # (io'' @ [ioM])) (initial A) = io_targets A (io'' @ [ioM]) (t_target tA)"
+        using nodes.initial[of A] wf_transition_target[OF \<open>tA \<in> h A\<close>]
+        by (metis io_targets_from_list) 
+
+      then have "io_targets A (io' # (io'' @ [ioM])) (initial A) = io_targets (from_FSM A (t_target tA)) (io'' @ [ioM]) (initial (from_FSM A (t_target tA)))"
+        unfolding io_targets.simps using from_FSM_path_initial[OF wf_transition_target[OF \<open>tA \<in> h A\<close>]]
+        by auto
+
+      then have "io_targets A (io @ [ioM]) (initial A) \<inter> FS = {}"
+        using \<open>io_targets (from_FSM A (t_target tA)) (io'' @ [ioM]) (initial (from_FSM A (t_target tA))) \<inter> FS = {}\<close> Cons by auto
+        
       show ?thesis
-
+        using \<open>io @ [ioM] \<in> L A\<close> \<open>io_targets A (io @ [ioM]) (initial A) \<inter> FS = {}\<close> by simp
     qed
   qed
 
-  then show "io@[ioM] \<in> L A"
-       and  "io_targets A (io@[ioM]) (initial A) \<inter> FS = {}"
-    by blast+
+  thus "io@[ioM] \<in> L A"
+  and  "io_targets A (io@[ioM]) (initial A) \<inter> FS = {}"
+    by auto
 qed
 
 
+
+lemma pass_ATC_io :
+  assumes "pass_ATC M A FS"
+  and     "is_ATC A"
+  and     "observable M"
+  and     "set (inputs A) \<subseteq> set (inputs M)"
+  and     "io@[ioA] \<in> L A"
+  and     "io@[ioM] \<in> L M"
+  and     "fst ioA = fst ioM" 
+shows "io@[ioM] \<in> L A"
+and   "io_targets A (io@[ioM]) (initial A) \<inter> FS = {}"
+proof -
+
+  have "acyclic A"
+    using \<open>is_ATC A\<close> is_ATC_def by blast 
+
+  have "length (io @ [ioA]) \<le> (size A)"
+    using \<open>io@[ioA] \<in> L A\<close> unfolding LS.simps using acyclic_path_length[OF \<open>acyclic A\<close>]
+    by force 
+  
+  show "io@[ioM] \<in> L A"
+  and  "io_targets A (io@[ioM]) (initial A) \<inter> FS = {}"
+    using pass_ATC'_io[OF _ assms(2-7) \<open>length (io @ [ioA]) \<le> (size A)\<close>]
+    using assms(1) by simp+
+qed
+
+lemma pass_ATC_io_explicit_io_tuple :
+  assumes "pass_ATC M A FS"
+  and     "is_ATC A"
+  and     "observable M"
+  and     "set (inputs A) \<subseteq> set (inputs M)"
+  and     "io@[(x,y)] \<in> L A"
+  and     "io@[(x,y')] \<in> L M" 
+shows "io@[(x,y')] \<in> L A"
+and   "io_targets A (io@[(x,y')]) (initial A) \<inter> FS = {}"
+  apply (metis pass_ATC_io(1) assms fst_conv)
+  by (metis pass_ATC_io(2) assms fst_conv)
 
 
 
