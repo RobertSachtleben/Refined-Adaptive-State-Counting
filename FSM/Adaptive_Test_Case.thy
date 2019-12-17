@@ -519,6 +519,35 @@ next
     obtain tA where "tA \<in> h A" and "t_input tA = x" and "t_source tA = initial A"
       using find_condition[OF \<open>find (\<lambda> x . \<exists> t \<in> h A . t_input t = x \<and> t_source t = initial A) (inputs A) = Some x\<close>] by blast
 
+    let ?ioA = "(x, t_output tA)"
+    let ?ioM = "(x, t_output tM)"
+
+    have "[?ioA] \<in> L A"
+      using \<open>tA \<in> h A\<close> \<open>t_input tA = x\<close> \<open>t_source tA = initial A\<close> unfolding LS.simps
+    proof -
+      have "[(x, t_output tA)] = p_io [tA]"
+        by (simp add: \<open>t_input tA = x\<close>)
+      then have "\<exists>ps. [(x, t_output tA)] = p_io ps \<and> path A (initial A) ps"
+        by (metis (no_types) \<open>tA \<in> set (wf_transitions A)\<close> \<open>t_source tA = initial A\<close> single_transition_path)
+      then show "[(x, t_output tA)] \<in> {p_io ps |ps. path A (initial A) ps}"
+        by blast
+    qed
+
+    (* TODO: extract *)
+    have "[?ioM] \<in> L M"
+      using \<open>tM \<in> h M\<close> \<open>t_input tM = x\<close> \<open>t_source tM = initial M\<close> unfolding LS.simps
+    proof -
+      have "[(x, t_output tM)] = p_io [tM]"
+        by (simp add: \<open>t_input tM = x\<close>)
+      then have "\<exists>ps. [(x, t_output tM)] = p_io ps \<and> path M (initial M) ps"
+        by (metis (no_types) \<open>tM \<in> set (wf_transitions M)\<close> \<open>t_source tM = initial M\<close> single_transition_path)
+      then show "[(x, t_output tM)] \<in> {p_io ps |ps. path M (initial M) ps}"
+        by blast
+    qed
+
+    have "fst ?ioA = fst ?ioM"
+      by auto
+
     consider (a) "\<not>(\<exists>t'\<in>set (wf_transitions A).
                             t_input t' = x \<and>
                             t_source t' = initial A \<and>
@@ -533,37 +562,7 @@ next
     then show ?thesis proof cases
       case a
 
-
-      let ?ioA = "(x, t_output tA)"
-      let ?ioM = "(x, t_output tM)"
-
-      have "[?ioA] \<in> L A"
-        using \<open>tA \<in> h A\<close> \<open>t_input tA = x\<close> \<open>t_source tA = initial A\<close> unfolding LS.simps
-      proof -
-        have "[(x, t_output tA)] = p_io [tA]"
-          by (simp add: \<open>t_input tA = x\<close>)
-        then have "\<exists>ps. [(x, t_output tA)] = p_io ps \<and> path A (initial A) ps"
-          by (metis (no_types) \<open>tA \<in> set (wf_transitions A)\<close> \<open>t_source tA = initial A\<close> single_transition_path)
-        then show "[(x, t_output tA)] \<in> {p_io ps |ps. path A (initial A) ps}"
-          by blast
-      qed
-      
-      (* TODO: extract *)
-      moreover have "[?ioM] \<in> L M"
-        using \<open>tM \<in> h M\<close> \<open>t_input tM = x\<close> \<open>t_source tM = initial M\<close> unfolding LS.simps
-      proof -
-        have "[(x, t_output tM)] = p_io [tM]"
-          by (simp add: \<open>t_input tM = x\<close>)
-        then have "\<exists>ps. [(x, t_output tM)] = p_io ps \<and> path M (initial M) ps"
-          by (metis (no_types) \<open>tM \<in> set (wf_transitions M)\<close> \<open>t_source tM = initial M\<close> single_transition_path)
-        then show "[(x, t_output tM)] \<in> {p_io ps |ps. path M (initial M) ps}"
-          by blast
-      qed
-
-      moreover have "fst ?ioA = fst ?ioM"
-        by auto
-
-      moreover have "[?ioM] \<notin> L A"
+      have "[?ioM] \<notin> L A"
       proof 
         assume "[?ioM] \<in> L A"
         then obtain p where "path A (initial A) p" and "p_io p = [?ioM]" (* TODO: extract *)
@@ -582,10 +581,11 @@ next
           using a by blast
       qed
 
-      ultimately have "\<exists> io ioA ioM . io@[ioA] \<in> L A
+      then have "\<exists> io ioA ioM . io@[ioA] \<in> L A
                           \<and> io@[ioM] \<in> L M
                           \<and> fst ioA = fst ioM
                           \<and> io@[ioM] \<notin> L A"
+        using \<open>[?ioA] \<in> L A\<close> \<open>[?ioM] \<in> L M\<close> \<open>fst ?ioA = fst ?ioM\<close>
         by (metis append_Nil)
       thus ?thesis by blast
         
@@ -602,6 +602,9 @@ next
         using \<open>set (inputs A) \<subseteq> set (inputs M)\<close> 
         by (simp add: from_FSM_simps(2)) 
 
+      have "observable A"
+        using \<open>is_ATC A\<close> unfolding is_ATC_def by auto
+
       consider (b1) "initial (from_FSM A (t_target t')) \<in> FS" |
                (b2) "(\<exists>io ioA ioM.
                         io @ [ioA] \<in> LS (from_FSM A (t_target t')) (initial (from_FSM A (t_target t'))) \<and>
@@ -616,6 +619,8 @@ next
         by blast              
       then show ?thesis proof cases
         case b1 (* like case a *)
+        then have "io_targets A [?ioM] (initial A) \<inter> FS \<noteq> {}"
+          using \<open>t' \<in> h A\<close> \<open>t_source t' = initial A\<close> \<open>t_input t' = x\<close> \<open>t_output t' = t_output tM\<close> observable_io_targets[OF \<open>observable A\<close> \<open>[?ioA] \<in> L A\<close>] 
         then show ?thesis sorry
       next
         case b2 (* obtain io ioA ioM and prepend (x,t_output tM) *)
