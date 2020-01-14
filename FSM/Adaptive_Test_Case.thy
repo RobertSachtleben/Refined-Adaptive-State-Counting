@@ -1441,6 +1441,7 @@ proof
 qed
 
 
+  
 
 
 lemma pass_separator_ATC_from_pass_ATC :
@@ -1493,7 +1494,8 @@ proof (rule ccontr)
     by (meson rev_finite_subset) 
   
   obtain io where "io \<in> ?errorSeqs" and "\<And> io' . io' \<in> ?errorSeqs \<Longrightarrow> length io \<le> length io'"
-    by (metis (no_types, lifting) \<open>finite ?errorSeqs\<close> \<open>{io. \<exists>ioA ioM. io @ [ioA] \<in> LS A (initial A) \<and> io @ [ioM] \<in> LS (from_FSM M q1) (initial (from_FSM M q1)) \<and> fst ioA = fst ioM \<and> (io @ [ioM] \<notin> LS A (initial A) \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})} \<noteq> {}\<close> x) 
+    using arg_min_if_finite[OF \<open>finite ?errorSeqs\<close> \<open>?errorSeqs \<noteq> {}\<close>, of length]
+    by (metis (no_types, lifting) nat_le_linear nat_less_le) 
 
   then obtain ioA ioM where "io @ [ioA] \<in> L A" 
                       and   "io @ [ioM] \<in> L (from_FSM M q1)" 
