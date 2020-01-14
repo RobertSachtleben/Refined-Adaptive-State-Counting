@@ -1440,6 +1440,18 @@ proof
     unfolding LS.simps by blast
 qed
 
+lemma x :
+  fixes S :: "'a list set"
+  assumes "finite S"
+  and     "S \<noteq> {}"
+  shows "\<exists> xs \<in> S . \<forall> xs' \<in> S . length xs \<le> length xs'"
+proof -
+  have "\<exists>as. \<forall>asa. \<exists>A f. infinite S \<or> asa \<notin> S \<or> S = {} \<or> as \<in> S \<and> length as \<le> length asa \<or> finite A \<and> A \<noteq> {} \<and> arg_min_on (f::'a list \<Rightarrow> nat) A \<notin> A"
+    by (meson arg_min_least)
+  then show ?thesis
+    by (metis (no_types) arg_min_if_finite(1) assms(1) assms(2))
+qed 
+  
 
 
 lemma pass_separator_ATC_from_pass_ATC :
@@ -1464,17 +1476,90 @@ proof (rule ccontr)
     using from_FSM_simps(2) assms(3) by metis
   have "q1 \<in> nodes (from_FSM M q1)"
     using from_FSM_simps(1) nodes.initial by metis
-      
 
-  obtain io ioA ioM where "io @ [ioA] \<in> LS A (initial A)" 
-                    and   "io @ [ioM] \<in> LS (from_FSM M q1) (initial (from_FSM M q1))" 
-                    and   "fst ioA = fst ioM" 
-                    and   "(io @ [ioM] \<notin> LS A (initial A) \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})"
+
+
+  (* get error sequence of minimal length *)
+  let ?errorSeqs = "{io . \<exists> ioA ioM . io @ [ioA] \<in> L A \<and>
+                                       io @ [ioM] \<in> L (from_FSM M q1) \<and>
+                                       fst ioA = fst ioM \<and>
+                                       (io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})}"
+  have "?errorSeqs \<noteq> {}"
     using \<open>\<not> pass_separator_ATC M A q1 q2\<close>
     unfolding pass_separator_ATC.simps
     using pass_ATC_io_fail[OF _ \<open>is_ATC A\<close> * **, of "{Inr q2}"] 
     using \<open>initial A \<notin> {Inr q2}\<close> 
     by blast
+
+  have "?errorSeqs \<subseteq> L A"
+  proof -
+    have "\<And>ps. (\<forall>p pa. ps @ [p] \<notin> LS A (initial A) \<or> ps @ [pa] \<notin> LS (from_FSM M q1) (initial (from_FSM M q1)) \<or> fst p \<noteq> fst pa \<or> ps @ [pa] \<in> LS A (initial A) \<and> io_targets A (ps @ [pa]) (initial A) \<inter> {Inr q2} = {}) \<or> ps \<in> LS A (initial A)"
+      by (meson language_prefix)
+    then show ?thesis
+      by blast
+  qed
+  then have "finite ?errorSeqs"
+    using acyclic_alt_def[of A] 
+    using \<open>is_ATC A\<close> unfolding is_ATC_def
+    by (meson rev_finite_subset) 
+  
+  obtain io where "io \<in> ?errorSeqs" and "\<And> io' . io' \<in> ?errorSeqs \<Longrightarrow> length io \<le> length io'"
+    by (metis (no_types, lifting) \<open>finite ?errorSeqs\<close> \<open>{io. \<exists>ioA ioM. io @ [ioA] \<in> LS A (initial A) \<and> io @ [ioM] \<in> LS (from_FSM M q1) (initial (from_FSM M q1)) \<and> fst ioA = fst ioM \<and> (io @ [ioM] \<notin> LS A (initial A) \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})} \<noteq> {}\<close> x) 
+
+  then obtain ioA ioM where "io @ [ioA] \<in> L A" 
+                      and   "io @ [ioM] \<in> L (from_FSM M q1)" 
+                      and   "fst ioA = fst ioM" 
+                      and   "(io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})"
+    by blast
+
+  
+  (* show that io is both in LS M q1 and LS M q2 *)
+
+  (* case analysis on (io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {}) *)
+
+  (*  if (io @ [ioM] \<notin> L A), then A is not complete for (fst ioA) after applying io *)
+
+  (*  if (io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {}), then (io@[ioM] is also in LS M q2 and hence its target is Inl, not Inr q2 *)
+    
+
+end (*
+
+
+  obtain io ioA ioM where "io @ [ioA] \<in> L A" 
+                    and   "io @ [ioM] \<in> L (from_FSM M q1)" 
+                    and   "fst ioA = fst ioM" 
+                    and   "(io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})"
+    using \<open>\<not> pass_separator_ATC M A q1 q2\<close>
+    unfolding pass_separator_ATC.simps
+    using pass_ATC_io_fail[OF _ \<open>is_ATC A\<close> * **, of "{Inr q2}"] 
+    using \<open>initial A \<notin> {Inr q2}\<close> 
+    by blast
+
+  let ?C = "(canonical_separator M q1 q2)"
+  have "L A \<subseteq> L ?C "
+    using submachine_language[of A "canonical_separator M q1 q2"] assms(7) unfolding is_state_separator_from_canonical_separator_def by blast
+  then have "io \<in> L ?C"
+    using \<open>io @ [ioA] \<in> L A\<close>
+    by (meson language_prefix subset_iff) 
+
+  have "io \<in> L (from_FSM M q1)"
+    using \<open>io @ [ioM] \<in> L (from_FSM M q1)\<close> 
+    by (meson language_prefix subset_iff) 
+
+  
+
+  then obtain p where "path ?C (initial ?C) p" and "p_io p = io"
+    by auto
+
+  thm canonical_separator_path_initial[OF \<open>path ?C (initial ?C) p\<close> assms(4,5)]
+
+end (*
+
+
+   consider (a) "io @ [ioM] \<notin> L A" | 
+           (b) "io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {}"
+    using \<open>(io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})\<close> by blast
+
 
   thm canonical_separator_maximal_path_distinguishes_right[OF assms(7) _ _ assms(2,4,5,6)]
 
