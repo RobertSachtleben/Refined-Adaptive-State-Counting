@@ -1440,18 +1440,7 @@ proof
     unfolding LS.simps by blast
 qed
 
-lemma x :
-  fixes S :: "'a list set"
-  assumes "finite S"
-  and     "S \<noteq> {}"
-  shows "\<exists> xs \<in> S . \<forall> xs' \<in> S . length xs \<le> length xs'"
-proof -
-  have "\<exists>as. \<forall>asa. \<exists>A f. infinite S \<or> asa \<notin> S \<or> S = {} \<or> as \<in> S \<and> length as \<le> length asa \<or> finite A \<and> A \<noteq> {} \<and> arg_min_on (f::'a list \<Rightarrow> nat) A \<notin> A"
-    by (meson arg_min_least)
-  then show ?thesis
-    by (metis (no_types) arg_min_if_finite(1) assms(1) assms(2))
-qed 
-  
+
 
 
 lemma pass_separator_ATC_from_pass_ATC :
