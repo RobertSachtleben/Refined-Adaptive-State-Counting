@@ -1518,13 +1518,13 @@ lemma canonical_separator_path_initial :
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
   and     "observable M"
-shows "\<And> s1' s2' . target p (initial (canonical_separator M q1 q2)) = Inl (s1',s2') \<Longrightarrow> (\<exists> p1 p2 . path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io p)"
+shows "\<And> s1' s2' . target p (initial (canonical_separator M q1 q2)) = Inl (s1',s2') \<Longrightarrow> (\<exists> p1 p2 . path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io p \<and> target p1 q1 = s1' \<and> target p2 q2 = s2')"
 and   "target p (initial (canonical_separator M q1 q2)) = Inr q1 \<Longrightarrow> (\<exists> p1 p2 t . path M q1 (p1@[t]) \<and> path M q2 p2 \<and> p_io (p1@[t]) = p_io p \<and> p_io p2 = butlast (p_io p)) \<and> (\<not>(\<exists> p2 . path M q2 p2 \<and> p_io p2 = p_io p))"
 and   "target p (initial (canonical_separator M q1 q2)) = Inr q2 \<Longrightarrow> (\<exists> p1 p2 t . path M q1 p1 \<and> path M q2 (p2@[t]) \<and> p_io p1 = butlast (p_io p) \<and> p_io (p2@[t]) = p_io p) \<and> (\<not>(\<exists> p1 . path M q1 p1 \<and> p_io p1 = p_io p))"
 and   "(\<exists> s1' s2' . target p (initial (canonical_separator M q1 q2)) = Inl (s1',s2')) \<or> target p (initial (canonical_separator M q1 q2)) = Inr q1 \<or> target p (initial (canonical_separator M q1 q2)) = Inr q2"
 proof -
 
-  let ?P1 = "\<forall> s1' s2' . target p (initial (canonical_separator M q1 q2)) = Inl (s1',s2') \<longrightarrow> (\<exists> p1 p2 . path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io p)"
+  let ?P1 = "\<forall> s1' s2' . target p (initial (canonical_separator M q1 q2)) = Inl (s1',s2') \<longrightarrow> (\<exists> p1 p2 . path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io p \<and> target p1 q1 = s1' \<and> target p2 q2 = s2')"
   let ?P2 = "target p (initial (canonical_separator M q1 q2)) = Inr q1 \<longrightarrow> (\<exists> p1 p2 t . path M q1 (p1@[t]) \<and> path M q2 p2 \<and> p_io (p1@[t]) = p_io p \<and> p_io p2 = butlast (p_io p)) \<and> (\<not>(\<exists> p2 . path M q2 p2 \<and> p_io p2 = p_io p))"
   let ?P3 = "target p (initial (canonical_separator M q1 q2)) = Inr q2 \<longrightarrow> (\<exists> p1 p2 t . path M q1 p1 \<and> path M q2 (p2@[t]) \<and> p_io p1 = butlast (p_io p) \<and> p_io (p2@[t]) = p_io p) \<and> (\<not>(\<exists> p1 . path M q1 p1 \<and> p_io p1 = p_io p))"
 
@@ -1539,7 +1539,7 @@ proof -
       by auto
 
 
-    let ?P1' = "(\<forall>s1' s2'. target (p @ [t]) (initial (canonical_separator M q1 q2)) = Inl (s1', s2') \<longrightarrow> (\<exists>p1 p2. path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io (p @ [t])))"
+    let ?P1' = "(\<forall>s1' s2'. target (p @ [t]) (initial (canonical_separator M q1 q2)) = Inl (s1', s2') \<longrightarrow> (\<exists>p1 p2. path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io (p @ [t]) \<and> target p1 q1 = s1' \<and> target p2 q2 = s2'))"
     let ?P2' = "(target (p @ [t]) (initial (canonical_separator M q1 q2)) = Inr q1 \<longrightarrow> (\<exists>p1 p2 ta. path M q1 (p1 @ [ta]) \<and> path M q2 p2 \<and> p_io (p1 @ [ta]) = p_io (p @ [t]) \<and> p_io p2 = butlast (p_io (p @ [t]))) \<and> (\<nexists>p2. path M q2 p2 \<and> p_io p2 = p_io (p @ [t])))"
     let ?P3' = "(target (p @ [t]) (initial (canonical_separator M q1 q2)) = Inr q2 \<longrightarrow> (\<exists>p1 p2 ta. path M q1 p1 \<and> path M q2 (p2 @ [ta]) \<and> p_io p1 = butlast (p_io (p @ [t])) \<and> p_io (p2 @ [ta]) = p_io (p @ [t])) \<and> (\<nexists>p1. path M q1 p1 \<and> p_io p1 = p_io (p @ [t])))"
 
@@ -1646,12 +1646,14 @@ proof -
         by auto
       moreover have "p_io (?pL@[?t1]) = p_io (p@[t])"
         using \<open>p_io ?pL = p_io p\<close> by auto
-      ultimately have "path M q1 (?pL@[?t1]) \<and> path M q2 (?pR@[?t2]) \<and> p_io (?pL@[?t1]) = p_io (?pR@[?t2]) \<and> p_io (?pL@[?t1]) = p_io (p@[t])"
+      moreover have "target (?pL@[?t1]) q1 = s1'" and "target (?pR@[?t2]) q2 = s2'"
+        by auto 
+      ultimately have "path M q1 (?pL@[?t1]) \<and> path M q2 (?pR@[?t2]) \<and> p_io (?pL@[?t1]) = p_io (?pR@[?t2]) \<and> p_io (?pL@[?t1]) = p_io (p@[t]) \<and> target (?pL@[?t1]) q1 = s1' \<and> target (?pR@[?t2]) q2 = s2'"
         by presburger
-      then have "(\<exists>p1 p2. path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io (p @ [t]))"
+      then have "(\<exists>p1 p2. path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io (p @ [t]) \<and> target p1 q1 = s1' \<and> target p2 q2 = s2')"
         by meson
       then have ?P1'
-        by blast
+        using \<open>target (p @ [t]) (initial (canonical_separator M q1 q2)) = Inl (s1', s2')\<close> by auto
       then show ?thesis using \<open>target (p @ [t]) (initial (canonical_separator M q1 q2)) = Inl (s1', s2')\<close> 
         by auto
     next
@@ -1837,7 +1839,7 @@ proof -
     qed 
   qed
 
-  then show "\<And> s1' s2' . target p (initial (canonical_separator M q1 q2)) = Inl (s1',s2') \<Longrightarrow> (\<exists> p1 p2 . path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io p)"
+  then show  "\<And> s1' s2' . target p (initial (canonical_separator M q1 q2)) = Inl (s1',s2') \<Longrightarrow> (\<exists> p1 p2 . path M q1 p1 \<and> path M q2 p2 \<and> p_io p1 = p_io p2 \<and> p_io p1 = p_io p \<and> target p1 q1 = s1' \<and> target p2 q2 = s2')"
        and   "target p (initial (canonical_separator M q1 q2)) = Inr q1 \<Longrightarrow> (\<exists> p1 p2 t . path M q1 (p1@[t]) \<and> path M q2 p2 \<and> p_io (p1@[t]) = p_io p \<and> p_io p2 = butlast (p_io p)) \<and> (\<not>(\<exists> p2 . path M q2 p2 \<and> p_io p2 = p_io p))"
        and   "target p (initial (canonical_separator M q1 q2)) = Inr q2 \<Longrightarrow> (\<exists> p1 p2 t . path M q1 p1 \<and> path M q2 (p2@[t]) \<and> p_io p1 = butlast (p_io p) \<and> p_io (p2@[t]) = p_io p) \<and> (\<not>(\<exists> p1 . path M q1 p1 \<and> p_io p1 = p_io p))"
     by blast+
@@ -2042,7 +2044,125 @@ lemma is_state_separator_from_canonical_separator_simps :
   using assms unfolding is_state_separator_from_canonical_separator_def by blast+
 
 
+lemma canonical_separator_io_from_prefix_left :
+  assumes "io @ [io1] \<in> LS M q1"
+  and     "io \<in> LS M q2"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "observable M"
+shows "io @ [io1] \<in> L (canonical_separator M q1 q2)"
+proof -
+  let ?C = "canonical_separator M q1 q2"
 
+  obtain p1 where "path M q1 p1" and "p_io p1 = io @ [io1]"
+    using \<open>io @ [io1] \<in> LS M q1\<close> by auto
+  then have "p1 \<noteq> []"
+    by auto
+  then obtain pL tL where "p1 = pL @ [tL]"
+    using rev_exhaust by blast
+  then have "path M q1 (pL@[tL])" and "path M q1 pL" and "p_io pL = io" and "tL \<in> h M" and "t_input tL = fst io1" and "t_output tL = snd io1" and "p_io (pL@[tL]) = io @ [io1]"
+    using \<open>path M q1 p1\<close> \<open>p_io p1 = io @ [io1]\<close> by auto
+  then have pLf: "path (from_FSM M q1) (initial (from_FSM M q1)) pL" and pLf': "path (from_FSM M q1) (initial (from_FSM M q1)) (pL@[tL])"
+    using from_FSM_path_initial[OF \<open>q1 \<in> nodes M\<close>] by auto
+
+  obtain pR where "path M q2 pR" and "p_io pR = io"
+    using \<open>io \<in> LS M q2\<close> by auto
+  then have pRf: "path (from_FSM M q2) (initial (from_FSM M q2)) pR"
+    using from_FSM_path_initial[OF \<open>q2 \<in> nodes M\<close>] by auto
+
+  have "p_io pL = p_io pR"
+    using \<open>p_io pL = io\<close> \<open>p_io pR = io\<close> by auto
+
+  let ?pLR = "zip_path pL pR"
+  let ?P = "product (from_FSM M q1) (from_FSM M q2)"
+
+  have "path ?P (initial ?P) ?pLR"
+  and  "target ?pLR (initial ?P) = (target pL q1, target pR q2)"
+    using product_path_from_paths[OF pLf pRf \<open>p_io pL = p_io pR\<close>]
+    unfolding from_FSM_simps(1) by linarith+
+
+
+  show ?thesis proof (cases "\<exists> tR \<in> h M . t_source tR = target pR q2 \<and> t_input tR = t_input tL \<and> t_output tR = t_output tL")
+    case True
+    then obtain tR where "tR \<in> h M" and "t_source tR = target pR q2" and "t_input tR = t_input tL" and "t_output tR = t_output tL"
+      by blast
+    then have "path M q2 (pR@[tR])" 
+      using \<open>path M q2 pR\<close> path_append_last by metis
+    then have pRf': "path (from_FSM M q2) (initial (from_FSM M q2)) (pR@[tR])"
+      using from_FSM_path_initial[OF \<open>q2 \<in> nodes M\<close>] by auto
+
+    
+
+    
+    
+    let ?PP = "(zip_path (pL@[tL]) (pR@[tR]))"
+    let ?PC = "map shift_Inl ?PP"
+
+    have "length pL = length pR"
+      using \<open>p_io pL = p_io pR\<close> map_eq_imp_length_eq by blast
+    moreover have "p_io (pL@[tL]) = p_io (pR@[tR])"
+      using \<open>p_io pR = io\<close> \<open>t_input tL = fst io1\<close> \<open>t_output tL = snd io1\<close> \<open>t_input tR = t_input tL\<close> \<open>t_output tR = t_output tL\<close> \<open>p_io (pL@[tL]) = io@[io1]\<close> by auto
+    ultimately have "p_io ?PP = p_io (pL@[tL])"
+      by (induction pL pR rule: list_induct2; auto)
+
+    have "p_io ?PC = p_io ?PP"
+      by auto
+       
+    
+    have "path ?P (initial ?P) ?PP"
+      using product_path_from_paths(1)[OF pLf' pRf' \<open>p_io (pL@[tL]) = p_io (pR@[tR])\<close>] by assumption
+
+    then have "path ?C (initial ?C) ?PC"
+      using canonical_separator_path_shift[of M q1 q2 ?PP] by simp
+    
+    moreover have "p_io ?PC = io@[io1]"
+      using \<open>p_io (pL@[tL]) = io@[io1]\<close>  \<open>p_io ?PP = p_io (pL@[tL])\<close>  \<open>p_io ?PC = p_io ?PP\<close> by simp
+    ultimately have "\<exists> p . path ?C (initial ?C) p \<and> p_io p = io@[io1]"
+      by blast
+    then show ?thesis unfolding LS.simps by force
+  next
+    case False
+    then have "(Inl (s1,s2), t_input tL, t_output tL, Inr q1) \<in> set (distinguishing_transitions_left M q1 q2)"
+    then show ?thesis sorry
+  qed
+
+end (*
+  obtain p1 where "path A (initial A) pA" and "p_io pA = io@[ioA]"
+    using \<open>io@[ioA] \<in> L A\<close> by auto
+  then have "pA \<noteq> []" by auto
+  then obtain pA' tA where "pA = pA'@[tA]"
+    using rev_exhaust by blast
+  then have "path A (initial A) (pA'@[tA])" and "p_io (pA'@[tA]) = io@[ioA]"
+    using \<open>path A (initial A) pA\<close> \<open>p_io pA = io@[ioA]\<close> by auto
+  then have "path ?C (initial ?C) (pA'@[tA])"
+    using submachine_path[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]]
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]
+    unfolding is_submachine.simps by auto
+  then have "path ?C (initial ?C) pA'"
+    by auto
+
+  obtain s1 s2 where "target pA' (initial ?C) = Inl (s1,s2)"
+    using canonical_separator_path_split_target_isl[OF \<open>path ?C (initial ?C) (pA'@[tA])\<close>] 
+    by (metis isl_def old.prod.exhaust)
+  then have "target pA' (initial A) = Inl (s1,s2)"
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]
+    unfolding is_submachine.simps by auto
+  then have "Inl (s1,s2) \<in> nodes A"
+    using \<open>path A (initial A) (pA'@[tA])\<close> path_target_is_node by auto
+
+  have "t_source tA = Inl (s1,s2)" and "tA \<in> h A"
+    using \<open>target pA' (initial A) = Inl (s1,s2)\<close> \<open>path A (initial A) (pA'@[tA])\<close> by auto
+  have "t_input tA = fst ioA"
+    using \<open>p_io (pA'@[tA]) = io@[ioA]\<close> by auto
+  
+
+  obtain pL pR where "path M q1 pL" and "path M q2 pR" and "p_io pL = p_io pA'" and "p_io pL = p_io pR" and "target pL q1 = s1" and "target pR q2 = s2"
+    using canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) pA'\<close> assms(4,5,2) \<open>target pA' (initial ?C) = Inl (s1,s2)\<close>] by blast+
+  then have "p_io pR = p_io pA'"
+    by simp
+
+
+end (*
 lemma pass_separator_ATC_from_pass_ATC :
   assumes "is_ATC A"
   and     "observable M"
@@ -2113,6 +2233,42 @@ proof (rule ccontr)
   then have "io \<in> LS M q2"
     using canonical_separator_language_prefix(2)[OF _ assms(4,5,2)] by blast
 
+  obtain pA where "path A (initial A) pA" and "p_io pA = io@[ioA]"
+    using \<open>io@[ioA] \<in> L A\<close> by auto
+  then have "pA \<noteq> []" by auto
+  then obtain pA' tA where "pA = pA'@[tA]"
+    using rev_exhaust by blast
+  then have "path A (initial A) (pA'@[tA])" and "p_io (pA'@[tA]) = io@[ioA]"
+    using \<open>path A (initial A) pA\<close> \<open>p_io pA = io@[ioA]\<close> by auto
+  then have "path ?C (initial ?C) (pA'@[tA])"
+    using submachine_path[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]]
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]
+    unfolding is_submachine.simps by auto
+  then have "path ?C (initial ?C) pA'"
+    by auto
+
+  obtain s1 s2 where "target pA' (initial ?C) = Inl (s1,s2)"
+    using canonical_separator_path_split_target_isl[OF \<open>path ?C (initial ?C) (pA'@[tA])\<close>] 
+    by (metis isl_def old.prod.exhaust)
+  then have "target pA' (initial A) = Inl (s1,s2)"
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]
+    unfolding is_submachine.simps by auto
+  then have "Inl (s1,s2) \<in> nodes A"
+    using \<open>path A (initial A) (pA'@[tA])\<close> path_target_is_node by auto
+
+  have "t_source tA = Inl (s1,s2)" and "tA \<in> h A"
+    using \<open>target pA' (initial A) = Inl (s1,s2)\<close> \<open>path A (initial A) (pA'@[tA])\<close> by auto
+  have "t_input tA = fst ioA"
+    using \<open>p_io (pA'@[tA]) = io@[ioA]\<close> by auto
+  
+
+  obtain pL pR where "path M q1 pL" and "path M q2 pR" and "p_io pL = p_io pA'" and "p_io pL = p_io pR" and "target pL q1 = s1" and "target pR q2 = s2"
+    using canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) pA'\<close> assms(4,5,2) \<open>target pA' (initial ?C) = Inl (s1,s2)\<close>] by blast+
+  then have "p_io pR = p_io pA'"
+    by simp
+
+
+
 
   (* case analysis on (io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {}) *)
 
@@ -2122,6 +2278,12 @@ proof (rule ccontr)
   then show "False" 
   proof cases
     case a
+
+    note \<open>Inl (s1,s2) \<in> nodes A\<close>
+    moreover have "fst (ioA) \<in> set (inputs A)"
+      using \<open>path A (initial A) (pA'@[tA])\<close> \<open>p_io (pA'@[tA]) = io@[ioA]\<close> by auto 
+    moreover have "\<exists> t \<in> h A . t_source t = Inl (s1,s2) \<and> t_input t = fst ioA"
+      using \<open>tA \<in> h A\<close> \<open>t_source tA = Inl (s1,s2)\<close> \<open>t_input tA = fst ioA\<close> by blast
 
     thm is_state_separator_from_canonical_separator_simps(9)[OF assms(7)]
 
