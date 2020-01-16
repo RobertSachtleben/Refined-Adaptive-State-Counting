@@ -2039,11 +2039,64 @@ lemma is_state_separator_from_canonical_separator_simps :
   and   "deadlock_state S (Inr q2)"
   and   "((Inr q1) \<in> nodes S)"
   and   "((Inr q2) \<in> nodes S)"
-  and   "(\<forall> q \<in> nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (isl q \<and> \<not> deadlock_state S q))"
-  and   "(\<forall> q \<in> nodes S . \<forall> x \<in> set (inputs CSep) . (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> h CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> h S))"
+  and   "\<And> q . q \<in> nodes S \<Longrightarrow> q \<noteq> Inr q1 \<Longrightarrow> q \<noteq> Inr q2 \<Longrightarrow> (isl q \<and> \<not> deadlock_state S q)"
+  and   "\<And> q x t . q \<in> nodes S \<Longrightarrow> x \<in> set (inputs CSep) \<Longrightarrow> (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<Longrightarrow> t' \<in> h CSep \<Longrightarrow> t_source t' = q \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> h S"
   using assms unfolding is_state_separator_from_canonical_separator_def by blast+
 
 
+
+lemma map_set : 
+  assumes "x \<in> set xs"
+  shows "f x \<in> set (map f xs)" using assms by auto
+
+lemma canonical_separator_distinguishing_transitions_left_h :
+  assumes "t \<in> set (distinguishing_transitions_left M q1 q2)"
+  shows "t \<in> h (canonical_separator M q1 q2)" (is "t \<in> h ?C")
+proof -
+  have x1: "t \<in> set (transitions ?C)"
+    unfolding canonical_separator_simps using assms by auto
+
+  obtain qqt where *: "qqt \<in> set (concat
+                                (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
+                                  (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
+             and   **: "t = (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1)"
+             and   ***: "t_source (snd qqt) = fst (fst qqt)"
+             and   ****: "\<not> (\<exists>t'\<in>set (transitions M).
+                            t_source t' = snd (fst qqt) \<and>
+                            t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))"
+    using distinguishing_transitions_left_underlying_data[OF assms] by blast
+
+  let ?qq = "fst qqt"
+  let ?t  = "snd qqt"
+  let ?P  = "(product (from_FSM M q1) (from_FSM M q2))"
+
+  have "?t \<in> h M" and "?qq \<in> nodes ?P"
+    using * unfolding concat_pair_set nodes_code by blast+
+
+  then have x2: "t_input t \<in> set (inputs ?C)" and x3: "t_output t \<in> set (outputs ?C)"
+    unfolding canonical_separator_simps ** by auto
+
+  obtain pp where "path ?P (initial ?P) pp" and "target pp (initial ?P) = ?qq"
+    using path_to_node[OF \<open>?qq \<in> nodes ?P\<close>] by auto
+
+  let ?pc = "map shift_Inl pp"
+  have pt1: "path ?C (initial ?C) ?pc"
+    using \<open>path ?P (initial ?P) pp\<close> unfolding canonical_separator_path_shift by assumption
+  have pt2: "target ?pc (initial ?C) = Inl ?qq"
+    using \<open>target pp (initial ?P) = ?qq\<close> unfolding canonical_separator_simps product_simps from_FSM_simps by (induction pp; auto)
+  
+  have "t_source t \<in> nodes ?C"
+    unfolding ** fst_conv snd_conv using path_target_is_node[OF pt1] unfolding pt2 by assumption
+
+  then show ?thesis
+    using x1 x2 x3 by auto
+qed
+    
+    
+        
+    
+
+(*TODO: add _right version *)
 lemma canonical_separator_io_from_prefix_left :
   assumes "io @ [io1] \<in> LS M q1"
   and     "io \<in> LS M q2"
@@ -2074,6 +2127,7 @@ proof -
     using \<open>p_io pL = io\<close> \<open>p_io pR = io\<close> by auto
 
   let ?pLR = "zip_path pL pR"
+  let ?pCLR = "map shift_Inl ?pLR"
   let ?P = "product (from_FSM M q1) (from_FSM M q2)"
 
   have "path ?P (initial ?P) ?pLR"
@@ -2081,13 +2135,42 @@ proof -
     using product_path_from_paths[OF pLf pRf \<open>p_io pL = p_io pR\<close>]
     unfolding from_FSM_simps(1) by linarith+
 
+  have "path ?C (initial ?C) ?pCLR"
+    using canonical_separator_path_shift[of M q1 q2 ?pLR] \<open>path ?P (initial ?P) ?pLR\<close> by simp 
+  
 
-  show ?thesis proof (cases "\<exists> tR \<in> h M . t_source tR = target pR q2 \<and> t_input tR = t_input tL \<and> t_output tR = t_output tL")
+  have "isl (target ?pCLR (initial ?C))" 
+    unfolding canonical_separator_simps(1) product_simps(1) from_FSM_simps target.simps visited_states.simps by (cases ?pLR rule: rev_cases; auto)
+  then obtain s1 s2 where "target ?pCLR (initial ?C) = Inl (s1,s2)"
+    by (metis (no_types, lifting) \<open>path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2)) (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (map (\<lambda>t. ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), t_target (fst t), t_target (snd t))) (zip pL pR)))\<close> assms(3) assms(4) assms(5) canonical_separator_path_initial(4) sum.discI(2))
+  then have "Inl (s1,s2) \<in> nodes ?C"
+    using path_target_is_node[OF \<open>path ?C (initial ?C) ?pCLR\<close>] by simp
+  then have "(s1,s2) \<in> nodes ?P"
+    using canonical_separator_nodes by force
+
+  have "target ?pLR (initial ?P) = (s1,s2)"
+    using \<open>target ?pCLR (initial ?C) = Inl (s1,s2)\<close> unfolding canonical_separator_simps(1) product_simps(1) from_FSM_simps target.simps visited_states.simps by (cases ?pLR rule: rev_cases; auto)
+  then have "target pL q1 = s1" and "target pR q2 = s2"
+    using \<open>target ?pLR (initial ?P) = (target pL q1, target pR q2)\<close> by auto
+  then have "t_source tL = s1"
+    using \<open>path M q1 (pL@[tL])\<close> by auto
+
+
+
+  show ?thesis proof (cases "\<exists> tR \<in> set (transitions M) . t_source tR = target pR q2 \<and> t_input tR = t_input tL \<and> t_output tR = t_output tL")
     case True
-    then obtain tR where "tR \<in> h M" and "t_source tR = target pR q2" and "t_input tR = t_input tL" and "t_output tR = t_output tL"
+    then obtain tR where "tR \<in> set (transitions M)" and "t_source tR = target pR q2" and "t_input tR = t_input tL" and "t_output tR = t_output tL"
       by blast
+    
+    have "t_source tR \<in> nodes M"
+      unfolding \<open>t_source tR = target pR q2\<close> \<open>target pR q2 = s2\<close> 
+      using \<open>(s1,s2) \<in> nodes ?P\<close> product_nodes from_FSM_nodes[OF \<open>q2 \<in> nodes M\<close>] by blast
+
+    then have "tR \<in> h M"
+      using \<open>tR \<in> set (transitions M)\<close> \<open>t_input tR = t_input tL\<close> \<open>t_output tR = t_output tL\<close> \<open>tL \<in> h M\<close> by auto
+
     then have "path M q2 (pR@[tR])" 
-      using \<open>path M q2 pR\<close> path_append_last by metis
+      using \<open>path M q2 pR\<close> \<open>t_source tR = target pR q2\<close> path_append_last by metis
     then have pRf': "path (from_FSM M q2) (initial (from_FSM M q2)) (pR@[tR])"
       using from_FSM_path_initial[OF \<open>q2 \<in> nodes M\<close>] by auto
 
@@ -2122,47 +2205,57 @@ proof -
     then show ?thesis unfolding LS.simps by force
   next
     case False
-    then have "(Inl (s1,s2), t_input tL, t_output tL, Inr q1) \<in> set (distinguishing_transitions_left M q1 q2)"
-    then show ?thesis sorry
+
+    have f1: "((s1,s2),tL) \<in> set (concat (map (\<lambda>qq'. map (Pair qq') (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
+      using \<open>(s1,s2) \<in> nodes ?P\<close> \<open>tL \<in> h M\<close> concat_pair_set[of "wf_transitions M" "nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))"] unfolding nodes_code 
+      by (metis (no_types, lifting) fst_conv mem_Collect_eq snd_conv)
+    have f2: "(\<lambda> qqt. t_source (snd qqt) = fst (fst qqt) \<and> \<not> (\<exists>t'\<in>set (transitions M). t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) ((s1,s2),tL)"
+    proof 
+      show "t_source (snd ((s1, s2), tL)) = fst (fst ((s1, s2), tL))"
+        using \<open>t_source tL = s1\<close> by auto 
+      show "\<not> (\<exists>t'\<in>set (transitions M). t_source t' = snd (fst ((s1, s2), tL)) \<and> t_input t' = t_input (snd ((s1, s2), tL)) \<and> t_output t' = t_output (snd ((s1, s2), tL)))"
+        using False unfolding fst_conv snd_conv \<open>target pR q2 = s2\<close> by assumption
+    qed
+    
+    have m1: "((s1,s2),tL) \<in> set (filter (\<lambda> qqt. t_source (snd qqt) = fst (fst qqt) \<and> \<not> (\<exists>t'\<in>set (transitions M). t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))
+                                                (concat (map (\<lambda>qq'. map (Pair qq') (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))))))"
+      using filter_list_set[OF f1, of "(\<lambda> qqt. t_source (snd qqt) = fst (fst qqt) \<and> \<not> (\<exists>t'\<in>set (transitions M). t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))", OF f2]
+      by assumption
+
+
+    (*thm canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) ?pCLR\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> \<open>target ?pCLR (initial ?C) = Inl (s1,s2)\<close>]*)
+
+    let ?t = "(Inl (s1,s2), t_input tL, t_output tL, Inr q1)"
+    have "?t \<in> set (distinguishing_transitions_left M q1 q2)"
+      using map_set[OF m1, of " (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1))"] 
+      unfolding distinguishing_transitions_left_def fst_conv snd_conv by assumption
+    then have "?t \<in> h ?C" 
+      using canonical_separator_distinguishing_transitions_left_h by metis
+    then have "path ?C (initial ?C) (?pCLR@[?t])"
+      using \<open>path ?C (initial ?C) ?pCLR\<close> \<open>target ?pCLR (initial ?C) = Inl (s1,s2)\<close> 
+      by (simp add: path_append_last)
+
+    have "length pL = length pR"
+      using \<open>p_io pL = p_io pR\<close> 
+      using map_eq_imp_length_eq by blast
+    then have "p_io ?pCLR = p_io pL" 
+      by (induction pL pR rule: list_induct2; auto)
+    then have "p_io (?pCLR@[?t]) = io @ [io1]"
+      using \<open>p_io pL = io\<close> \<open>t_input tL = fst io1\<close> \<open>t_output tL = snd io1\<close>
+      by auto
+
+    then have "\<exists> p . path ?C (initial ?C) p \<and> p_io p = io@[io1]"
+      using \<open>path ?C (initial ?C) (?pCLR@[?t])\<close> by meson
+    then show ?thesis 
+      unfolding LS.simps by force
   qed
-
-end (*
-  obtain p1 where "path A (initial A) pA" and "p_io pA = io@[ioA]"
-    using \<open>io@[ioA] \<in> L A\<close> by auto
-  then have "pA \<noteq> []" by auto
-  then obtain pA' tA where "pA = pA'@[tA]"
-    using rev_exhaust by blast
-  then have "path A (initial A) (pA'@[tA])" and "p_io (pA'@[tA]) = io@[ioA]"
-    using \<open>path A (initial A) pA\<close> \<open>p_io pA = io@[ioA]\<close> by auto
-  then have "path ?C (initial ?C) (pA'@[tA])"
-    using submachine_path[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]]
-    using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]
-    unfolding is_submachine.simps by auto
-  then have "path ?C (initial ?C) pA'"
-    by auto
-
-  obtain s1 s2 where "target pA' (initial ?C) = Inl (s1,s2)"
-    using canonical_separator_path_split_target_isl[OF \<open>path ?C (initial ?C) (pA'@[tA])\<close>] 
-    by (metis isl_def old.prod.exhaust)
-  then have "target pA' (initial A) = Inl (s1,s2)"
-    using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]
-    unfolding is_submachine.simps by auto
-  then have "Inl (s1,s2) \<in> nodes A"
-    using \<open>path A (initial A) (pA'@[tA])\<close> path_target_is_node by auto
-
-  have "t_source tA = Inl (s1,s2)" and "tA \<in> h A"
-    using \<open>target pA' (initial A) = Inl (s1,s2)\<close> \<open>path A (initial A) (pA'@[tA])\<close> by auto
-  have "t_input tA = fst ioA"
-    using \<open>p_io (pA'@[tA]) = io@[ioA]\<close> by auto
-  
-
-  obtain pL pR where "path M q1 pL" and "path M q2 pR" and "p_io pL = p_io pA'" and "p_io pL = p_io pR" and "target pL q1 = s1" and "target pR q2 = s2"
-    using canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) pA'\<close> assms(4,5,2) \<open>target pA' (initial ?C) = Inl (s1,s2)\<close>] by blast+
-  then have "p_io pR = p_io pA'"
-    by simp
+qed
 
 
-end (*
+
+
+
+
 lemma pass_separator_ATC_from_pass_ATC :
   assumes "is_ATC A"
   and     "observable M"
@@ -2279,11 +2372,38 @@ proof (rule ccontr)
   proof cases
     case a
 
-    note \<open>Inl (s1,s2) \<in> nodes A\<close>
-    moreover have "fst (ioA) \<in> set (inputs A)"
+    have "fst (ioA) \<in> set (inputs A)"
       using \<open>path A (initial A) (pA'@[tA])\<close> \<open>p_io (pA'@[tA]) = io@[ioA]\<close> by auto 
-    moreover have "\<exists> t \<in> h A . t_source t = Inl (s1,s2) \<and> t_input t = fst ioA"
+    then have "fst (ioA) \<in> set (inputs ?C)"
+      using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)] unfolding is_submachine.simps by auto
+    then have "fst ioA \<in> set (inputs M)" 
+      unfolding canonical_separator_simps by assumption
+
+    
+   
+    have "\<exists> t \<in> h A . t_source t = Inl (s1,s2) \<and> t_input t = fst ioA"
       using \<open>tA \<in> h A\<close> \<open>t_source tA = Inl (s1,s2)\<close> \<open>t_input tA = fst ioA\<close> by blast
+
+    have "io@[ioM] \<in> LS M q1"
+      using \<open>io@[ioM] \<in> L (from_FSM M q1)\<close> unfolding from_FSM_simps LS.simps using from_FSM_path[OF \<open>q1 \<in> nodes M\<close>, of q1] by blast
+
+    then obtain pM where "path M (initial M) pM" and "p_io pM = io@[ioM]"
+      by auto
+    then have "pA \<noteq> []" by auto
+    then obtain pA' tA where "pA = pA' @ [tA]"
+      using rev_exhaust by blast
+    then have "path A (initial A) pA'" and "p_io pA' = io"
+      using \<open>path A (initial A) pA\<close> \<open>p_io pA = io@[ioA]\<close> by auto 
+    then have "pA' = p'"
+    thm FSM.observable_path_unique
+
+    thm is_state_separator_from_canonical_separator_simps(9)[OF assms(7) \<open>Inl (s1,s2) \<in> nodes A\<close> \<open>fst (ioA) \<in> set (inputs ?C)\<close> \<open>\<exists> t \<in> h A . t_source t = Inl (s1,s2) \<and> t_input t = fst ioA\<close>]
+
+end (*
+
+    have "io@[ioM] \<in> L A"
+      using canonical_separator_io_from_prefix_left[OF \<open>io@[ioM] \<in> LS M q1\<close> \<open>io \<in> LS M q2\<close> assms(4,5,2)] using submachine_language[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]]
+      then 
 
     thm is_state_separator_from_canonical_separator_simps(9)[OF assms(7)]
 
