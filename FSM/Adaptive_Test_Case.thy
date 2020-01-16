@@ -2531,8 +2531,12 @@ proof (rule ccontr)
 
   then have "io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {}"
     using \<open>(io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {Inr q2} \<noteq> {})\<close> by blast
-
   
+  then obtain p2 where "path A (initial A) p2" and "target p2 (initial A) = Inr q2"
+    by auto
+
+  thm canonical_separator_maximal_path_distinguishes_right[OF assms(7) \<open>path A (initial A) p2\<close> \<open>target p2 (initial A) = Inr q2\<close> assms(2,4,5)]
+
 
 
   show "False" sorry
