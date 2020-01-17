@@ -2253,13 +2253,21 @@ qed
 
 
 
-
-
-(* TODO: remove first assumption *)
-lemma pass_separator_ATC_from_state_separator :
-  assumes "is_ATC A"
+lemma state_separator_from_canonical_separator_is_ATC :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
   and     "observable M"
-  and     "set (inputs A) \<subseteq> set (inputs M)"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  shows "is_ATC A"
+unfolding is_ATC_def 
+using is_state_separator_from_canonical_separator_simps(2,3)[OF assms(1)]
+using submachine_observable[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)] canonical_separator_observable[OF assms(2,3,4)]]
+by blast
+
+
+
+lemma pass_separator_ATC_from_state_separator :
+  assumes "observable M"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
   and     "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A" 
@@ -2267,14 +2275,23 @@ shows "pass_separator_ATC M A q1 q2"
 proof (rule ccontr)
   assume "\<not> pass_separator_ATC M A q1 q2"
 
+  have "set (inputs A) \<subseteq> set (inputs M)"
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]
+    unfolding is_submachine.simps canonical_separator_simps product_simps from_FSM_simps by auto
+
+  have "is_ATC A"
+    using state_separator_from_canonical_separator_is_ATC[OF assms(4,1,2,3)] by assumption
+
+  
+
   have "initial A = Inl (q1,q2)"
-    using state_separator_from_canonical_separator_initial[OF assms(6)] by assumption
+    using state_separator_from_canonical_separator_initial[OF assms(4)] by assumption
   then have "initial A \<notin> {Inr q2}" by auto
   
   have *: "observable (from_FSM M q1)"
-    using assms(2,4) from_FSM_observable by metis
+    using assms(1,2) from_FSM_observable by metis
   have **: "set (inputs A) \<subseteq> set (inputs (from_FSM M q1))"
-    using from_FSM_simps(2) assms(3) by metis
+    using from_FSM_simps(2) \<open>set (inputs A) \<subseteq> set (inputs M)\<close> by metis
   have "q1 \<in> nodes (from_FSM M q1)"
     using from_FSM_simps(1) nodes.initial by metis
 
@@ -2323,10 +2340,10 @@ proof (rule ccontr)
   let ?P = "product (from_FSM M q1) (from_FSM M q2)"
 
   have "io @ [ioA] \<in> L ?C"
-    using submachine_language[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]] \<open>io @ [ioA] \<in> L A\<close> by blast
+    using submachine_language[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]] \<open>io @ [ioA] \<in> L A\<close> by blast
 
   then have "io \<in> LS M q2"
-    using canonical_separator_language_prefix(2)[OF _ assms(4,5,2)] by blast
+    using canonical_separator_language_prefix(2)[OF _ assms(2,3,1)] by blast
 
   obtain pA where "path A (initial A) pA" and "p_io pA = io@[ioA]"
     using \<open>io@[ioA] \<in> L A\<close> by auto
@@ -2336,8 +2353,8 @@ proof (rule ccontr)
   then have "path A (initial A) (pA'@[tA])" and "p_io (pA'@[tA]) = io@[ioA]"
     using \<open>path A (initial A) pA\<close> \<open>p_io pA = io@[ioA]\<close> by auto
   then have "path ?C (initial ?C) (pA'@[tA])"
-    using submachine_path[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]]
-    using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]
+    using submachine_path[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]]
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]
     unfolding is_submachine.simps by auto
   then have "path ?C (initial ?C) pA'"
     by auto
@@ -2346,13 +2363,13 @@ proof (rule ccontr)
     using canonical_separator_path_split_target_isl[OF \<open>path ?C (initial ?C) (pA'@[tA])\<close>] 
     by (metis isl_def old.prod.exhaust)
   then have "target pA' (initial A) = Inl (s1,s2)"
-    using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]
     unfolding is_submachine.simps by auto
   then have "Inl (s1,s2) \<in> nodes A"
     using \<open>path A (initial A) (pA'@[tA])\<close> path_target_is_node by auto
 
   then have "Inl (s1,s2) \<in> nodes ?C"
-    using submachine_nodes[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]] by blast
+    using submachine_nodes[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]] by blast
   then have "(s1,s2) \<in> nodes ?P"
     using canonical_separator_nodes by force 
 
@@ -2363,7 +2380,7 @@ proof (rule ccontr)
   
 
   obtain pL pR where "path M q1 pL" and "path M q2 pR" and "p_io pL = p_io pA'" and "p_io pL = p_io pR" and "target pL q1 = s1" and "target pR q2 = s2"
-    using canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) pA'\<close> assms(4,5,2) \<open>target pA' (initial ?C) = Inl (s1,s2)\<close>] by blast+
+    using canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) pA'\<close> assms(2,3,1) \<open>target pA' (initial ?C) = Inl (s1,s2)\<close>] by blast+
   then have "p_io pR = p_io pA'"
     by simp
 
@@ -2373,7 +2390,7 @@ proof (rule ccontr)
   have "fst (ioA) \<in> set (inputs A)"
       using \<open>path A (initial A) (pA'@[tA])\<close> \<open>p_io (pA'@[tA]) = io@[ioA]\<close> by auto 
     then have "fst (ioA) \<in> set (inputs ?C)"
-      using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)] unfolding is_submachine.simps by auto
+      using is_state_separator_from_canonical_separator_simps(1)[OF assms(4)] unfolding is_submachine.simps by auto
     then have "fst ioA \<in> set (inputs M)" 
       unfolding canonical_separator_simps by assumption
 
@@ -2395,7 +2412,7 @@ proof (rule ccontr)
     then have "p_io pM' = p_io pL"
       using \<open>p_io pM' = io\<close> \<open>p_io pL = p_io pA'\<close> \<open>p_io (pA'@[tA]) = io@[ioA]\<close> by auto
     then have "pM' = pL"
-      using observable_path_unique[OF assms(2) \<open>path M q1 pM'\<close> \<open>path M q1 pL\<close> ] by blast
+      using observable_path_unique[OF assms(1) \<open>path M q1 pM'\<close> \<open>path M q1 pL\<close> ] by blast
     then have "tM \<in> h M" 
           and "t_source tM = s1" 
           and "t_input tM = fst ioA" 
@@ -2511,13 +2528,13 @@ proof (rule ccontr)
   then obtain tF where "tF \<in> h ?C" and "t_source tF = Inl (s1, s2)" and "t_input tF = fst ioA" and "t_output tF = snd ioM"
     by blast
   then have "tF \<in> h A"
-    using is_state_separator_from_canonical_separator_simps(9)[OF assms(6) \<open>Inl (s1,s2) \<in> nodes A\<close> \<open>fst (ioA) \<in> set (inputs ?C)\<close> \<open>\<exists> t \<in> h A . t_source t = Inl (s1,s2) \<and> t_input t = fst ioA\<close>] by blast
+    using is_state_separator_from_canonical_separator_simps(9)[OF assms(4) \<open>Inl (s1,s2) \<in> nodes A\<close> \<open>fst (ioA) \<in> set (inputs ?C)\<close> \<open>\<exists> t \<in> h A . t_source t = Inl (s1,s2) \<and> t_input t = fst ioA\<close>] by blast
 
   moreover have "path A (initial A) pA'"
     using \<open>path A (initial A) (pA'@[tA])\<close> by auto
   ultimately have "path A (initial A) (pA'@[tF])"
     using \<open>t_source tF = Inl (s1, s2)\<close> \<open>target pA' (initial ?C) = Inl (s1,s2)\<close> 
-    using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)] 
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(4)] 
     unfolding is_submachine.simps  
     by (metis path_append_last)
   moreover have "p_io (pA'@[tF]) = io@[ioM]"
@@ -2541,15 +2558,15 @@ proof (rule ccontr)
     
     have "set (transitions ?C) \<subseteq> set (shifted_transitions M q2 q2)"
       unfolding True canonical_separator_simps
-                distinguishing_transitions_left_empty[OF assms(2,5)]
-                distinguishing_transitions_right_empty[OF assms(2,5)]
+                distinguishing_transitions_left_empty[OF assms(1,3)]
+                distinguishing_transitions_right_empty[OF assms(1,3)]
       by auto
     then have "h A \<subseteq> set (shifted_transitions M q2 q2)"
-      using submachine_h[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]] by auto
+      using submachine_h[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]] by auto
     then have "\<And> t . t \<in> set p2 \<Longrightarrow> isl (t_target t)"
       unfolding shifted_transitions_def using path_h[OF \<open>path A (initial A) p2\<close>] by force
     then have "isl (target p2 (initial A))"
-      using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]
+      using is_state_separator_from_canonical_separator_simps(1)[OF assms(4)]
       unfolding target.simps visited_states.simps is_submachine.simps canonical_separator_simps
       by (cases p2 rule: rev_cases; auto)
     then show "False"
@@ -2557,7 +2574,7 @@ proof (rule ccontr)
   next
     case False
     then have "io@[ioM] \<notin> LS M q1"
-      using canonical_separator_maximal_path_distinguishes_right[OF assms(6) \<open>path A (initial A) p2\<close> \<open>target p2 (initial A) = Inr q2\<close> assms(2,4,5)]      
+      using canonical_separator_maximal_path_distinguishes_right[OF assms(4) \<open>path A (initial A) p2\<close> \<open>target p2 (initial A) = Inr q2\<close> assms(1,2,3)]      
       using \<open>p_io p2 = io@[ioM]\<close> by auto
     then show "False"
       using \<open>io@[ioM] \<in> LS M q1\<close> by blast
@@ -2566,16 +2583,7 @@ qed
 
   
 
-lemma state_separator_from_canonical_separator_is_ATC :
-  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
-  and     "observable M"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
-  shows "is_ATC A"
-unfolding is_ATC_def 
-using is_state_separator_from_canonical_separator_simps(2,3)[OF assms(1)]
-using submachine_observable[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)] canonical_separator_observable[OF assms(2,3,4)]]
-by blast
+
 
 
 lemma state_separator_language_intersections_nonempty :
@@ -2647,7 +2655,7 @@ proof -
     using is_state_separator_from_canonical_separator_simps(1)[OF assms(7)]  
     unfolding is_submachine.simps canonical_separator_simps by auto
   then have "pass_separator_ATC M A q1 q2"
-    using pass_separator_ATC_from_state_separator[OF state_separator_from_canonical_separator_is_ATC[OF assms(7,3,5,6)] assms(3) _ assms(5,6,7)] by blast
+    using pass_separator_ATC_from_state_separator[OF assms(3,5,6,7)] by blast
   
   (* retrieve properties from this? *)
 
@@ -2744,15 +2752,55 @@ proof -
        and  "\<exists> pM . path M q1 pM \<and> p_io pM = p_io pA" by blast+
 qed
 
+
+
     
+lemma pass_ATC_fail_no_reduction :
+  assumes "is_ATC A"
+  and     "observable T" 
+  and     "observable M"
+  and     "set (inputs A) \<subseteq> set (inputs M)"
+  and     "set (inputs T) = set (inputs M)"
+  and     "pass_ATC M A FS"
+  and     "\<not>pass_ATC T A FS"
+shows   "\<not> (L T \<subseteq> L M)" 
+  using pass_ATC_reduction[OF _ assms(1,3,2,4,5,6)] assms(7) by blast
 
 
-    thm canonical_separator_path_initial
 
-(* TODO *)
+lemma pass_separator_ATC_fail_no_reduction :
+  assumes "observable T" 
+  and     "observable M"
+  and     "t1 \<in> nodes T"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
+  and     "set (inputs T) = set (inputs M)"
+  and     "\<not>pass_separator_ATC T A t1 q2"
+shows   "\<not> (LS T t1 \<subseteq> LS M q1)" 
+proof 
+  assume "LS T t1 \<subseteq> LS M q1"
 
-    then show ?case sorry
-  qed
+  have "is_ATC A"
+    using state_separator_from_canonical_separator_is_ATC[OF assms(6,2,4,5)] by assumption
+
+  have *: "set (inputs A) \<subseteq> set (inputs (from_FSM M q1))"
+    using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]
+    unfolding is_submachine.simps canonical_separator_simps from_FSM_simps by auto
+
+  have "pass_ATC (from_FSM M q1) A {Inr q2}"
+    using pass_separator_ATC_from_state_separator[OF assms(2,4,5,6)] by auto
+
+  have "\<not> pass_ATC (from_FSM T t1) A {Inr q2}"
+    using \<open>\<not>pass_separator_ATC T A t1 q2\<close> by auto
+
+  moreover have "pass_ATC (from_FSM T t1) A {Inr q2}"
+    using pass_ATC_reduction[OF _ \<open>is_ATC A\<close> from_FSM_observable[OF \<open>q1 \<in> nodes M\<close> \<open>observable M\<close>] from_FSM_observable[OF \<open>t1 \<in> nodes T\<close> \<open>observable T\<close>] *]
+    using \<open>LS T t1 \<subseteq> LS M q1\<close> \<open>pass_ATC (from_FSM M q1) A {Inr q2}\<close>  
+    unfolding from_FSM_language[OF assms(3)] from_FSM_language[OF assms(4)]
+    unfolding from_FSM_simps \<open>set (inputs T) = set (inputs M)\<close> by blast
+  ultimately show "False" by simp
+qed
     
 end (*
   
