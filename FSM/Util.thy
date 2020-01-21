@@ -750,40 +750,66 @@ proof -
 qed
 
 
-subsection \<open>Calculating Prefixes\<close>
+subsection \<open>Calculating Prefixes and Suffixes\<close>
 
+fun suffixes :: "'a list \<Rightarrow> 'a list list" where
+  "suffixes [] = [[]]" |
+  "suffixes (x#xs) = (suffixes xs) @ [x#xs]"
 
+lemma suffixes_set : 
+  "set (suffixes xs) = {zs . \<exists> ys . ys@zs = xs}"
+proof (induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then have *: "set (suffixes (x#xs)) = {zs . \<exists> ys . ys@zs = xs} \<union> {x#xs}"
+    by auto
+  
+  have "{zs . \<exists> ys . ys@zs = xs} = {zs . \<exists> ys . x#ys@zs = x#xs}"
+    by force
+  then have "{zs . \<exists> ys . ys@zs = xs} = {zs . \<exists> ys . ys@zs = x#xs \<and> ys \<noteq> []}"
+    by (metis Cons_eq_append_conv list.distinct(1))
+  moreover have "{x#xs} = {zs . \<exists> ys . ys@zs = x#xs \<and> ys = []}"
+    by force
+    
+  ultimately show ?case using * by force
+qed
+
+(* old definition
 fun prefixes :: "'a list \<Rightarrow> 'a list list" where
   "prefixes [] = [[]]" |
   "prefixes (x#xs) = [] # (map (\<lambda> xs' . x#xs') (prefixes xs))"
+*)
+fun prefixes :: "'a list \<Rightarrow> 'a list list" where
+  "prefixes [] = [[]]" |
+  "prefixes xs = (prefixes (butlast xs)) @ [xs]"
+
+
 
 value "prefixes [1::nat,2,3,4]"
 
 lemma prefixes_set : "set (prefixes xs) = {xs' . \<exists> xs'' . xs'@xs'' = xs}"
-proof (induction xs)
+proof (induction xs rule: rev_induct)
   case Nil
-  then show ?case unfolding prefixes.simps by auto
+  then show ?case by auto
 next
-  case (Cons a xs)
-
-  have "set (prefixes (a#xs)) = insert [] (set (map (\<lambda> xs' . a#xs') (prefixes xs)))"
-    unfolding prefixes.simps by auto
-  then have "set (prefixes (a#xs)) = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
-    using Cons.IH by auto
-
-  moreover have "{xs'. \<exists>xs''. xs' @ xs'' = a # xs} = insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}" 
-  proof -
-    have "\<And> xs' . xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
-    proof - 
-      fix xs' 
-      show "xs' \<in> {xs'. \<exists>xs''. xs' @ xs'' = a # xs} \<longleftrightarrow> xs' \<in> insert [] {a#xs' | xs' . \<exists>xs''. a # xs' @ xs'' = a#xs}"
-        by (cases xs'; auto)
-    qed
-    then show ?thesis by blast
-  qed
-
-  ultimately show ?case by auto
+  case (snoc x xs)
+  moreover have "prefixes (xs@[x]) = (prefixes xs) @ [xs@[x]]"
+    by (metis prefixes.elims snoc_eq_iff_butlast)
+  ultimately have *: "set (prefixes (xs@[x])) = {xs'. \<exists>xs''. xs' @ xs'' = xs} \<union> {xs@[x]}"
+    by auto
+  
+  have "{xs'. \<exists>xs''. xs' @ xs'' = xs} = {xs'. \<exists>xs''. xs' @ xs'' @ [x] = xs @[x]}"
+    by force
+  then have "{xs'. \<exists>xs''. xs' @ xs'' = xs} = {xs'. \<exists>xs''. xs' @ xs'' = xs@[x] \<and> xs'' \<noteq> []}"
+    by (metis (no_types, hide_lams) append.assoc snoc_eq_iff_butlast)
+  moreover have "{xs@[x]} = {xs'. \<exists>xs''. xs' @ xs'' = xs@[x] \<and> xs'' = []}"
+    by auto
+  ultimately show ?case 
+    using * by force
 qed
+
   
 
 
