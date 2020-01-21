@@ -82,19 +82,45 @@ next
 qed
 
 
+(* TODO: review Petrenko/Yevtushenko *)
+
+(* rework sketch:
+  1.) calculate d-r states with preambles (set DR of (q,P))
+  2.) calculate traversal sequences from d-r states (set DRT of (q,P,p,D) where D is the set satisfying the abortion criterion)
+  3.1.) for all (q,P,p,D) calculate prefixes p1 < p2 of p s.t. their targets (from q) are in D
+        \<rightarrow> store (q,P,p1,p2,A), where A is an ATC r-d-ing the targets
+  3.2.) for all (q,P,p,D) calculate prefixes p1 of p and (q',P') such that the target of p1 (from q) and q1 are in D
+        \<rightarrow> store (q,P,p1,q',P',A)
+  3.3.) for all (q,P) and (q',P') such that q and q' are r-d (better: in some D actually used)
+        \<rightarrow> store (q,P,q',P',A)
+*)
 
 
-fun calculate_test_cases :: "('a,'b) FSM_scheme \<Rightarrow> 'a Traversal_Path \<Rightarrow> ('a,'b) ATC set" where
-  "calculate_test_cases M tp = set (concat (map (\<lambda> p1 . map (\<lambda> p2 . case calculate_state_separator_from_s_states M (target p1 (initial M)) (target p2 (initial M))
-                                                                      of None \<Rightarrow> [] | Some A \<Rightarrow> [A])
-                                                              (prefixes p1))
-                                                  (prefixes tp)))" 
+
+
+(* Test cases between two prefixes of some traversal sequence *)
+(* Function parameter f is supposed to be a function that assigns state separators to state pairs,
+   e.g. f q1 q2 = calculate_state_separator_from_s_states M q1 q2, but using pre-calculated results
+        instead of newly calculating calculate_state_separator_from_s_states all the time 
+ *)
+fun calculate_test_cases_A :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('a,'b) ATC option) \<Rightarrow> ('a,'b) Preamble \<Rightarrow> 'a Traversal_Path \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('a,'b) ATC) list" where
+  "calculate_test_cases_A q f P p = concat (map (\<lambda> ppA . [(P,fst (fst ppA), the (snd ppA)), (P,snd (fst ppA), the (snd ppA))])
+                                             (filter (\<lambda>ppA . snd ppA \<noteq> None) 
+                                                     (map (\<lambda> pp . (pp, f (target (fst pp) q) (target (snd pp) q)))
+                                                          (prefix_pairs p))))"
+
+(* TODO: test *)
+(* TODO: visualize? *)
+
+
+
 
 fun calculate_test_suite :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ('a,'b) Test_Case set" 
-  where "calculate_test_suite M m = (let MRS = maximal_repetition_sets_from_separators M 
+  where "calculate_test_suite M m = (let MRS = maximal_repetition_sets_from_separators M;
+                                         DRP  = set (d_reachable_states_with_preambles M) 
                                      in \<Union> (image (\<lambda> (q,P) . image (\<lambda> tp . (P,tp,M))
                                                                    (set (m_traversal_paths M q MRS m)))
-                                                 (set (d_reachable_states_with_preambles M))))"
+                                                 DRP))"
 
 (*
 type_synonym IO_Sequence = "(Input \<times> Output) list"
