@@ -1210,6 +1210,33 @@ lemma language_by_same_h_initial :
   using assms(1) by auto 
 
 
+lemma language_state_split :
+  assumes "io1 @ io2 \<in> LS M q1"
+  obtains  p1 p2 where "path M q1 p1" and "path M (target p1 q1) p2"  and "p_io p1 = io1" and "p_io p2 = io2"
+proof -
+  obtain p12 where "path M q1 p12" and "p_io p12 = io1 @ io2"
+    using assms unfolding LS.simps by auto
+
+  let ?p1 = "take (length io1) p12"
+  let ?p2 = "drop (length io1) p12"
+
+  have "p12 = ?p1 @ ?p2" 
+    by auto
+  then have "path M q1 (?p1 @ ?p2)"
+    using \<open>path M q1 p12\<close> by auto
+
+  have "path M q1 ?p1" and "path M (target ?p1 q1) ?p2"
+    using path_append_elim[OF \<open>path M q1 (?p1 @ ?p2)\<close>] by blast+
+  moreover have "p_io ?p1 = io1"
+    using \<open>p12 = ?p1 @ ?p2\<close> \<open>p_io p12 = io1 @ io2\<close>
+    by (metis append_eq_conv_conj take_map)
+  moreover have "p_io ?p2 = io2"
+    using \<open>p12 = ?p1 @ ?p2\<close> \<open>p_io p12 = io1 @ io2\<close>
+    by (metis (no_types) \<open>p_io p12 = io1 @ io2\<close> append_eq_conv_conj drop_map) 
+  ultimately show ?thesis using that by blast
+qed
+
+
 
 subsection \<open> Basic FSM properties \<close>
 
@@ -2340,6 +2367,83 @@ next
 qed
 
 
+lemma observable_io_targets_language :
+  assumes "io1 @ io2 \<in> LS M q1"
+  and     "observable M"
+  and     "q2 \<in> io_targets M io1 q1"
+shows "io2 \<in> LS M q2" 
+proof -
+  obtain p1 p2 where "path M q1 p1" and "path M (target p1 q1) p2"  and "p_io p1 = io1" and "p_io p2 = io2"
+    using language_state_split[OF assms(1)] by blast
+  then have "io1 \<in> LS M q1" and "io2 \<in> LS M (target p1 q1)"
+    by auto
+  
+  have "target p1 q1 \<in> io_targets M io1 q1"
+    using \<open>path M q1 p1\<close> \<open>p_io p1 = io1\<close>
+    unfolding io_targets.simps by blast
+  then have "target p1 q1 = q2"
+    using observable_io_targets[OF assms(2) \<open>io1 \<in> LS M q1\<close>]
+    by (metis assms(3) singletonD) 
+  then show ?thesis
+    using \<open>io2 \<in> LS M (target p1 q1)\<close> by auto
+qed
+
+
+lemma io_targets_next :
+  assumes "t \<in> h M"
+  shows "io_targets M io (t_target t) \<subseteq> io_targets M (p_io [t] @ io) (t_source t)"
+unfolding io_targets.simps
+proof 
+  fix q assume "q \<in> {target p (t_target t) |p. path M (t_target t) p \<and> p_io p = io}"
+  then obtain p where "path M (t_target t) p \<and> p_io p = io \<and> target p (t_target t) = q"
+    by auto
+  then have "path M (t_source t) (t#p) \<and> p_io (t#p) = p_io [t] @ io \<and> target (t#p) (t_source t) = q"
+    using FSM.path.cons[OF assms] by auto
+  then show "q \<in> {target p (t_source t) |p. path M (t_source t) p \<and> p_io p = p_io [t] @ io}"
+    by blast
+qed
+  
+
+
+
+lemma observable_io_targets_next :
+  assumes "observable M"
+  and     "t \<in> h M"
+shows "io_targets M (p_io [t] @ io) (t_source t) = io_targets M io (t_target t)" 
+proof 
+  show "io_targets M (p_io [t] @ io) (t_source t) \<subseteq> io_targets M io (t_target t)"
+  proof 
+    fix q assume "q \<in> io_targets M (p_io [t] @ io) (t_source t)"
+    then obtain p where "q = target p (t_source t)" and "path M (t_source t) p" and "p_io p = p_io [t] @ io"
+      unfolding io_targets.simps by blast
+    then have "q = t_target (last p)" unfolding target.simps visited_states.simps
+      using last_map by auto 
+
+    obtain t' p' where "p = t' # p'"
+      using \<open>p_io p = p_io [t] @ io\<close> by auto
+    then have "t' \<in> h M" and "t_source t' = t_source t"
+      using \<open>path M (t_source t) p\<close> by auto
+    moreover have "t_input t' = t_input t" and "t_output t' = t_output t"
+      using \<open>p = t' # p'\<close> \<open>p_io p = p_io [t] @ io\<close> by auto
+    ultimately have "t' = t"
+      using \<open>t \<in> h M\<close> \<open>observable M\<close> unfolding observable.simps
+      by (meson prod.expand) 
+
+    then have "path M (t_target t) p'"
+      using \<open>path M (t_source t) p\<close> \<open>p = t' # p'\<close> by auto
+    moreover have "p_io p' = io"
+      using \<open>p_io p = p_io [t] @ io\<close> \<open>p = t' # p'\<close> by auto
+    moreover have "q = target p' (t_target t)"
+      using \<open>q = target p (t_source t)\<close> \<open>p = t' # p'\<close> \<open>t' = t\<close> by auto
+    ultimately show "q \<in> io_targets M io (t_target t)"
+      by auto
+  qed
+
+  show "io_targets M io (t_target t) \<subseteq> io_targets M (p_io [t] @ io) (t_source t)"
+    using io_targets_next[OF assms(2)] by assumption
+qed
+
+
 subsection \<open>Conformity Relations\<close>
 
 fun is_io_reduction_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
@@ -2761,6 +2865,102 @@ lemma submachine_from_h_origin :
   and     "q \<in> nodes M"
 shows "t \<in> h M"
   by (meson assms contra_subsetD from_FSM_h submachine_h)
+
+
+lemma from_FSM_transitions :
+  "transitions (from_FSM M q) = transitions M" by auto 
+
+lemma from_from[simp] : "from_FSM (from_FSM M q1) q1' = from_FSM M q1'" by auto
+
+lemma from_FSM_completely_specified : 
+  assumes "q \<in> nodes M"
+  and     "completely_specified M"
+shows "completely_specified (from_FSM M q)"
+  using from_FSM_h[OF assms(1)] from_FSM_simps(2)[of M q] from_FSM_nodes[OF assms(1)] unfolding completely_specified.simps 
+  by (metis (no_types, hide_lams) assms(2) completely_specified_alt_def from_FSM_h from_FSM_simps(2) from_FSM_transition_initial from_from  fst_eqD set_rev_mp snd_eqD)
+
+
+lemma from_FSM_single_input : 
+  assumes "q \<in> nodes M"
+  and     "single_input M"
+shows "single_input (from_FSM M q)"
+  using from_FSM_h[OF assms(1)] unfolding single_input.simps 
+  by (meson assms(2) rev_subsetD single_input.simps)
+
+
+lemma from_FSM_acyclic :
+  assumes "q \<in> nodes M"
+  and     "acyclic M"
+shows "acyclic (from_FSM M q)"
+  using acyclic_paths_from_nodes[OF assms(2) from_FSM_path[OF assms(1)], of "initial (from_FSM M q)"] unfolding acyclic.simps by blast
+
+
+lemma from_FSM_observable :
+  assumes "observable M"
+  and     "q \<in> nodes M"
+shows "observable (from_FSM M q)"
+  using from_FSM_h[OF assms(2)] assms(1) unfolding observable.simps by blast
+
+
+lemma observable_language_next :
+  assumes "io#ios \<in> LS M (t_source t)"
+  and     "observable M"
+  and     "t \<in> h M"
+  and     "t_input t = fst io"
+  and     "t_output t = snd io"
+shows "ios \<in> L (from_FSM M (t_target t))"
+proof -
+  obtain p where "path M (t_source t) p" and "p_io p = io#ios"
+    using assms(1)
+  proof -
+    assume a1: "\<And>p. \<lbrakk>path M (t_source t) p; p_io p = io # ios\<rbrakk> \<Longrightarrow> thesis"
+    obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+      "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
+      by moura
+    then have "\<exists>ps. path M (t_source t) ps \<and> p_io ps = io # ios"
+      using assms(1) by auto
+    then show ?thesis
+      using a1 by meson
+  qed 
+  then obtain t' p' where "p = t' # p'"
+    by auto
+  then have "t' \<in> h M" and "t_source t' = t_source t" and "t_input t' = fst io" and "t_output t' = snd io" 
+    using \<open>path M (t_source t) p\<close> \<open>p_io p = io#ios\<close> by auto
+  then have "t = t'"
+    using assms(2,3,4,5) unfolding observable.simps
+    by (metis (no_types, hide_lams) prod.expand) 
+
+  then have "path M (t_target t) p'" and "p_io p' = ios"
+    using \<open>p = t' # p'\<close> \<open>path M (t_source t) p\<close> \<open>p_io p = io#ios\<close> by auto
+  then have "path (from_FSM M (t_target t)) (initial (from_FSM M (t_target t))) p'"
+    using from_FSM_path_initial[OF wf_transition_target[OF \<open>t \<in> h M\<close>]] by auto
+
+  then show ?thesis using \<open>p_io p' = ios\<close> by auto
+qed
+
+lemma from_FSM_language :
+  assumes "q \<in> nodes M"
+  shows "L (from_FSM M q) = LS M q"
+  using from_FSM_path_initial[OF assms] unfolding LS.simps by blast
+
+
+lemma language_state_prepend_transition : 
+  assumes "io \<in> LS (from_FSM A (t_target t)) (initial (from_FSM A (t_target t)))"
+  and     "t \<in> h A"
+shows "p_io [t] @ io \<in> LS A (t_source t)" 
+proof -
+  obtain p where "path (from_FSM A (t_target t)) (initial (from_FSM A (t_target t))) p"
+           and   "p_io p = io"
+    using assms(1) unfolding LS.simps by blast
+  then have "path A (t_target t) p"
+    using from_FSM_path_initial[OF wf_transition_target[OF assms(2)]] by auto
+  then have "path A (t_source t) (t # p)"
+    using assms(2) by auto
+  then show ?thesis 
+    using \<open>p_io p = io\<close> unfolding LS.simps
+    by force 
+qed
+
 
 subsection \<open>Filtering Transitions\<close>
 

@@ -898,10 +898,7 @@ lemma from_FSM_product_outputs :
 lemma from_FSM_product_initial : 
   "initial (product (from_FSM M q1) (from_FSM M q2)) = (q1,q2)" by auto
 
-lemma from_FSM_transitions :
-  "transitions (from_FSM M q) = transitions M" by auto 
 
-lemma from_from[simp] : "from_FSM (from_FSM M q1) q1' = from_FSM M q1'" by auto
 
 lemma product_from_next' :
   assumes "t \<in> h (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
@@ -1083,6 +1080,114 @@ proof -
          target [] (initial (from_FSM M q2)) = q2 \<and> p_io [] = p_io []" by auto
   ultimately show ?thesis by blast
 qed
+
+(* TODO: move *)
+lemma product_observable :
+  assumes "observable M1"
+  and     "observable M2"
+shows "observable (product M1 M2)" (is "observable ?P")
+proof -
+  have "\<And> t1 t2 . t1 \<in> h ?P \<Longrightarrow> t2 \<in> h ?P \<Longrightarrow> t_source t1 = t_source t2 \<Longrightarrow> t_input t1 = t_input t2 \<Longrightarrow> t_output t1 = t_output t2 \<Longrightarrow> t_target t1 = t_target t2"
+  proof -
+    fix t1 t2 assume "t1 \<in> h ?P" and "t2 \<in> h ?P" and "t_source t1 = t_source t2" and "t_input t1 = t_input t2" and "t_output t1 = t_output t2"
+
+    let ?t1L = "(fst (t_source t1), t_input t1, t_output t1, fst (t_target t1))"
+    let ?t1R = "(snd (t_source t1), t_input t1, t_output t1, snd (t_target t1))"
+    let ?t2L = "(fst (t_source t2), t_input t2, t_output t2, fst (t_target t2))"
+    let ?t2R = "(snd (t_source t2), t_input t2, t_output t2, snd (t_target t2))"
+
+    have "t_target ?t1L = t_target ?t2L"
+      using product_transition_split(1)[OF \<open>t1 \<in> h ?P\<close>]
+            product_transition_split(1)[OF \<open>t2 \<in> h ?P\<close>]
+            \<open>observable M1\<close> 
+            \<open>t_source t1 = t_source t2\<close>
+            \<open>t_input t1 = t_input t2\<close>
+            \<open>t_output t1 = t_output t2\<close> by auto
+    moreover have "t_target ?t1R = t_target ?t2R"
+      using product_transition_split(2)[OF \<open>t1 \<in> h ?P\<close>]
+            product_transition_split(2)[OF \<open>t2 \<in> h ?P\<close>]
+            \<open>observable M2\<close> 
+            \<open>t_source t1 = t_source t2\<close>
+            \<open>t_input t1 = t_input t2\<close>
+            \<open>t_output t1 = t_output t2\<close> by auto
+    ultimately show "t_target t1 = t_target t2"
+      by (metis prod.exhaust_sel snd_conv) 
+  qed
+  then show ?thesis unfolding observable.simps by blast
+qed
+
+
+lemma product_observable_self_transitions :
+  assumes "q \<in> nodes (product M M)"
+  and     "observable M"
+shows "fst q = snd q"
+proof -
+  let ?P = "product M M"
+  
+
+  have "\<And> p . path ?P (initial ?P) p \<Longrightarrow> fst (target p (initial ?P)) = snd (target p (initial ?P))"
+  proof -
+    fix p assume "path ?P (initial ?P) p"
+    then show "fst (target p (initial ?P)) = snd (target p (initial ?P))"
+    proof (induction p rule: rev_induct)
+      case Nil
+      then show ?case
+        by (metis append.right_neutral path_append_target path_nil_elim path_to_node product_simps(1) snd_swap swap_simp) 
+    next
+      case (snoc t p)
+
+      have "path ?P (initial ?P) p" and "path ?P (target p (initial ?P)) [t]"
+        using path_append_elim[of ?P "initial ?P" p "[t]", OF \<open>path (product M M) (initial (product M M)) (p @ [t])\<close>] by blast+
+      then have "t \<in> h ?P" 
+        by blast
+      have "t_source t = target p (initial ?P)"
+        by (metis \<open>path (product M M) (target p (initial (product M M))) [t]\<close> list.distinct(1) list.sel(1) path.simps)
+        
+      let ?t1 = "(fst (t_source t), t_input t, t_output t, fst (t_target t))"
+      let ?t2 = "(snd (t_source t), t_input t, t_output t, snd (t_target t))"
+      have "?t1 \<in> h M" and "?t2 \<in> h M"
+        using product_transition_split[OF \<open>t \<in> h ?P\<close>] by auto
+      moreover have "t_source ?t1 = t_source ?t2" 
+        using \<open>t_source t = target p (initial ?P)\<close> snoc.IH[OF \<open>path ?P (initial ?P) p\<close>]
+        by (metis fst_conv)
+      moreover have "t_input ?t1 = t_input ?t2"
+        by auto
+      moreover have "t_output ?t1 = t_output ?t2"
+        by auto
+      ultimately have "t_target ?t1 = t_target ?t2"
+        using \<open>observable M\<close> unfolding observable.simps by blast
+      then have "fst (t_target t) = snd (t_target t)"
+        by auto
+      then show ?case unfolding target.simps visited_states.simps
+      proof -
+        show "fst (last (initial (product M M) # map t_target (p @ [t]))) = snd (last (initial (product M M) # map t_target (p @ [t])))"
+          using \<open>fst (t_target t) = snd (t_target t)\<close> last_map last_snoc length_append_singleton length_map by force
+      qed
+    qed
+  qed
+
+  then show ?thesis
+    by (metis assms(1) path_to_node)
+qed
+
+lemma zip_path_eq_left :
+  assumes "length xs1 = length xs2"
+  and     "length xs2 = length ys1"
+  and     "length ys1 = length ys2"
+  and     "zip_path xs1 xs2 = zip_path ys1 ys2"
+shows "xs1 = ys1"
+  using assms by (induction xs1 xs2 ys1 ys2 rule: list_induct4; auto)
+
+
+
+lemma zip_path_eq_right :
+  assumes "length xs1 = length xs2"
+  and     "length xs2 = length ys1"
+  and     "length ys1 = length ys2"
+  and     "p_io xs2 = p_io ys2"
+  and     "zip_path xs1 xs2 = zip_path ys1 ys2"
+shows "xs2 = ys2"
+  using assms by (induction xs1 xs2 ys1 ys2 rule: list_induct4; auto)
 
 
 (* TODO: check *)

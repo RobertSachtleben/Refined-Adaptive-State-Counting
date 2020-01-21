@@ -1093,4 +1093,10 @@ proof (rule ccontr)
 qed
 
 
+
+lemma map_set : 
+  assumes "x \<in> set xs"
+  shows "f x \<in> set (map f xs)" using assms by auto
+
+
 end
