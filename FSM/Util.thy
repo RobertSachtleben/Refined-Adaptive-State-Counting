@@ -910,6 +910,50 @@ lemma subset_list_set : "subset_list xs ys = ((set xs) \<subseteq> (set ys))"
   by (simp add: Ball_set subset_code(1)) 
 
 
+subsection \<open>Calculating Distinct Non-Reflexive Pairs over List Elements\<close> 
+
+fun non_refl_dist_pairs :: "'a list \<Rightarrow> ('a \<times> 'a) list" where
+  "non_refl_dist_pairs [] = []" |
+  "non_refl_dist_pairs (x#xs) = (map (\<lambda> y. (x,y)) xs) @ non_refl_dist_pairs xs"
+
+value "non_refl_dist_pairs [1,2,3::nat]"
+
+lemma non_refl_dist_pairs_subset : "set (non_refl_dist_pairs xs) \<subseteq> (set xs) \<times> (set xs)"
+  by (induction xs; auto)
+
+lemma non_refl_dist_pairs_elems_distinct:
+  assumes "distinct xs"
+  and     "(x,y) \<in> set (non_refl_dist_pairs xs)"
+shows "x \<in> set xs" 
+and   "y \<in> set xs"
+and   "x \<noteq> y"
+proof -
+  show "x \<in> set xs" and "y \<in> set xs"
+    using non_refl_dist_pairs_subset assms(2) by auto
+  show "x \<noteq> y"
+    using assms by (induction xs; auto)
+qed
+
+lemma non_refl_dist_pairs_elems :
+  assumes "x \<in> set xs"
+  and     "y \<in> set xs"
+  and     "x \<noteq> y"
+shows "(x,y) \<in> set (non_refl_dist_pairs xs) \<or> (y,x) \<in> set (non_refl_dist_pairs xs)"
+  using assms by (induction xs; auto)
+
+
+
+lemma non_refl_dist_pairs_elems :
+  assumes "distinct xs"
+  and     "(x,y) \<in> set (non_refl_dist_pairs xs)"
+shows "(y,x) \<notin> set (non_refl_dist_pairs xs)"
+  using assms non_refl_dist_pairs_elems_distinct[OF assms] 
+
+(* TODO*)
+
+end (*
+
+
 subsection \<open>Other Lemmata\<close>
 
 lemma list_append_subset3 : "set xs1 \<subseteq> set ys1 \<Longrightarrow> set xs2 \<subseteq> set ys2 \<Longrightarrow> set xs3 \<subseteq> set ys3 \<Longrightarrow> set (xs1@xs2@xs3) \<subseteq> set(ys1@ys2@ys3)" by auto
