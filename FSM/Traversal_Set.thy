@@ -13,6 +13,15 @@ fun m_traversal_paths_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rig
 fun m_traversal_paths :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
   "m_traversal_paths M q D m = m_traversal_paths_up_to_length M q D m (Suc (size M * m))"
 
+(* variation on traversal_paths that also retrieves the set of r-d states that satisfied the termination criterion *)
+fun m_traversal_paths_with_witness_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
+  "m_traversal_paths_with_witness_up_to_length M q D m k = paths_up_to_length_or_condition_with_witness M q k (\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D) []"
+
+fun m_traversal_paths_with_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
+  "m_traversal_paths_with_witness M q D m = m_traversal_paths_with_witness_up_to_length M q D m (Suc (size M * m))"
+
+
+
 value "m_traversal_paths_up_to_length M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 10000"
 value "m_traversal_paths_up_to_length M_ex_H 3 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 10000"
 value "m_traversal_paths_up_to_length M_ex_H 4 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 10000"
@@ -23,7 +32,7 @@ value "m_traversal_paths M_ex_H 4 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 "
 
 value "m_traversal_paths_up_to_length M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 4 10000"
 
-
+value "m_traversal_paths_with_witness M_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4"
 
 
   

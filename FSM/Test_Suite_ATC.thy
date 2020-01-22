@@ -98,6 +98,8 @@ qed
 
 
 
+
+
 (* Test cases between two prefixes of some traversal sequence *)
 (* Function parameter f is supposed to be a function that assigns state separators to state pairs,
    e.g. f q1 q2 = calculate_state_separator_from_s_states M q1 q2, but using pre-calculated results

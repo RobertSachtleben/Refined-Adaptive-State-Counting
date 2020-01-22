@@ -3753,4 +3753,229 @@ proof -
 qed
 
 
+
+
+
+
+fun paths_up_to_length_or_condition_with_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a Transition list \<Rightarrow> 'c option) \<Rightarrow> 'a Transition list \<Rightarrow> ('a Transition list \<times> 'c) list" where
+  "paths_up_to_length_or_condition_with_witness M q 0 f pref = (case f pref of
+    Some x \<Rightarrow> [(pref,x)] |
+    None   \<Rightarrow> [])" | 
+  "paths_up_to_length_or_condition_with_witness M q (Suc k) f pref = (case f pref of
+    Some x \<Rightarrow> [(pref,x)] |
+    None   \<Rightarrow> (concat (map (\<lambda> t . (paths_up_to_length_or_condition_with_witness M q k f (pref@[t])))
+                           (filter (\<lambda> t . t_source t = target pref q) (wf_transitions M)))))"
+
+
+
+
+lemma paths_up_to_length_or_condition_with_witness_path_set :
+  assumes "path M q pref" 
+  shows "set (paths_up_to_length_or_condition_with_witness M q k f pref) = {(pref@p,x) | p x . path M q (pref@p) \<and> length p \<le> k \<and> f (pref@p) = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> f (pref@p') = None)}"
+using assms proof (induction k arbitrary: q pref)
+  case 0
+  then show ?case 
+      using 0 assms by force
+next
+  case (Suc k)
+
+  show ?case proof (cases "f pref")
+    case (Some a)
+    then show ?thesis using Suc.prems by force
+  next
+    case None
+    then have "set (paths_up_to_length_or_condition_with_witness M q (Suc k) f pref) = 
+                  set ((concat (map
+              (\<lambda> t . (paths_up_to_length_or_condition_with_witness M q k f (pref@[t])))
+              (filter (\<lambda> t . t_source t = target pref q) (wf_transitions M)))))" 
+      unfolding paths_up_to_length_or_condition.simps by force
+    also have "\<dots> = \<Union>{set (paths_up_to_length_or_condition_with_witness M q k f (pref@[t])) | t . t \<in> h M \<and> t_source t = target pref q}"
+      by force
+    
+
+    have *: "\<And> t . t \<in> h M \<Longrightarrow> t_source t = target pref q \<Longrightarrow> set (paths_up_to_length_or_condition_with_witness M q k f (pref@[t])) 
+                                                            =  {((pref @ [t]) @ p, x) | p x.
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)}"
+      by (simp add: Suc.IH Suc.prems path_append_last)
+
+    
+
+    from None have "set (paths_up_to_length_or_condition_with_witness M q (Suc k) f pref) = 
+                  set ((concat (map
+              (\<lambda> t . (paths_up_to_length_or_condition_with_witness M q k f (pref@[t])))
+              (filter (\<lambda> t . t_source t = target pref q) (wf_transitions M)))))" 
+      unfolding paths_up_to_length_or_condition.simps by force
+    moreover have "\<dots> = \<Union>{set (paths_up_to_length_or_condition_with_witness M q k f (pref@[t])) | t . t \<in> h M \<and> t_source t = target pref q}"
+      by force
+    moreover have "\<dots> = \<Union>{{((pref @ [t]) @ p, x) | p x .
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)} | t . t \<in> h M \<and> t_source t = target pref q}"
+      using * by (metis (no_types, lifting))
+    ultimately have "set (paths_up_to_length_or_condition_with_witness M q (Suc k) f pref) = \<Union>{{((pref @ [t]) @ p, x) | p x.
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)} | t . t \<in> h M \<and> t_source t = target pref q}"
+      by simp
+    moreover have "\<Union>{{((pref @ [t]) @ p, x) | p x.
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)} | t . t \<in> h M \<and> t_source t = target pref q}
+                  = {(pref@p, x) | p x . path M q (pref@p) \<and> length p \<le> Suc k \<and> f (pref@p) = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> f (pref@p') = None)}"
+    proof -
+      let ?UN = "{{((pref @ [t]) @ p, x) |p x.
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)} | t . t \<in> h M \<and> t_source t = target pref q}"
+      let ?UN' = "{((pref @ [t]) @ p, x) |p t x.
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)}"
+
+      have **: "\<And> p t . path M q ((pref @ [t]) @ p) \<Longrightarrow> t \<in> h M \<and> t_source t = target pref q"
+        by auto
+      
+      have "\<Union>?UN = ?UN'"
+      proof -
+        have "\<Union>?UN \<subseteq> ?UN'"
+        proof 
+          fix px assume "px \<in> \<Union>?UN"
+          then obtain P where "px \<in> P" and "P \<in> ?UN"
+            by (meson UnionE)
+            
+          then obtain t where "t \<in> h M \<and> t_source t = target pref q"
+                          and "P = {((pref @ [t]) @ p, x) |p x.
+                                     path M q ((pref @ [t]) @ p) \<and>
+                                     length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)}"
+            by auto
+          then obtain p' x where "px = ((pref @ [t]) @ p', x)" and "path M q ((pref @ [t]) @ p')" and 
+                 "length p' \<le> k \<and>
+                 f ((pref @ [t]) @ p') = Some x \<and>
+                 (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p'') = None)"
+            using \<open>px \<in> P\<close>
+          proof -
+            assume a1: "\<And>p' x. \<lbrakk>px = ((pref @ [t]) @ p', x); path M q ((pref @ [t]) @ p'); length p' \<le> k \<and> f ((pref @ [t]) @ p') = Some x \<and> (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p'') = None)\<rbrakk> \<Longrightarrow> thesis"
+            have "\<exists>ps c. px = ((pref @ [t]) @ ps, c) \<and> path M q ((pref @ [t]) @ ps) \<and> length ps \<le> k \<and> f ((pref @ [t]) @ ps) = Some c \<and> (\<forall>psa psb. ps = psa @ psb \<and> psb \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ psa) = None)"
+              using \<open>P = {((pref @ [t]) @ p, x) |p x. path M q ((pref @ [t]) @ p) \<and> length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)}\<close> \<open>px \<in> P\<close> by force
+            then show ?thesis
+              using a1 by moura
+          qed 
+
+          then show "px \<in> ?UN'" by fastforce
+        qed
+
+        moreover have "?UN' \<subseteq> \<Union>?UN"
+        proof 
+          fix px assume "px \<in> ?UN'"
+          then obtain t p' x where "px = ((pref @ [t]) @ p',x)" and "path M q ((pref @ [t]) @ p')" and 
+                 "length p' \<le> k \<and>
+                 f ((pref @ [t]) @ p') = Some x \<and>
+                 (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p'') = None)"
+          proof -
+            assume a1: "\<And>t p' x. \<lbrakk>px = ((pref @ [t]) @ p', x); path M q ((pref @ [t]) @ p'); length p' \<le> k \<and> f ((pref @ [t]) @ p') = Some x \<and> (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p'') = None)\<rbrakk> \<Longrightarrow> thesis"
+            have "\<exists>ps p c. px = ((pref @ [p]) @ ps, c) \<and> path M q ((pref @ [p]) @ ps) \<and> length ps \<le> k \<and> f ((pref @ [p]) @ ps) = Some c \<and> (\<forall>psa psb. ps = psa @ psb \<and> psb \<noteq> [] \<longrightarrow> f ((pref @ [p]) @ psa) = None)"
+              using \<open>px \<in> {((pref @ [t]) @ p, x) |p t x. path M q ((pref @ [t]) @ p) \<and> length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)}\<close> by fastforce
+            then show ?thesis
+              using a1 by (metis (no_types))
+          qed 
+          then have px_elem: "px \<in> {((pref @ [t]) @ p,x) |p x.
+                      path M q ((pref @ [t]) @ p) \<and>
+                      length p \<le> k \<and>
+                      f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)}" 
+            by auto
+          then show "px \<in> \<Union>?UN"
+            using **[OF \<open> path M q ((pref @ [t]) @ p')\<close>]  
+          proof -
+            have f1: "\<exists>ps. px = ((pref @ [t]) @ ps,x) \<and> path M q ((pref @ [t]) @ ps) \<and> length ps \<le> k \<and> f ((pref @ [t]) @ ps) = Some x \<and> (\<forall>psa psb. ps = psa @ psb \<and> psb \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ psa) = None)"
+              using px_elem \<open>px = ((pref @ [t]) @ p',x)\<close> by force
+            have f2: "{((pref @ [t]) @ ps, x) |ps x. path M q ((pref @ [t]) @ ps) \<and> length ps \<le> k \<and> f ((pref @ [t]) @ ps) = Some x \<and> (\<forall>psa psb. ps = psa @ psb \<and> psb \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ psa) = None)} \<in> {{((pref @ [p]) @ ps,x) |ps x. path M q ((pref @ [p]) @ ps) \<and> length ps \<le> k \<and> f ((pref @ [p]) @ ps) = Some x \<and> (\<forall>psa psb. ps = psa @ psb \<and> psb \<noteq> [] \<longrightarrow> f ((pref @ [p]) @ psa) = None)} | p. p \<in> set (wf_transitions M) \<and> t_source p = target pref q}"
+              using \<open>t \<in> set (wf_transitions M) \<and> t_source t = target pref q\<close> by blast
+            have "px \<in> {((pref @ [t]) @ ps,x) |ps x. path M q ((pref @ [t]) @ ps) \<and> length ps \<le> k \<and> f ((pref @ [t]) @ ps) = Some x \<and> (\<forall>psa psb. ps = psa @ psb \<and> psb \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ psa) = None)}"
+              using f1 by fastforce
+            then show ?thesis
+              using f2 by (meson Union_iff)
+          qed 
+        qed
+        
+        ultimately show ?thesis by blast
+      qed
+
+
+
+      let ?UN'' = "{((pref @ [t]) @ p,x) |p t x.
+                           path M q ((pref @ [t]) @ p) \<and>
+                           length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x\<and> (\<forall>p' p''. (t#p) = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f (pref @ p') = None)}"
+      have "\<And> t p . (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None) \<Longrightarrow> (\<forall>p' p''. (t#p) = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f (pref @ p') = None)"
+        using None by (metis (no_types, hide_lams) append.assoc append_Nil append_Nil2 append_eq_Cons_conv) 
+      moreover have "\<And> t p . (\<forall>p' p''. (t#p) = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f (pref @ p') = None) \<Longrightarrow> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None)"
+        using None by (metis (no_types, hide_lams) append.assoc append_Nil append_eq_Cons_conv)
+      ultimately have "\<And> t p . (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f ((pref @ [t]) @ p') = None) = (\<forall>p' p''. (t#p) = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f (pref @ p') = None)"
+        by auto
+      then have "?UN' = ?UN''" by auto
+      
+
+      let ?P = "{((pref@p),x) | p x. path M q (pref@p) \<and> length p \<le> Suc k \<and> f (pref@p) = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> f (pref@p') = None)}"
+      have "?UN'' = ?P"
+      proof -
+        have "?UN'' \<subseteq> ?P" 
+        proof 
+          fix px assume "px \<in> ?UN''"
+          then obtain t p' x where "px = ((pref @ [t]) @ p',x)" and "path M q ((pref @ [t]) @ p')" and 
+                 "length p' \<le> k \<and>
+                 f ((pref @ [t]) @ p') = Some x \<and>
+                 (\<forall>p'' p'''. t # p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f (pref @ p'') = None)"
+          proof -
+            assume a1: "\<And>t p' x. \<lbrakk>px = ((pref @ [t]) @ p', x); path M q ((pref @ [t]) @ p'); length p' \<le> k \<and> f ((pref @ [t]) @ p') = Some x \<and> (\<forall>p'' p'''. t # p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f (pref @ p'') = None)\<rbrakk> \<Longrightarrow> thesis"
+            have "\<exists>ps p c. px = ((pref @ [p]) @ ps, c) \<and> path M q ((pref @ [p]) @ ps) \<and> length ps \<le> k \<and> f ((pref @ [p]) @ ps) = Some c \<and> (\<forall>psa psb. p # ps = psa @ psb \<and> psb \<noteq> [] \<longrightarrow> f (pref @ psa) = None)"
+              using \<open>px \<in> {((pref @ [t]) @ p, x) |p t x. path M q ((pref @ [t]) @ p) \<and> length p \<le> k \<and> f ((pref @ [t]) @ p) = Some x \<and> (\<forall>p' p''. t # p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> f (pref @ p') = None)}\<close> by fastforce
+            then show ?thesis
+              using a1 by (metis (no_types))
+          qed
+          then have "path M q (pref @ ([t] @ p')) \<and>
+                    length ([t] @ p') \<le> Suc k \<and> f (pref @ ([t] @ p')) = Some x \<and> (\<forall>p'' p'''. ([t] @ p') = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f (pref @ p'') = None)"
+            by auto
+          moreover note \<open>px = ((pref @ [t]) @ p',x)\<close> 
+          ultimately show "px \<in> ?P" by auto
+        qed
+        moreover have "?P \<subseteq> ?UN''"
+        proof 
+          fix px assume "px \<in> ?P"
+          then obtain p' x  where "px = (pref @ p',x)" 
+                           and ***: "path M q (pref @ p')
+                                       \<and> length p' \<le> Suc k
+                                       \<and> f (pref @ p') = Some x
+                                       \<and> (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> f (pref @ p'') = None)"
+            by blast
+          
+          then have "p' \<noteq> []"
+            using None by auto
+          then obtain t p'' where "p' = [t] @ p''"
+            by (metis append_Cons append_Nil list.exhaust) 
+          then have "path M q ((pref @ [t]) @ p'') 
+                      \<and> length p'' \<le> k
+                      \<and> f ((pref @ [t]) @ p'') = Some x \<and> (\<forall>p''' p''''. t # p'' = p''' @ p'''' \<and> p'''' \<noteq> [] \<longrightarrow> f (pref @ p''') = None)"
+            using *** by auto
+          then have "((pref @ [t]) @ p'',x) \<in> ?UN''"
+            by fastforce
+          then show "px \<in> ?UN''"
+            using \<open>px = (pref @ p',x)\<close> \<open>p' = [t] @ p''\<close> by auto
+        qed
+        ultimately show ?thesis by blast
+      qed
+          
+      show "\<Union>?UN = ?P"
+        using \<open>\<Union>?UN = ?UN'\<close> \<open>?UN' = ?UN''\<close> \<open>?UN'' = ?P\<close> by auto
+    qed
+    ultimately show ?thesis by auto
+  qed
+qed
+    
+
+lemma paths_up_to_length_or_condition_with_witness_path_set_nil :
+  assumes "q \<in> nodes M" 
+  shows "set (paths_up_to_length_or_condition_with_witness M q k f []) = { (p,x) . path M q p \<and> length p \<le> k \<and> f p = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> f p' = None)}"
+proof -
+  have "path M q []"
+    using assms by auto
+  show ?thesis
+    using paths_up_to_length_or_condition_with_witness_path_set[OF \<open>path M q []\<close>] by auto
+qed
+
+
 end
