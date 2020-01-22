@@ -35,6 +35,196 @@ value "m_traversal_paths_up_to_length M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3}
 value "m_traversal_paths_with_witness M_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4"
 
 
+(* TODO: move *)
+lemma path_visited_states_are_nodes :
+  assumes "path M q p" 
+shows "set (map t_target p) \<subseteq> nodes M"
+using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc a p)
+  then show ?case using path_target_is_node[OF \<open>path M q (p @ [a])\<close>]
+    by (metis (mono_tags, lifting) dual_order.trans set_subset_Cons visited_states.elims visited_states_are_nodes)
+qed
+
+lemma path_length_sum :
+  assumes "path M q p" 
+  shows "length p = (\<Sum> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) p))"
+  using assms
+proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc x xs)
+  then have "length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
+    by auto
+  
+  have *: "t_target x \<in> nodes M"
+    using \<open>path M q (xs @ [x])\<close> by auto
+  then have **: "length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])) = Suc (length (filter (\<lambda>t. t_target t = t_target x) xs))"
+    by auto
+
+  have "\<And> q . q \<in> nodes M \<Longrightarrow> q \<noteq> t_target x \<Longrightarrow> length (filter (\<lambda>t. t_target t = q) (xs @ [x])) = length (filter (\<lambda>t. t_target t = q) xs)"
+    by simp
+  then have ***: "(\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs))"
+    using nodes_finite[of M]
+    by (metis (no_types, lifting) DiffE insertCI sum.cong)
+
+  have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) + (length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])))"
+    using * nodes_finite[of M]
+  proof -
+    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) (xs @ [x]))) = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) (xs @ [x])))"
+      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
+    then show ?thesis
+      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
+  qed  
+  moreover have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs)) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs)) + (length (filter (\<lambda>t. t_target t = t_target x) xs))"
+    using * nodes_finite[of M]
+  proof -
+    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) xs)) = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) xs))"
+      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
+    then show ?thesis
+      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
+  qed  
+
+  ultimately have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = Suc (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
+    using ** *** by auto
+    
+  then show ?case
+    by (simp add: \<open>length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))\<close>) 
+qed
+
+
+
+lemma m_traversal_paths_with_witness_up_to_length_max_length :
+  assumes "\<forall> q \<in> nodes M . \<exists> d \<in> set D . q \<in> fst d"
+  and     "\<forall> d \<in> set D . snd d \<subseteq> fst d"
+  and     "q \<in> nodes M"
+  and     "(p,d) \<in> set (m_traversal_paths_with_witness_up_to_length M q D m k)"
+shows "length p \<le> Suc ((size M) * m)"
+proof (rule ccontr)
+  assume "\<not> length p \<le> Suc (FSM.size M * m)"
+
+  let ?f = "(\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D)"
+
+  have "path M q []" using assms(3) by auto
+  
+  have "path M q p"
+        and "length p \<le> k"
+        and "?f p = Some d"
+        and "\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> ?f p' = None"
+    using paths_up_to_length_or_condition_with_witness_path_set_nil[OF assms(3), of k ?f] assms(4) by auto
+  
+  let ?p = "take (Suc (m * size M)) p"
+  let ?p' = "drop (Suc (m * size M)) p"
+  have "path M q ?p"
+    using \<open>path M q p\<close> using path_prefix[of M q ?p "drop (Suc (m * size M)) p"]
+    by simp
+  have "?p' \<noteq> []"
+    using \<open>\<not> length p \<le> Suc (FSM.size M * m)\<close>
+    by (simp add: mult.commute) 
+
+  have "\<exists> q \<in> nodes M . length (filter (\<lambda>t . t_target t = q) ?p) \<ge> Suc m"
+  proof (rule ccontr)
+    assume "\<not> (\<exists>q\<in>nodes M. Suc m \<le> length (filter (\<lambda>t. t_target t = q) ?p))"
+    then have "\<forall> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) ?p) < Suc m"
+      by auto
+    then have "\<forall> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) ?p) \<le> m"
+      by auto
+    
+    have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) ?p)) \<le> (\<Sum>q\<in>nodes M . m)"
+      using \<open>\<forall> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) ?p) \<le> m\<close> by (meson sum_mono) 
+    then have "length ?p \<le> m * (size M)"
+      using path_length_sum[OF \<open>path M q ?p\<close>] 
+      using nodes_finite[of M] unfolding size_def
+      by (simp add: mult.commute)
+
+    then show "False"
+      using \<open>\<not> length p \<le> Suc (FSM.size M * m)\<close>
+      by (simp add: mult.commute) 
+  qed
+
+  then obtain q where "q \<in> nodes M"
+                  and "length (filter (\<lambda> t . t_target t = q) ?p) \<ge> Suc m" 
+    by blast
+  then obtain d where "d \<in> set D"
+                  and "q \<in> fst d"
+    using assms(1) by blast
+  then have "\<And> t . t_target t = q \<Longrightarrow> t_target t \<in> fst d" by auto
+  then have "length (filter (\<lambda> t . t_target t = q) ?p) \<le> length (filter (\<lambda> t . t_target t \<in> fst d) ?p)"
+    using filter_length_weakening[of "\<lambda> t . t_target t = q" "\<lambda> t . t_target t \<in> fst d"] by auto
+  then have "Suc m \<le> length (filter (\<lambda>t. t_target t \<in> fst d) ?p)"
+    using \<open>length (filter (\<lambda> t . t_target t = q) ?p) \<ge> Suc m\<close> by auto
+  then have "?f ?p \<noteq> None"
+    using assms(2)
+  proof -
+    have "\<forall>p. find p D \<noteq> None \<or> \<not> p d"
+      by (metis \<open>d \<in> set D\<close> find_from)
+    then show ?thesis
+      using \<open>Suc m \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (Suc (m * FSM.size M)) p))\<close> diff_le_self le_trans not_less_eq_eq by blast
+  qed 
+  then obtain d' where "?f ?p = Some d'"
+    by blast
+
+  then have "p = ?p@?p' \<and> ?p' \<noteq> [] \<and> ?f ?p = Some d'"
+    using \<open>?p' \<noteq> []\<close> by auto
+
+  then show "False"
+    using \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> (?f p') = None\<close>
+    by (metis (no_types) \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None\<close> \<open>p = take (Suc (m * FSM.size M)) p @ drop (Suc (m * FSM.size M)) p \<and> drop (Suc (m * FSM.size M)) p \<noteq> [] \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (Suc (m * FSM.size M)) p))) D = Some d'\<close> option.distinct(1))
+qed
+
+
+lemma m_traversal_paths_with_witness_set :
+  assumes "\<forall> q \<in> nodes M . \<exists> d \<in> set D . q \<in> fst d"
+  and     "\<forall> d \<in> set D . snd d \<subseteq> fst d"
+  and     "q \<in> nodes M"
+  shows "set (m_traversal_paths_with_witness M q D m) = {(p,d) | p d . path M q p \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) D = Some d
+                                                                  \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None)}"
+        (is "?MTP = ?P")
+proof -
+  let ?f = "(\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D)"
+
+  have "path M q []"
+    using assms(3) by auto
+
+  have "\<And> p . p \<in> ?MTP \<Longrightarrow> p \<in> ?P"
+    using paths_up_to_length_or_condition_with_witness_path_set_nil[of  q M "(Suc (size M * m))" ?f, OF assms(3)]
+    unfolding m_traversal_paths_with_witness.simps m_traversal_paths_with_witness_up_to_length.simps by force
+  moreover have "\<And> p . p \<in> ?P \<Longrightarrow> p \<in> ?MTP"
+  proof -
+    fix px assume "px \<in> ?P"
+    then obtain p x where "px = (p,x)"
+          and p1: "path M q p"
+          and **: "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) D = Some x"
+          and ***:"(\<forall>p' p''.
+                     p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow>
+                     find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None)"
+      using prod.collapse by force
+
+    
+    then have "(p,x) \<in> set (m_traversal_paths_with_witness_up_to_length M q D m (length p))"
+      using paths_up_to_length_or_condition_with_witness_path_set_nil[of q M "length p" ?f, OF assms(3)] 
+      unfolding m_traversal_paths_with_witness_up_to_length.simps by force
+    then have "length p \<le> Suc (size M * m)"
+      using m_traversal_paths_with_witness_up_to_length_max_length[OF assms] by blast
+    
+    have "(p,x) \<in> ?MTP"
+      using \<open>path M q p\<close> \<open>length p \<le> Suc (size M * m)\<close> \<open>?f p = Some x\<close> \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> (?f p') = None\<close>
+      using paths_up_to_length_or_condition_with_witness_path_set_nil[of q M "(Suc (size M * m))" ?f]  
+      unfolding m_traversal_paths_with_witness.simps m_traversal_paths_with_witness_up_to_length.simps 
+      using assms(3) by blast 
+    then show "px \<in> ?MTP"
+      using \<open>px = (p,x)\<close> by simp
+  qed
+  ultimately show ?thesis
+    by (meson subsetI subset_antisym) 
+qed
+
+
+
+
   
 lemma m_traversal_paths_up_to_length_max_length :
   assumes "\<forall> q \<in> nodes M . \<exists> d \<in> D . q \<in> fst d"
@@ -171,43 +361,7 @@ qed
     
 
 
-lemma m_traversal_paths_set :
-  assumes "\<forall> q \<in> nodes M . \<exists> d \<in> D . q \<in> fst d"
-    and     "\<forall> d \<in> D . snd d \<subseteq> fst d"
-    and     "q \<in> nodes M"
-  shows "set (m_traversal_paths M q D m) = {p . path M q p \<and> (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))
-                                                     \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p') \<ge> Suc (m - (card (snd d)))))}"
-        (is "?MTP = ?P")
-proof -
-  let ?f = "\<lambda> p . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))"
 
-  have "path M q []"
-    using assms(3) by auto
-
-  have "\<And> p . p \<in> ?MTP \<Longrightarrow> p \<in> ?P"
-    using paths_up_to_length_or_condition_path_set_nil[of  q M "(Suc (size M * m))" ?f] assms(3) 
-    unfolding m_traversal_paths.simps m_traversal_paths_up_to_length.simps by blast
-  moreover have "\<And> p . p \<in> ?P \<Longrightarrow> p \<in> ?MTP"
-  proof -
-    fix p assume "p \<in> ?P"
-    then have "path M q p"
-          and "?f p"
-          and "\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')"
-      by blast+
-    then have "p \<in> set (m_traversal_paths_up_to_length M q D m (length p))"
-      using paths_up_to_length_or_condition_path_set_nil[of q M "length p" ?f] assms(3) by auto
-    then have "length p \<le> Suc (size M * m)"
-      using m_traversal_paths_up_to_length_max_length[OF assms] by blast
-    
-    show "p \<in> ?MTP"
-      using \<open>path M q p\<close> \<open>length p \<le> Suc (size M * m)\<close> \<open>?f p\<close> \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')\<close>
-      using paths_up_to_length_or_condition_path_set_nil[of q M "(Suc (size M * m))" ?f]  
-      unfolding m_traversal_paths.simps m_traversal_paths_up_to_length.simps
-      using assms(3) by blast 
-  qed
-  ultimately show ?thesis
-    by (meson subsetI subset_antisym) 
-qed
 
 
 

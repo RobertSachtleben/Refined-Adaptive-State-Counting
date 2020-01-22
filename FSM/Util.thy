@@ -844,6 +844,72 @@ proof -
 qed
 
 
+
+
+
+subsection \<open>Set-Operations on Lists\<close>
+
+(* TODO: use selector_lists instead? *)
+fun pow_list :: "'a list \<Rightarrow> 'a list list" where
+  "pow_list [] = [[]]" |
+  "pow_list (x#xs) = (let pxs = pow_list xs in pxs @ map (\<lambda> ys . x#ys) pxs)"
+
+value "pow_list [1,2,3::nat]"
+
+
+lemma pow_list_set :
+  "set (map set (pow_list xs)) = Pow (set xs)"
+proof (induction xs)
+case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+
+  moreover have "Pow (set (x # xs)) = Pow (set xs) \<union> (image (insert x) (Pow (set xs)))"
+    by (simp add: Pow_insert)
+    
+  moreover have "set (map set (pow_list (x#xs))) =  set (map set (pow_list xs)) \<union> (image (insert x) (set (map set (pow_list xs))))"
+  proof -
+    have "\<And> ys . ys \<in> set (map set (pow_list (x#xs))) \<Longrightarrow> ys \<in> set (map set (pow_list xs)) \<union> (image (insert x) (set (map set (pow_list xs))))" 
+    proof -
+      fix ys assume "ys \<in> set (map set (pow_list (x#xs)))"
+      then consider (a) "ys \<in> set (map set (pow_list xs))" |
+                    (b) "ys \<in> set (map set (map ((#) x) (pow_list xs)))"
+        unfolding pow_list.simps Let_def by auto
+      then show "ys \<in> set (map set (pow_list xs)) \<union> (image (insert x) (set (map set (pow_list xs))))" 
+        by (cases; auto)
+    qed
+    moreover have "\<And> ys . ys \<in> set (map set (pow_list xs)) \<union> (image (insert x) (set (map set (pow_list xs)))) \<Longrightarrow> ys \<in> set (map set (pow_list (x#xs)))"
+    proof -
+      fix ys assume "ys \<in> set (map set (pow_list xs)) \<union> (image (insert x) (set (map set (pow_list xs))))"
+      then consider (a) "ys \<in> set (map set (pow_list xs))" |
+                    (b) "ys \<in> (image (insert x) (set (map set (pow_list xs))))"
+        by blast
+      then show "ys \<in> set (map set (pow_list (x#xs)))" 
+        unfolding pow_list.simps Let_def by (cases; auto)
+    qed
+    ultimately show ?thesis by blast
+  qed
+    
+  ultimately show ?case
+    by auto 
+qed
+
+
+fun inter_list :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+  "inter_list xs ys = filter (\<lambda> x . x \<in> set ys) xs"
+
+lemma inter_list_set : "set (inter_list xs ys) = (set xs) \<inter> (set ys)"
+  by auto
+
+fun subset_list :: "'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
+  "subset_list xs ys = list_all (\<lambda> x . x \<in> set ys) xs"
+
+lemma subset_list_set : "subset_list xs ys = ((set xs) \<subseteq> (set ys))" 
+  unfolding subset_list.simps
+  by (simp add: Ball_set subset_code(1)) 
+
+
 subsection \<open>Other Lemmata\<close>
 
 lemma list_append_subset3 : "set xs1 \<subseteq> set ys1 \<Longrightarrow> set xs2 \<subseteq> set ys2 \<Longrightarrow> set xs3 \<subseteq> set ys3 \<Longrightarrow> set (xs1@xs2@xs3) \<subseteq> set(ys1@ys2@ys3)" by auto
