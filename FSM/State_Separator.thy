@@ -72,7 +72,7 @@ lemma is_state_separator_from_canonical_separator_simps :
   and   "((Inr q1) \<in> nodes S)"
   and   "((Inr q2) \<in> nodes S)"
   and   "\<And> q . q \<in> nodes S \<Longrightarrow> q \<noteq> Inr q1 \<Longrightarrow> q \<noteq> Inr q2 \<Longrightarrow> (isl q \<and> \<not> deadlock_state S q)"
-  and   "\<And> q x t . q \<in> nodes S \<Longrightarrow> x \<in> set (inputs CSep) \<Longrightarrow> (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<Longrightarrow> t' \<in> h CSep \<Longrightarrow> t_source t' = q \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> h S"
+  and   "\<And> q x t . q \<in> nodes S \<Longrightarrow> x \<in> set (inputs CSep) \<Longrightarrow> (\<exists> t \<in> h S . t_source t = q \<and> t_input t = x) \<Longrightarrow> t \<in> h CSep \<Longrightarrow> t_source t = q \<Longrightarrow> t_input t = x \<Longrightarrow> t \<in> h S"
   using assms unfolding is_state_separator_from_canonical_separator_def by blast+
 
 lemma is_state_separator_from_canonical_separator_initial :
@@ -7054,5 +7054,173 @@ lemma r_distinguishable_iff_state_separator_exists :
 shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S)"
   using r_distinguishability_implies_state_separator[OF _ assms] state_separator_r_distinguishes_k r_distinguishable_alt_def[OF assms(1,2)]  
   by metis
+
+
+
+subsection \<open>Generalizing the Separator Definition\<close>
+
+definition is_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> 'c \<Rightarrow> 'c \<Rightarrow> bool" where
+  "is_separator M q1 q2 A t1 t2 = 
+    (single_input A
+     \<and> acyclic A
+     \<and> observable A
+     \<and> deadlock_state A t1 
+     \<and> deadlock_state A t2
+     \<and> t1 \<in> nodes A
+     \<and> t2 \<in> nodes A
+     \<and> (\<forall> t \<in> nodes A . (t \<noteq> t1 \<and> t \<noteq> t2) \<longrightarrow> \<not> deadlock_state A t)
+     \<and> (\<forall> io \<in> L A . (io \<in> LS M q1 - LS M q2 \<longrightarrow> io_targets A io (initial A) = {t1})
+                   \<and> (io \<in> LS M q2 - LS M q1 \<longrightarrow> io_targets A io (initial A) = {t2})
+                   \<and> (\<forall> x yq1 yt . (io@[(x,yq1)] \<in> LS M q1 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq1)] \<in> L A))
+                   \<and> (\<forall> x yq2 yt . (io@[(x,yq2)] \<in> LS M q2 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq2)] \<in> L A))))"
+
+
+lemma canonical_separator_path_targets_language :
+  assumes "path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2)) p"
+  and     "observable M" 
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+shows "isl (target p (initial (canonical_separator M q1 q2))) \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
+and   "(target p (initial (canonical_separator M q1 q2))) = Inr q1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2 \<and> p_io (butlast p) \<in> LS M q1 \<inter> LS M q2"
+and   "(target p (initial (canonical_separator M q1 q2))) = Inr q2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1 \<and> p_io (butlast p) \<in> LS M q1 \<inter> LS M q2"
+and   "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> isl (target p (initial (canonical_separator M q1 q2)))"
+and   "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target p (initial (canonical_separator M q1 q2)) = Inr q1"
+and   "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target p (initial (canonical_separator M q1 q2)) = Inr q2"
+proof -
+  let ?C = "canonical_separator M q1 q2"
+  let ?tgt = "target p (initial ?C)"
+
+  show "isl ?tgt \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
+  proof -
+    assume "isl ?tgt"
+    then obtain s1 s2 where "?tgt = Inl (s1,s2)"
+      by (metis isl_def old.prod.exhaust)
+    then obtain p1 p2 where "path M q1 p1" and "path M q2 p2" and "p_io p1 = p_io p" and "p_io p2 = p_io p" 
+      using canonical_separator_path_initial(1)[OF assms(1) \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> \<open>?tgt = Inl (s1,s2)\<close>] by force
+    then show "p_io p \<in> LS M q1 \<inter> LS M q2"
+      unfolding LS.simps by force
+  qed
+  moreover show "?tgt = Inr q1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2 \<and> p_io (butlast p) \<in> LS M q1 \<inter> LS M q2"
+  proof -
+    assume "?tgt = Inr q1"
+    obtain p1 p2 t where "path M q1 (p1 @ [t])" and "path M q2 p2" and "p_io (p1 @ [t]) = p_io p" and "p_io p2 = butlast (p_io p)" and "(\<nexists>p2. path M q2 p2 \<and> p_io p2 = p_io p)" 
+      using canonical_separator_path_initial(2)[OF assms(1) \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> \<open>?tgt = Inr q1\<close>] by meson
+
+    have "path M q1 p1"
+      using \<open>path M q1 (p1@[t])\<close> by auto
+    have "p_io p1 = butlast (p_io p)"
+      using \<open>p_io (p1 @ [t]) = p_io p\<close> 
+      by (metis (no_types, lifting) butlast_snoc map_butlast)
+
+    have "p_io p \<in> LS M q1" 
+      using \<open>path M q1 (p1@[t])\<close> \<open>p_io (p1 @ [t]) = p_io p\<close> unfolding LS.simps by force
+    moreover have "p_io p \<notin> LS M q2"
+      using \<open>(\<nexists>p2. path M q2 p2 \<and> p_io p2 = p_io p)\<close> unfolding LS.simps by force
+    moreover have "butlast (p_io p) \<in> LS M q1"
+      using \<open>path M q1 p1\<close> \<open>p_io p1 = butlast (p_io p)\<close> unfolding LS.simps by force
+    moreover have "butlast (p_io p) \<in> LS M q2"
+      using \<open>path M q2 p2\<close> \<open>p_io p2 = butlast (p_io p)\<close> unfolding LS.simps by force
+    ultimately show "p_io p \<in> LS M q1 - LS M q2 \<and> p_io (butlast p) \<in> LS M q1 \<inter> LS M q2"
+      by (simp add: map_butlast)
+  qed 
+  moreover show "?tgt = Inr q2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1 \<and> p_io (butlast p) \<in> LS M q1 \<inter> LS M q2"
+  proof -
+    assume "?tgt = Inr q2"
+    obtain p1 p2 t where "path M q2 (p2 @ [t])" and "path M q1 p1" and "p_io (p2 @ [t]) = p_io p" and "p_io p1 = butlast (p_io p)" and "(\<nexists>p2. path M q1 p2 \<and> p_io p2 = p_io p)" 
+      using canonical_separator_path_initial(3)[OF assms(1) \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> \<open>?tgt = Inr q2\<close>] by meson
+
+    have "path M q2 p2"
+      using \<open>path M q2 (p2@[t])\<close> by auto
+    have "p_io p2 = butlast (p_io p)"
+      using \<open>p_io (p2 @ [t]) = p_io p\<close> 
+      by (metis (no_types, lifting) butlast_snoc map_butlast)
+
+    have "p_io p \<in> LS M q2" 
+      using \<open>path M q2 (p2@[t])\<close> \<open>p_io (p2 @ [t]) = p_io p\<close> unfolding LS.simps by force
+    moreover have "p_io p \<notin> LS M q1"
+      using \<open>(\<nexists>p2. path M q1 p2 \<and> p_io p2 = p_io p)\<close> unfolding LS.simps by force
+    moreover have "butlast (p_io p) \<in> LS M q1"
+      using \<open>path M q1 p1\<close> \<open>p_io p1 = butlast (p_io p)\<close> unfolding LS.simps by force
+    moreover have "butlast (p_io p) \<in> LS M q2"
+      using \<open>path M q2 p2\<close> \<open>p_io p2 = butlast (p_io p)\<close> unfolding LS.simps by force
+    ultimately show "p_io p \<in> LS M q2 - LS M q1 \<and> p_io (butlast p) \<in> LS M q1 \<inter> LS M q2"
+      by (simp add: map_butlast)
+  qed 
+
+  
+
+end (*
+
+lemma canonical_separator_language_target_left :
+  assumes "io \<in> L (canonical_separator M q1 q2)"
+  and     "io \<in> LS M q1 - LS M q2"
+  and     "observable M" 
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+shows "io_targets (canonical_separator M q1 q2) io (initial (canonical_separator M q1 q2)) = {Inr q1}"
+proof -
+
+  thm canonical_separator_path_initial[OF _ \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close>]
+  thm state_separator_from_canonical_separator_targets_left_inclusion(2)[OF \<open>observable M\<close> \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close>]
+  thm canonical_separator_target_possibilities
+end (*
+
+
+lemma state_separator_from_canonical_separator_is_separator :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
+  and     "observable M" 
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+shows "is_separator M q1 q2 A (Inr q1) (Inr q2)"
+proof -
+  let ?C = "canonical_separator M q1 q2"
+
+  have "is_submachine A ?C" 
+  and   p1: "single_input A"
+  and   p2: "acyclic A"
+  and   p4: "deadlock_state A (Inr q1)"
+  and   p5: "deadlock_state A (Inr q2)"
+  and   p6: "((Inr q1) \<in> nodes A)"
+  and   p7: "((Inr q2) \<in> nodes A)"
+  and   "\<And> q . q \<in> nodes A \<Longrightarrow> q \<noteq> Inr q1 \<Longrightarrow> q \<noteq> Inr q2 \<Longrightarrow> (isl q \<and> \<not> deadlock_state A q)"
+  and   "\<And> q x t . q \<in> nodes A \<Longrightarrow> x \<in> set (inputs M) \<Longrightarrow> (\<exists> t \<in> h A . t_source t = q \<and> t_input t = x) \<Longrightarrow> t \<in> h ?C \<Longrightarrow> t_source t = q \<Longrightarrow> t_input t = x \<Longrightarrow> t \<in> h A"
+    using is_state_separator_from_canonical_separator_simps[OF assms(1)]
+    unfolding canonical_separator_simps
+    by blast+
+
+  have p3: "observable A" 
+    using state_separator_from_canonical_separator_observable[OF assms] by assumption
+
+  have p8: "(\<forall>t\<in>nodes A. t \<noteq> Inr q1 \<and> t \<noteq> Inr q2 \<longrightarrow> \<not> deadlock_state A t)"
+    using \<open>\<And> q . q \<in> nodes A \<Longrightarrow> q \<noteq> Inr q1 \<Longrightarrow> q \<noteq> Inr q2 \<Longrightarrow> (isl q \<and> \<not> deadlock_state A q)\<close> by simp
+
+  have "\<And> io . io \<in> L A \<Longrightarrow> 
+        (io \<in> LS M q1 - LS M q2 \<longrightarrow> io_targets A io (initial A) = {Inr q1}) \<and>
+        (io \<in> LS M q2 - LS M q1 \<longrightarrow> io_targets A io (initial A) = {Inr q2}) \<and>
+        (\<forall>x yq1 yt. io @ [(x, yq1)] \<in> LS M q1 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq1)] \<in> LS A (initial A)) \<and>
+        (\<forall>x yq2 yt. io @ [(x, yq2)] \<in> LS M q2 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq2)] \<in> LS A (initial A))"
+  proof -
+    fix io assume "io \<in> L A"
+
+    have "io \<in> LS M q1 - LS M q2 \<Longrightarrow> io_targets A io (initial A) = {Inr q1}"
+      using canon
+      using canonical_separator_path_initial(1)[OF _ \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close>]
+      using state_separator_from_canonical_separator_targets_left_inclusion(2)[OF \<open>observable M\<close> \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> assms(1)]
+      sorry
+    moreover have "io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {Inr q2}"
+      sorry
+    moreover have "\<And> x yq1 yt. io @ [(x, yq1)] \<in> LS M q1 \<Longrightarrow> io @ [(x, yt)] \<in> L A \<Longrightarrow> io @ [(x, yq1)] \<in> L A"
+      sorry
+    moreover have "\<And> x yq2 yt. io @ [(x, yq2)] \<in> LS M q2 \<Longrightarrow> io @ [(x, yt)] \<in> L A \<Longrightarrow> io @ [(x, yq2)] \<in> L A"
+      sorry
+    ultimately show "(io \<in> LS M q1 - LS M q2 \<longrightarrow> io_targets A io (initial A) = {Inr q1}) \<and>
+        (io \<in> LS M q2 - LS M q1 \<longrightarrow> io_targets A io (initial A) = {Inr q2}) \<and>
+        (\<forall>x yq1 yt. io @ [(x, yq1)] \<in> LS M q1 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq1)] \<in> LS A (initial A)) \<and>
+        (\<forall>x yq2 yt. io @ [(x, yq2)] \<in> LS M q2 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq2)] \<in> LS A (initial A))" by blast 
+  qed
+  
+  then show ?thesis
+    unfolding is_separator_def
+    using p1 p2 p3 p4 p5 p6 p7 p8 by blast
 
 end

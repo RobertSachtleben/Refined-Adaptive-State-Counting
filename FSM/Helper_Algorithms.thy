@@ -3,7 +3,8 @@ imports R_Distinguishability State_Separator State_Preamble
 begin
 
 lemma state_separator_from_canonical_separator_sym :
-  "is_state_separator_from_canonical_separator M C q1 q2 = is_state_separator_from_canonical_separator M C q2 q1"
+  "is_state_separator_from_canonical_separator C q1 q2 M = is_state_separator_from_canonical_separator C q2 q1 M"
+  
 
 definition r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) set" where
   "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M \<and> q2 \<in> nodes M \<and> q1 \<noteq> q2 \<and> calculate_state_separator_from_s_states M q1 q2 = Some Sep}"
