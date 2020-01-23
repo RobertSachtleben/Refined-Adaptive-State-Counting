@@ -7146,6 +7146,14 @@ proof -
     ultimately show "p_io p \<in> LS M q2 - LS M q1 \<and> p_io (butlast p) \<in> LS M q1 \<inter> LS M q2"
       by (simp add: map_butlast)
   qed 
+  moreover have "isl ?tgt \<or> ?tgt = Inr q1 \<or> ?tgt = Inr q2"
+    using canonical_separator_path_initial(4)[OF assms(1) \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> ] by force
+  ultimately show "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> isl (target p (initial (canonical_separator M q1 q2)))"
+             and  "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target p (initial (canonical_separator M q1 q2)) = Inr q1"
+             and  "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target p (initial (canonical_separator M q1 q2)) = Inr q2"
+    by blast+
+qed
+  
 
   
 
