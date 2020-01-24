@@ -7069,11 +7069,11 @@ definition is_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a
      \<and> t1 \<in> nodes A
      \<and> t2 \<in> nodes A
      \<and> (\<forall> t \<in> nodes A . (t \<noteq> t1 \<and> t \<noteq> t2) \<longrightarrow> \<not> deadlock_state A t)
-     \<and> (\<forall> io \<in> L A . (io \<in> LS M q1 - LS M q2 \<longrightarrow> io_targets A io (initial A) = {t1})
-                   \<and> (io \<in> LS M q2 - LS M q1 \<longrightarrow> io_targets A io (initial A) = {t2})
-                   \<and> (io \<in> LS M q1 \<inter> LS M q2 \<longrightarrow> io_targets A io (initial A) \<inter> {t1,t2} = {})
-                   \<and> (\<forall> x yq yt . (io@[(x,yq)] \<in> LS M q1 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq)] \<in> L A))
+     \<and> (\<forall> io \<in> L A . (\<forall> x yq yt . (io@[(x,yq)] \<in> LS M q1 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq)] \<in> L A))
                    \<and> (\<forall> x yq2 yt . (io@[(x,yq2)] \<in> LS M q2 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq2)] \<in> L A)))
+     \<and> (\<forall> p . (path A (initial A) p \<and> target p (initial A) = t1) \<longrightarrow> p_io p \<in> LS M q1 - LS M q2)
+     \<and> (\<forall> p . (path A (initial A) p \<and> target p (initial A) = t2) \<longrightarrow> p_io p \<in> LS M q2 - LS M q1)
+     \<and> (\<forall> p . (path A (initial A) p \<and> target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2) \<longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2)
      \<and> q1 \<noteq> q2
      \<and> t1 \<noteq> t2
      \<and> set (inputs A) \<subseteq> set (inputs M))"
@@ -7089,15 +7089,150 @@ shows "single_input A"
   and "t1 \<in> nodes A"
   and "t2 \<in> nodes A"
   and "\<And> t . t \<in> nodes A \<Longrightarrow> t \<noteq> t1 \<Longrightarrow> t \<noteq> t2 \<Longrightarrow> \<not> deadlock_state A t"
-  and "\<And> io . io \<in> L A  \<Longrightarrow> io \<in> LS M q1 - LS M q2 \<Longrightarrow> io_targets A io (initial A) = {t1}"
-  and "\<And> io . io \<in> L A  \<Longrightarrow> io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {t2}"
-  and "\<And> io . io \<in> L A  \<Longrightarrow> io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {t1,t2} = {}"
   and "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q1 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
   and "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q2 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
+  and "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2"
+  and "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1"
+  and "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
   and "q1 \<noteq> q2"
   and "t1 \<noteq> t2"
   and "set (inputs A) \<subseteq> set (inputs M)"
-using assms language_prefix[of _ _ A "initial A"] unfolding is_separator_def by blast+ 
+proof -
+  have p01: "single_input A"
+  and  p02: "acyclic A"
+  and  p03: "observable A"
+  and  p04: "deadlock_state A t1" 
+  and  p05: "deadlock_state A t2"
+  and  p06: "t1 \<in> nodes A"
+  and  p07: "t2 \<in> nodes A"
+  and  p08: "(\<forall> t \<in> nodes A . (t \<noteq> t1 \<and> t \<noteq> t2) \<longrightarrow> \<not> deadlock_state A t)"
+  and  p09: "(\<forall> io \<in> L A . (\<forall> x yq yt . (io@[(x,yq)] \<in> LS M q1 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq)] \<in> L A))
+                         \<and> (\<forall> x yq2 yt . (io@[(x,yq2)] \<in> LS M q2 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq2)] \<in> L A)))"
+  and  p10: "(\<forall> p . (path A (initial A) p \<and> target p (initial A) = t1) \<longrightarrow> p_io p \<in> LS M q1 - LS M q2)"
+  and  p11: "(\<forall> p . (path A (initial A) p \<and> target p (initial A) = t2) \<longrightarrow> p_io p \<in> LS M q2 - LS M q1)"
+  and  p12: "(\<forall> p . (path A (initial A) p \<and> target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2) \<longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2)"
+  and  p13: "q1 \<noteq> q2"
+  and  p14: "t1 \<noteq> t2"
+  and  p15: "set (inputs A) \<subseteq> set (inputs M)"
+    using assms unfolding is_separator_def by presburger+
+
+  show "single_input A" using p01 by assumption
+  show "acyclic A" using p02 by assumption
+  show "observable A" using p03 by assumption
+  show "deadlock_state A t1" using p04 by assumption
+  show "deadlock_state A t2" using p05 by assumption
+  show "t1 \<in> nodes A" using p06 by assumption
+  show "t2 \<in> nodes A" using p07 by assumption
+  show "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q1 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)" using p09 language_prefix[of _ _ A "initial A"] by blast
+  show "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q2 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)" using p09 language_prefix[of _ _ A "initial A"] by blast
+  show "\<And> t . t \<in> nodes A \<Longrightarrow> t \<noteq> t1 \<Longrightarrow> t \<noteq> t2 \<Longrightarrow> \<not> deadlock_state A t" using p08 by blast
+  show "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" using p10 by blast
+  show "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" using p11 by blast
+  show "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" using p12 by blast
+  show "q1 \<noteq> q2" using p13 by assumption
+  show "t1 \<noteq> t2" using p14 by assumption
+  show "set (inputs A) \<subseteq> set (inputs M)" using p15 by assumption
+qed
+
+
+lemma separator_path_targets :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "path A (initial A) p"
+shows "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target p (initial A) = t1"
+and   "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target p (initial A) = t2"
+and   "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> (target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2)"
+and   "p_io p \<in> LS M q1 \<union> LS M q2"
+proof -
+  have pt1: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" 
+  and  pt2: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" 
+  and  pt3: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" 
+  and  "t1 \<noteq> t2"
+  and  "observable A"
+    using is_separator_simps[OF assms(1)] by blast+
+
+  show "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target p (initial A) = t1"
+    using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
+  show "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target p (initial A) = t2"
+    using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
+  show "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> (target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2)"
+    using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
+  show "p_io p \<in> LS M q1 \<union> LS M q2"
+    using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
+qed
+
+
+lemma separator_language :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "io \<in> L A"
+shows "io \<in> LS M q1 - LS M q2 \<Longrightarrow> io_targets A io (initial A) = {t1}"
+and   "io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {t2}"
+and   "io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {t1,t2} = {}"
+and   "io \<in> LS M q1 \<union> LS M q2"
+proof -
+
+  obtain p where "path A (initial A) p" and "p_io p = io"
+    using \<open>io \<in> L A\<close>  by auto
+
+  have pt1: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" 
+  and  pt2: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" 
+  and  pt3: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" 
+  and  "t1 \<noteq> t2"
+  and  "observable A"
+    using is_separator_simps[OF assms(1)] by blast+
+
+
+
+  show "io \<in> LS M q1 - LS M q2 \<Longrightarrow> io_targets A io (initial A) = {t1}"
+  proof -
+    assume "io \<in> LS M q1 - LS M q2"
+    
+    then have "p_io p \<in> LS M q1 - LS M q2"
+      using \<open>p_io p = io\<close> by auto
+    then have "target p (initial A) = t1"
+      using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close>
+      by blast 
+    then have "t1 \<in> io_targets A io (initial A)"
+      using \<open>path A (initial A) p\<close> \<open>p_io p = io\<close> unfolding io_targets.simps by force
+    then show "io_targets A io (initial A) = {t1}"
+      using observable_io_targets[OF \<open>observable A\<close>]
+      by (metis \<open>io \<in> L A\<close> singletonD) 
+  qed
+
+  show "io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {t2}"
+  proof -
+    assume "io \<in> LS M q2 - LS M q1"
+    
+    then have "p_io p \<in> LS M q2 - LS M q1"
+      using \<open>p_io p = io\<close> by auto
+    then have "target p (initial A) = t2"
+      using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close>
+      by blast 
+    then have "t2 \<in> io_targets A io (initial A)"
+      using \<open>path A (initial A) p\<close> \<open>p_io p = io\<close> unfolding io_targets.simps by force
+    then show "io_targets A io (initial A) = {t2}"
+      using observable_io_targets[OF \<open>observable A\<close>]
+      by (metis \<open>io \<in> L A\<close> singletonD) 
+  qed
+
+  show "io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {t1,t2} = {}"
+  proof -
+    assume "io \<in> LS M q1 \<inter> LS M q2"
+    
+    then have "p_io p \<in> LS M q1 \<inter> LS M q2"
+      using \<open>p_io p = io\<close> by auto
+    then have "target p (initial A) \<noteq> t1" and "target p (initial A) \<noteq> t2"
+      using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close>
+      by blast+ 
+    moreover have "target p (initial A) \<in> io_targets A io (initial A)"
+      using \<open>path A (initial A) p\<close> \<open>p_io p = io\<close> unfolding io_targets.simps by force
+    ultimately show "io_targets A io (initial A) \<inter> {t1,t2} = {}"
+      using observable_io_targets[OF \<open>observable A\<close> \<open>io \<in> L A\<close>]
+      by (metis (no_types, hide_lams) inf_bot_left insert_disjoint(2) insert_iff singletonD) 
+  qed
+
+  show "io \<in> LS M q1 \<union> LS M q2"
+    using separator_path_targets(4)[OF assms(1) \<open>path A (initial A) p\<close>] \<open>p_io p = io\<close> by auto
+qed
 
 
 lemma is_separator_sym :
@@ -7789,7 +7924,30 @@ proof -
       by blast 
   qed
 
-  moreover have "set (inputs A) \<subseteq> set (inputs M)"
+  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = Inr q1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2"
+    using canonical_separator_maximal_path_distinguishes_left[OF assms(1) _ _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>q1 \<noteq> q2\<close>] by blast
+  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = Inr q2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1"
+    using canonical_separator_maximal_path_distinguishes_right[OF assms(1) _ _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>q1 \<noteq> q2\<close>] by blast
+  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> Inr q1 \<Longrightarrow> target p (initial A) \<noteq> Inr q2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
+  proof -
+    fix p assume "path A (initial A) p" and "target p (initial A) \<noteq> Inr q1" and "target p (initial A) \<noteq> Inr q2"
+
+    have "path ?C (initial ?C) p"
+      using submachine_path_initial[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)] \<open>path A (initial A) p\<close>] by assumption
+
+    have "target p (initial ?C) \<noteq> Inr q1" and "target p (initial ?C) \<noteq> Inr q2"
+      using \<open>target p (initial A) \<noteq> Inr q1\<close> \<open>target p (initial A) \<noteq> Inr q2\<close>
+      unfolding is_state_separator_from_canonical_separator_initial[OF assms(1)] canonical_separator_initial by blast+
+
+    then have "isl (target p (initial ?C))"
+      using canonical_separator_path_initial(4)[OF \<open>path ?C (initial ?C) p\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close>]
+      by auto 
+
+    then show "p_io p \<in> LS M q1 \<inter> LS M q2"
+      using \<open>path ?C (initial ?C) p\<close> canonical_separator_path_targets_language(1)[OF _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close>] by auto
+  qed
+
+ moreover have "set (inputs A) \<subseteq> set (inputs M)"
     using \<open>is_submachine A ?C\<close>
     unfolding is_submachine.simps canonical_separator_simps by auto
 
