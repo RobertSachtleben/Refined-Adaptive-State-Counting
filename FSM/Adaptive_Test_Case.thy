@@ -977,36 +977,36 @@ and   "\<exists> pM . path M q2 pM \<and> p_io pM = p_io pA"
 
 
 lemma pass_separator_ATC_fail_no_reduction :
-  assumes "observable T" 
+  assumes "observable S" 
   and     "observable M"
-  and     "t1 \<in> nodes T"
+  and     "s1 \<in> nodes S"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
-  and     "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
-  and     "set (inputs T) = set (inputs M)"
-  and     "\<not>pass_separator_ATC T A t1 q2"
-shows   "\<not> (LS T t1 \<subseteq> LS M q1)" 
+  and     "is_separator M q1 q2 A t1 t2"
+  and     "set (inputs S) = set (inputs M)"
+  and     "\<not>pass_separator_ATC S A s1 t2"
+shows   "\<not> (LS S s1 \<subseteq> LS M q1)" 
 proof 
-  assume "LS T t1 \<subseteq> LS M q1"
+  assume "LS S s1 \<subseteq> LS M q1"
 
   have "is_ATC A"
-    using state_separator_from_canonical_separator_is_ATC[OF assms(6,2,4,5)] by assumption
+    using separator_is_ATC[OF assms(6,2,4,5)] by assumption
 
   have *: "set (inputs A) \<subseteq> set (inputs (from_FSM M q1))"
-    using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)]
+    using is_separator_simps(16)[OF assms(6)]
     unfolding is_submachine.simps canonical_separator_simps from_FSM_simps by auto
 
-  have "pass_ATC (from_FSM M q1) A {Inr q2}"
-    using pass_separator_ATC_from_state_separator_left[OF assms(2,4,5,6)] by auto
+  have "pass_ATC (from_FSM M q1) A {t2}"
+    using pass_separator_ATC_from_separator_left[OF assms(2,4,5,6)] by auto
 
-  have "\<not> pass_ATC (from_FSM T t1) A {Inr q2}"
-    using \<open>\<not>pass_separator_ATC T A t1 q2\<close> by auto
+  have "\<not> pass_ATC (from_FSM S s1) A {t2}"
+    using \<open>\<not>pass_separator_ATC S A s1 t2\<close> by auto
 
-  moreover have "pass_ATC (from_FSM T t1) A {Inr q2}"
-    using pass_ATC_reduction[OF _ \<open>is_ATC A\<close> from_FSM_observable[OF \<open>observable M\<close> \<open>q1 \<in> nodes M\<close>] from_FSM_observable[OF \<open>observable T\<close> \<open>t1 \<in> nodes T\<close>] *]
-    using \<open>LS T t1 \<subseteq> LS M q1\<close> \<open>pass_ATC (from_FSM M q1) A {Inr q2}\<close>  
+  moreover have "pass_ATC (from_FSM S s1) A {t2}"
+    using pass_ATC_reduction[OF _ \<open>is_ATC A\<close> from_FSM_observable[OF \<open>observable M\<close> \<open>q1 \<in> nodes M\<close>] from_FSM_observable[OF \<open>observable S\<close> \<open>s1 \<in> nodes S\<close>] *]
+    using \<open>LS S s1 \<subseteq> LS M q1\<close> \<open>pass_ATC (from_FSM M q1) A {t2}\<close>  
     unfolding from_FSM_language[OF assms(3)] from_FSM_language[OF assms(4)]
-    unfolding from_FSM_simps \<open>set (inputs T) = set (inputs M)\<close> by blast
+    unfolding from_FSM_simps \<open>set (inputs S) = set (inputs M)\<close> by blast
   ultimately show "False" by simp
 qed
 
@@ -1015,98 +1015,85 @@ qed
 
 
 lemma pass_separator_ATC_pass_left :
-  assumes "observable T" 
+  assumes "observable S" 
   and     "observable M"
-  and     "t1 \<in> nodes T"
+  and     "s1 \<in> nodes S"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
-  and     "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
-  and     "set (inputs T) = set (inputs M)"
+  and     "is_separator M q1 q2 A t1 t2"
+  and     "set (inputs S) = set (inputs M)"
   and     "path A (initial A) p"
-  and     "p_io p \<in> LS T t1"
+  and     "p_io p \<in> LS S s1"
   and     "q1 \<noteq> q2"
-  and     "pass_separator_ATC T A t1 q2"
-shows "target p (initial A) \<noteq> Inr q2"
-and   "target p (initial A) = Inr q1 \<or> isl (target p (initial A))"
+  and     "pass_separator_ATC S A s1 t2"
+shows "target p (initial A) \<noteq> t2"
+and   "target p (initial A) = t1 \<or> (target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2)" (* useless? *)
 proof -
 
-  from \<open>p_io p \<in> LS T t1\<close> obtain pT where "path T t1 pT" and "p_io p = p_io pT"
+  from \<open>p_io p \<in> LS S s1\<close> obtain pS where "path S s1 pS" and "p_io p = p_io pS"
     by auto
 
-  then show "target p (initial A) \<noteq> Inr q2" 
+  then show "target p (initial A) \<noteq> t2" 
     using pass_separator_ATC_path_left[OF assms(11,1-7,10,8)] by simp
 
   obtain pM where "path M q1 pM" and "p_io pM = p_io p"
-    using pass_separator_ATC_path_left[OF assms(11,1-7,10,8) \<open>path T t1 pT\<close> \<open>p_io p = p_io pT\<close>]  by blast
+    using pass_separator_ATC_path_left[OF assms(11,1-7,10,8) \<open>path S s1 pS\<close> \<open>p_io p = p_io pS\<close>]  by blast
   then have "p_io p \<in> LS M q1"
     unfolding LS.simps by force
 
-  then show "target p (initial A) = Inr q1 \<or> isl (target p (initial A))"
-    using state_separator_from_canonical_separator_targets_left_inclusion[OF assms(1-8)] by blast
+  then show "target p (initial A) = t1 \<or> (target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2)"
+    using separator_path_targets(1,3,4)[OF assms(6,8)] by blast
 qed
 
 
 lemma pass_separator_ATC_pass_right :
-  assumes "observable T" 
+  assumes "observable S" 
   and     "observable M"
-  and     "t2 \<in> nodes T"
+  and     "s2 \<in> nodes S"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
-  and     "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
-  and     "set (inputs T) = set (inputs M)"
+  and     "is_separator M q1 q2 A t1 t2"
+  and     "set (inputs S) = set (inputs M)"
   and     "path A (initial A) p"
-  and     "p_io p \<in> LS T t2"
+  and     "p_io p \<in> LS S s2"
   and     "q1 \<noteq> q2"
-  and     "pass_separator_ATC T A t2 q1"
-shows "target p (initial A) \<noteq> Inr q1"
-and   "target p (initial A) = Inr q2 \<or> isl (target p (initial A))"
-proof -
-
-  from \<open>p_io p \<in> LS T t2\<close> obtain pT where "path T t2 pT" and "p_io p = p_io pT"
-    by auto
-
-  then show "target p (initial A) \<noteq> Inr q1" 
-    using pass_separator_ATC_path_right[OF assms(11,1-7,10,8)] by simp
-
-  obtain pM where "path M q2 pM" and "p_io pM = p_io p"
-    using pass_separator_ATC_path_right[OF assms(11,1-7,10,8) \<open>path T t2 pT\<close> \<open>p_io p = p_io pT\<close>] by blast
-  then have "p_io p \<in> LS M q2"
-    unfolding LS.simps by force
-
-  then show "target p (initial A) = Inr q2 \<or> isl (target p (initial A))"
-    using state_separator_from_canonical_separator_targets_right_inclusion[OF assms(1-8)] by blast
-qed
+  and     "pass_separator_ATC S A s2 t1"
+shows "target p (initial A) \<noteq> t1"
+and   "target p (initial A) = t2 \<or> (target p (initial A) \<noteq> t2 \<and> target p (initial A) \<noteq> t2)" (* useless? *)
+  using pass_separator_ATC_pass_left[OF assms(1,2,3,5,4) is_separator_sym[OF assms(6)] assms(7-9) _ assms(11)] assms(10) by blast+
 
 
 
 lemma pass_separator_ATC_completely_specified_left :
-  assumes "observable T" 
+  assumes "observable S" 
   and     "observable M"
-  and     "t1 \<in> nodes T"
+  and     "s1 \<in> nodes S"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
-  and     "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
-  and     "set (inputs T) = set (inputs M)"
+  and     "is_separator M q1 q2 A t1 t2"
+  and     "set (inputs S) = set (inputs M)"
   and     "q1 \<noteq> q2"
-  and     "pass_separator_ATC T A t1 q2"
-  and     "completely_specified T"
-shows "\<exists> p . path A (initial A) p \<and> p_io p \<in> LS T t1 \<and> target p (initial A) = Inr q1"
-and   "\<not> (\<exists> p . path A (initial A) p \<and> p_io p \<in> LS T t1 \<and> target p (initial A) = Inr q2)"
+  and     "pass_separator_ATC S A s1 t2"
+  and     "completely_specified S"
+shows "\<exists> p . path A (initial A) p \<and> p_io p \<in> LS S s1 \<and> target p (initial A) = t1"
+and   "\<not> (\<exists> p . path A (initial A) p \<and> p_io p \<in> LS S s1 \<and> target p (initial A) = t2)"
 proof -
-  have p1: "pass_ATC (from_FSM T t1) A {Inr q2}"
+  have p1: "pass_ATC (from_FSM S s1) A {t2}"
     using assms(9) by auto
 
   have p2: "is_ATC A"
-    using state_separator_from_canonical_separator_is_ATC[OF assms(6,2,4,5)] by assumption
+    using separator_is_ATC[OF assms(6,2,4,5)] by assumption
 
-  have p3: "observable (from_FSM T t1)"
+  have p3: "observable (from_FSM S s1)"
     using from_FSM_observable[OF assms(1,3)] by assumption
 
-  have p4: "set (inputs A) \<subseteq> set (inputs (from_FSM T t1))"
-    using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)] 
+  have p4: "set (inputs A) \<subseteq> set (inputs (from_FSM S s1))"
+    using is_separator_simps(16)[OF assms(6)] 
     unfolding from_FSM_simps is_submachine.simps canonical_separator_simps assms(7) by auto
 
+(* TODO: cont *)
 
+end (*
 
   
   let ?C = "canonical_separator M q1 q2"
