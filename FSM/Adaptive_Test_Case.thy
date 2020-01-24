@@ -702,10 +702,27 @@ shows   "\<not> (L T \<subseteq> L M)"
 
 subsection \<open>State Separators as Adaptive Test Cases\<close>
 
+fun pass_separator_ATC :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'c \<Rightarrow> bool" where
+  "pass_separator_ATC M S q1 t2 = pass_ATC (from_FSM M q1) S {t2}"
+
+(*
 fun pass_separator_ATC :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "pass_separator_ATC M S q1 q2 = pass_ATC (from_FSM M q1) S {Inr q2}"
+*)
 
 
+lemma state_separator_is_ATC :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "observable M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  shows "is_ATC A"
+unfolding is_ATC_def 
+  using is_separator_simps(1,2,3)[OF assms(1)] by blast
+
+
+
+(*
 lemma state_separator_from_canonical_separator_is_ATC :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
   and     "observable M"
@@ -716,6 +733,129 @@ unfolding is_ATC_def
   using is_state_separator_from_canonical_separator_simps(2,3)[OF assms(1)]
   using submachine_observable[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)] canonical_separator_observable[OF assms(2,3,4)]]
   by blast
+*)
+
+(* todo: move *)
+lemma nodes_initial_deadlock :
+  assumes "deadlock_state M (initial M)"
+  shows "nodes M = {initial M}"
+proof -
+  have "initial M \<in> nodes M"
+    by auto
+  moreover have "\<And> q . q \<in> nodes M \<Longrightarrow> q \<noteq> initial M \<Longrightarrow> False"
+  proof -
+    fix q assume "q \<in> nodes M" and "q \<noteq> initial M"
+    
+    obtain p where "path M (initial M) p" and "q = target p (initial M)"
+      using path_to_node[OF \<open>q \<in> nodes M\<close>] by auto
+    
+    have "p \<noteq> []" 
+    proof
+      assume "p = []"
+      then have "q = initial M" using \<open>q = target p (initial M)\<close> by auto
+      then show "False" using \<open>q \<noteq> initial M\<close> by simp
+    qed
+    then obtain t p' where "p = t # p'" 
+      using list.exhaust by blast
+    then have "t \<in> h M" and "t_source t = initial M"
+      using \<open>path M (initial M) p\<close> by auto
+    then show "False"
+      using \<open>deadlock_state M (initial M)\<close> unfolding deadlock_state.simps by blast
+  qed
+  ultimately show ?thesis by blast
+qed
+    
+(* TODO: move *)
+lemma separator_initial :
+  assumes "is_separator M q1 q2 A t1 t2"
+shows "initial A \<noteq> t1"
+and   "initial A \<noteq> t2"
+proof -
+  show "initial A \<noteq> t1"
+  proof 
+    assume "initial A = t1"
+    then have "deadlock_state A (initial A)"
+      using is_separator_simps(4)[OF assms] by auto
+    then have "nodes A = {initial A}" 
+      using nodes_initial_deadlock by blast
+    then show "False"
+      using is_separator_simps(7,15)[OF assms] \<open>initial A = t1\<close> by auto
+  qed
+
+  show "initial A \<noteq> t2"
+  proof 
+    assume "initial A = t2"
+    then have "deadlock_state A (initial A)"
+      using is_separator_simps(5)[OF assms] by auto
+    then have "nodes A = {initial A}" 
+      using nodes_initial_deadlock by blast
+    then show "False"
+      using is_separator_simps(6,15)[OF assms] \<open>initial A = t2\<close> by auto
+  qed
+qed
+
+
+
+lemma pass_separator_ATC_from_separator :
+  assumes "observable M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "is_separator M q1 q2 A t1 t2" 
+shows "pass_separator_ATC M A q1 t2" (* note t2 instead of previously used q2*)
+proof (rule ccontr)
+  assume "\<not> pass_separator_ATC M A q1 t2"
+
+  then have "\<not> pass_ATC (from_FSM M q1) A {t2}"
+    by auto
+
+  have "is_ATC A"
+    using state_separator_is_ATC[OF assms(4,1,2,3)] by assumption
+
+  have "initial A \<notin> {t2}"
+    using separator_initial(2)[OF assms(4)] by blast
+  then obtain io ioA ioM where
+    "io @ [ioA] \<in> L A"
+    "io @ [ioM] \<in> LS M q1"
+    "fst ioA = fst ioM"
+    "io @ [ioM] \<notin> L A \<or> io_targets A (io @ [ioM]) (initial A) \<inter> {t2} \<noteq> {}"
+
+    using pass_ATC_io_fail[OF \<open>\<not> pass_ATC (from_FSM M q1) A {t2}\<close> \<open>is_ATC A\<close> from_FSM_observable[OF \<open>observable M\<close> \<open>q1 \<in> nodes M\<close>] ] 
+    using is_separator_simps(16)[OF assms(4)]
+    using from_FSM_language[OF \<open>q1 \<in> nodes M\<close>]
+    unfolding from_FSM_simps by blast
+  then obtain x ya ym where
+    "io @ [(x,ya)] \<in> L A"
+    "io @ [(x,ym)] \<in> LS M q1"
+    "io @ [(x,ym)] \<notin> L A \<or> io_targets A (io @ [(x,ym)]) (initial A) \<inter> {t2} \<noteq> {}"
+    by (metis fst_eqD old.prod.exhaust)
+
+  have "io @ [(x,ym)] \<in> L A"
+    using is_separator_simps(12)[OF assms(4) \<open>io @ [(x,ym)] \<in> LS M q1\<close> \<open>io @ [(x,ya)] \<in> L A\<close>] by assumption
+
+  have "t1 \<noteq> t2" using is_separator_simps(15)[OF assms(4)] by assumption
+  
+  consider (a) "io @ [(x, ym)] \<in> LS M q1 - LS M q2" |
+           (b) "io @ [(x, ym)] \<in> LS M q1 \<inter> LS M q2"
+    using \<open>io @ [(x,ym)] \<in> LS M q1\<close> by blast 
+  then have "io_targets A (io @ [(x,ym)]) (initial A) \<inter> {t2} = {}"
+    using is_separator_simps(9,11)[OF assms(4) \<open>io @ [(x,ym)] \<in> L A\<close>] 
+  proof (cases)
+    case a
+    show ?thesis using is_separator_simps(9)[OF assms(4) \<open>io @ [(x,ym)] \<in> L A\<close> a] \<open>t1 \<noteq> t2\<close> by auto
+  next
+    case b
+    show ?thesis using is_separator_simps(11)[OF assms(4) \<open>io @ [(x,ym)] \<in> L A\<close> b] \<open>t1 \<noteq> t2\<close> by auto
+  qed
+  
+  then show "False"
+    using \<open>io @ [(x,ym)] \<in> L A\<close>
+    using \<open>io @ [(x,ym)] \<notin> L A \<or> io_targets A (io @ [(x,ym)]) (initial A) \<inter> {t2} \<noteq> {}\<close> by blast
+qed
+
+(* TODO: continue refactoring *)
+
+end (*
+
 
 
 

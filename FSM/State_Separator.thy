@@ -7071,8 +7071,13 @@ definition is_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a
      \<and> (\<forall> t \<in> nodes A . (t \<noteq> t1 \<and> t \<noteq> t2) \<longrightarrow> \<not> deadlock_state A t)
      \<and> (\<forall> io \<in> L A . (io \<in> LS M q1 - LS M q2 \<longrightarrow> io_targets A io (initial A) = {t1})
                    \<and> (io \<in> LS M q2 - LS M q1 \<longrightarrow> io_targets A io (initial A) = {t2})
+                   \<and> (io \<in> LS M q1 \<inter> LS M q2 \<longrightarrow> io_targets A io (initial A) \<inter> {t1,t2} = {})
                    \<and> (\<forall> x yq yt . (io@[(x,yq)] \<in> LS M q1 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq)] \<in> L A))
-                   \<and> (\<forall> x yq2 yt . (io@[(x,yq2)] \<in> LS M q2 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq2)] \<in> L A))))"
+                   \<and> (\<forall> x yq2 yt . (io@[(x,yq2)] \<in> LS M q2 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq2)] \<in> L A)))
+     \<and> q1 \<noteq> q2
+     \<and> t1 \<noteq> t2
+     \<and> set (inputs A) \<subseteq> set (inputs M))"
+
 
 lemma is_separator_simps :
   assumes "is_separator M q1 q2 A t1 t2"
@@ -7086,10 +7091,13 @@ shows "single_input A"
   and "\<And> t . t \<in> nodes A \<Longrightarrow> t \<noteq> t1 \<Longrightarrow> t \<noteq> t2 \<Longrightarrow> \<not> deadlock_state A t"
   and "\<And> io . io \<in> L A  \<Longrightarrow> io \<in> LS M q1 - LS M q2 \<Longrightarrow> io_targets A io (initial A) = {t1}"
   and "\<And> io . io \<in> L A  \<Longrightarrow> io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {t2}"
-  and "\<And> io x yq yt . io \<in> L A  \<Longrightarrow> io@[(x,yq)] \<in> LS M q1 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
-  and "\<And> io x yq yt . io \<in> L A  \<Longrightarrow> io@[(x,yq)] \<in> LS M q2 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
-  using assms unfolding is_separator_def by blast+
-
+  and "\<And> io . io \<in> L A  \<Longrightarrow> io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {t1,t2} = {}"
+  and "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q1 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
+  and "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q2 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
+  and "q1 \<noteq> q2"
+  and "t1 \<noteq> t2"
+  and "set (inputs A) \<subseteq> set (inputs M)"
+using assms language_prefix[of _ _ A "initial A"] unfolding is_separator_def by blast+ 
 
 
 lemma is_separator_sym :
@@ -7224,6 +7232,41 @@ qed
 
 
 
+lemma language_state_containment :
+  assumes "path M q p"
+  and     "p_io p = io"
+shows "io \<in> LS M q"
+  using assms by auto
+
+(* TODO: move *)
+lemma canonical_separator_language_intersection :
+  assumes "io \<in> LS M q1"
+  and     "io \<in> LS M q2"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+shows "io \<in> L (canonical_separator M q1 q2)" (is "io \<in> L ?C")
+proof -
+  let ?P = "product (from_FSM M q1) (from_FSM M q2)"
+
+  have "io \<in> L ?P"
+    using \<open>io \<in> LS M q1\<close> \<open>io \<in> LS M q2\<close> product_language[of "from_FSM M q1" "from_FSM M q2"] 
+    unfolding from_FSM_language[OF \<open>q1 \<in> nodes M\<close>] from_FSM_language[OF \<open>q2 \<in> nodes M\<close>]
+    by blast
+  then obtain p where "path ?P (initial ?P) p" and "p_io p = io"
+    by auto
+  then have *: "path ?C (initial ?C) (map shift_Inl p)"
+    using canonical_separator_path_shift[of M q1 q2] by auto
+  have **: "p_io (map shift_Inl p) = io"
+    using \<open>p_io p = io\<close> by (induction p; auto)
+  show "io \<in> L ?C" 
+    using language_state_containment[OF * **] by assumption
+qed
+
+
+
+
+
+
 lemma state_separator_from_canonical_separator_language_target :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
   and     "io \<in> L A"
@@ -7232,6 +7275,7 @@ lemma state_separator_from_canonical_separator_language_target :
   and     "q2 \<in> nodes M"
 shows "io \<in> LS M q1 - LS M q2 \<Longrightarrow> io_targets A io (initial A) = {Inr q1}"
 and   "io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {Inr q2}"
+and   "io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {Inr q1, Inr q2} = {}"
 proof -
   have "observable A"
     using state_separator_from_canonical_separator_observable[OF assms(1,3,4,5)] by assumption
@@ -7278,6 +7322,33 @@ proof -
       using observable_io_targets[OF \<open>observable A\<close> \<open>io \<in> L A\<close>]
       by (metis singletonD)   
   qed
+
+  show "io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {Inr q1, Inr q2} = {}"
+  proof -
+    let ?P = "product (from_FSM M q1) (from_FSM M q2)"
+    
+
+    assume "io \<in> LS M q1 \<inter> LS M q2"
+
+    have"\<And> q . q \<in> io_targets A io (initial A) \<Longrightarrow> q \<notin> {Inr q1, Inr q2}"
+    proof -
+      fix q assume "q \<in> io_targets A io (initial A)"
+      then obtain p where "q = target p (initial A)" and "path A (initial A) p" and "p_io p = io"
+        by auto
+      then have "path ?C (initial ?C) p"
+        using submachine_path_initial[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)]] by auto
+      then have "isl (target p (initial ?C))"
+        using canonical_separator_path_targets_language(4)[OF _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> ]
+        using \<open>p_io p = io\<close> \<open>io \<in> LS M q1 \<inter> LS M q2\<close> by auto
+      then show "q \<notin> {Inr q1, Inr q2}"
+        using \<open>q = target p (initial A)\<close> 
+        unfolding state_separator_from_canonical_separator_initial[OF assms(1)]
+        unfolding canonical_separator_simps product_simps from_FSM_simps by auto
+    qed
+
+    then show "io_targets A io (initial A) \<inter> {Inr q1, Inr q2} = {}"
+      by blast
+  qed
 qed
 
 
@@ -7312,35 +7383,10 @@ proof -
   then show ?thesis using that by simp
 qed
 
-lemma language_state_containment :
-  assumes "path M q p"
-  and     "p_io p = io"
-shows "io \<in> LS M q"
-  using assms by auto
 
 
-lemma canonical_separator_language_intersection :
-  assumes "io \<in> LS M q1"
-  and     "io \<in> LS M q2"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
-shows "io \<in> L (canonical_separator M q1 q2)" (is "io \<in> L ?C")
-proof -
-  let ?P = "product (from_FSM M q1) (from_FSM M q2)"
 
-  have "io \<in> L ?P"
-    using \<open>io \<in> LS M q1\<close> \<open>io \<in> LS M q2\<close> product_language[of "from_FSM M q1" "from_FSM M q2"] 
-    unfolding from_FSM_language[OF \<open>q1 \<in> nodes M\<close>] from_FSM_language[OF \<open>q2 \<in> nodes M\<close>]
-    by blast
-  then obtain p where "path ?P (initial ?P) p" and "p_io p = io"
-    by auto
-  then have *: "path ?C (initial ?C) (map shift_Inl p)"
-    using canonical_separator_path_shift[of M q1 q2] by auto
-  have **: "p_io (map shift_Inl p) = io"
-    using \<open>p_io p = io\<close> by (induction p; auto)
-  show "io \<in> L ?C" 
-    using language_state_containment[OF * **] by assumption
-qed
+
 
 
 lemma path_map_target : "target (map (\<lambda> t . (f1 (t_source t), f2 (t_input t), f3 (t_output t), f4 (t_target t))) p) (f4 q) = f4 (target p q)" 
@@ -7354,6 +7400,7 @@ lemma state_separator_from_canonical_separator_is_separator :
   and     "observable M" 
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
+  and     "q1 \<noteq> q2"
 shows "is_separator M q1 q2 A (Inr q1) (Inr q2)"
 proof -
   let ?C = "canonical_separator M q1 q2"
@@ -7374,7 +7421,7 @@ proof -
     by blast+
 
   have p3: "observable A" 
-    using state_separator_from_canonical_separator_observable[OF assms] by assumption
+    using state_separator_from_canonical_separator_observable[OF assms(1-4)] by assumption
 
   have p8: "(\<forall>t\<in>nodes A. t \<noteq> Inr q1 \<and> t \<noteq> Inr q2 \<longrightarrow> \<not> deadlock_state A t)"
     using \<open>\<And> q . q \<in> nodes A \<Longrightarrow> q \<noteq> Inr q1 \<Longrightarrow> q \<noteq> Inr q2 \<Longrightarrow> (isl q \<and> \<not> deadlock_state A q)\<close> by simp
@@ -7382,6 +7429,7 @@ proof -
   have "\<And> io . io \<in> L A \<Longrightarrow> 
         (io \<in> LS M q1 - LS M q2 \<longrightarrow> io_targets A io (initial A) = {Inr q1}) \<and>
         (io \<in> LS M q2 - LS M q1 \<longrightarrow> io_targets A io (initial A) = {Inr q2}) \<and>
+        (io \<in> LS M q1 \<inter> LS M q2 \<longrightarrow> io_targets A io (initial A) \<inter> {Inr q1, Inr q2} = {}) \<and>
         (\<forall>x yq yt. io @ [(x, yq)] \<in> LS M q1 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq)] \<in> LS A (initial A)) \<and>
         (\<forall>x yq2 yt. io @ [(x, yq2)] \<in> LS M q2 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq2)] \<in> LS A (initial A))"
   proof -
@@ -7391,6 +7439,8 @@ proof -
       using state_separator_from_canonical_separator_language_target(1)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4)] by assumption
     moreover have "io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {Inr q2}"
       using state_separator_from_canonical_separator_language_target(2)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4)] by assumption
+    moreover have "io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {Inr q1, Inr q2} = {}"
+      using state_separator_from_canonical_separator_language_target(3)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4)] by assumption
     moreover have "\<And> x yq yt. io @ [(x, yq)] \<in> LS M q1 \<Longrightarrow> io @ [(x, yt)] \<in> L A \<Longrightarrow> io @ [(x, yq)] \<in> L A"
     proof -
       fix x yq yt assume "io @ [(x, yq)] \<in> LS M q1" and "io @ [(x, yt)] \<in> L A"
@@ -7729,15 +7779,24 @@ proof -
       qed
     qed
 
+    
+
     ultimately show "(io \<in> LS M q1 - LS M q2 \<longrightarrow> io_targets A io (initial A) = {Inr q1}) \<and>
         (io \<in> LS M q2 - LS M q1 \<longrightarrow> io_targets A io (initial A) = {Inr q2}) \<and>
+        (io \<in> LS M q1 \<inter> LS M q2 \<longrightarrow> io_targets A io (initial A) \<inter> {Inr q1, Inr q2} = {}) \<and>
         (\<forall>x yq yt. io @ [(x, yq)] \<in> LS M q1 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq)] \<in> LS A (initial A)) \<and>
-        (\<forall>x yq2 yt. io @ [(x, yq2)] \<in> LS M q2 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq2)] \<in> LS A (initial A))" by blast 
+        (\<forall>x yq2 yt. io @ [(x, yq2)] \<in> LS M q2 \<and> io @ [(x, yt)] \<in> LS A (initial A) \<longrightarrow> io @ [(x, yq2)] \<in> LS A (initial A))" 
+      by blast 
   qed
-  
-  then show ?thesis
+
+  moreover have "set (inputs A) \<subseteq> set (inputs M)"
+    using \<open>is_submachine A ?C\<close>
+    unfolding is_submachine.simps canonical_separator_simps by auto
+
+  ultimately show ?thesis
     unfolding is_separator_def
-    using p1 p2 p3 p4 p5 p6 p7 p8 by blast
+    using p1 p2 p3 p4 p5 p6 p7 p8 \<open>q1 \<noteq> q2\<close>  
+    by blast
 qed
 
 
