@@ -1082,6 +1082,12 @@ fun LS :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> (Input \<t
 
 abbreviation(input) "L M \<equiv> LS M (initial M)"
 
+lemma language_state_containment :
+  assumes "path M q p"
+  and     "p_io p = io"
+shows "io \<in> LS M q"
+  using assms by auto
+
 lemma language_prefix : 
   assumes "io1@io2 \<in> LS M q"
   shows "io1 \<in> LS M q"
@@ -2442,6 +2448,73 @@ proof
   show "io_targets M io (t_target t) \<subseteq> io_targets M (p_io [t] @ io) (t_source t)"
     using io_targets_next[OF assms(2)] by assumption
 qed
+
+
+
+lemma observable_language_target :
+  assumes "observable M"
+  and     "q \<in> io_targets M io1 (initial M)"
+  and     "t \<in> io_targets T io1 (initial T)"
+  and     "L T \<subseteq> L M"
+shows "LS T t \<subseteq> LS M q"
+proof 
+  fix io2 assume "io2 \<in> LS T t"
+  then obtain pT2 where "path T t pT2" and "p_io pT2 = io2"
+    by auto
+
+  
+  
+  obtain pT1 where "path T (initial T) pT1" and "p_io pT1 = io1" and "target pT1 (initial T) = t"
+    using \<open>t \<in> io_targets T io1 (initial T)\<close> by auto
+  then have "path T (initial T) (pT1@pT2)" 
+    using \<open>path T t pT2\<close> using path_append by metis
+  moreover have "p_io (pT1@pT2) = io1@io2"
+    using \<open>p_io pT1 = io1\<close> \<open>p_io pT2 = io2\<close> by auto
+  ultimately have "io1@io2 \<in> L T"
+    using language_state_containment[of T] by auto
+  then have "io1@io2 \<in> L M"
+    using \<open>L T \<subseteq> L M\<close> by blast
+  then obtain pM where "path M (initial M) pM" and "p_io pM = io1@io2"
+    by auto
+
+  let ?pM1 = "take (length io1) pM"
+  let ?pM2 = "drop (length io1) pM"
+
+  have "path M (initial M) (?pM1@?pM2)"
+    using \<open>path M (initial M) pM\<close> by auto
+  then have "path M (initial M) ?pM1" and "path M (target ?pM1 (initial M)) ?pM2"
+    by blast+
+  
+  have "p_io ?pM1 = io1"
+    using \<open>p_io pM = io1@io2\<close> 
+    by (metis append_eq_conv_conj take_map)
+  have "p_io ?pM2 = io2"
+    using \<open>p_io pM = io1@io2\<close> 
+    by (metis append_eq_conv_conj drop_map)
+
+  obtain pM1 where "path M (initial M) pM1" and "p_io pM1 = io1" and "target pM1 (initial M) = q"
+    using \<open>q \<in> io_targets M io1 (initial M)\<close> by auto
+
+  have "pM1 = ?pM1"
+    using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) pM1\<close> \<open>path M (initial M) ?pM1\<close>]
+    unfolding \<open>p_io pM1 = io1\<close> \<open>p_io ?pM1 = io1\<close> by simp
+
+  then have "path M q ?pM2"
+    using \<open>path M (target ?pM1 (initial M)) ?pM2\<close> \<open>target pM1 (initial M) = q\<close> by auto
+  then show "io2 \<in> LS M q"
+    using language_state_containment[OF _ \<open>p_io ?pM2 = io2\<close>, of M] by auto
+qed
+
+
+lemma observable_language_target_failure :
+  assumes "observable M"
+  and     "q \<in> io_targets M io1 (initial M)"
+  and     "t \<in> io_targets T io1 (initial T)"
+  and     "\<not> LS T t \<subseteq> LS M q"
+shows "\<not> L T \<subseteq> L M"
+  using observable_language_target[OF assms(1,2,3)] assms(4) by blast
+    
+
 
 
 subsection \<open>Conformity Relations\<close>

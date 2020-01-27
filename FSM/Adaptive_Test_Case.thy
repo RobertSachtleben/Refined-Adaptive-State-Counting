@@ -1374,4 +1374,7 @@ shows "LS S s2 - LS M q2 \<noteq> {}"
   using pass_separator_ATC_failure_left[OF assms(1-3) is_separator_sym[OF assms(4)] assms(5,7,6) _ assms(9)] assms(8) by blast
 
 
+
+
+
 end

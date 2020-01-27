@@ -7367,11 +7367,7 @@ qed
 
 
 
-lemma language_state_containment :
-  assumes "path M q p"
-  and     "p_io p = io"
-shows "io \<in> LS M q"
-  using assms by auto
+
 
 (* TODO: move *)
 lemma canonical_separator_language_intersection :
