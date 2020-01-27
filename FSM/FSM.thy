@@ -4051,4 +4051,202 @@ proof -
 qed
 
 
+subsection \<open>Total Order on Nodes\<close>
+
+(* TODO: move to Util *)
+fun linear_order_from_list_position' :: "'a list \<Rightarrow> ('a \<times> 'a) list" where
+  "linear_order_from_list_position' [] = []" |
+  "linear_order_from_list_position' (x#xs) = (x,x) # (map (\<lambda> y . (x,y)) xs) @ (linear_order_from_list_position' xs)"
+
+fun linear_order_from_list_position :: "'a list \<Rightarrow> ('a \<times> 'a) list" where
+  "linear_order_from_list_position xs = linear_order_from_list_position' (remdups xs)"
+
+
+
+lemma linear_order_from_list_position_set :
+  "set (linear_order_from_list_position xs) = (set (map (\<lambda> x . (x,x)) xs)) \<union> set (non_sym_dist_pairs xs)"
+  by (induction xs; auto)
+
+lemma linear_order_from_list_position_total: "total_on (set xs) (set (linear_order_from_list_position xs))"
+  unfolding linear_order_from_list_position_set
+  using non_sym_dist_pairs_elems[of _ xs]
+  by (meson UnI2 total_onI)
+
+lemma linear_order_from_list_position_refl: "refl_on (set xs) (set (linear_order_from_list_position xs))"  
+proof 
+  show "set (linear_order_from_list_position xs) \<subseteq> set xs \<times> set xs"
+    unfolding linear_order_from_list_position_set
+    using non_sym_dist_pairs_subset[of xs] by auto
+  show "\<And>x. x \<in> set xs \<Longrightarrow> (x, x) \<in> set (linear_order_from_list_position xs)"
+    unfolding linear_order_from_list_position_set
+    using non_sym_dist_pairs_subset[of xs] by auto
+qed
+
+lemma linear_order_from_list_position_antisym: "antisym (set (linear_order_from_list_position xs))"
+proof 
+  fix x y assume "(x, y) \<in> set (linear_order_from_list_position xs)" and "(y, x) \<in> set (linear_order_from_list_position xs)"
+  then have "(x, y) \<in> set (map (\<lambda>x. (x, x)) xs) \<union> set (non_sym_dist_pairs xs)"
+       and  "(y, x) \<in> set (map (\<lambda>x. (x, x)) xs) \<union> set (non_sym_dist_pairs xs)"
+    unfolding linear_order_from_list_position_set by blast+
+  then consider (a) "(x, y) \<in> set (map (\<lambda>x. (x, x)) xs)" |
+                (b) "(x, y) \<in> set (non_sym_dist_pairs xs)"
+    by blast
+  then show "x = y"
+  proof cases
+    case a
+    then show ?thesis by auto
+  next
+    case b
+    then have "x \<noteq> y" and "(y,x) \<notin> set (non_sym_dist_pairs xs)"
+      using non_sym_dist_pairs_set_iff[of x y xs] by simp+
+    then have "(y, x) \<notin> set (map (\<lambda>x. (x, x)) xs) \<union> set (non_sym_dist_pairs xs)"
+      by auto
+    then show ?thesis 
+     using \<open>(y, x) \<in> set (map (\<lambda>x. (x, x)) xs) \<union> set (non_sym_dist_pairs xs)\<close> by blast
+  qed
+qed
+
+
+lemma non_sym_dist_pairs'_indices : "distinct xs \<Longrightarrow> (x,y) \<in> set (non_sym_dist_pairs' xs) \<Longrightarrow> (\<exists> i j . xs ! i = x \<and> xs ! j = y \<and> i < j \<and> i < length xs \<and> j < length xs)"
+proof (induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+  show ?case proof (cases "a = x")
+    case True
+    then have "(a#xs) ! 0 = x" and "0 < length (a#xs)"
+      by auto
+    
+    have "y \<in> set xs"
+      using non_sym_dist_pairs'_elems_distinct(2,3)[OF Cons.prems(1,2)] True by auto
+    then obtain j where "xs ! j = y" and "j < length xs"
+      by (meson in_set_conv_nth)
+    then have "(a#xs) ! (Suc j) = y" and "Suc j < length (a#xs)"
+      by auto
+
+    then show ?thesis 
+      using \<open>(a#xs) ! 0 = x\<close> \<open>0 < length (a#xs)\<close> by blast
+  next
+    case False
+    then have "(x,y) \<in> set (non_sym_dist_pairs' xs)"
+      using Cons.prems(2) by auto
+    then show ?thesis 
+      using Cons.IH Cons.prems(1)
+      by (metis Suc_mono distinct.simps(2) length_Cons nth_Cons_Suc)
+  qed
+qed
+
+
+
+lemma non_sym_dist_pairs'_trans: "distinct xs \<Longrightarrow> trans (set (non_sym_dist_pairs' xs))"
+proof 
+  fix x y z assume "distinct xs" and "(x, y) \<in> set (non_sym_dist_pairs' xs)" and "(y, z) \<in> set (non_sym_dist_pairs' xs)"
+
+  obtain nx ny where "xs ! nx = x" and "xs ! ny = y" and "nx < ny" and "nx < length xs" and "ny < length xs"
+    using non_sym_dist_pairs'_indices[OF \<open>distinct xs\<close> \<open>(x, y) \<in> set (non_sym_dist_pairs' xs)\<close>] by blast
+
+  obtain ny' nz where "xs ! ny' = y" and "xs ! nz = z" and "ny'< nz" and "ny' < length xs" and "nz < length xs"
+    using non_sym_dist_pairs'_indices[OF \<open>distinct xs\<close> \<open>(y, z) \<in> set (non_sym_dist_pairs' xs)\<close>] by blast
+
+  have "ny' = ny"
+    using \<open>distinct xs\<close> \<open>xs ! ny = y\<close> \<open>xs ! ny' = y\<close> \<open>ny < length xs\<close> \<open>ny' < length xs\<close> nth_eq_iff_index_eq by metis
+  then have "nx < nz"
+    using \<open>nx < ny\<close> \<open>ny' < nz\<close> by auto
+
+  then have "nx \<noteq> nz" by simp
+  then have "x \<noteq> z"
+    using \<open>distinct xs\<close> \<open>xs ! nx = x\<close> \<open>xs ! nz = z\<close> \<open>nx < length xs\<close> \<open>nz < length xs\<close> nth_eq_iff_index_eq by metis
+
+  have "remdups xs = xs"
+    using \<open>distinct xs\<close> by auto
+
+  have "\<not>(z, x) \<in> set (non_sym_dist_pairs' xs)"
+  proof 
+    assume "(z, x) \<in> set (non_sym_dist_pairs' xs)"
+    then obtain nz' nx' where "xs ! nx' = x" and "xs ! nz' = z" and "nz'< nx'" and "nx' < length xs" and "nz' < length xs"
+      using non_sym_dist_pairs'_indices[OF \<open>distinct xs\<close>, of z x] by metis
+
+    have "nx' = nx"
+      using \<open>distinct xs\<close> \<open>xs ! nx = x\<close> \<open>xs ! nx' = x\<close> \<open>nx < length xs\<close> \<open>nx' < length xs\<close> nth_eq_iff_index_eq by metis
+    moreover have "nz' = nz"
+      using \<open>distinct xs\<close> \<open>xs ! nz = z\<close> \<open>xs ! nz' = z\<close> \<open>nz < length xs\<close> \<open>nz' < length xs\<close> nth_eq_iff_index_eq by metis
+    ultimately have "nz < nx"
+      using \<open>nz'< nx'\<close> by auto
+    then show "False"
+      using \<open>nx < nz\<close> by simp    
+  qed
+  then show "(x, z) \<in> set (non_sym_dist_pairs' xs)" 
+    using non_sym_dist_pairs'_elems_distinct(1)[OF \<open>distinct xs\<close> \<open>(x, y) \<in> set (non_sym_dist_pairs' xs)\<close>]
+    using non_sym_dist_pairs'_elems_distinct(2)[OF \<open>distinct xs\<close> \<open>(y, z) \<in> set (non_sym_dist_pairs' xs)\<close>]
+    using \<open>x \<noteq> z\<close>
+    using non_sym_dist_pairs_elems[of x xs z]
+    unfolding non_sym_dist_pairs.simps \<open>remdups xs = xs\<close> by blast
+qed
+
+
+lemma non_sym_dist_pairs_trans: "trans (set (non_sym_dist_pairs xs))"
+  using non_sym_dist_pairs'_trans[of "remdups xs", OF distinct_remdups] unfolding non_sym_dist_pairs.simps by assumption
+
+
+
+lemma linear_order_from_list_position_trans: "trans (set (linear_order_from_list_position xs))"
+proof 
+  fix x y z assume "(x, y) \<in> set (linear_order_from_list_position xs)" and "(y, z) \<in> set (linear_order_from_list_position xs)"
+  then consider (a) "(x, y) \<in> set (map (\<lambda>x. (x, x)) xs) \<and> (y, z) \<in> set (map (\<lambda>x. (x, x)) xs)" |
+                (b) "(x, y) \<in> set (map (\<lambda>x. (x, x)) xs) \<and> (y, z) \<in> set (non_sym_dist_pairs xs)" |
+                (c) "(x, y) \<in> set (non_sym_dist_pairs xs) \<and> (y, z) \<in> set (map (\<lambda>x. (x, x)) xs)" |
+                (d) "(x, y) \<in> set (non_sym_dist_pairs xs) \<and> (y, z) \<in> set (non_sym_dist_pairs xs)"
+    unfolding linear_order_from_list_position_set by blast+
+  then show "(x, z) \<in> set (linear_order_from_list_position xs)"
+  proof cases
+    case a
+    then show ?thesis unfolding linear_order_from_list_position_set by auto
+  next
+    case b
+    then show ?thesis unfolding linear_order_from_list_position_set by auto
+  next
+    case c
+    then show ?thesis unfolding linear_order_from_list_position_set by auto
+  next
+    case d
+    then show ?thesis unfolding linear_order_from_list_position_set 
+                      using non_sym_dist_pairs_trans 
+                      by (metis UnI2 transE)
+  qed
+qed
+
+  
+  
+ 
+
+
+
+definition node_order :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> 'a) set" where
+  "node_order M = set (linear_order_from_list_position (nodes_from_distinct_paths M))"
+
+value "node_order M_ex_9"
+
+
+
+lemma node_order_refl : "\<And> q1 . q1 \<in> nodes M \<Longrightarrow> (q1,q1) \<in> node_order M"
+  using linear_order_from_list_position_refl[of "nodes_from_distinct_paths M"]
+  unfolding nodes_code refl_on_def node_order_def by blast
+
+lemma node_order_trans : "\<And> q1 q2 q3 . (q1,q2) \<in> node_order M \<Longrightarrow> (q2,q3) \<in> node_order M \<Longrightarrow> (q1,q3) \<in> node_order M"
+  using linear_order_from_list_position_trans[of "nodes_from_distinct_paths M"]
+  unfolding nodes_code node_order_def trans_def by blast
+
+lemma node_order_antisym : "\<And> q1 q2 . (q1,q2) \<in> node_order M \<Longrightarrow> (q2,q1) \<in> node_order M \<Longrightarrow> q1 = q2"
+  using linear_order_from_list_position_antisym[of "nodes_from_distinct_paths M"]
+  unfolding nodes_code refl_on_def antisym_def node_order_def by blast
+  
+lemma node_order_total : "\<And> q1 q2 . q1 \<in> nodes M \<Longrightarrow> q2 \<in> nodes M \<Longrightarrow> (q1,q2) \<in> node_order M \<or> (q2,q1) \<in> node_order M"
+  using linear_order_from_list_position_total[of "nodes_from_distinct_paths M"]
+  unfolding nodes_code total_on_def antisym_def node_order_def 
+  by (metis linear_order_from_list_position_refl refl_onD)
+
+
+
+
 end

@@ -916,55 +916,55 @@ subsection \<open>Calculating Distinct Non-Reflexive Pairs over List Elements\<c
 (* Could be used to calculate tuples ((q1,q2),A), where A is a separator for q1 q2, such that
    ((q2,q1),_) is skipped *)
 
-fun non_refl_dist_pairs' :: "'a list \<Rightarrow> ('a \<times> 'a) list" where
-  "non_refl_dist_pairs' [] = []" |
-  "non_refl_dist_pairs' (x#xs) = (map (\<lambda> y. (x,y)) xs) @ non_refl_dist_pairs' xs"
+fun non_sym_dist_pairs' :: "'a list \<Rightarrow> ('a \<times> 'a) list" where
+  "non_sym_dist_pairs' [] = []" |
+  "non_sym_dist_pairs' (x#xs) = (map (\<lambda> y. (x,y)) xs) @ non_sym_dist_pairs' xs"
 
-fun non_refl_dist_pairs :: "'a list \<Rightarrow> ('a \<times> 'a) list" where
-  "non_refl_dist_pairs xs = non_refl_dist_pairs' (remdups xs)"
+fun non_sym_dist_pairs :: "'a list \<Rightarrow> ('a \<times> 'a) list" where
+  "non_sym_dist_pairs xs = non_sym_dist_pairs' (remdups xs)"
 
-value "non_refl_dist_pairs' [1,2,3::nat]"
-value "non_refl_dist_pairs' [1,2,1,3::nat]"
-value "non_refl_dist_pairs [1,2,1,3::nat]"
+value "non_sym_dist_pairs' [1,2,3::nat]"
+value "non_sym_dist_pairs' [1,2,1,3::nat]"
+value "non_sym_dist_pairs [1,2,1,3::nat]"
 
-lemma non_refl_dist_pairs_subset : "set (non_refl_dist_pairs xs) \<subseteq> (set xs) \<times> (set xs)"
+lemma non_sym_dist_pairs_subset : "set (non_sym_dist_pairs xs) \<subseteq> (set xs) \<times> (set xs)"
   by (induction xs; auto)
 
-lemma non_refl_dist_pairs'_elems_distinct:
+lemma non_sym_dist_pairs'_elems_distinct:
   assumes "distinct xs"
-  and     "(x,y) \<in> set (non_refl_dist_pairs' xs)"
+  and     "(x,y) \<in> set (non_sym_dist_pairs' xs)"
 shows "x \<in> set xs" 
 and   "y \<in> set xs"
 and   "x \<noteq> y"
 proof -
   show "x \<in> set xs" and "y \<in> set xs"
-    using non_refl_dist_pairs_subset assms(2) by (induction xs; auto)+
+    using non_sym_dist_pairs_subset assms(2) by (induction xs; auto)+
   show "x \<noteq> y"
     using assms by (induction xs; auto)
 qed
 
-lemma non_refl_dist_pairs_elems_distinct:
-  assumes "(x,y) \<in> set (non_refl_dist_pairs xs)"
+lemma non_sym_dist_pairs_elems_distinct:
+  assumes "(x,y) \<in> set (non_sym_dist_pairs xs)"
 shows "x \<in> set xs" 
 and   "y \<in> set xs"
 and   "x \<noteq> y"
-  using non_refl_dist_pairs'_elems_distinct assms
-  unfolding non_refl_dist_pairs.simps by fastforce+
+  using non_sym_dist_pairs'_elems_distinct assms
+  unfolding non_sym_dist_pairs.simps by fastforce+
 
 
-lemma non_refl_dist_pairs_elems :
+lemma non_sym_dist_pairs_elems :
   assumes "x \<in> set xs"
   and     "y \<in> set xs"
   and     "x \<noteq> y"
-shows "(x,y) \<in> set (non_refl_dist_pairs xs) \<or> (y,x) \<in> set (non_refl_dist_pairs xs)"
+shows "(x,y) \<in> set (non_sym_dist_pairs xs) \<or> (y,x) \<in> set (non_sym_dist_pairs xs)"
   using assms by (induction xs; auto)
 
 
 
-lemma non_refl_dist_pairs'_elems_non_refl :
+lemma non_sym_dist_pairs'_elems_non_refl :
   assumes "distinct xs"
-  and     "(x,y) \<in> set (non_refl_dist_pairs' xs)"
-shows "(y,x) \<notin> set (non_refl_dist_pairs' xs)"
+  and     "(x,y) \<in> set (non_sym_dist_pairs' xs)"
+shows "(y,x) \<notin> set (non_sym_dist_pairs' xs)"
   using assms  
 proof (induction xs arbitrary: x y)
   case Nil
@@ -974,11 +974,11 @@ next
   then have "distinct zs" by auto
 
   have "x \<noteq> y"
-    using non_refl_dist_pairs'_elems_distinct[OF Cons.prems] by simp
+    using non_sym_dist_pairs'_elems_distinct[OF Cons.prems] by simp
 
   consider (a) "(x,y) \<in> set (map (Pair z) zs)" |
-           (b) "(x,y) \<in> set (non_refl_dist_pairs' zs)"
-    using \<open>(x,y) \<in> set (non_refl_dist_pairs' (z#zs))\<close> unfolding non_refl_dist_pairs'.simps by auto
+           (b) "(x,y) \<in> set (non_sym_dist_pairs' zs)"
+    using \<open>(x,y) \<in> set (non_sym_dist_pairs' (z#zs))\<close> unfolding non_sym_dist_pairs'.simps by auto
   then show ?case proof cases
     case a
     then have "x = z" by auto
@@ -987,12 +987,12 @@ next
     moreover have "x \<notin> set zs"
       using \<open>x = z\<close> \<open>distinct (z#zs)\<close> by auto
     ultimately show ?thesis 
-      using \<open>distinct zs\<close> non_refl_dist_pairs'_elems_distinct(2) by fastforce
+      using \<open>distinct zs\<close> non_sym_dist_pairs'_elems_distinct(2) by fastforce
   next
     case b
     then have "x \<noteq> z" and "y \<noteq> z"
-      using Cons.prems unfolding non_refl_dist_pairs'.simps 
-      by (meson distinct.simps(2) non_refl_dist_pairs'_elems_distinct(1,2))+
+      using Cons.prems unfolding non_sym_dist_pairs'.simps 
+      by (meson distinct.simps(2) non_sym_dist_pairs'_elems_distinct(1,2))+
     
     then show ?thesis 
       using Cons.IH[OF \<open>distinct zs\<close> b] by auto
@@ -1000,17 +1000,17 @@ next
 qed
 
 
-lemma non_refl_dist_pairs_elems_non_refl :
-  assumes "(x,y) \<in> set (non_refl_dist_pairs xs)"
-  shows "(y,x) \<notin> set (non_refl_dist_pairs xs)"
-  using assms by (simp add: non_refl_dist_pairs'_elems_non_refl)
+lemma non_sym_dist_pairs_elems_non_refl :
+  assumes "(x,y) \<in> set (non_sym_dist_pairs xs)"
+  shows "(y,x) \<notin> set (non_sym_dist_pairs xs)"
+  using assms by (simp add: non_sym_dist_pairs'_elems_non_refl)
 
 
-lemma non_refl_dist_pairs_set_iff :
-  "(x,y) \<in> set (non_refl_dist_pairs xs) \<longleftrightarrow> (x \<noteq> y \<and> x \<in> set xs \<and> y \<in> set xs \<and> (y,x) \<notin> set (non_refl_dist_pairs xs))"
-  using non_refl_dist_pairs_elems_non_refl[of x y xs] 
-        non_refl_dist_pairs_elems[of x xs y] 
-        non_refl_dist_pairs_elems_distinct[of x y xs] by blast 
+lemma non_sym_dist_pairs_set_iff :
+  "(x,y) \<in> set (non_sym_dist_pairs xs) \<longleftrightarrow> (x \<noteq> y \<and> x \<in> set xs \<and> y \<in> set xs \<and> (y,x) \<notin> set (non_sym_dist_pairs xs))"
+  using non_sym_dist_pairs_elems_non_refl[of x y xs] 
+        non_sym_dist_pairs_elems[of x xs y] 
+        non_sym_dist_pairs_elems_distinct[of x y xs] by blast 
 
 
 
