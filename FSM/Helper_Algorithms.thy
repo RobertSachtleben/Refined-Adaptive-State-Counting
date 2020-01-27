@@ -10,6 +10,20 @@ definition r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme 
                                                                                 \<and> (((q1,q2) \<in> node_order M \<and> calculate_state_separator_from_s_states M q1 q2 = Some Sep)
                                                                                   \<or> ((q2,q1) \<in> node_order M \<and> calculate_state_separator_from_s_states M q2 q1 = Some Sep)) }"
 
+lemma r_distinguishable_state_pairs_with_separators_same_pair_same_separator :
+  assumes "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
+  and     "((q1,q2),A') \<in> r_distinguishable_state_pairs_with_separators M"
+shows "A = A'"
+  using assms unfolding r_distinguishable_state_pairs_with_separators_def
+  using node_order_antisym by force 
+
+
+lemma r_distinguishable_state_pairs_with_separators_sym_pair_same_separator :
+  assumes "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
+  and     "((q2,q1),A') \<in> r_distinguishable_state_pairs_with_separators M"
+shows "A = A'"
+  using assms unfolding r_distinguishable_state_pairs_with_separators_def
+  using node_order_antisym by force 
 
 
 
