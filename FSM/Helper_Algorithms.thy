@@ -2,6 +2,7 @@ theory Helper_Algorithms
 imports R_Distinguishability State_Separator State_Preamble
 begin
 
+subsection \<open>Calculating r-distinguishable State Pairs with Separators\<close>
 
 definition r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) set" where
   "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M 
@@ -432,13 +433,21 @@ lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_set :
   using pairwise_r_distinguishable_state_sets_from_separators_set by force
   
 
-end (*
+value "maximal_pairwise_r_distinguishable_state_sets_from_separators M_ex_9"
+value "maximal_pairwise_r_distinguishable_state_sets_from_separators M_ex_H"
+value "card (node_order M_ex_DR)"
 
 
 
 
+
+
+
+
+(* old set version 
 definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = (let PR = (pairwise_r_distinguishable_state_sets_from_separators M) in {S \<in> PR . \<not>(\<exists> S' \<in> PR . S \<subset> S')})"
+*)
 
 value "r_distinguishable_state_pairs_with_separators M_ex_H"
 value "pairwise_r_distinguishable_state_sets_from_separators M_ex_H"
@@ -451,26 +460,28 @@ value "maximal_pairwise_r_distinguishable_state_sets_from_separators M_ex_9"
 
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_cover :
   assumes "q \<in> nodes M"
-  shows "\<exists> S \<in> maximal_pairwise_r_distinguishable_state_sets_from_separators M . q \<in> S"
+  shows "\<exists> S \<in> set (maximal_pairwise_r_distinguishable_state_sets_from_separators M ). q \<in> S"
 proof -
 
-  have *: "{q} \<in> pairwise_r_distinguishable_state_sets_from_separators M"
-    unfolding pairwise_r_distinguishable_state_sets_from_separators_def using assms by blast
-  have **: "finite (pairwise_r_distinguishable_state_sets_from_separators M)"
-    unfolding pairwise_r_distinguishable_state_sets_from_separators_def by (simp add: nodes_finite) 
+  have *: "{q} \<in> set (pairwise_r_distinguishable_state_sets_from_separators M)"
+    unfolding pairwise_r_distinguishable_state_sets_from_separators_set using assms by blast
+  have **: "finite (set (pairwise_r_distinguishable_state_sets_from_separators M))"
+    unfolding pairwise_r_distinguishable_state_sets_from_separators_set by (simp add: nodes_finite) 
 
-  have "maximal_pairwise_r_distinguishable_state_sets_from_separators M = 
-        {S \<in> pairwise_r_distinguishable_state_sets_from_separators M . \<not>(\<exists> S' \<in> pairwise_r_distinguishable_state_sets_from_separators M . S \<subset> S')}"
-    unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_def by metis 
-  then have "maximal_pairwise_r_distinguishable_state_sets_from_separators M = 
-        {S \<in> pairwise_r_distinguishable_state_sets_from_separators M . (\<forall> S' \<in> pairwise_r_distinguishable_state_sets_from_separators M . \<not> S \<subset> S')}"
+  have "set (maximal_pairwise_r_distinguishable_state_sets_from_separators M) = 
+        {S \<in> set (pairwise_r_distinguishable_state_sets_from_separators M). \<not>(\<exists> S' \<in> set (pairwise_r_distinguishable_state_sets_from_separators M) . S \<subset> S')}"
+    unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_set  pairwise_r_distinguishable_state_sets_from_separators_set by metis
+  then have "set (maximal_pairwise_r_distinguishable_state_sets_from_separators M) = 
+        {S \<in> set (pairwise_r_distinguishable_state_sets_from_separators M) . (\<forall> S' \<in> set (pairwise_r_distinguishable_state_sets_from_separators M) . \<not> S \<subset> S')}"
     by blast 
-  moreover have "\<exists> S \<in> {S \<in> pairwise_r_distinguishable_state_sets_from_separators M . (\<forall> S' \<in> pairwise_r_distinguishable_state_sets_from_separators M . \<not> S \<subset> S')} . q \<in> S"
+  moreover have "\<exists> S \<in> {S \<in> set (pairwise_r_distinguishable_state_sets_from_separators M) . (\<forall> S' \<in> set (pairwise_r_distinguishable_state_sets_from_separators M) . \<not> S \<subset> S')} . q \<in> S"
     using maximal_set_cover[OF ** *] by blast
   ultimately show ?thesis by blast 
 qed
 
 
+
+subsection \<open>Calculating d-reachable States with Preambles\<close>
 
 
 
@@ -529,6 +540,7 @@ qed
 
 
 value "d_reachable_states_with_preambles M_ex_H"
+value "d_reachable_states_with_preambles M_ex_DR"
 
 
 
@@ -546,7 +558,7 @@ value "d_reachable_states_with_preambles M_ex_H"
 
 
 
-
+(* preamble sets
 
 (* calculate d-reachable states and a fixed assignment of preambles *)
 definition d_reachable_states_with_preamble_sets :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
@@ -607,7 +619,7 @@ qed
 
 
 value "d_reachable_states_with_preamble_sets M_ex_H"
-
+*)
 
 
 
@@ -642,14 +654,20 @@ value "d_reachable_states M_ex_H"
 value "d_reachable_states M_ex_9"
 
 
+definition maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) list" where
+  "maximal_repetition_sets_from_separators M = map (\<lambda> S . (S, S \<inter> set (d_reachable_states M))) (maximal_pairwise_r_distinguishable_state_sets_from_separators M)" 
 
+(* old set version *)
+(*
 definition maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets_from_separators M = {(S, S \<inter> set (d_reachable_states M)) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}" 
+
 
 lemma maximal_repetition_sets_from_separators_code[code] :
   "maximal_repetition_sets_from_separators M = (let DR = set (d_reachable_states M) in image (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators M))"
   unfolding maximal_repetition_sets_from_separators_def Let_def
   by (simp add: Setcompr_eq_image) 
+*)
   
 
 
