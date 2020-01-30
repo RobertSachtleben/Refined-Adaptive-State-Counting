@@ -6,21 +6,12 @@ section \<open>Traversal Sets for State Counting\<close>
 
 subsection \<open>Calculating Traversal Paths\<close>
 
-
+(*
 fun m_traversal_paths_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
   "m_traversal_paths_up_to_length M q D m k = paths_up_to_length_or_condition M q k (\<lambda> p . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) []"
 
 fun m_traversal_paths :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
   "m_traversal_paths M q D m = m_traversal_paths_up_to_length M q D m (Suc (size M * m))"
-
-(* variation on traversal_paths that also retrieves the set of r-d states that satisfied the termination criterion *)
-fun m_traversal_paths_with_witness_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
-  "m_traversal_paths_with_witness_up_to_length M q D m k = paths_up_to_length_or_condition_with_witness M q k (\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D) []"
-
-fun m_traversal_paths_with_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
-  "m_traversal_paths_with_witness M q D m = m_traversal_paths_with_witness_up_to_length M q D m (Suc (size M * m))"
-
-
 
 value "m_traversal_paths_up_to_length M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 10000"
 value "m_traversal_paths_up_to_length M_ex_H 3 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 10000"
@@ -31,6 +22,27 @@ value "m_traversal_paths M_ex_H 3 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 "
 value "m_traversal_paths M_ex_H 4 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 "
 
 value "m_traversal_paths_up_to_length M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 4 10000"
+
+*)
+
+(* variation on traversal_paths that also retrieves the set of r-d states that satisfied the termination criterion *)
+fun m_traversal_paths_with_witness_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
+  "m_traversal_paths_with_witness_up_to_length M q D m k = paths_up_to_length_or_condition_with_witness M q k (\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D) []"
+
+fun m_traversal_paths_with_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
+  "m_traversal_paths_with_witness M q D m = m_traversal_paths_with_witness_up_to_length M q D m (Suc (size M * m))"
+
+
+value "m_traversal_paths_with_witness_up_to_length M_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 10000"
+value "m_traversal_paths_with_witness_up_to_length M_ex_H 3 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 10000"
+value "m_traversal_paths_with_witness_up_to_length M_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 10000"
+
+value "m_traversal_paths_with_witness M_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
+value "m_traversal_paths_with_witness M_ex_H 3 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
+value "m_traversal_paths_with_witness M_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
+
+value "m_traversal_paths_with_witness_up_to_length M_ex_9 2 [({0,2,3},{0,2,3}),({1,2,3},{2,3})] 4 10000"
+
 
 value "m_traversal_paths_with_witness M_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4"
 
@@ -225,7 +237,7 @@ qed
 
 
 
-  
+(*  
 lemma m_traversal_paths_up_to_length_max_length :
   assumes "\<forall> q \<in> nodes M . \<exists> d \<in> D . q \<in> fst d"
   and     "\<forall> d \<in> D . snd d \<subseteq> fst d"
@@ -358,7 +370,7 @@ proof (rule ccontr)
   then show "False"
     using \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> \<not> (?f p')\<close> by blast
 qed
-    
+*)  
 
 
 
@@ -367,11 +379,11 @@ qed
 
 
 value "maximal_repetition_sets_from_separators M_ex_H"
-value "m_traversal_paths M_ex_H  1 (maximal_repetition_sets_from_separators M_ex_H) 4"
-value "m_traversal_paths M_ex_H  3 (maximal_repetition_sets_from_separators M_ex_H) 4"
-value "m_traversal_paths M_ex_H  4 (maximal_repetition_sets_from_separators M_ex_H) 4"
+value "m_traversal_paths_with_witness M_ex_H  1 ((maximal_repetition_sets_from_separators M_ex_H)) 4"
+value "m_traversal_paths_with_witness M_ex_H  3 ((maximal_repetition_sets_from_separators M_ex_H)) 4"
+value "m_traversal_paths_with_witness M_ex_H  4 ((maximal_repetition_sets_from_separators M_ex_H)) 4"
 
-value "m_traversal_paths M_ex_9  3 (maximal_repetition_sets_from_separators M_ex_9) 4"
+value "m_traversal_paths_with_witness M_ex_9  3 ((maximal_repetition_sets_from_separators M_ex_9)) 4"
 
 
 
@@ -379,30 +391,84 @@ value "m_traversal_paths M_ex_9  3 (maximal_repetition_sets_from_separators M_ex
 
 lemma maximal_repetition_sets_from_separators_cover :
   assumes "q \<in> nodes M"
-  shows "\<exists> d \<in> (maximal_repetition_sets_from_separators M) . q \<in> fst d"
+  shows "\<exists> d \<in> set (maximal_repetition_sets_from_separators M) . q \<in> fst d"
   unfolding maximal_repetition_sets_from_separators_def
   using maximal_pairwise_r_distinguishable_state_sets_from_separators_cover[OF assms] by auto
 
 lemma maximal_repetition_sets_from_separators_d_reachable_subset :
-  shows "\<forall> d \<in> (maximal_repetition_sets_from_separators M) . snd d \<subseteq> fst d"
+  shows "\<And> d . d \<in> set (maximal_repetition_sets_from_separators M) \<Longrightarrow> snd d \<subseteq> fst d"
   unfolding maximal_repetition_sets_from_separators_def
   by auto
 
-lemma m_traversal_paths_set_appl : 
+
+
+
+lemma m_traversal_paths_with_witness_set_containment :
   assumes "q \<in> nodes M"
-  shows "set (m_traversal_paths M q (maximal_repetition_sets_from_separators M) m) =
+  and     "path M q p"
+  and     "d \<in> set repSets"
+  and     "Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)"
+  and     "\<And> p' p''.
+                  p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow>
+                  \<not> (\<exists>d\<in>set repSets.
+                         Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'))"
+  and     "\<And> q . q\<in>nodes M \<Longrightarrow> \<exists>d\<in>set repSets. q \<in> fst d"
+  and     "\<And> d . d\<in>set repSets \<Longrightarrow> snd d \<subseteq> fst d"
+shows "\<exists> d' . (p,d') \<in> set (m_traversal_paths_with_witness M q repSets m)"
+proof -
+  have *:"\<forall> q \<in> nodes M . \<exists>d\<in>set repSets. q \<in> fst d"
+    using assms(6) by blast
+  have **:"\<forall> d \<in> set repSets . snd d \<subseteq> fst d"
+    using assms(7) by blast
+
+  obtain d' where "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) repSets = Some d'"
+    using assms(3,4) find_None_iff[of "(\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p))" repSets] by auto
+  moreover have "(\<And> p' p''. p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) repSets = None)"
+    using assms(5) find_None_iff[of _ repSets] by force
+  
+
+  ultimately show ?thesis
+    unfolding m_traversal_paths_with_witness_set[of M repSets q m, OF * ** assms(1)]
+    using assms(2) by blast
+qed
+
+
+
+(* implement further lemmata as required ... *)
+
+(*
+lemma m_traversal_paths_with_witness_set_elem :
+  assumes "(p,d) \<in> set (m_traversal_paths_with_witness M q repSets m)"
+  and     "q \<in> nodes M"
+shows "path M q p"
+and   "d \<in> set repSets"
+and   "Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)"
+and   "\<And> p' p''.
+                  p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow>
+                  \<not> (\<exists>d\<in>set repSets.
+                         Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'))"
+  using m_traversal_paths_with_witness_set
+
+
+lemma m_traversal_paths_with_witness_set_appl : 
+  assumes "q \<in> nodes M"
+  shows "image fst (set (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators M) m)) =
           {p. path M q p \<and>
-              (\<exists>d\<in>maximal_repetition_sets_from_separators M.
+              (\<exists>d\<in>set (maximal_repetition_sets_from_separators M).
                   Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) \<and>
               (\<forall>p' p''.
                   p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow>
-                  \<not> (\<exists>d\<in>maximal_repetition_sets_from_separators M.
+                  \<not> (\<exists>d\<in>set (maximal_repetition_sets_from_separators M).
                          Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')))}"
-  using m_traversal_paths_set[of M "maximal_repetition_sets_from_separators M", OF _ _ assms]
-          maximal_repetition_sets_from_separators_d_reachable_subset 
-    by (metis (no_types, lifting) maximal_repetition_sets_from_separators_cover)
+  using m_traversal_paths_with_witness_set[of M "maximal_repetition_sets_from_separators M", OF _ _ assms]
+        maximal_repetition_sets_from_separators_cover  
+        maximal_repetition_sets_from_separators_d_reachable_subset 
+        m_traversal_paths_with_witness_set_containment[OF assms] 
+          
+  using find_Some_iff
+    by (metis (no_types, lifting) 
 
-
+  thm m_traversal_paths_with_witness_set
 
 
  
@@ -761,6 +827,8 @@ fun m_traversal_sequences :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 
   "m_traversal_sequences M q D m = m_traversal_sequences' M q D m (Suc ((size M) * m)) {[]} {}"
 
 *)*)*)*)*)
+
+*)
 
 end
 
