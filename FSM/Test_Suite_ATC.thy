@@ -134,18 +134,7 @@ next
 qed
 
 
-(* TODO: review Petrenko/Yevtushenko *)
 
-(* rework sketch:
-  1.) calculate d-r states with preambles (set DR of (q,P))
-  2.) calculate traversal sequences from d-r states (set DRT of (q,P,p,D) where D is the set satisfying the abortion criterion)
-  3.1.) for all (q,P,p,D) calculate prefixes p1 < p2 of p s.t. their targets (from q) are in D
-        \<rightarrow> store (q,P,p1,p2,A), where A is an ATC r-d-ing the targets
-  3.2.) for all (q,P,p,D) calculate prefixes p1 of p and (q',P') such that the target of p1 (from q) and q1 are in D
-        \<rightarrow> store (q,P,p1,q',P',A)
-  3.3.) for all (q,P) and (q',P') such that q and q' are r-d (better: in some D actually used)
-        \<rightarrow> store (q,P,q',P',A)
-*)
 
 
 
@@ -197,13 +186,19 @@ qed
 fun list_as_fun :: "('a \<times> 'b) list \<Rightarrow> 'b \<Rightarrow> ('a \<Rightarrow> 'b)" where
   "list_as_fun xs defaultValue = (\<lambda> x . (case find (\<lambda>(a,b) . a = x) xs of Some (a,b) \<Rightarrow> b | None \<Rightarrow> defaultValue))"
 
+fun list_as_fun' :: "('a \<times> 'b) list \<Rightarrow> ('a \<Rightarrow> 'b)" where
+  "list_as_fun' xs = (\<lambda> x . (case find (\<lambda>(a,b) . a = x) xs of Some (a,b) \<Rightarrow> b ))"
+
+value "(list_as_fun' [(1::nat,2::nat)]) 1"
+
+
 lemma list_as_fun_on :
   assumes "a \<in> set xs"
 shows "(list_as_fun (map (\<lambda> x . (x, f x)) xs) y) a = f a"
   using assms by (induction xs; auto)
 
 
-
+(*
 lemma rdssl_list_as_fun_helper :
   assumes "((q1,q2),A) \<in> set (r_distinguishable_state_pairs_with_separators_naive M)"
   shows "(list_as_fun (r_distinguishable_state_pairs_with_separators_naive M) (THE A. False)) (q1,q2) = A"
@@ -222,6 +217,125 @@ proof -
     unfolding r_distinguishable_state_pairs_with_separators_code by blast
   then show ?thesis using * by auto
 qed
+*)
+
+
+
+
+lemma fRD_helper :
+  assumes "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
+  shows "(\<lambda> q1 q2 . snd (the (find (\<lambda> qqA . fst qqA = (q1,q2)) (r_distinguishable_state_pairs_with_separators_naive M)))) q1 q2 = A"
+proof -
+  have "\<And> qqA . fst qqA = (q1, q2) \<Longrightarrow> qqA \<in> r_distinguishable_state_pairs_with_separators M \<Longrightarrow> qqA = ((q1,q2),A)"
+    using r_distinguishable_state_pairs_with_separators_same_pair_same_separator[OF assms]
+    by auto
+  
+  then have "(find (\<lambda>qqA. fst qqA = (q1, q2)) (r_distinguishable_state_pairs_with_separators_naive M)) = Some ((q1,q2),A)"
+    
+    using find_None_iff[of "(\<lambda>qqA. fst qqA = (q1, q2))" "r_distinguishable_state_pairs_with_separators_naive M"]
+    using assms
+  proof -
+    have f1: "find (\<lambda>p. fst p = (q1, q2)) (r_distinguishable_state_pairs_with_separators_naive M) = Some (the (find (\<lambda>p. fst p = (q1, q2)) (r_distinguishable_state_pairs_with_separators_naive M)))"
+      by (metis \<open>((q1, q2), A) \<in> r_distinguishable_state_pairs_with_separators M\<close> \<open>(find (\<lambda>qqA. fst qqA = (q1, q2)) (r_distinguishable_state_pairs_with_separators_naive M) = None) = (\<nexists>x. x \<in> set (r_distinguishable_state_pairs_with_separators_naive M) \<and> fst x = (q1, q2))\<close> fst_conv option.exhaust_sel r_distinguishable_state_pairs_with_separators_code)
+    then have f2: "fst (the (find (\<lambda>p. fst p = (q1, q2)) (r_distinguishable_state_pairs_with_separators_naive M))) = (q1, q2)"
+      by (meson find_condition)
+    have "the (find (\<lambda>p. fst p = (q1, q2)) (r_distinguishable_state_pairs_with_separators_naive M)) \<in> r_distinguishable_state_pairs_with_separators M"
+      using f1 by (simp add: find_set r_distinguishable_state_pairs_with_separators_code)
+    then show ?thesis
+      using f2 f1 \<open>\<And>qqA. \<lbrakk>fst qqA = (q1, q2); qqA \<in> r_distinguishable_state_pairs_with_separators M\<rbrakk> \<Longrightarrow> qqA = ((q1, q2), A)\<close> by presburger
+  qed  
+
+  then show ?thesis by auto
+qed
+
+(*
+lemma fTP_helper :
+  fixes m :: nat
+  assumes "q \<in> set (map fst (d_reachable_states_with_preambles M))"
+  shows "True"
+proof -
+  note list_as_fun_on[OF assms, of "\<lambda> q . m_traversal_paths_with_witness M q (map (\<lambda>S. (S, S \<inter> set (map fst (d_reachable_states_with_preambles M)))) (filter (\<lambda> S . \<not>(\<exists> S' \<in> set (filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> (image fst (set (r_distinguishable_state_pairs_with_separators_naive M)))) (map set (pow_list (nodes_from_distinct_paths M)))) . S \<subset> S')) (filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> (image fst (set (r_distinguishable_state_pairs_with_separators_naive M)))) (map set (pow_list (nodes_from_distinct_paths M)))))) m" "[]" ]
+  *)
+  
+(* Test cases between two prefixes of some traversal sequence *)
+(* Assumes that states in rd are pairwise r-d and uses fRD to retrieve a separator *)
+fun calculate_test_case_for_prefixes :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> 'a Traversal_Path \<Rightarrow> ('a set \<times> 'a set) \<Rightarrow> (('a Traversal_Path \<times> 'a Traversal_Path) \<times> ('c,'d) ATC) list" where
+  "calculate_test_case_for_prefixes q fRD p (rd,dr) = (map (\<lambda> (p1,p2) . ((p1,p2), fRD (target p1 q) (target p2 q)))      \<comment> \<open>retrieve separator using fRD\<close>
+                                                 (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd) \<comment> \<open>ensure that a separator exists, assuming that the states in rd are pairwise r-d\<close>
+                                                         (prefix_pairs p)))"
+
+fun calculate_test_cases_for_prefixes :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+  "calculate_test_cases_for_prefixes q P fRD pds = concat (map (\<lambda> (p,d) . concat (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p d))) pds)"
+
+
+lemma calculate_test_case_for_prefixes_set :
+  "set (calculate_test_case_for_prefixes q fRD p (rd,dr)) = {((p1,p2), fRD (target p1 q) (target p2 q)) | p1 p2 . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> [])}"
+proof -
+  have "set (prefix_pairs p) = {(p1, p2) | p1 p2 . \<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> []}"
+    using prefix_pairs_set[of p] by assumption
+  then have "set (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd) (prefix_pairs p)) =  {(p1, p2) | p1 p2 . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> [])}"
+    by fastforce
+  moreover have "image (\<lambda> (p1,p2) . ((p1,p2), fRD (target p1 q) (target p2 q))) {(p1, p2) | p1 p2 . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> [])} = {((p1,p2), fRD (target p1 q) (target p2 q)) | p1 p2 . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> [])}"
+    by fast
+  ultimately show ?thesis unfolding calculate_test_case_for_prefixes.simps by force
+qed
+
+
+lemma calculate_test_cases_for_prefixes_set :
+  "set (calculate_test_cases_for_prefixes q P fRD pds) = (\<Union> (p,d) \<in> set pds . (\<Union> {{(P,p1,fRD (target p1 q) (target p2 q)),(P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> []) }))"
+proof -
+  thm concat_map_elem
+  
+  have scheme : "\<And> f xs . set (concat (map f xs)) = \<Union>(image (set o f) (set xs))" by auto
+
+  have "\<And> p rd dr . set (calculate_test_case_for_prefixes q fRD p (rd,dr)) = {((p1,p2), fRD (target p1 q) (target p2 q)) | p1 p2 . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> [])}"
+    using calculate_test_case_for_prefixes_set[of q fRD] by blast
+  
+  have "\<And> p rd dr . set (concat (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p (rd,dr)))) = \<Union> (image (\<lambda>((p1,p2),A) . set [(P,p1,A),(P,p2,A)]) (set (calculate_test_case_for_prefixes q fRD p (rd,dr))))"
+  proof - 
+    fix p rd dr
+
+    have "UNION
+   {((p1, p2), fRD (target p1 q) (target p2 q)) |p1 p2. target p1 q \<in> rd \<and> target p2 q \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> [])}
+   (set \<circ> (\<lambda>((p1, p2), A). [(P, p1, A), (P, p2, A)])) = (\<Union>((p1, p2), A)\<in>set (calculate_test_case_for_prefixes q fRD p (rd, dr)). set [(P, p1, A), (P, p2, A)])" 
+      unfolding calculate_test_case_for_prefixes_set[of q fRD p rd dr]
+    proof -
+      { fix pp :: "(('a \<times> integer \<times> integer \<times> 'a) list \<times> ('a \<times> integer \<times> integer \<times> 'a) list) \<times> ('c, 'd) FSM_scheme"
+        have "UNION {((ps, psa), fRD (target ps q) (target psa q)) |ps psa. target ps q \<in> rd \<and> target psa q \<in> rd \<and> (\<exists>psaa psaaa. ps @ psaa = psa \<and> psa @ psaaa = p \<and> psaa \<noteq> [])} (set \<circ> (\<lambda>((ps, psa), f). [(P, ps, f), (P, psa, f)])) = (\<Union>((ps, psa), f)\<in>{((ps, psa), fRD (target ps q) (target psa q)) |ps psa. target ps q \<in> rd \<and> target psa q \<in> rd \<and> (\<exists>psaa psaaa. ps @ psaa = psa \<and> psa @ psaaa = p \<and> psaa \<noteq> [])}. set [(P, ps, f), (P, psa, f)]) \<or> (set \<circ> (\<lambda>((ps, psa), f). [(P, ps, f), (P, psa, f)])) pp = (case pp of (x, xa) \<Rightarrow> (case x of (ps, psa) \<Rightarrow> \<lambda>f. set [(P, ps, f), (P, psa, f)]) xa)"
+          by fastforce }
+      then show "UNION {((ps, psa), fRD (target ps q) (target psa q)) |ps psa. target ps q \<in> rd \<and> target psa q \<in> rd \<and> (\<exists>psb psc. ps @ psb = psa \<and> psa @ psc = p \<and> psb \<noteq> [])} (set \<circ> (\<lambda>((psa, ps), f). [(P, psa, f), (P, ps, f)])) = (\<Union>((psa, ps), f)\<in>{((ps, psa), fRD (target ps q) (target psa q)) |ps psa. target ps q \<in> rd \<and> target psa q \<in> rd \<and> (\<exists>psb psc. ps @ psb = psa \<and> psa @ psc = p \<and> psb \<noteq> [])}. set [(P, psa, f), (P, ps, f)])"
+        by meson
+    qed 
+
+
+    then show "set (concat (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p (rd,dr)))) = \<Union> (image (\<lambda>((p1,p2),A) . set [(P,p1,A),(P,p2,A)]) (set (calculate_test_case_for_prefixes q fRD p (rd,dr))))"
+      using scheme[of "(\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)])" "calculate_test_case_for_prefixes q fRD p (rd,dr)"] 
+      unfolding calculate_test_case_for_prefixes_set[of q fRD p rd dr] by force
+  qed
+  then have "\<And> p rd dr . set (concat (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p (rd,dr)))) = \<Union> (image (\<lambda>((p1,p2),A) . {(P,p1,A),(P,p2,A)}) (set (calculate_test_case_for_prefixes q fRD p (rd,dr))))"
+    by simp
+  then have "set (map (\<lambda> (p,d) . concat (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p d))) pds) = {\<Union> (image (\<lambda>((p1,p2),A) . {(P,p1,A),(P,p2,A)}) (set (calculate_test_case_for_prefixes q fRD p (rd,dr)))) | p rd dr . (p,(rd,dr)) \<in> set pds}"
+
+  ultimately show ?thesis
+
+  then have "\<And> p rd dr . set (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p (rd,dr))) = {[(P, p1, fRD (target p1 q) (target p2 q)), (P, p2, fRD (target p1 q) (target p2 q))] | p1 p2 . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (\<exists>p' p''. p1 @ p' = p2 \<and> p2 @ p'' = p \<and> p' \<noteq> [])}"
+        
+  define xs1 where "xs1 = concat (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p d))"
+  unfolding calculate_test_cases_for_prefixes.simps
+  using calculate_test_case_for_prefixes_set 
+
+(* TODO: review Petrenko/Yevtushenko *)
+
+(* rework sketch:
+  1.) calculate d-r states with preambles (set DR of (q,P))
+  2.) calculate traversal sequences from d-r states (set DRT of (q,P,p,D) where D is the set satisfying the abortion criterion)
+  3.1.) for all (q,P,p,D) calculate prefixes p1 < p2 of p s.t. their targets (from q) are in D
+        \<rightarrow> store (q,P,p1,p2,A), where A is an ATC r-d-ing the targets
+  3.2.) for all (q,P,p,D) calculate prefixes p1 of p and (q',P') such that the target of p1 (from q) and q1 are in D
+        \<rightarrow> store (q,P,p1,q',P',A)
+  3.3.) for all (q,P) and (q',P') such that q and q' are r-d (better: in some D actually used)
+        \<rightarrow> store (q,P,q',P',A)
+*)
 
 
 
@@ -241,19 +355,24 @@ fun calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow>
          DRSP \<comment> \<open>D-R States with Preambles\<close>
               = d_reachable_states_with_preambles M;
          DRS  \<comment> \<open>D-R States\<close>
-              = (map fst DRSP); \<comment> \<open>corresponds to d_reachable_states\<close>
+              = map fst DRSP; \<comment> \<open>corresponds to d_reachable_states\<close>
          MRS  \<comment> \<open>Maximal Repetition sets (maximal pairwise r-d sets with their d-r subsets\<close>
-              = map (\<lambda>S. (S, S \<inter> set DRS)) MPRD; \<comment> \<open>coresponds to maximal_repetition_sets_from_separators\<close>
+              = map (\<lambda>S. (S, S \<inter> set DRS)) MPRD; \<comment> \<open>corresponds to maximal_repetition_sets_from_separators\<close>
          MTP  \<comment> \<open>states and their outgoing m-Traversal Paths\<close>
-              = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) (nodes_from_distinct_paths M);
-         fTP  \<comment> \<open>function to get Traversal Paths\<close>
-              = list_as_fun MTP [];
+              = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
+         fTP  \<comment> \<open>function to get Traversal Paths with witnesses for states\<close>
+              = list_as_fun MTP []; \<comment> \<open>see list_as_fun_on and the sketch following fRD_helper\<close>
          fRD  \<comment> \<open>function to get separators for R-D states\<close>
-              = list_as_fun RDSSL (THE A . False) \<comment> \<open>verify usage, see rdssl_list_as_fun_helper, possibly weaken assumption of that lemma\<close>
+              = \<lambda> q1 q2 . snd (the (find (\<lambda> qqA . fst qqA = (q1,q2)) RDSSL)) \<comment> \<open>see fRD_helper\<close>
+         PrefTests 
+              = map (\<lambda> (q,pds) . ) MTP
       in {})"
 
 
 
+
+
+end (*
 
 
 (* Test cases between two prefixes of some traversal sequence *)
