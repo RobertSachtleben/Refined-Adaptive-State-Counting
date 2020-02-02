@@ -326,6 +326,10 @@ proof -
 
 *)
 
+
+
+
+
 (* TODO: review Petrenko/Yevtushenko *)
 
 (* rework sketch:
@@ -340,38 +344,45 @@ proof -
 *)
 
 
-fun prefix_pair_tests' :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> 'a Traversal_Path \<times> ('a set \<times> 'a set) \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) set list" where
-  "prefix_pair_tests' q P fRD (p, (rd,dr)) = (map (\<lambda> (p1,p2) . {(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))})      \<comment> \<open>retrieve separator using fRD\<close>
-                                                 (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd) \<comment> \<open>ensure that a separator exists, assuming that the states in rd are pairwise r-d\<close>
+
+subsubsection "Calculating Tests along m-Traversal-Paths"
+
+fun prefix_pair_tests'' :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> 'a Traversal_Path \<times> ('a set \<times> 'a set) \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list list" where
+  "prefix_pair_tests'' q P fRD (p, (rd,dr)) = (map (\<lambda> (p1,p2) . [(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))])      \<comment> \<open>retrieve separator using fRD\<close>
+                                                 (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)) \<comment> \<open>ensure that a separator exists, assuming that the states in rd are pairwise r-d\<close>
                                                          (prefix_pairs p)))"
 
-lemma prefix_pair_tests'_set : 
-  "set (prefix_pair_tests' q P fRD (p, (rd,dr))) = {{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd}"
+lemma prefix_pair_tests''_set : 
+  "set (prefix_pair_tests'' q P fRD (p, (rd,dr))) = {[(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))] | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)}"
 proof -
 
   have scheme: "\<And> S f P . image f {(p1,p2) | p1 p2 . P p1 p2} = {f (p1,p2) | p1 p2 . P p1 p2}" by auto
 
-  have "set (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd) (prefix_pairs p)) = {(p1,p2) | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd}"
+  have "set (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)) (prefix_pairs p)) = {(p1,p2) | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)}"
     by auto
-  moreover have "set (prefix_pair_tests' q P fRD (p, (rd,dr))) = image (\<lambda> (p1,p2) . {(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))}) (set (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd) (prefix_pairs p)))"
+  moreover have "set (prefix_pair_tests'' q P fRD (p, (rd,dr))) = image (\<lambda> (p1,p2) . [(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))]) (set (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)) (prefix_pairs p)))"
     by auto
-  ultimately have "set (prefix_pair_tests' q P fRD (p, (rd,dr))) = image (\<lambda> (p1,p2) . {(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))}) {(p1,p2) | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd}"
+  ultimately have "set (prefix_pair_tests'' q P fRD (p, (rd,dr))) = image (\<lambda> (p1,p2) . [(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))]) {(p1,p2) | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)}"
     by auto
-  moreover have "image (\<lambda> (p1,p2) . {(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))}) {(p1,p2) | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd} = {{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd}"
-    using scheme[of "(\<lambda> (p1,p2) . {(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))})" "\<lambda> p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd"] by auto
+  moreover have "image (\<lambda> (p1,p2) . [(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))]) {(p1,p2) | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)} = {[(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))] | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)}"
+    using scheme[of "(\<lambda> (p1,p2) . [(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))])" "\<lambda> p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)"] by auto
   ultimately show ?thesis by force
 qed
 
 
+fun prefix_pair_tests' :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+  "prefix_pair_tests' q P fRD pds = concat (concat (map (prefix_pair_tests'' q P fRD) pds))"
+
 
 fun prefix_pair_tests :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) set" where
-  "prefix_pair_tests q P fRD pds = \<Union>{{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . \<exists> (p,(rd,dr)) \<in> set pds . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd}"
+  "prefix_pair_tests q P fRD pds = \<Union>{{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . \<exists> (p,(rd,dr)) \<in> set pds . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)}"
 
 lemma prefix_pair_tests_containment :
   assumes "(p,(rd,dr)) \<in> set pds"
   and     "(p1,p2) \<in> set (prefix_pairs p)"
   and     "(target p1 q) \<in> rd"
   and     "(target p2 q) \<in> rd"
+  and     "(target p1 q) \<noteq> (target p2 q)"
 shows "(P,p1,fRD (target p1 q) (target p2 q)) \<in> prefix_pair_tests q P fRD pds"
 and   "(P,p1,fRD (target p1 q) (target p2 q)) \<in> prefix_pair_tests q P fRD pds"
   using assms unfolding prefix_pair_tests.simps by blast+
@@ -389,7 +400,8 @@ qed
 
 
 lemma prefix_pair_tests_code[code] :
-  "prefix_pair_tests q P fRD pds = \<Union> (set (concat (map (prefix_pair_tests' q P fRD) pds)))"
+  "prefix_pair_tests q P fRD pds = set (prefix_pair_tests' q P fRD pds)"
+  unfolding prefix_pair_tests'.simps
 proof (induction pds)
   case Nil
   then show ?case by auto
@@ -398,30 +410,75 @@ next
   obtain p rd dr where "a = (p,(rd,dr))"
     using prod_cases3 by blast 
 
-  have "prefix_pair_tests q P fRD ((p,(rd,dr))#pds) = (prefix_pair_tests q P fRD pds) \<union> (\<Union>{{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd})"
-    using union_pair_exists_helper[of "\<lambda> p1 p2 . {(P, p1, fRD (target p1 q) (target p2 q)), (P, p2, fRD (target p1 q) (target p2 q))}" "(p,(rd,dr))" pds "\<lambda> p1 p2 (p,(rd,dr)) . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd"]
+  have "prefix_pair_tests q P fRD ((p,(rd,dr))#pds) = (prefix_pair_tests q P fRD pds) \<union> (\<Union>{{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)})"
+    using union_pair_exists_helper[of "\<lambda> p1 p2 . {(P, p1, fRD (target p1 q) (target p2 q)), (P, p2, fRD (target p1 q) (target p2 q))}" "(p,(rd,dr))" pds "\<lambda> p1 p2 (p,(rd,dr)) . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)"]
     unfolding prefix_pair_tests.simps by force
 
-  moreover have "\<Union> (set (concat (map (prefix_pair_tests' q P fRD) ((p,(rd,dr))#pds)))) = (\<Union> (set (concat (map (prefix_pair_tests' q P fRD) pds)))) \<union> (\<Union> (set (prefix_pair_tests' q P fRD (p,(rd,dr)))))"
+  moreover have "\<Union> (set (map set (concat (map (prefix_pair_tests'' q P fRD) ((p,(rd,dr))#pds))))) = (\<Union> (set (map set (concat (map (prefix_pair_tests'' q P fRD) pds))))) \<union> (\<Union> (set (map set (prefix_pair_tests'' q P fRD (p,(rd,dr))))))"
     by auto
 
+
+  
+  moreover have "(\<Union>{{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)}) = (\<Union> (set (map set (prefix_pair_tests'' q P fRD (p,(rd,dr))))))"
+  proof -
+    have scheme1 : "\<And> xs . set (map set xs) = image set (set xs)" by auto
+    have scheme2 : "\<And> f xs P . {set (f x1 x2) | x1 x2 . P x1 x2} = image set {f x1 x2 | x1 x2 . P x1 x2}" by auto
+
+    have "{{(P,p1,fRD (target p1 q) (target p2 q)), (P,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)} = (set (map set (prefix_pair_tests'' q P fRD (p,(rd,dr)))))"
+      unfolding scheme1
+      unfolding prefix_pair_tests''_set[of q P fRD p rd dr] 
+      using scheme2[of "\<lambda> p1 p2 . [(P, p1, fRD (target p1 q) (target p2 q)), (P, p2, fRD (target p1 q) (target p2 q))]" "\<lambda> p1 p2 . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)"] by force
+    then show ?thesis by force
+  qed
+
   ultimately show ?case 
-    using Cons.IH unfolding \<open>a = (p,(rd,dr))\<close>
-    using prefix_pair_tests'_set[of q P fRD p rd dr] by force
+    using Cons.IH unfolding \<open>a = (p,(rd,dr))\<close> by force
 qed
  
 
 
+subsubsection "Calculating Tests between Preambles"
+
+
+fun preamble_prefix_tests' :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> ('a,'b) Preamble) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+  "preamble_prefix_tests' q P fRD pds PS = 
+    concat (map (\<lambda>((p,(rd,dr)),(q2,P2),p1) . [(P,p1,fRD (target p1 q) q2), (P2,[],fRD (target p1 q) q2)]) 
+                (filter (\<lambda>((p,(rd,dr)),(q2,P2),p1) . (target p1 q) \<in> rd \<and> q2 \<in> rd \<and> (target p1 q) \<noteq> q2) 
+                        (concat (map (\<lambda>((p,(rd,dr)),(q2,P2)) . map (\<lambda>p1 . ((p,(rd,dr)),(q2,P2),p1)) (prefixes p)) (cartesian_product_list pds PS)))))"
+
 
 fun preamble_prefix_tests :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> ('a,'b) Preamble) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) set" where
-  "preamble_prefix_tests q P fRD pds PS = \<Union>{{(P,p1,fRD (target p1 q) q2), (P2,[],fRD (target p1 q) q2)} | p1 q2 P2 . \<exists> (p,(rd,dr)) \<in> set pds . \<exists> (q2,P2) \<in> set PS . \<exists> p2 . p = p1@p2 \<and> (target p1 q) \<in> rd \<and> q2 \<in> rd \<and> q \<noteq> q2}"
+  "preamble_prefix_tests q P fRD pds PS = \<Union>{{(P,p1,fRD (target p1 q) q2), (P2,[],fRD (target p1 q) q2)} | p1 q2 P2 . \<exists> (p,(rd,dr)) \<in> set pds . \<exists> (q2,P2) \<in> set PS . \<exists> p2 . p = p1@p2 \<and> (target p1 q) \<in> rd \<and> q2 \<in> rd \<and> (target p1 q) \<noteq> q2}"
 
-(* TODO: code *)
+
+(* TODO: code 
+lemma preamble_prefix_tests_code[code]:
+  "preamble_prefix_tests q P fRD pds PS = set (preamble_prefix_tests' q P fRD pds PS)"
+  sorry
+*)
+
+
+subsubsection "Calculating Tests between m-Traversal-Paths Prefixes and Preambles"
+
+fun preamble_pair_tests' :: "('a \<times> ('a,'b) Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> ('c,'d) ATC) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+  "preamble_pair_tests' PS RDS = 
+    concat (map (\<lambda>((q1,P1),(q2,P2)) . (case (find (\<lambda> qqA . fst qqA = (q1,q2)) RDS) of 
+                                         Some ((q1',q2'),A) \<Rightarrow> [(P1,[],A),(P2,[],A)] |
+                                         None \<Rightarrow> []))
+           (cartesian_product_list PS PS))"
 
 fun preamble_pair_tests :: "('a \<times> ('a,'b) Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> ('c,'d) ATC) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) set" where
   "preamble_pair_tests PS RDS = \<Union>{{(P1,[],A),(P2,[],A)} | P1 P2 A . \<exists> q1 q2 . (q1,P1) \<in> set PS \<and> (q2,P2) \<in> set PS \<and> ((q1,q2),A) \<in> set RDS}"
 
-(* TODO: code *)
+(* TODO: code 
+lemma preamble_pair_tests_code[code]:
+  "preamble_pair_tests PS RDS = set (preamble_pair_tests' PS RDS)"
+  sorry
+*)
+
+
+
+subsubsection "Collecting Tests"
 
 
 fun collect_ATCs' :: "('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b \<times> 'c) list \<Rightarrow> ('a \<times> 'b \<times> ('c set)) list" where
@@ -461,10 +518,10 @@ lemma collect_ATCs_set :
   using collect_ATCs'_set[of "remdups xs" "remdups ts"] 
   unfolding collect_ATCs.simps set_remdups by assumption
 
-end (*
 
 
-fun calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC set) set" where
+
+definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC set) list" where
   "calculate_test_suite' M m = 
     (let 
          RDSSL \<comment> \<open>R-D States with Separators\<close>
@@ -481,7 +538,7 @@ fun calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow>
               = d_reachable_states_with_preambles M;
          DRS  \<comment> \<open>D-R States\<close>
               = map fst DRSP; \<comment> \<open>corresponds to d_reachable_states\<close>
-         MRS  \<comment> \<open>Maximal Repetition sets (maximal pairwise r-d sets with their d-r subsets\<close>
+         MRS  \<comment> \<open>Maximal Repetition sets (maximal pairwise r-d sets with their d-r subsets)\<close>
               = map (\<lambda>S. (S, S \<inter> set DRS)) MPRD; \<comment> \<open>corresponds to maximal_repetition_sets_from_separators\<close>
          MTP  \<comment> \<open>states and their outgoing m-Traversal Paths\<close>
               = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
@@ -489,14 +546,24 @@ fun calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow>
               = list_as_fun MTP []; \<comment> \<open>see list_as_fun_on and the sketch following fRD_helper\<close>
          fRD  \<comment> \<open>function to get separators for R-D states\<close>
               = \<lambda> q1 q2 . snd (the (find (\<lambda> qqA . fst qqA = (q1,q2)) RDSSL)); \<comment> \<open>see fRD_helper\<close>
+         PMTP 
+              = concat (map (\<lambda> (q,P) . map (\<lambda>(p,d) . (P,p)) (fTP q)) DRSP);
          PrefixPairTests 
-              = \<Union> (image (\<lambda> (q,P) . prefix_pair_tests q P fRD (fTP q)) (set DRSP));
+              = concat (map (\<lambda> (q,P) . prefix_pair_tests' q P fRD (fTP q)) DRSP);
+              \<comment> \<open>= \<Union> (image (\<lambda> (q,P) . prefix_pair_tests q P fRD (fTP q)) (set DRSP));\<close>
          PreamblePrefixTests
-              = \<Union> (image (\<lambda> (q,P) . preamble_prefix_tests q P fRD (fTP q) DRSP) (set DRSP));
+              = concat (map (\<lambda> (q,P) . preamble_prefix_tests' q P fRD (fTP q) DRSP) DRSP);
+              \<comment> \<open>= \<Union> (image (\<lambda> (q,P) . preamble_prefix_tests q P fRD (fTP q) DRSP) (set DRSP));\<close>
          PreamblePairTests
-              = preamble_pair_tests DRSP RDSSL
+              = preamble_pair_tests' DRSP RDSSL
       
-    in {})"
+    in collect_ATCs PMTP (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests))"
+
+
+value "calculate_test_suite' M_ex_H 4"
+
+
+
 
 
 
