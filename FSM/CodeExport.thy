@@ -1,5 +1,5 @@
 theory CodeExport
-imports Test_Suite FSM_Enumerator
+imports Test_Suite_ATC 
 begin 
 
 export_code set
@@ -12,17 +12,17 @@ export_code set
             maximal_pairwise_r_distinguishable_state_sets_from_separators
             d_reachable_states_with_preambles
             maximal_repetition_sets_from_separators
-            test_suite_naive
+            
             M_ex_DR
             M_ex_H
             M_ex_9
-            (*enumerate_FSMs*)
-            find_FSM
+            
             (* member *)
             completely_specified
             observable
             single_input
             nodes
+            calculate_test_suite'
   in Haskell module_name FSM file_prefix fsm
 
 
