@@ -5,11 +5,38 @@ import FSM
 import qualified Data.List
 import qualified Data.Char
 import qualified System.Environment
+import qualified Data.Time
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 
 deriving instance Show a => Show (Set a)
 deriving instance (Show a, Show b) => Show (FSM_ext a b)
 deriving instance (Show a, Show b) => Show (Sum a b)
+
+{-
+-- ignores b
+instance (Show a, Show b) => Show (FSM_ext a b)
+  where
+    show (FSM_ext a ins outs ts b) =
+      "FSM "
+      ++ (show a) ++ " "
+      ++ (show ins) ++ " "
+      ++ (show outs) ++ " "
+      ++ (Data.List.intercalate ", " $ map (\(q,(x,(y,q'))) -> "(" ++ (show q) ++ "," ++ (show x) ++ "," ++ (show y) ++ "," ++ (show q') ++ ")") ts )
+-}
+
+deriving instance Read a => Read (Set a)
+deriving instance (Read a, Read b) => Read (FSM_ext a b)
+deriving instance (Read a, Read b) => Read (Sum a b)
+
+deriving instance Eq a => Eq (Set a)
+--deriving instance (Eq a, Eq b) => Eq (FSM_ext a b)
+--deriving instance (Eq a, Eq b) => Eq (Sum a b)
+
+deriving instance Ord a => Ord (Set a)
+deriving instance (Ord a, Ord b) => Ord (FSM_ext a b)
+deriving instance (Ord a, Ord b) => Ord (Sum a b)
 
 -- TODO: bad implementation, use intermediate conversion to integer
 instance Show Nat where 
@@ -136,7 +163,7 @@ readTransitions ts = Prelude.foldr f (Right []) (zip [1::Integer ..] $ lines ts)
         
 -- read .fsm file
 readFSM :: String -> Either String (FSM_ext Integer ())
-readFSM fsmStr = readTransitions fsmStr >>= (\ts -> Right $ FSM_ext 0 (map (fst . snd) ts) (map (fst . snd . snd) ts) ts ())
+readFSM fsmStr = readTransitions fsmStr >>= (\ts -> Right $ FSM_ext 0 (Data.List.nub $ map (fst . snd) ts) (Data.List.nub $ map (fst . snd . snd) ts) (Data.List.nub ts) ())
 
 
 
@@ -251,7 +278,7 @@ convert_atc a srcStr atc = ((srcStr, showATCNode $ initial atc, "style = dashed"
                                                                    _     -> (showATCNode q, showATCNode q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")) 
                                     (wf_transitions atc)), 
                             [("FAIL","shape = circle, style = filled, fillcolor=\"#FF6666\""),("PASS","shape = circle, style = filled, fillcolor=\"#66FF66\"")],
-                            map (\q -> (showATCNode q, "shape = doublecircle, style = filled, fillcolor=gold")) 
+                            map (\q -> (showATCNode q, "shape = circle, style = filled, fillcolor=gold")) 
                                 (filter is_inl (nodes_from_distinct_paths atc))
                            )
   where 
@@ -262,11 +289,37 @@ convert_test (q,(preamble,(p, Set atcs))) = (ePr ++ eP ++ eA, uPr ++ uP ++ uA, d
   where 
     (ePr,uPr,dPr) = convert_preamble q preamble
     (eP, uP, dP ) = convert_m_traversal_path q p
-    (eA, uA, dA ) = foldl (\(eA',uA',dA') atc -> case convert_atc (target p q) (show $ (show (target p q)) ++ "_(" ++ (show $ length p) ++ ")"  ++ "\nfrom: " ++ (show q)) atc of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) atcs
+    (eA, uA, dA ) = foldl (\(eA',uA',dA') atc -> case convert_atc (target p q) 
+                                                                  (if length p == 0 then show $ (show q)
+                                                                                    else show $ (show (target p q)) ++ "_(" ++ (show $ length p) ++ ")"  ++ "\nfrom: " ++ (show q)) 
+                                                                  atc 
+                                                   of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) atcs
     
 
 convert_tests :: (Show a, Eq a) => [(a, (FSM_ext a b,  ([(a, (Integer, (Integer, a)))], Set (FSM_ext (Sum (a, a) a) b))))] -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])                        
 convert_tests = foldl (\(eA',uA',dA') t -> case convert_test t of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) 
+
+convert_tests'' :: (Show a, Eq a) => [(a, (FSM_ext a b,  ([(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)])))] -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])                        
+convert_tests'' = foldl (\(eA',uA',dA') (q,(pr,(p,atcs))) -> case convert_test (q,(pr,(p,Set atcs))) of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) 
+
+
+convert_test' :: (Show a, Eq a) => (a, FSM_ext a b,  [(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)]) -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])                        
+convert_test' (q,preamble,p, atcs) = (ePr ++ eP ++ eA, uPr ++ uP ++ uA, dPr ++ dP ++ dA)
+  where 
+    (ePr,uPr,dPr) = convert_preamble q preamble
+    (eP, uP, dP ) = convert_m_traversal_path q p
+    (eA, uA, dA ) = foldl (\(eA',uA',dA') atc -> case convert_atc (target p q) 
+                                                                  (if length p == 0 then show $ (show q)
+                                                                                    else show $ (show (target p q)) ++ "_(" ++ (show $ length p) ++ ")"  ++ "\nfrom: " ++ (show q)) 
+                                                                  atc 
+                                                   of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) atcs
+    
+
+convert_tests' :: (Show a, Eq a) => [(a, FSM_ext a b,  [(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)])] -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])                        
+convert_tests' = foldl (\(eA',uA',dA') t -> case convert_test' t of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) 
+
+
+
 
 
 convert_to_dot ::  ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)]) -> String
@@ -288,67 +341,158 @@ int_to_nat n = Suc (int_to_nat (n-1))
 
 --main = writeFile "test.dot" $ "digraph fsm {\nrankdir=LR;\n" ++ (concatMap test_to_dot $ filter (\(q,_) -> q == 1) $ calculate_test_suite m_ex_H $ int_to_nat 4) ++ "}"
 --main = writeFile "testC.dot" $ convert_to_dot $ convert_tests $ calculate_test_suite m_ex_DR $ int_to_nat 4
-main = writeFile "testDR.dot" $ convert_to_dot $ convert_tests $ calculate_test_suite m_ex_DR $ size m_ex_DR
+
+--main = writeFile "testDR.dot" $ convert_to_dot $ convert_tests $ calculate_test_suite m_ex_DR $ size m_ex_DR
+--main = putStrLn . show $ calculate_state_separator_from_s_states m_ex_DR 0 200
+--main = mapM_ (\ (q1,q2) -> putStrLn $ show $ calculate_state_separator_from_s_states  m_ex_DR q1 q2 ) $ non_sym_dist_pairs (nodes_from_distinct_paths  m_ex_DR)
+--main = putStrLn . show $ r_distinguishable_state_pairs_with_separators_naive m_ex_DR 
+--main = putStrLn . show $ d_reachable_states_with_preambles m_ex_DR
+
+
+--main = putStrLn . show $ x
+--main = putStrLn . show $ calculate_test_suite m_ex_DR $ size m_ex_DR
+--main = writeFile "testDR.dot" $ convert_to_dot $ convert_tests $ calculate_test_suite m_ex_DR $ size m_ex_DR
+--main = writeFile "testH.dot" $ convert_to_dot $ convert_tests $ calculate_test_suite m_ex_H $ int_to_nat 8
 
 
 
 
 
 
+-- calculate test suite and also return internal calc
+calculate_test_suite_w ma m =
+  let {
+    rdssl = r_distinguishable_state_pairs_with_separators_naive ma;
+    rdss = Set rdssl;
+    rds = image fst rdss;
+    rdp = filter
+            (\ s ->
+              ball s
+                (\ q1 ->
+                  ball s
+                    (\ q2 ->
+                      (if not (q1 == q2) then member (q1, q2) rds else True))))
+            (map Set (pow_list (nodes_from_distinct_paths ma)));
+    mprd = filter (\ s -> not (any (less_set s) rdp)) rdp;
+    drsp = d_reachable_states_with_preambles ma;
+    drs = map fst drsp;
+    mrs = map (\ s -> (s, inf_set s (Set drs))) mprd;
+    mtp = map (\ q -> (q, m_traversal_paths_with_witness ma q mrs m)) drs;
+    fTP = list_as_fun mtp [];
+    fRD = (\ q1 q2 -> snd (the (find (\ qqA -> fst qqA == (q1, q2)) rdssl)));
+    pmtp = concatMap (\ (q, p) -> map (\ (pa, _) -> (q, (p, pa))) (fTP q)) drsp;
+    prefixPairTests =
+      concatMap (\ (q, p) -> prefix_pair_tests q p fRD (fTP q)) drsp;
+    preamblePrefixTests =
+      concatMap (\ (q, p) -> preamble_prefix_tests q p fRD (fTP q) drsp) drsp;
+    preamblePairTests = preamble_pair_tests drsp rdssl;
+  } in (
+        prefixPairTests ++ preamblePrefixTests ++ preamblePairTests
+        --collect_ATCs pmtp (prefixPairTests ++ preamblePrefixTests ++ preamblePairTests),
+        --concatMap (\ (q, p) -> map (\ (pa, (rd,dr)) -> (q, p, pa, rd, dr)) (fTP q)) drsp
+       )
 
 
 
 
 
---main = putStrLn $ show $ maximal_repetition_sets_from_separators m_ex_DR
---main = separatorsToDotLR m_ex_DR "m_ex_DR"
---main = readAndPrintFSM        
-
---main = mapM_ (putStrLn . show ) $ enumerate_FSMs 0 [0,1,2,3] [0,1] [0,1,2]
---main = putStrLn . show . length $ enumerate_FSMs 0 [0,1,2,3] [0,1] [0,1,2]
-
---main = putStrLn . show $ foldl (\b a -> (b+1)) 0 $ enumerate_FSMs 0 [0,1,2,3] [0,1] [0,1,2]
---main = putStrLn . show . generate_sublists $ enumerate_transitions [0,1,2,3] [0,1] [0,1,2]
-
---main = putStrLn . show $ find_FSM (\fsm -> observable fsm && single_input fsm && all (\q -> member q (nodes fsm)) [0,1,2]) 0 [0,1,2] [0,1] [0,1,2]
+collect_ATCs_hs :: (Ord a, Ord b, Ord c) => [(a,(b,(c,d)))] -> [(a,b,c,[d])]
+collect_ATCs_hs xs = map (\((a,b,c),ds) -> (a,b,c,ds)) $ Map.assocs m
+  where 
+    m = foldl (\ m (a,(b,(c,d))) -> Map.insertWith (\ _ old -> d:old)--(flip (++))
+                                               (a,b,c) 
+                                               [d]
+                                               m ) 
+              Map.empty
+              xs
 
 
+
+--main = mapM_ (putStrLn . show) $ calculate_test_suite_w m_ex_H $ int_to_nat 8
+main2 = do
+  s <- Data.Time.getCurrentTime
+  putStrLn $ "Started : " ++ (show s)
+  --putStrLn $ show $ length $ calculate_test_suite_w m_ex_DR $ int_to_nat 12
+  --putStrLn $ show $ size m_ex_DR
+  --writeFile "dr_output" $ show $ calculate_test_suite_w m_ex_DR $ size m_ex_DR
+  --writeFile "dr_output_l" $ unlines $ map show $ calculate_test_suite_w m_ex_DR $ size m_ex_DR
+  ts_l <- readFile "dr_output_l"
+  --let ts = read ts_l :: [(Integer, (FSM_ext Integer (), ([(Integer, (Integer, (Integer, Integer)))], FSM_ext (Sum (Integer, Integer) Integer) ())))]
+  let ts = map (\t -> read t :: (Integer, (FSM_ext Integer (), ([(Integer, (Integer, (Integer, Integer)))], FSM_ext (Sum (Integer, Integer) Integer) ())))) 
+               (lines ts_l)
+  putStrLn $ show $ length ts
+  l <- Data.Time.getCurrentTime
+  putStrLn $ "Loaded  : " ++ (show l)
+-- todo: inline collect_ATCs_hs?
+  putStrLn $ show $ length $ collect_ATCs_hs ts
+  f <- Data.Time.getCurrentTime
+  putStrLn $ "Finished: " ++ (show f)
+
+fsmName = "dr_small"
+main = do
+  s <- Data.Time.getCurrentTime
+  putStrLn $ "Started : " ++ (show s)
+  fsmFile <- readFile $ fsmName ++ ".fsm"
+  case readFSM fsmFile of 
+    Right fsm -> do 
+      putStrLn $ show $ size fsm
+      writeFile (fsmName ++ ".dot") $ fsmToDot fsm
+      let ts_orig = calculate_test_suite_w fsm $ size fsm
+      putStrLn $ show $ length ts_orig
+      c <- Data.Time.getCurrentTime
+      putStrLn $ "Calc'd   : " ++ (show c)
+
+      let ts_nub = Set.elems $ Set.fromList ts_orig
+      putStrLn $ show $ length ts_nub
+      n <- Data.Time.getCurrentTime
+      putStrLn $ "Nubbed   : " ++ (show n)
+
+      writeFile (fsmName ++ "_output_l") $ unlines $ map show ts_nub
+      f <- Data.Time.getCurrentTime
+      putStrLn $ "Stored   : " ++ (show f)
+      
+      ts_l <- readFile $ fsmName ++ "_output_l"
+      let ts = map (\t -> read t :: (Integer, (FSM_ext Integer (), ([(Integer, (Integer, (Integer, Integer)))], FSM_ext (Sum (Integer, Integer) Integer) ())))) 
+                  (lines ts_l)
+      putStrLn $ show $ length ts
+      l <- Data.Time.getCurrentTime
+      putStrLn $ "Loaded   : " ++ (show l)
+      
+      let ts_m = collect_ATCs_hs ts
+      putStrLn $ show $ length ts_m
+      writeFile (fsmName ++ "_map_l") $ unlines $ map show ts_m
+      m <- Data.Time.getCurrentTime
+      putStrLn $ "Mapped   : " ++ (show m)
+
+      let (eds,uds,dds) = convert_tests' ts_m
+      putStrLn $ show $ length eds
+      putStrLn $ show $ length uds
+      putStrLn $ show $ length dds
+      v <- Data.Time.getCurrentTime
+      putStrLn $ "Converted: " ++ (show v)
+
+      writeFile (fsmName ++ "_test.dot") $ convert_to_dot (eds,uds,dds)
+
+      f <- Data.Time.getCurrentTime
+      putStrLn $ "Finished : " ++ (show f)
+
+    
 {-
-find_FSMa ::
-  forall a.
-    (FSM_ext a () -> Bool) ->
-      a -> [Integer] ->
-             [Integer] ->
-               [(a, (Integer, (Integer, a)))] ->
-                 [Bool] -> Integer -> Maybe (FSM_ext a ());
---find_FSMa f q xs ys ts bs Zero_nat = Nothing;
-find_FSMa f q xs ys ts bs k =
-  let {
-    m = FSM_ext q xs ys
-          (map_filter (\ x -> (if snd x then Just (fst x) else Nothing))
-            (zip ts bs))
-          ();
-  } in (if f m then Just m else (case next_boolean_list bs of {
-                                  Nothing -> Nothing;
-                                  Just bsa -> find_FSMa f q xs ys ts bsa (k-1);
-                                }));
 
-power :: forall a. (Power a) => a -> Nat -> a;
-power a Zero_nat = one;
-power a (Suc n) = times a (power a n);
+main = do
+    args <- System.Environment.getArgs
+    fsmFile <- readFile (args !! 0)
+    let m = (read (args !! 1)) :: Int 
+    let fsmDotTarget = (args !! 2)
+    let testDotTarget = (args !! 3)
+    case readFSM fsmFile of 
+        Right fsm -> do 
+          writeFile fsmDotTarget $ fsmToDot fsm
+          case calculate_test_suite_w fsm (int_to_nat m) of  
+            (testSuite,testData) -> do
+              writeFile testDotTarget $ convert_to_dot $ convert_tests $ testSuite
+              mapM_ (putStrLn . show) testData
+        Left err  -> putStrLn err
 
-nat_to_Integer :: Nat -> Integer;
-nat_to_Integer Zero_nat = 0;
-nat_to_Integer (Suc k) = 1 + nat_to_Integer k;
-
-find_FSM ::
-  forall a.
-    (FSM_ext a () -> Bool) ->
-      a -> [a] -> [Integer] -> [Integer] -> Maybe (FSM_ext a ());
-find_FSM f q qs xs ys =
-  let {
-    ts = enumerate_transitions qs xs ys;
-  } in find_FSMa f q xs ys ts (replicate (size_list ts) True)
-         ((2::Integer) ^ (nat_to_Integer (size_list ts)));
 
 -}
