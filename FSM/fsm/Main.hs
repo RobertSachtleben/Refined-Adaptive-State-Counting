@@ -259,7 +259,7 @@ convert_transition (q,(x,(y,q'))) = (dotShow q, dotShow q', "label = \"" ++ (sho
 convert_preamble :: (Show a, Eq a) => a -> FSM_ext a b -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])
 convert_preamble a pr = (map convert_transition (wf_transitions pr), 
                          [(dotShow $ initial pr, "shape = doublecircle, style = filled, fillcolor=deepskyblue4"), (dotShow a, "shape = doublecircle, style = filled, fillcolor=blueviolet")],
-                         map (\ q -> (dotShow q, "shape = circle, style = filled, fillcolor=cadetblue1")) $ filter ((/=) a) (nodes_from_distinct_paths pr)      
+                         map (\ q -> (dotShow q, "shape = ellipse, style = filled, fillcolor=cadetblue1")) $ filter ((/=) a) (nodes_from_distinct_paths pr)      
                           )
 
 convert_m_traversal_path :: (Show a, Eq a) => a -> [(a, (Integer, (Integer, a)))] -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])
@@ -277,8 +277,8 @@ convert_atc a srcStr atc = ((srcStr, showATCNode $ initial atc, "style = dashed"
                                                                                       else (showATCNode q, "FAIL", "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")
                                                                    _     -> (showATCNode q, showATCNode q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")) 
                                     (wf_transitions atc)), 
-                            [("FAIL","shape = circle, style = filled, fillcolor=\"#FF6666\""),("PASS","shape = circle, style = filled, fillcolor=\"#66FF66\"")],
-                            map (\q -> (showATCNode q, "shape = circle, style = filled, fillcolor=gold")) 
+                            [("FAIL","shape = ellipse, style = filled, fillcolor=\"#FF6666\""),("PASS","shape = circle, style = filled, fillcolor=\"#66FF66\"")],
+                            map (\q -> (showATCNode q, "shape = ellipse, style = filled, fillcolor=gold")) 
                                 (filter is_inl (nodes_from_distinct_paths atc))
                            )
   where 
@@ -329,6 +329,7 @@ convert_to_dot (es,us,ds) =
     ++ (unlines $ map (\(node,style) -> "node [" ++ style ++ " ]; " ++ node) (Data.List.nub ds))
     ++ (unlines $ map (\(src,tgt,style) -> src ++ "->" ++ tgt ++ " [" ++ style ++ " ];") (Data.List.nub es))
     ++"}"
+    
 
 
 
@@ -353,6 +354,105 @@ int_to_nat n = Suc (int_to_nat (n-1))
 --main = putStrLn . show $ calculate_test_suite m_ex_DR $ size m_ex_DR
 --main = writeFile "testDR.dot" $ convert_to_dot $ convert_tests $ calculate_test_suite m_ex_DR $ size m_ex_DR
 --main = writeFile "testH.dot" $ convert_to_dot $ convert_tests $ calculate_test_suite m_ex_H $ int_to_nat 8
+
+
+nodesBefore n p = "after (" ++ (Data.List.intercalate ", " $ map (\(q,(x,(y,q'))) -> dotShow q') (take n p)) ++ ")"
+nodeNameP 0 p src q = dotShow q
+nodeNameP n p src q = show $ (show q) ++ "_(1)" ++ "\nfrom: " ++ (show src) ++ "\n" ++ (nodesBefore n p)
+
+convert_m_traversal_path_x :: (Show a, Eq a) => a -> [(a, (Integer, (Integer, a)))] -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])
+convert_m_traversal_path_x src p = (map (\(n,(q,(x,(y,q')))) -> (nodeNameP n p src q, nodeNameP (n+1) p src q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\""))
+                                        (zip [0..] p),
+                                   [],
+                                   (map (\(n,(q,(x,(y,q')))) -> (nodeNameP (n+1) p src q', "shape = ellipse, style = filled, fillcolor=darkorchid1"))
+                                        (zip [0..] p))
+                                   )
+
+convert_test_x :: (Show a, Eq a) => (a, FSM_ext a b,  [(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)]) -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])                        
+convert_test_x (q,preamble,p, atcs) = (ePr ++ eP ++ eA, uPr ++ uP ++ uA, dPr ++ dP ++ dA)
+  where 
+    (ePr,uPr,dPr) = convert_preamble q preamble
+    (eP, uP, dP ) = convert_m_traversal_path_x q p
+    (eA, uA, dA ) = foldl (\(eA',uA',dA') atc -> case convert_atc (target p q) 
+                                                                  (nodeNameP (length p) p q (target p q))
+                                                                  atc 
+                                                   of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) atcs
+
+
+convert_tests_x :: (Show a, Eq a) => [(a, FSM_ext a b,  [(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)])] -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])                        
+convert_tests_x = foldl (\(eA',uA',dA') t -> case convert_test_x t of (eA'',uA'',dA'') -> (eA' ++ eA'', uA' ++ uA'', dA' ++ dA'') ) ([],[],[]) 
+
+
+
+
+
+type ClusterDotData = ([(Node,Style)],[(Source,Target,Style)])
+type OverallDotData = ([(Node,Style)],[(Source,Target,Style)])
+
+convert_preamble_c :: (Show a, Eq a) => a -> FSM_ext a b -> (ClusterDotData,OverallDotData)
+convert_preamble_c a pr = ( ( [(dotShow $ initial pr, "shape = doublecircle, style = filled, fillcolor=deepskyblue4"), (dotShow a, "shape = doublecircle, style = filled, fillcolor=blueviolet")]
+                                ++ (map (\ q -> (dotShow q, "shape = ellipse, style = filled, fillcolor=cadetblue1")) $ filter ((/=) a) (nodes_from_distinct_paths pr))
+                            , map convert_transition (wf_transitions pr)) 
+                          , ([] , []))
+
+convert_m_traversal_path_c :: (Show a, Eq a) => a -> [(a, (Integer, (Integer, a)))] -> (ClusterDotData,OverallDotData)
+convert_m_traversal_path_c src p =  ( ( map (\(n,(q,(x,(y,q')))) -> (nodeNameP (n+1) p src q', "shape = ellipse, style = filled, fillcolor=darkorchid1")) (zip [0..] p)
+                                      , [])
+                                    , ( []
+                                      , map (\(n,(q,(x,(y,q')))) -> (nodeNameP n p src q, nodeNameP (n+1) p src q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")) (zip [0..] p))) 
+
+
+convert_atc_c :: (Show a, Eq a) => a -> String -> FSM_ext (Sum (a, a) a) b -> (ClusterDotData,OverallDotData)
+convert_atc_c a srcStr atc =  ( ( [("FAIL","shape = ellipse, style = filled, fillcolor=\"#FF6666\""),("PASS","shape = circle, style = filled, fillcolor=\"#66FF66\"")]
+                                    ++ (map (\q -> (showATCNode q, "shape = ellipse, style = filled, fillcolor=gold")) (filter is_inl (nodes_from_distinct_paths atc)))
+                                , (map (\(q,(x,(y,q'))) -> case q' of Inr s -> if s == a then (showATCNode q, "PASS", "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")
+                                                                                         else (showATCNode q, "FAIL", "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")
+                                                                      _     -> (showATCNode q, showATCNode q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")) 
+                                           (wf_transitions atc)))
+                              , ( []
+                                , [(srcStr, showATCNode $ initial atc, "style = dashed")]))
+  where 
+    showATCNode q = show $ (show q) ++ "\nfrom: " ++ (show a)
+
+
+convert_test_c :: (Show a, Eq a) => (a, FSM_ext a b,  [(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)]) -> (ClusterDotData,ClusterDotData,ClusterDotData,OverallDotData)                        
+convert_test_c (q,preamble,p, atcs) = (cPr,cP,cA,(noPr++noP++noA,eoPr++eoP++eoA))
+  where 
+    (cPr, (noPr,eoPr)) = convert_preamble_c q preamble
+    (cP , (noP, eoP )) = convert_m_traversal_path_c q p
+    (cA , (noA, eoA )) = foldl (\((ncA', ecA' ), (noA', eoA' )) atc -> case convert_atc_c (target p q) 
+                                                                                    (nodeNameP (length p) p q (target p q))
+                                                                                    atc 
+                                                                                 of ((ncA'', ecA'' ), (noA'', eoA'' )) -> ((ncA'++ncA'', ecA'++ecA''), (noA'++noA'', eoA'++eoA'' )) ) (([],[]),([],[])) atcs
+
+combine_cluster :: ClusterDotData -> ClusterDotData -> ClusterDotData
+combine_cluster (a,b) (c,d) = (a++c,b++d)
+
+convert_tests_c:: (Show a, Eq a) => [(a, FSM_ext a b,  [(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)])] -> (ClusterDotData,ClusterDotData,ClusterDotData,OverallDotData)                        
+convert_tests_c = foldl (\(c1,c2,c3,c4) t -> case convert_test_c t of (c1',c2',c3',c4') -> (combine_cluster c1 c1', combine_cluster c2 c2', combine_cluster c3 c3', combine_cluster c4 c4') ) 
+                        (([],[]),([],[]),([],[]),([],[])) 
+
+
+
+
+convert_to_dot_c ::  (ClusterDotData,ClusterDotData,ClusterDotData,OverallDotData)-> String
+convert_to_dot_c (cpr, cp, ca, co) = 
+    "digraph fsm {\nrankdir=LR;\n\n"
+    ++ (convert_cluster "preambles" cpr)
+    ++ (convert_cluster "m_traversal_paths" cp)
+    ++ (convert_cluster "atcs" ca)
+    ++ (unlines $ map (\(node,style) -> "node [" ++ style ++ " ]; " ++ node) (Set.elems $ Set.fromList $ fst co))
+    ++ (unlines $ map (\(src,tgt,style) -> src ++ "->" ++ tgt ++ " [" ++ style ++ " ];") (Set.elems $ Set.fromList $ snd co))
+    ++"}"
+  where
+    convert_cluster :: String -> ClusterDotData -> String
+    convert_cluster name (ns,es) = --"subgraph cluster_" ++ name ++ " {\n"
+                                  "subgraph " ++ name ++ " {\n"
+                                    ++ (unlines $ map (\(node,style) -> "\tnode [" ++ style ++ " ]; " ++ node) (Set.elems $ Set.fromList ns))
+                                    ++ (unlines $ map (\(src,tgt,style) -> "\t" ++ src ++ "->" ++ tgt ++ " [" ++ style ++ " ];") (Set.elems $ Set.fromList es))
+                                    ++ "\tstyle = filled; color = blue;\n" ++ "}\n\n"
+
+
 
 
 
@@ -428,6 +528,8 @@ main2 = do
   f <- Data.Time.getCurrentTime
   putStrLn $ "Finished: " ++ (show f)
 
+
+
 fsmName = "dr_small"
 main = do
   s <- Data.Time.getCurrentTime
@@ -464,14 +566,19 @@ main = do
       m <- Data.Time.getCurrentTime
       putStrLn $ "Mapped   : " ++ (show m)
 
-      let (eds,uds,dds) = convert_tests' ts_m
-      putStrLn $ show $ length eds
-      putStrLn $ show $ length uds
-      putStrLn $ show $ length dds
+      let (cpr, cp, ca, co) = convert_tests_c ts_m
+      putStrLn $ show $ length $ fst cpr
+      putStrLn $ show $ length $ snd cpr
+      putStrLn $ show $ length $ fst cp
+      putStrLn $ show $ length $ snd cp
+      putStrLn $ show $ length $ fst ca
+      putStrLn $ show $ length $ snd ca
+      putStrLn $ show $ length $ fst co
+      putStrLn $ show $ length $ snd co
       v <- Data.Time.getCurrentTime
       putStrLn $ "Converted: " ++ (show v)
 
-      writeFile (fsmName ++ "_test.dot") $ convert_to_dot (eds,uds,dds)
+      writeFile (fsmName ++ "_test.dot") $ convert_to_dot_c (cpr, cp, ca, co)
 
       f <- Data.Time.getCurrentTime
       putStrLn $ "Finished : " ++ (show f)
