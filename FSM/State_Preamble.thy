@@ -3080,4 +3080,104 @@ value "calculate_preamble_set_from_d_states M_ex_DR 400"
 
 value "image (\<lambda> s . calculate_preamble_set_from_d_states M_ex_9 s) (nodes M_ex_9)"
 
+
+
+
+
+subsection \<open>Minimal Sequences to Failures extending Preambles\<close>
+
+
+
+definition sequence_to_failure_extending_preamble :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> ('a \<Rightarrow> ('a,'b) FSM_scheme option) \<Rightarrow> (Input \<times> Output) list \<Rightarrow> bool" where
+  "sequence_to_failure_extending_preamble M M' PS io = (\<exists> q \<in> nodes M . \<exists> P p . PS q = Some P
+                                                                                  \<and> path P (initial P) p 
+                                                                                  \<and> target p (initial P) = q
+                                                                                  \<and> ((p_io p) @ butlast io) \<in> L M   
+                                                                                  \<and> ((p_io p) @ io) \<notin> L M
+                                                                                  \<and> ((p_io p) @ io) \<in> L M')"
+
+lemma sequence_to_failure_extending_preamble_ex :
+  assumes "PS (initial M) = Some \<lparr> initial = initial M,
+                                   inputs = inputs M,
+                                   outputs = outputs M,
+                                   transitions = [],
+                                   \<dots> = more M \<rparr>" (is "PS (initial M) = Some ?P")
+  and     "\<not> L M' \<subseteq> L M"
+obtains io where "sequence_to_failure_extending_preamble M M' PS io"
+proof -
+  obtain io where "io \<in> L M' - L M"
+    using \<open>\<not> L M' \<subseteq> L M\<close> by auto
+  
+  obtain j where "take j io \<in> L M" and "take (Suc j) io \<notin> L M" 
+  proof -
+    have "\<exists> j . take j io \<in> L M \<and> take (Suc j) io \<notin> L M"
+    proof (rule ccontr)
+      assume "\<nexists>j. take j io \<in> LS M (initial M) \<and> take (Suc j) io \<notin> LS M (initial M)"
+      then have *: "\<And> j . take j io \<in> LS M (initial M) \<Longrightarrow> take (Suc j) io \<in> LS M (initial M)" by blast
+      
+      have "\<And> j . take j io \<in> LS M (initial M)"
+      proof -
+        fix j 
+        show "take j io \<in> LS M (initial M)"
+          using * by (induction j; auto)
+      qed
+      then have "take (length io) io \<in> L M" by blast
+      then show "False"
+        using \<open>io \<in> L M' - L M\<close> by auto
+    qed
+    then show ?thesis using that by blast
+  qed
+
+  have "\<And> i . take i io \<in> L M'" 
+  proof -
+    fix i show "take i io \<in> L M'" using \<open>io \<in> L M' - L M\<close> language_prefix[of "take i io" "drop i io" M' "initial M'"] by auto
+  qed
+
+  let ?io = "take (Suc j) io"
+  
+
+  have "initial M \<in> nodes M" by auto
+  moreover have "PS (initial M) = Some ?P" using assms by auto
+  moreover have "path ?P (initial ?P) []" by force
+  moreover have "((p_io []) @ butlast ?io) \<in> L M" using \<open>take j io \<in> L M\<close>  unfolding List.list.map(1) append_Nil 
+    by (metis Diff_iff One_nat_def \<open>io \<in> LS M' (initial M') - LS M (initial M)\<close> butlast_take diff_Suc_Suc minus_nat.diff_0 not_less_eq_eq take_all)
+  moreover have "((p_io []) @ ?io) \<notin> L M" using \<open>take (Suc j) io \<notin> L M\<close> by auto
+  moreover have "((p_io []) @ ?io) \<in> L M'" using \<open>\<And> i . take i io \<in> L M'\<close> by auto
+  ultimately have "sequence_to_failure_extending_preamble M M' PS ?io"
+    unfolding sequence_to_failure_extending_preamble_def by force
+  then show ?thesis using that by blast
+qed
+  
+    
+  
+
+
+definition minimal_sequence_to_failure_extending_preamble :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> ('a \<Rightarrow> ('a,'b) FSM_scheme option) \<Rightarrow> (Input \<times> Output) list \<Rightarrow> bool" where
+  "minimal_sequence_to_failure_extending_preamble M M' PS io = ((sequence_to_failure_extending_preamble M M' PS io)
+                                                                \<and> (\<forall> io' . sequence_to_failure_extending_preamble M M' PS io' \<longrightarrow> length io \<le> length io'))"
+
+lemma minimal_sequence_to_failure_extending_preamble_ex :
+  assumes "PS (initial M) = Some \<lparr> initial = initial M,
+                                   inputs = inputs M,
+                                   outputs = outputs M,
+                                   transitions = [],
+                                   \<dots> = more M \<rparr>" (is "PS (initial M) = Some ?P")
+  and     "\<not> L M' \<subseteq> L M"
+obtains io where "minimal_sequence_to_failure_extending_preamble M M' PS io"
+proof -
+  let ?ios = "{io . sequence_to_failure_extending_preamble M M' PS io}"
+  let ?io_min = "arg_min length (\<lambda>io . io \<in> ?ios)"
+
+
+  have "?ios \<noteq> {}"
+    using sequence_to_failure_extending_preamble_ex[of PS M M', OF assms] by blast
+  then have "?io_min \<in> ?ios \<and> (\<forall> io' \<in> ?ios . length ?io_min \<le> length io')"
+    by (meson arg_min_nat_lemma some_in_eq)
+  then show ?thesis
+    unfolding minimal_sequence_to_failure_extending_preamble_def 
+    by (simp add: minimal_sequence_to_failure_extending_preamble_def that)
+qed
+    
+    
+
 end
