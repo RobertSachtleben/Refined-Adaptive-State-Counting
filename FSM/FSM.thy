@@ -4051,6 +4051,89 @@ proof -
 qed
 
 
+fun is_prefix :: "'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
+  "is_prefix [] _ = True" |
+  "is_prefix (x#xs) [] = False" |
+  "is_prefix (x#xs) (y#ys) = (x = y \<and> is_prefix xs ys)" 
+
+lemma is_prefix_prefix : "is_prefix xs ys = (\<exists> xs' . ys = xs@xs')"
+proof (induction xs arbitrary: ys)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  show ?case proof (cases "is_prefix (x#xs) ys")
+    case True
+    then show ?thesis using Cons.IH 
+      by (metis Cons_eq_appendI is_prefix.elims(2) list.inject null_rec(1) null_rec(2))
+  next
+    case False
+    then show ?thesis
+      using Cons.IH by auto 
+  qed
+qed
+
+
+lemma maximal_path_target_deadlock :
+  assumes "path M (initial M) p"
+  and     "\<not>(\<exists> p' . path M (initial M) p' \<and> is_prefix p p' \<and> p \<noteq> p')"
+shows "deadlock_state M (target p (initial M))"
+proof -
+  have "\<not>(\<exists> t \<in> h M . t_source t = target p (initial M))"
+    using assms(2) unfolding is_prefix_prefix
+    by (metis append_Nil2 assms(1) not_Cons_self2 path_append_last same_append_eq)
+  then show ?thesis by auto
+qed
+
+lemma path_to_deadlock_is_maximal :
+  assumes "path M (initial M) p"
+  and     "deadlock_state M (target p (initial M))"
+shows "\<not>(\<exists> p' . path M (initial M) p' \<and> is_prefix p p' \<and> p \<noteq> p')"
+proof 
+  assume "\<exists>p'. path M (initial M) p' \<and> is_prefix p p' \<and> p \<noteq> p'"
+  then obtain p' where "path M (initial M) p'" and "is_prefix p p'" and "p \<noteq> p'" by blast
+  then have "length p' > length p"
+    unfolding is_prefix_prefix by auto
+  then obtain t p2 where "p' = p @ [t] @ p2"
+    using \<open>is_prefix p p'\<close> unfolding is_prefix_prefix
+    by (metis \<open>p \<noteq> p'\<close> append.left_neutral append_Cons append_Nil2 non_sym_dist_pairs'.cases) 
+  then have "path M (initial M) (p@[t])"
+    using \<open>path M (initial M) p'\<close> by auto
+  then have "t \<in> h M" and "t_source t = target p (initial M)"
+    by auto
+  then show "False"
+    using \<open>deadlock_state M (target p (initial M))\<close> unfolding deadlock_state.simps by blast
+qed
+
+
+
+
+
+fun maximal_acyclic_paths :: "('a,'b) FSM_scheme \<Rightarrow> 'a Transition list list" where
+  "maximal_acyclic_paths M = (let ps = distinct_paths_up_to_length_from_initial M (size M - 1) in
+                                  filter (\<lambda> p . \<not> (\<exists> p' \<in> set ps . is_prefix p p' \<and> p \<noteq> p')) ps)"
+
+
+lemma maximal_acyclic_paths_set : 
+  assumes "acyclic M"
+  shows "set (maximal_acyclic_paths M) = { p . path M (initial M) p \<and> deadlock_state M (target p (initial M)) }"
+proof -
+  let ?ps = "distinct_paths_up_to_length_from_initial M (size M - 1)"
+
+  have "\<And> p . path M (initial M) p \<Longrightarrow> length p \<le> FSM.size M - 1"
+    using acyclic_path_length[OF assms] by fastforce
+  then have "set ?ps = {p. path M (initial M) p}"
+    using distinct_paths_up_to_length_path_set[of M "size M - 1"]
+    using assms unfolding acyclic.simps by blast
+  then have "set (maximal_acyclic_paths M) = {p. path M (initial M) p \<and> \<not>(\<exists> p' . path M (initial M) p' \<and> is_prefix p p' \<and> p \<noteq> p')}"
+    by auto
+  also have "... = { p . path M (initial M) p \<and> deadlock_state M (target p (initial M)) }"
+    using maximal_path_target_deadlock path_to_deadlock_is_maximal by blast
+  finally show ?thesis by assumption
+qed
+     
+  
+
 subsection \<open>Total Order on Nodes\<close>
 
 (* TODO: move to Util *)
