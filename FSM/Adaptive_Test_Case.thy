@@ -1378,14 +1378,14 @@ shows "LS S s2 - LS M q2 \<noteq> {}"
 subsection \<open>ATCs Represented as Sets of IO Sequences\<close>
 
 fun atc_to_io_set :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list set" where
-  "atc_to_io_set M A = {io@[(x,y)] | io x y . io@[(x,y)] \<in> L M \<and> (\<exists> y' . io@[(x,y')] \<in> L A) }"
+  "atc_to_io_set M A = L M \<inter> L A"
 
 
 (* very inefficient calculation *)
 fun atc_to_io_list :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list list" where
-  "atc_to_io_list M A = (let LA = (map p_io (distinct_paths_up_to_length_from_initial A (size A -1)));
+  "atc_to_io_list M A = (let LA = set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1)));
                              LM = map p_io (paths_up_to_length M (initial M) (size A -1))
-                          in filter (\<lambda>io . length io > 0 \<and> (\<exists> io' \<in> set LA . length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io'))) LM)"
+                          in filter (\<lambda>io . io \<in> LA) LM)"
 
 value "the (calculate_state_separator_from_s_states M_ex_9 0 3)"
 value "atc_to_io_list M_ex_9 (the (calculate_state_separator_from_s_states M_ex_9 0 3))"
@@ -1415,53 +1415,20 @@ proof -
     using paths_up_to_length_path_set[OF nodes.initial, of M "size A - 1"] unfolding LS.simps by auto
    
   
-  have "set (atc_to_io_list M A) = Set.filter (\<lambda>io. 0 < length io \<and> (\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io'))) {io \<in> LS M (initial M). length io \<le> FSM.size A - 1}"
+  have "set (atc_to_io_list M A) = Set.filter (\<lambda>io. io \<in> L A)  {io \<in> L M. length io \<le> FSM.size A - 1}"
     unfolding atc_to_io_list.simps Let_def 
-    using filter_set[of "(\<lambda>io . length io > 0 \<and> (\<exists> io' \<in> set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1)))  . length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io')))" "map p_io (paths_up_to_length M (initial M) (size A -1))"] 
+    using filter_set[of "(\<lambda>io . io \<in> set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1))))" "map p_io (paths_up_to_length M (initial M) (size A -1))"] 
     unfolding \<open>set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1))) = L A\<close>
     unfolding \<open>set (map p_io (paths_up_to_length M (initial M) (size A -1))) = {io \<in> L M . length io \<le> size A - 1}\<close> by blast
-  then have *: "set (atc_to_io_list M A) = {io \<in> LS M (initial M). length io \<le> FSM.size A - 1 \<and> 0 < length io \<and> (\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io'))}"
+  then have *: "set (atc_to_io_list M A) = {io \<in> L M . io \<in> L A \<and> length io \<le> FSM.size A - 1}"
     by force
   
   
-  have "\<And> io . io \<in> L A \<Longrightarrow> length io \<le> FSM.size A - 1"
+  moreover have "\<And> io . io \<in> L A \<Longrightarrow> length io \<le> FSM.size A - 1"
     using acyclic_path_length'[OF assms] by auto
-
-  have "\<And> io . io \<in> atc_to_io_set M A \<Longrightarrow> io \<in> set (atc_to_io_list M A)"
-  proof -
-    fix xs assume "xs \<in> atc_to_io_set M A"
-    then obtain io x y y' where "xs = io @ [(x, y)]" and "io @ [(x, y)] \<in> LS M (initial M)" and "io @ [(x, y')] \<in> LS A (initial A)"
-      unfolding atc_to_io_set.simps by blast
-    
-    from \<open>io @ [(x, y')] \<in> L A\<close> have "length (io @ [(x, y')]) \<le> FSM.size A - 1"
-      using \<open>\<And>io. io \<in> LS A (initial A) \<Longrightarrow> length io \<le> FSM.size A - 1\<close> by blast
-    then have "length xs \<le> FSM.size A - 1 \<and> 0 < length xs"
-      using \<open>xs = io @ [(x, y)]\<close> by auto
-    moreover have "(\<exists>io'\<in>LS A (initial A). length xs = length io' \<and> butlast xs = butlast io' \<and> fst (last xs) = fst (last io'))"
-      unfolding \<open>xs = io @ [(x, y)]\<close>
-      using \<open>io @ [(x, y')] \<in> LS A (initial A)\<close> 
-      by (metis butlast_snoc eq_diff_iff fst_conv last_snoc le_less_linear length_0_conv length_butlast less_one snoc_eq_iff_butlast)
-    ultimately show "xs \<in> set (atc_to_io_list M A)"
-      using \<open>xs = io @ [(x, y)]\<close> \<open>io @ [(x, y)] \<in> LS M (initial M)\<close> 
-      unfolding * by blast    
-  qed
-
-  moreover have "\<And> io . io \<in> set (atc_to_io_list M A) \<Longrightarrow> io \<in> atc_to_io_set M A"
-  proof -
-    fix io assume "io \<in> set (atc_to_io_list M A)"
-    then have "io \<in> LS M (initial M)" and "length io \<le> FSM.size A - 1" and "0 < length io"  and "\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io')"
-      unfolding * by blast+
-    from \<open>0 < length io\<close> obtain x y where "io = (butlast io)@[(x,y)]"
-      by (metis append_butlast_last_id length_0_conv less_not_refl old.prod.exhaust)
-    then obtain y' where "(butlast io)@[(x,y')] \<in> L A"
-      using \<open>\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io')\<close>
-      by (metis append_butlast_last_id eq_fst_iff last.simps last_appendR length_greater_0_conv not_Cons_self2)
-    then show "io \<in> atc_to_io_set M A"
-      using \<open>io = (butlast io)@[(x,y)]\<close> \<open>io \<in> LS M (initial M)\<close> unfolding atc_to_io_set.simps by force
-  qed
-
-  ultimately show ?thesis by blast
+  ultimately show ?thesis by force
 qed
+
 
 
 (* TODO: define pass relation on io sequence sets and relate to pass_ATC *)
@@ -1523,16 +1490,75 @@ proof (rule ccontr)
 qed
 
 
-
-lemma atc_to_io_set_language :
-  assumes "is_separator M q1 q2 A t1 t2"
-  and     "pass_io_set S (atc_to_io_set (from_FSM M q1) A)"
-  and     "io @ [(x,y)] \<in> L A"
-  and     "io_targets A (io @ [(x,y')]) (initial A) \<inter> {t2} = {}"
-shows "io @ [(x,y)] \<in> L (from_FSM M q1)"
+lemma language_io : 
+  assumes "io \<in> L M"
+  and     "(x,y) \<in> set io"
+shows "x \<in> set (inputs M)"
+and   "y \<in> set (outputs M)"
 proof -
+  obtain p where "path M (initial M) p" and "p_io p = io"
+    using \<open>io \<in> L M\<close> by auto
+  then obtain t where "t \<in> set p" and "t_input t = x" and "t_output t = y"
+    using \<open>(x,y) \<in> set io\<close> by auto
+  
+  have "t \<in> h M"
+    using \<open>path M (initial M) p\<close> \<open>t \<in> set p\<close>
+    by (induction p; auto)
 
-end (*
+  show "x \<in> set (inputs M)"
+    using \<open>t \<in> h M\<close> \<open>t_input t = x\<close> by auto
+
+  show "y \<in> set (outputs M)"
+    using \<open>t \<in> h M\<close> \<open>t_output t = y\<close> by auto
+qed
+
+
+lemma separator_language_last_left :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "completely_specified M"
+  and     "q1 \<in> nodes M"
+  and     "io @ [(x, y)] \<in> L A"
+obtains y'' where "io@[(x,y'')] \<in> L A \<inter> LS M q1"
+proof -
+  obtain p t where "path A (initial A) (p@[t])" and "p_io (p@[t]) = io@[(x,y)]"
+    using language_initial_path_append_transition[OF \<open>io @ [(x, y)] \<in> L A\<close>] by blast
+  then have "\<not> deadlock_state A (target p (initial A))"
+    unfolding deadlock_state.simps by fastforce
+  have "path A (initial A) p"
+    using \<open>path A (initial A) (p@[t])\<close> by auto
+
+  have "p_io p \<in> LS M q1"
+    using separator_path_targets(1,2,4)[OF assms(1) \<open>path A (initial A) p\<close>]
+    using is_separator_simps(4,5)[OF assms(1)] 
+    using \<open>\<not> deadlock_state A (target p (initial A))\<close> by fastforce
+  then have "io \<in> LS M q1"
+    using \<open>p_io (p@[t]) = io@[(x,y)]\<close> by auto
+
+  have "x \<in> set (inputs A)"
+    using \<open>io @ [(x, y)] \<in> L A\<close> language_io(1) 
+    by (metis in_set_conv_decomp)
+  then have "x \<in> set (inputs M)"
+    using is_separator_simps(16)[OF assms(1)] by blast
+
+  then obtain y'' where "io@[(x,y'')] \<in> LS M q1"
+    using completely_specified_language_extension[OF \<open>completely_specified M\<close> \<open>q1 \<in> nodes M\<close> \<open>io \<in> LS M q1\<close>] by blast
+  then have "io@[(x,y'')] \<in> L A \<inter> LS M q1"
+    using is_separator_simps(9)[OF assms(1) _ \<open>io @ [(x, y)] \<in> L A\<close>] by blast
+  then show ?thesis 
+    using that by blast
+qed
+
+
+lemma separator_language_last_right :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "completely_specified M"
+  and     "q2 \<in> nodes M"
+  and     "io @ [(x, y)] \<in> L A"
+obtains y'' where "io@[(x,y'')] \<in> L A \<inter> LS M q2"
+  using separator_language_last_left[OF is_separator_sym[OF assms(1)] assms(2,3,4)] by blast
+
+
+
 
 lemma pass_separator_from_pass_io_set :
   assumes "is_separator M q1 q2 A t1 t2"
@@ -1543,6 +1569,7 @@ lemma pass_separator_from_pass_io_set :
   and     "q2 \<in> nodes M"
   and     "s1 \<in> nodes S"
   and     "set (inputs S) = set (inputs M)"
+  and     "completely_specified M"
 shows "pass_separator_ATC S A s1 t2"
 proof (rule ccontr)
   assume "\<not> pass_separator_ATC S A s1 t2"
@@ -1565,96 +1592,65 @@ proof (rule ccontr)
     using prod.exhaust fst_conv 
     by (metis empty_iff insert_iff)
 
-  have "io @ [(x,y')] \<in> L (from_FSM M q1)"
-    using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
-    unfolding pass_io_set_def
-
-  have "io @ [(x,y')] \<in> L A"
-    using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
-    unfolding pass_io_set_def atc_to_io_set.simps
-    using \<open>io @ [(x,y)] \<in> L A\<close> \<open>io @ [(x,y')] \<in> L (from_FSM S s1)\<close> 
-
-end (*    
-            
-  thm pass_ATC_fail[OF \<open>is_ATC A\<close> \<open>observable (from_FSM S s1)\<close> \<open>set (inputs A) \<subseteq> set (inputs (from_FSM S s1))\<close>]
-
-end (*
-  then have "io@[(x,y')] \<in> (atc_to_io_set (from_FSM M q1) A)"
-    unfolding atc_to_io_set.simps 
-
-
-
-  have "io@[(x,y)] \<in> L A"
-    using \<open>io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)\<close> unfolding atc_to_io_set.simps
-    using atc_to_io_set_code[OF \<open>acyclic A\<close>]
-  
+  show "False" 
+  proof (cases "io_targets A (io @ [(x,y')]) (initial A) \<inter> {t2} \<noteq> {}")
+    case True
+    then have "io @ [(x,y')] \<in> L A"
+      unfolding io_targets.simps LS.simps by force
     
+    have "io @ [(x,y')] \<in> LS M q2 - LS M q1"
+    proof -
+      have "t2 \<noteq> t1"
+        by (metis (full_types) \<open>is_separator M q1 q2 A t1 t2\<close> is_separator_simps(15))
+      then show ?thesis
+        using True separator_language[OF assms(1) \<open>io @ [(x,y')] \<in> L A\<close>] 
+        by blast
+    qed
+    then have "io @ [(x,y')] \<notin> LS M q1" by blast
 
-  thm pass_separator_ATC_fail_no_reduction[OF assms(4,3,7,5,6,1,8)]
+    obtain y'' where "io @ [(x, y'')] \<in> LS M q1 \<inter> L A"
+      using separator_language_last_left[OF assms(1,9,5) \<open>io @ [(x,y)] \<in> L A\<close>] by blast
+    then have "io @ [(x, y')] \<in> LS M q1 \<inter> LS A (initial A)"
+      using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
+      using \<open>io @ [(x,y')] \<in> L (from_FSM S s1)\<close> 
+      unfolding pass_io_set_def atc_to_io_set.simps from_FSM_language[OF \<open>q1 \<in> nodes M\<close>] by blast
+
+    then show "False" 
+      using \<open>io @ [(x,y')] \<notin> LS M q1\<close> by blast
+  
+  next
+    case False  
+    then have "io @ [(x,y')] \<notin> L A"
+      using \<open>(io @ [(x,y')] \<notin> L A \<or> io_targets A (io @ [(x,y')]) (initial A) \<inter> {t2} \<noteq> {})\<close>
+      by blast
+
+    obtain y'' where "io @ [(x, y'')] \<in> LS M q1 \<inter> L A"
+      using separator_language_last_left[OF assms(1,9,5) \<open>io @ [(x,y)] \<in> L A\<close>] by blast
+    then have "io @ [(x, y')] \<in> L A"
+      using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
+      using \<open>io @ [(x,y')] \<in> L (from_FSM S s1)\<close> 
+      unfolding pass_io_set_def atc_to_io_set.simps from_FSM_language[OF \<open>q1 \<in> nodes M\<close>] by blast
+
+    then show "False"
+      using \<open>io @ [(x,y')] \<notin> L A\<close> by blast
+  qed
 qed
 
 
-end (*
-lemma pass_io_set_from_pass_separator :
+
+lemma pass_separator_pass_io_set_iff:
   assumes "is_separator M q1 q2 A t1 t2"
-  and     "pass_separator_ATC M A q1 t2"
-shows "pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
-proof (rule ccontr) 
-  assume "\<not> pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
-  then obtain io x y y' where "io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)" and "io@[(x,y')] \<in> L (from_FSM M q1)" and "io@[(x,y')] \<notin> (atc_to_io_set (from_FSM M q1) A)" 
-    unfolding pass_io_set_def by blast
-  then show "False"
-    unfolding atc_to_io_set.simps by force
-qed
-
-
-lemma pass_separator_from_pass_io_set :
-  assumes "is_separator M q1 q2 A t1 t2"
-  and     "\<not> pass_separator_ATC M A q1 t2"
-shows "\<not> pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
-
-
-
-lemma pass_separator_from_pass_io_set :
-  assumes "pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
   and     "observable M"
+  and     "observable S"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
-  and     "is_ATC A"
-  and     "set (inputs A) \<subseteq> set (inputs M)"
-shows "pass_separator_ATC M A q1 t2"
-proof (rule ccontr) 
-  assume "\<not> pass_separator_ATC M A q1 t2"
-  thm pass_ATC_io_fail
-  thm pass_ATC_fail[OF \<open>is_ATC A\<close> \<open>observable M\<close> \<open>set (inputs A) \<subseteq> set (inputs M)\<close>]
-qed
+  and     "s1 \<in> nodes S"
+  and     "set (inputs S) = set (inputs M)"
+  and     "completely_specified M"
+shows "pass_separator_ATC S A s1 t2 \<longleftrightarrow> pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)"
+  using pass_separator_from_pass_io_set[OF assms(1) _ assms(2-8)]
+        pass_io_set_from_pass_separator[OF assms(1) _ assms(2-7)] by blast
 
-end (*
-
-  have "is_ATC A"
-    using separator_is_ATC[OF assms(1,3,4,5)] by assumption
-  then have "acyclic A" 
-    unfolding is_ATC_def by auto
-  have "set (inputs A) \<subseteq> set (inputs M)"
-    using assms(1) unfolding is_separator_def by auto
-
-  have "io@[(x,y)] \<in> L A"
-    using \<open>io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)\<close> unfolding atc_to_io_set.simps
-    using atc_to_io_set_code[OF \<open>acyclic A\<close>]
-  
-  thm pass_ATC_fail[OF \<open>is_ATC A\<close> assms(3) \<open>set (inputs A) \<subseteq> set (inputs M)\<close> ]
-
-end (*
-lemma pass_io_set_separator :
-  assumes "is_separator M q1 q2 A t1 t2"
-  shows "pass_separator_ATC M A q1 t2 = pass_io_set M (atc_to_io_set M A)"
-
-
-
-  
-    
-
-  
 
 
 
