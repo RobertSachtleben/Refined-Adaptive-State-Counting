@@ -1463,8 +1463,194 @@ proof -
   ultimately show ?thesis by blast
 qed
 
-    
+
 (* TODO: define pass relation on io sequence sets and relate to pass_ATC *)
+
+definition pass_io_set :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "pass_io_set M ios = (\<forall> io x y . io@[(x,y)] \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> io@[(x,y')] \<in> ios))"
+
+
+lemma pass_io_set_from_pass_separator :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "pass_separator_ATC S A s1 t2"
+  and     "observable M"
+  and     "observable S"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "s1 \<in> nodes S"
+  and     "set (inputs S) = set (inputs M)"
+shows "pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)"
+proof (rule ccontr) 
+  assume "\<not> pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)"
+  then obtain io x y y' where "io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)" and "io@[(x,y')] \<in> L (from_FSM S s1)" and "io@[(x,y')] \<notin> (atc_to_io_set (from_FSM M q1) A)" 
+    unfolding pass_io_set_def by blast
+
+  have "is_ATC A"
+    using separator_is_ATC[OF assms(1,3,5,6)]  by assumption
+  then have "acyclic A" 
+    unfolding is_ATC_def by auto
+  have "observable (from_FSM S s1)"
+    using from_FSM_observable[OF \<open>observable S\<close> \<open>s1 \<in> nodes S\<close>] by assumption
+  have "set (inputs A) \<subseteq> set (inputs (from_FSM S s1))"
+    using assms(1) unfolding is_separator_def from_FSM_simps \<open>set (inputs S) = set (inputs M)\<close> by auto
+
+  obtain y'' where "io @ [(x, y'')] \<in> LS A (initial A)"
+    using \<open>io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)\<close> unfolding atc_to_io_set.simps by blast
+
+  have "pass_ATC (from_FSM S s1) A {t2}"
+    using \<open>pass_separator_ATC S A s1 t2\<close> by auto
+
+  then have "io @ [(x, y')] \<in> L A"
+    using pass_ATC_fail[OF \<open>is_ATC A\<close> 
+                           \<open>observable (from_FSM S s1)\<close> 
+                           \<open>set (inputs A) \<subseteq> set (inputs (from_FSM S s1))\<close> 
+                           \<open>io @ [(x, y'')] \<in> LS A (initial A)\<close>
+                           \<open>io@[(x,y')] \<in> L (from_FSM S s1)\<close>,
+                        of "{t2}" ]
+    by auto
+
+  have "io_targets A (io @ [(x, y')]) (initial A) \<inter> {t2} = {}"  
+    using pass_ATC_io(2)[OF \<open>pass_ATC (from_FSM S s1) A {t2}\<close> \<open>is_ATC A\<close> \<open>observable (from_FSM S s1)\<close> \<open>set (inputs A) \<subseteq> set (inputs (from_FSM S s1))\<close> \<open>io @ [(x, y')] \<in> L A\<close> \<open>io@[(x,y')] \<in> L (from_FSM S s1)\<close>]
+    unfolding fst_conv by blast
+
+  then have "io @ [(x, y')] \<in> LS M q1"
+    using separator_language(1,3,4)[OF assms(1) \<open>io @ [(x, y')] \<in> L A\<close>] 
+    by (metis UnE Un_Diff_cancel \<open>io @ [(x, y')] \<in> LS A (initial A)\<close> assms(1) disjoint_insert(2) is_separator_sym separator_language(1) singletonI)
+  then show "False"
+    using \<open>io @ [(x, y')] \<in> L A\<close> \<open>io@[(x,y')] \<notin> (atc_to_io_set (from_FSM M q1) A)\<close> 
+    unfolding atc_to_io_set.simps from_FSM_language[OF \<open>q1 \<in> nodes M\<close>]
+    by blast
+qed
+
+
+
+lemma atc_to_io_set_language :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "pass_io_set S (atc_to_io_set (from_FSM M q1) A)"
+  and     "io @ [(x,y)] \<in> L A"
+  and     "io_targets A (io @ [(x,y')]) (initial A) \<inter> {t2} = {}"
+shows "io @ [(x,y)] \<in> L (from_FSM M q1)"
+proof -
+
+end (*
+
+lemma pass_separator_from_pass_io_set :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)"
+  and     "observable M"
+  and     "observable S"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "s1 \<in> nodes S"
+  and     "set (inputs S) = set (inputs M)"
+shows "pass_separator_ATC S A s1 t2"
+proof (rule ccontr)
+  assume "\<not> pass_separator_ATC S A s1 t2"
+  then have "\<not> pass_ATC (from_FSM S s1) A {t2}" by auto
+
+  have "is_ATC A"
+    using separator_is_ATC[OF assms(1,3,5,6)]  by assumption
+  then have "acyclic A" 
+    unfolding is_ATC_def by auto
+  have "observable (from_FSM S s1)"
+    using from_FSM_observable[OF \<open>observable S\<close> \<open>s1 \<in> nodes S\<close>] by assumption
+  have "set (inputs A) \<subseteq> set (inputs (from_FSM S s1))"
+    using assms(1) unfolding is_separator_def from_FSM_simps \<open>set (inputs S) = set (inputs M)\<close> by auto
+
+  obtain io x y y' where "io @ [(x,y)] \<in> L A"
+                         "io @ [(x,y')] \<in> L (from_FSM S s1)"
+                         "(io @ [(x,y')] \<notin> L A \<or> io_targets A (io @ [(x,y')]) (initial A) \<inter> {t2} \<noteq> {})"
+    using pass_ATC_io_fail[OF \<open>\<not> pass_ATC (from_FSM S s1) A {t2}\<close> \<open>is_ATC A\<close> \<open>observable (from_FSM S s1)\<close> \<open>set (inputs A) \<subseteq> set (inputs (from_FSM S s1))\<close>]
+    using separator_initial(2)[OF assms(1)]  
+    using prod.exhaust fst_conv 
+    by (metis empty_iff insert_iff)
+
+  have "io @ [(x,y')] \<in> L (from_FSM M q1)"
+    using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
+    unfolding pass_io_set_def
+
+  have "io @ [(x,y')] \<in> L A"
+    using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
+    unfolding pass_io_set_def atc_to_io_set.simps
+    using \<open>io @ [(x,y)] \<in> L A\<close> \<open>io @ [(x,y')] \<in> L (from_FSM S s1)\<close> 
+
+end (*    
+            
+  thm pass_ATC_fail[OF \<open>is_ATC A\<close> \<open>observable (from_FSM S s1)\<close> \<open>set (inputs A) \<subseteq> set (inputs (from_FSM S s1))\<close>]
+
+end (*
+  then have "io@[(x,y')] \<in> (atc_to_io_set (from_FSM M q1) A)"
+    unfolding atc_to_io_set.simps 
+
+
+
+  have "io@[(x,y)] \<in> L A"
+    using \<open>io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)\<close> unfolding atc_to_io_set.simps
+    using atc_to_io_set_code[OF \<open>acyclic A\<close>]
+  
+    
+
+  thm pass_separator_ATC_fail_no_reduction[OF assms(4,3,7,5,6,1,8)]
+qed
+
+
+end (*
+lemma pass_io_set_from_pass_separator :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "pass_separator_ATC M A q1 t2"
+shows "pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
+proof (rule ccontr) 
+  assume "\<not> pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
+  then obtain io x y y' where "io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)" and "io@[(x,y')] \<in> L (from_FSM M q1)" and "io@[(x,y')] \<notin> (atc_to_io_set (from_FSM M q1) A)" 
+    unfolding pass_io_set_def by blast
+  then show "False"
+    unfolding atc_to_io_set.simps by force
+qed
+
+
+lemma pass_separator_from_pass_io_set :
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "\<not> pass_separator_ATC M A q1 t2"
+shows "\<not> pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
+
+
+
+lemma pass_separator_from_pass_io_set :
+  assumes "pass_io_set (from_FSM M q1) (atc_to_io_set (from_FSM M q1) A)"
+  and     "observable M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "is_ATC A"
+  and     "set (inputs A) \<subseteq> set (inputs M)"
+shows "pass_separator_ATC M A q1 t2"
+proof (rule ccontr) 
+  assume "\<not> pass_separator_ATC M A q1 t2"
+  thm pass_ATC_io_fail
+  thm pass_ATC_fail[OF \<open>is_ATC A\<close> \<open>observable M\<close> \<open>set (inputs A) \<subseteq> set (inputs M)\<close>]
+qed
+
+end (*
+
+  have "is_ATC A"
+    using separator_is_ATC[OF assms(1,3,4,5)] by assumption
+  then have "acyclic A" 
+    unfolding is_ATC_def by auto
+  have "set (inputs A) \<subseteq> set (inputs M)"
+    using assms(1) unfolding is_separator_def by auto
+
+  have "io@[(x,y)] \<in> L A"
+    using \<open>io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)\<close> unfolding atc_to_io_set.simps
+    using atc_to_io_set_code[OF \<open>acyclic A\<close>]
+  
+  thm pass_ATC_fail[OF \<open>is_ATC A\<close> assms(3) \<open>set (inputs A) \<subseteq> set (inputs M)\<close> ]
+
+end (*
+lemma pass_io_set_separator :
+  assumes "is_separator M q1 q2 A t1 t2"
+  shows "pass_separator_ATC M A q1 t2 = pass_io_set M (atc_to_io_set M A)"
+
+
+
   
     
 
