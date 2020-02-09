@@ -738,6 +738,25 @@ proof (rule ccontr)
   then show "False" using assms(2) by auto
 qed
 
+lemma distinct_path_length_limit_nodes' :
+  assumes "path M q p"
+  and     "distinct (visited_states q p)"
+shows "length p \<le> size M - 1"
+proof (rule ccontr)
+  assume *: "\<not> length p \<le> size M - 1"
+
+  have "length (visited_states q p) = Suc (length p)"
+    by simp
+  then have "length (visited_states q p) \<ge> size M"
+    using "*" by linarith
+  moreover have "set (visited_states q p) \<subseteq> nodes M"
+    by (metis assms(1) nodes_path path_prefix subsetI visited_states_prefix)
+  ultimately have "\<not>distinct (visited_states q p)"
+    using nodes_finite unfolding size_def 
+    using "*" card_seteq distinct_card by fastforce
+  then show "False" using assms(2) by auto
+qed
+
 lemma distinct_path_length :
   assumes "path M q p"
 obtains p' where "path M q p'"
@@ -1569,6 +1588,13 @@ lemma acyclic_path_length :
   and     "path M (initial M) p" 
   shows "length p < size M"
   using distinct_path_length_limit_nodes[OF assms(2) acyclic_paths_from_nodes[OF assms]] by assumption
+
+
+lemma acyclic_path_length' :
+  assumes "acyclic M" 
+  and     "path M (initial M) p" 
+  shows "length p \<le> size M - 1"
+  using distinct_path_length_limit_nodes'[OF assms(2) acyclic_paths_from_nodes[OF assms]] by assumption
 
 
 lemma cyclic_cycle :

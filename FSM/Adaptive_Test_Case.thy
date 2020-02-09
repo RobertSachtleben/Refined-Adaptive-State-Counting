@@ -1375,6 +1375,101 @@ shows "LS S s2 - LS M q2 \<noteq> {}"
 
 
 
+subsection \<open>ATCs Represented as Sets of IO Sequences\<close>
+
+fun atc_to_io_set :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list set" where
+  "atc_to_io_set M A = {io@[(x,y)] | io x y . io@[(x,y)] \<in> L M \<and> (\<exists> y' . io@[(x,y')] \<in> L A) }"
+
+
+(* very inefficient calculation *)
+fun atc_to_io_list :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list list" where
+  "atc_to_io_list M A = (let LA = (map p_io (distinct_paths_up_to_length_from_initial A (size A -1)));
+                             LM = map p_io (paths_up_to_length M (initial M) (size A -1))
+                          in filter (\<lambda>io . length io > 0 \<and> (\<exists> io' \<in> set LA . length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io'))) LM)"
+
+value "the (calculate_state_separator_from_s_states M_ex_9 0 3)"
+value "atc_to_io_list M_ex_9 (the (calculate_state_separator_from_s_states M_ex_9 0 3))"
+
+lemma acyclic_language_alt_def :
+  assumes "acyclic M"
+  shows "set (map p_io (distinct_paths_up_to_length_from_initial M (size M -1))) = L M"
+proof -
+  let ?ps = "distinct_paths_up_to_length_from_initial M (size M - 1)"
+  have "\<And> p . path M (initial M) p \<Longrightarrow> length p \<le> FSM.size M - 1"
+    using acyclic_path_length[OF assms] by fastforce
+  then have "set ?ps = {p. path M (initial M) p}"
+    using distinct_paths_up_to_length_path_set[of M "size M - 1"]
+    using assms unfolding acyclic.simps by blast
+  then show ?thesis unfolding LS.simps by auto
+qed
+
+
+lemma atc_to_io_set_code : 
+  assumes "acyclic A"
+  shows "atc_to_io_set M A = set (atc_to_io_list M A)"
+proof -
+
+  have "set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1))) = L A"
+    using acyclic_language_alt_def[OF assms]  by assumption
+  have "set (map p_io (paths_up_to_length M (initial M) (size A -1))) = {io \<in> L M . length io \<le> size A - 1}"
+    using paths_up_to_length_path_set[OF nodes.initial, of M "size A - 1"] unfolding LS.simps by auto
+   
+  
+  have "set (atc_to_io_list M A) = Set.filter (\<lambda>io. 0 < length io \<and> (\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io'))) {io \<in> LS M (initial M). length io \<le> FSM.size A - 1}"
+    unfolding atc_to_io_list.simps Let_def 
+    using filter_set[of "(\<lambda>io . length io > 0 \<and> (\<exists> io' \<in> set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1)))  . length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io')))" "map p_io (paths_up_to_length M (initial M) (size A -1))"] 
+    unfolding \<open>set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1))) = L A\<close>
+    unfolding \<open>set (map p_io (paths_up_to_length M (initial M) (size A -1))) = {io \<in> L M . length io \<le> size A - 1}\<close> by blast
+  then have *: "set (atc_to_io_list M A) = {io \<in> LS M (initial M). length io \<le> FSM.size A - 1 \<and> 0 < length io \<and> (\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io'))}"
+    by force
+  
+  
+  have "\<And> io . io \<in> L A \<Longrightarrow> length io \<le> FSM.size A - 1"
+    using acyclic_path_length'[OF assms] by auto
+
+  have "\<And> io . io \<in> atc_to_io_set M A \<Longrightarrow> io \<in> set (atc_to_io_list M A)"
+  proof -
+    fix xs assume "xs \<in> atc_to_io_set M A"
+    then obtain io x y y' where "xs = io @ [(x, y)]" and "io @ [(x, y)] \<in> LS M (initial M)" and "io @ [(x, y')] \<in> LS A (initial A)"
+      unfolding atc_to_io_set.simps by blast
+    
+    from \<open>io @ [(x, y')] \<in> L A\<close> have "length (io @ [(x, y')]) \<le> FSM.size A - 1"
+      using \<open>\<And>io. io \<in> LS A (initial A) \<Longrightarrow> length io \<le> FSM.size A - 1\<close> by blast
+    then have "length xs \<le> FSM.size A - 1 \<and> 0 < length xs"
+      using \<open>xs = io @ [(x, y)]\<close> by auto
+    moreover have "(\<exists>io'\<in>LS A (initial A). length xs = length io' \<and> butlast xs = butlast io' \<and> fst (last xs) = fst (last io'))"
+      unfolding \<open>xs = io @ [(x, y)]\<close>
+      using \<open>io @ [(x, y')] \<in> LS A (initial A)\<close> 
+      by (metis butlast_snoc eq_diff_iff fst_conv last_snoc le_less_linear length_0_conv length_butlast less_one snoc_eq_iff_butlast)
+    ultimately show "xs \<in> set (atc_to_io_list M A)"
+      using \<open>xs = io @ [(x, y)]\<close> \<open>io @ [(x, y)] \<in> LS M (initial M)\<close> 
+      unfolding * by blast    
+  qed
+
+  moreover have "\<And> io . io \<in> set (atc_to_io_list M A) \<Longrightarrow> io \<in> atc_to_io_set M A"
+  proof -
+    fix io assume "io \<in> set (atc_to_io_list M A)"
+    then have "io \<in> LS M (initial M)" and "length io \<le> FSM.size A - 1" and "0 < length io"  and "\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io')"
+      unfolding * by blast+
+    from \<open>0 < length io\<close> obtain x y where "io = (butlast io)@[(x,y)]"
+      by (metis append_butlast_last_id length_0_conv less_not_refl old.prod.exhaust)
+    then obtain y' where "(butlast io)@[(x,y')] \<in> L A"
+      using \<open>\<exists>io'\<in>LS A (initial A). length io = length io' \<and> butlast io = butlast io' \<and> fst (last io) = fst (last io')\<close>
+      by (metis append_butlast_last_id eq_fst_iff last.simps last_appendR length_greater_0_conv not_Cons_self2)
+    then show "io \<in> atc_to_io_set M A"
+      using \<open>io = (butlast io)@[(x,y)]\<close> \<open>io \<in> LS M (initial M)\<close> unfolding atc_to_io_set.simps by force
+  qed
+
+  ultimately show ?thesis by blast
+qed
+
+    
+(* TODO: define pass relation on io sequence sets and relate to pass_ATC *)
+  
+    
+
+  
+
 
 
 end
