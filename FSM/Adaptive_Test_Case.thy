@@ -1436,6 +1436,83 @@ qed
 definition pass_io_set :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "pass_io_set M ios = (\<forall> io x y . io@[(x,y)] \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> io@[(x,y')] \<in> ios))"
 
+definition pass_io_set_maximal :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+  "pass_io_set_maximal M ios = (\<forall> io x y io' . io@[(x,y)]@io' \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> (\<exists> io''. io@[(x,y')]@io'' \<in> ios)))"
+
+
+lemma pass_io_set_from_pass_io_set_maximal :
+  "pass_io_set_maximal M ios = pass_io_set M {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
+proof -
+  have "\<And> io x y io' . io@[(x,y)]@io' \<in> ios \<Longrightarrow> io@[(x,y)] \<in> {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
+    by auto
+  moreover have "\<And> io x y . io@[(x,y)] \<in> {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios} \<Longrightarrow> \<exists> io' . io@[(x,y)]@io' \<in> ios"
+    by auto
+  ultimately show ?thesis
+    unfolding pass_io_set_def pass_io_set_maximal_def
+    by meson 
+qed
+
+(* TODO: move *)
+lemma finite_set_elem_maximal_extension_ex :
+  assumes "xs \<in> S"
+  and     "finite S"
+shows "\<exists> ys . xs@ys \<in> S \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> S)"
+using \<open>finite S\<close> \<open>xs \<in> S\<close> proof (induction S arbitrary: xs)
+  case empty
+  then show ?case by auto
+next
+  case (insert x S)
+
+  consider (a) "\<exists> ys . x = xs@ys \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> (insert x S))" |
+           (b) "\<not>(\<exists> ys . x = xs@ys \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> (insert x S)))"
+    by blast
+  then show ?case proof cases
+    case a
+    then show ?thesis by auto
+  next
+    case b
+    then show ?thesis proof (cases "\<exists> vs . vs \<noteq> [] \<and> xs@vs \<in> S")
+      case True
+      then obtain vs where "vs \<noteq> []" and "xs@vs \<in> S"
+        by blast
+      
+      have "\<exists>ys. xs @ (vs @ ys) \<in> S \<and> (\<nexists>zs. zs \<noteq> [] \<and> xs @ (vs @ ys) @ zs \<in> S)"
+        using insert.IH[OF \<open>xs@vs \<in> S\<close>] by auto
+      then have "\<exists>ys. xs @ (vs @ ys) \<in> S \<and> (\<nexists>zs. zs \<noteq> [] \<and> xs @ (vs @ ys) @ zs \<in> (insert x S))"
+        using b 
+        unfolding append.assoc append_is_Nil_conv append_self_conv insert_iff
+        by (metis append.assoc append_Nil2 append_is_Nil_conv same_append_eq) 
+      then show ?thesis by blast
+    next
+      case False
+      then show ?thesis using insert.prems
+        by (metis append_is_Nil_conv append_self_conv insertE same_append_eq) 
+    qed
+  qed
+qed
+
+
+
+
+lemma pass_io_set_maximal_from_pass_io_set :
+  assumes "finite ios"
+  and     "\<And> io' io'' . io'@io'' \<in> ios \<Longrightarrow> io' \<in> ios"
+shows "pass_io_set M ios = pass_io_set_maximal M {io' \<in> ios . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> ios)}"
+proof -
+  have "\<And> io x y . io@[(x,y)] \<in> ios \<Longrightarrow> \<exists> io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)}"
+  proof -
+    fix io x y assume "io@[(x,y)] \<in> ios"
+    show "\<exists> io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)}"
+      using finite_set_elem_maximal_extension_ex[OF \<open>io@[(x,y)] \<in> ios\<close> assms(1)] by force
+  qed
+  moreover have "\<And> io x y io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)} \<Longrightarrow> io@[(x,y)] \<in> ios"
+    using \<open>\<And> io' io'' . io'@io'' \<in> ios \<Longrightarrow> io' \<in> ios\<close> by force
+  ultimately show ?thesis
+    unfolding pass_io_set_def pass_io_set_maximal_def 
+    by meson 
+qed
+
+
 
 lemma pass_io_set_from_pass_separator :
   assumes "is_separator M q1 q2 A t1 t2"
@@ -1652,6 +1729,40 @@ shows "pass_separator_ATC S A s1 t2 \<longleftrightarrow> pass_io_set (from_FSM 
         pass_io_set_from_pass_separator[OF assms(1) _ assms(2-7)] by blast
 
 
+
+
+
+
+lemma pass_separator_pass_io_set_maximal_iff:
+  assumes "is_separator M q1 q2 A t1 t2"
+  and     "observable M"
+  and     "observable S"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "s1 \<in> nodes S"
+  and     "set (inputs S) = set (inputs M)"
+  and     "completely_specified M"
+shows "pass_separator_ATC S A s1 t2 \<longleftrightarrow> pass_io_set_maximal (from_FSM S s1) {io' \<in> atc_to_io_set (from_FSM M q1) A. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> atc_to_io_set (from_FSM M q1) A}"
+proof -
+
+  have "is_ATC A"
+    using separator_is_ATC[OF assms(1,2,4,5)]  by assumption
+  then have "acyclic A" 
+    unfolding is_ATC_def by auto
+  then have "finite (L A)"
+    unfolding acyclic_alt_def by assumption
+  then have *: "finite (atc_to_io_set (from_FSM M q1) A)"
+    unfolding atc_to_io_set.simps by blast
+
+  have **: "\<And>io' io''. io' @ io'' \<in> atc_to_io_set (from_FSM M q1) A \<Longrightarrow> io' \<in> atc_to_io_set (from_FSM M q1) A"
+    unfolding atc_to_io_set.simps
+    using language_prefix[of _ _ "from_FSM M q1" "initial (from_FSM M q1)"]
+    using language_prefix[of _ _ "A" "initial A"] by blast
+
+  show ?thesis 
+    unfolding pass_separator_pass_io_set_iff[OF assms] 
+    using pass_io_set_maximal_from_pass_io_set[of "(atc_to_io_set (from_FSM M q1) A)" "(from_FSM S s1)", OF * ] ** by blast
+qed
 
 
 end
