@@ -1,7 +1,6 @@
 theory Test_Suite_ATC
-imports Adaptive_Test_Case State_Preamble Traversal_Set
+imports Adaptive_Test_Case State_Preamble Traversal_Set 
 begin
-
 
 section \<open>Test Suites as (Preamble, m-Traversal-Sequence, ATC set) sets\<close>
 
@@ -10,10 +9,9 @@ subsection \<open>Preliminary Definitions\<close>
 
 type_synonym ('a,'b) Preamble = "('a,'b) FSM_scheme"
 type_synonym 'a Traversal_Path = "'a Transition list"
-(*type_synonym ('a,'b) ATC = "('a \<times> 'a + 'a,'b) FSM_scheme"*)
 type_synonym ('a,'b) ATC = "('a,'b) FSM_scheme"
 
-(* problem: ATCs might not exist, preamble and traversal paths still need to be applied *)
+
 type_synonym ('a,'b) Test_Case = "(('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('a,'b) ATC set)"
 type_synonym ('a,'b) Test_Suite = "('a,'b) Test_Case set"
 
@@ -565,12 +563,17 @@ definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Righ
 *)
 
 
+
+
+
+
+
+
 definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> ('a,'b) Preamble) list)" where
   "calculate_test_suite' M m = 
     (let 
          RDSSL = r_distinguishable_state_pairs_with_separators_naive M;
-         RDSS = set RDSSL; 
-         RDS  = image fst RDSS;
+         RDS  = set (map fst RDSSL);
          RDP  = filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) (map set (pow_list (nodes_from_distinct_paths M))); 
          MPRD = filter (\<lambda> S . \<not>(\<exists> S' \<in> set RDP . S \<subset> S')) RDP;  
          DRSP = d_reachable_states_with_preambles M;
@@ -592,10 +595,15 @@ definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Righ
 value "calculate_test_suite' M_ex_H 4"
 
 
+(* TODO:
 
+fun convert_test_suite_elem :: "(('a::linorder \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> ('a,'b) Preamble)) \<Rightarrow> ('a \<times> ('a,'b) Preamble) list \<Rightarrow> 'a Transition list avl_tree" where
+  "convert_test_suite_elem (q,p,atcs) preambles = empty"
 
+thm foldl.simps
 
-
-
+fun convert_test_suite :: "(('a::linorder \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> ('a,'b) Preamble) list) \<Rightarrow> 'a Transition list avl_tree" where
+  "convert_test_suite (elems,preambles) = foldl (\<lambda> prev elem . AVL_Set.union prev prev ) empty elems"
+*)
 
 end 

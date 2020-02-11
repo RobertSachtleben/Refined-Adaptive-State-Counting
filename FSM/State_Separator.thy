@@ -5970,10 +5970,14 @@ lemma induces_from_prod: "induces_state_separator M S = induces_state_separator_
 *)
 
 
+(* TODO: move *)
+lemma filter_ex_by_find :
+  "filter (\<lambda>x . \<exists> y \<in> set ys . P x y) xs = filter (\<lambda>x . find (\<lambda> y . P x y) ys \<noteq> None) xs"
+  using find_None_iff by metis
 
 
-
-
+(* old version filtering by (\<lambda>t . \<exists> qqx \<in> set (take (Suc i) SS) . t_source t = fst qqx \<and> t_input t = snd qqx) *)
+(*
 definition calculate_state_separator_from_s_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme option" where
   "calculate_state_separator_from_s_states M q1 q2 = 
     (let PR = product (from_FSM M q1) (from_FSM M q2); SS = (s_states_opt PR (size PR))  in
@@ -5984,6 +5988,21 @@ definition calculate_state_separator_from_s_states :: "('a,'b) FSM_scheme \<Righ
                                                     transitions = 
                                                        filter 
                                                          (\<lambda>t . \<exists> qqx \<in> set (take (Suc i) SS) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                                                       (wf_transitions PR),
+                                                    \<dots> = more M\<rparr>) |
+        None \<Rightarrow> None))"
+*)
+
+definition calculate_state_separator_from_s_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme option" where
+  "calculate_state_separator_from_s_states M q1 q2 = 
+    (let PR = product (from_FSM M q1) (from_FSM M q2); SS = (s_states_opt PR (size PR))  in
+      (case find_index (\<lambda>qqt . fst qqt = (q1,q2)) SS of
+        Some i \<Rightarrow> Some (state_separator_from_product_submachine M \<lparr> initial = (q1,q2),
+                                                    inputs = inputs PR,
+                                                    outputs = outputs PR,
+                                                    transitions = 
+                                                       filter 
+                                                         (\<lambda>t . find (\<lambda> qqx . t_source t = fst qqx \<and> t_input t = snd qqx) (take (Suc i) SS) \<noteq> None) 
                                                        (wf_transitions PR),
                                                     \<dots> = more M\<rparr>) |
         None \<Rightarrow> None))"
@@ -6023,7 +6042,7 @@ proof -
                         t_source t = fst qqx \<and> t_input t = snd qqx)
                 (wf_transitions (product (from_FSM M q1) (from_FSM M q2))),
              \<dots> = more M\<rparr>)"
-    using assms(1) unfolding calculate_state_separator_from_s_states_def Let_def
+    using assms(1) unfolding calculate_state_separator_from_s_states_def Let_def filter_ex_by_find
     by (metis (mono_tags, lifting) option.inject option.simps(5)) 
   
   
@@ -7949,8 +7968,8 @@ proof -
 
   ultimately show ?thesis
     unfolding is_separator_def
-    using p1 p2 p3 p4 p5 p6 p7 p8 \<open>q1 \<noteq> q2\<close>  
-    by blast
+    using p1 p2 p3 p4 p5 p6 p7 p8 \<open>q1 \<noteq> q2\<close>
+    by (meson sum.simps(2))
 qed
 
 

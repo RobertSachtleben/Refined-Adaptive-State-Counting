@@ -1,4 +1,4 @@
-session FSM = HOL +
+session FSM = "HOL-Library" + 
   options [document = pdf, document_output = "output"]
   theories
     "Util"
@@ -12,6 +12,7 @@ session FSM = HOL +
     "Helper_Algorithms"
     "Test_Suite_ATC"
     "CodeExport"
+    "CodeExport_RBT"
   document_files
     "root.tex" 
-  export_files (in ".") [2] "FSM.CodeExport:**"
+  export_files (in ".") [2] "FSM.CodeExport:**" "FSM.CodeExport_RBT:**"
