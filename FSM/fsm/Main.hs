@@ -2,6 +2,7 @@
 
 module Main where
 import FSM
+import qualified FSM_RBT as RBT
 import qualified Data.List
 import qualified Data.Char
 import qualified System.Environment
@@ -10,6 +11,9 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 
+deriving instance (Eq a, Eq b) => Eq (FSM_ext a b)
+
+{-
 deriving instance Show a => Show (Set a)
 deriving instance (Show a, Show b) => Show (FSM_ext a b)
 deriving instance (Show a, Show b) => Show (Sum a b)
@@ -107,7 +111,7 @@ fsmToDotInternalLR m (ql,qr) =
 
 fsmToDot :: (Eq a, Show a) => FSM_ext a b -> String
 fsmToDot m = 
-    "strict digraph fsm {\n"
+    "digraph fsm {\n"
     ++ (fsmToDotInternal m) ++ "\n"
     ++ "}"     
 
@@ -134,7 +138,7 @@ separatorsToDotLR m mName =
             ++ "}")
             
 
-
+-}
 
 
 
@@ -166,6 +170,17 @@ readFSM :: String -> Either String (FSM_ext Integer ())
 readFSM fsmStr = readTransitions fsmStr >>= (\ts -> Right $ FSM_ext 0 (Data.List.nub $ map (fst . snd) ts) (Data.List.nub $ map (fst . snd . snd) ts) (Data.List.nub ts) ())
 
 
+
+
+
+
+-- read .fsm file
+readFSM_rbt :: String -> Either String (RBT.FSM_ext Integer ())
+readFSM_rbt fsmStr = readTransitions fsmStr >>= (\ts -> Right $ RBT.FSM_ext 0 (Data.List.nub $ map (fst . snd) ts) (Data.List.nub $ map (fst . snd . snd) ts) (Data.List.nub ts) ())
+
+
+
+{-
 
 readAndPrintFSM :: IO ()
 readAndPrintFSM = do
@@ -358,7 +373,7 @@ int_to_nat n = Suc (int_to_nat (n-1))
 
 nodesBefore n p = "after (" ++ (Data.List.intercalate ", " $ map (\(q,(x,(y,q'))) -> dotShow q') (take n p)) ++ ")"
 nodeNameP 0 p src q = dotShow q
-nodeNameP n p src q = show $ (show q) ++ "_(1)" ++ "\nfrom: " ++ (show src) ++ "\n" ++ (nodesBefore n p)
+nodeNameP n p src q = show $ (show q) ++ "_(" ++ (show n) ++ ")" ++ "\nfrom: " ++ (show src) ++ "\n" ++ (nodesBefore n p)
 
 convert_m_traversal_path_x :: (Show a, Eq a) => a -> [(a, (Integer, (Integer, a)))] -> ([(Source,Target,Style)],[(Node,Style)],[(Node,Style)])
 convert_m_traversal_path_x src p = (map (\(n,(q,(x,(y,q')))) -> (nodeNameP n p src q, nodeNameP (n+1) p src q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\""))
@@ -401,18 +416,22 @@ convert_m_traversal_path_c src p =  ( ( map (\(n,(q,(x,(y,q')))) -> (nodeNameP (
                                     , ( []
                                       , map (\(n,(q,(x,(y,q')))) -> (nodeNameP n p src q, nodeNameP (n+1) p src q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")) (zip [0..] p))) 
 
-
-convert_atc_c :: (Show a, Eq a) => a -> String -> FSM_ext (Sum (a, a) a) b -> (ClusterDotData,OverallDotData)
-convert_atc_c a srcStr atc =  ( ( [("FAIL","shape = ellipse, style = filled, fillcolor=\"#FF6666\""),("PASS","shape = circle, style = filled, fillcolor=\"#66FF66\"")]
-                                    ++ (map (\q -> (showATCNode q, "shape = ellipse, style = filled, fillcolor=gold")) (filter is_inl (nodes_from_distinct_paths atc)))
-                                , (map (\(q,(x,(y,q'))) -> case q' of Inr s -> if s == a then (showATCNode q, "PASS", "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")
-                                                                                         else (showATCNode q, "FAIL", "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")
-                                                                      _     -> (showATCNode q, showATCNode q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")) 
-                                           (wf_transitions atc)))
-                              , ( []
-                                , [(srcStr, showATCNode $ initial atc, "style = dashed")]))
+convert_atc_c :: (Show a, Eq a) => Bool -> String -> FSM_ext (Sum (a, a) a) b -> (ClusterDotData,OverallDotData)
+convert_atc_c passLeft srcStr atc =  ( ( [("FAIL","shape = ellipse, style = filled, fillcolor=\"#FF6666\""),("PASS","shape = circle, style = filled, fillcolor=\"#66FF66\"")]
+                                          ++ (map (\q -> (showATCNode q, "shape = ellipse, style = filled, fillcolor=gold")) (filter is_inl (nodes_from_distinct_paths atc)))
+                                       , (map (\(q,(x,(y,q'))) -> (showATCNode q, showATCNode q', "label = \"" ++ (show x) ++ "/" ++ (show y) ++ "\"")) 
+                                              (wf_transitions atc)))
+                                     , ( []
+                                       , [(srcStr, showATCNode $ initial atc, "style = dashed")]))
   where 
-    showATCNode q = show $ (show q) ++ "\nfrom: " ++ (show a)
+    showATCNode (Inr q)       = case initial atc of 
+                                  Inl (qL,qR) -> case (passLeft,q==qL) of 
+                                    (True ,True ) -> "PASS"
+                                    (False,False) -> "PASS"
+                                    _             -> "FAIL"
+    showATCNode q@(Inl (q1,q2)) = if passLeft then show $ (show q) ++ "\nL"
+                                              else show $ (show q) ++ "\nR"
+
 
 
 convert_test_c :: (Show a, Eq a) => (a, FSM_ext a b,  [(a, (Integer, (Integer, a)))], [(FSM_ext (Sum (a, a) a) b)]) -> (ClusterDotData,ClusterDotData,ClusterDotData,OverallDotData)                        
@@ -420,7 +439,8 @@ convert_test_c (q,preamble,p, atcs) = (cPr,cP,cA,(noPr++noP++noA,eoPr++eoP++eoA)
   where 
     (cPr, (noPr,eoPr)) = convert_preamble_c q preamble
     (cP , (noP, eoP )) = convert_m_traversal_path_c q p
-    (cA , (noA, eoA )) = foldl (\((ncA', ecA' ), (noA', eoA' )) atc -> case convert_atc_c (target p q) 
+    (cA , (noA, eoA )) = foldl (\((ncA', ecA' ), (noA', eoA' )) atc -> case convert_atc_c 
+                                                                                    (case initial atc of (Inl (q1,q2)) -> target p q == q1) 
                                                                                     (nodeNameP (length p) p q (target p q))
                                                                                     atc 
                                                                                  of ((ncA'', ecA'' ), (noA'', eoA'' )) -> ((ncA'++ncA'', ecA'++ecA''), (noA'++noA'', eoA'++eoA'' )) ) (([],[]),([],[])) atcs
@@ -435,14 +455,22 @@ convert_tests_c = foldl (\(c1,c2,c3,c4) t -> case convert_test_c t of (c1',c2',c
 
 
 
-convert_to_dot_c ::  (ClusterDotData,ClusterDotData,ClusterDotData,OverallDotData)-> String
-convert_to_dot_c (cpr, cp, ca, co) = 
+convert_to_dot_c ::  Bool -> (ClusterDotData,ClusterDotData,ClusterDotData,OverallDotData)-> String
+convert_to_dot_c addInvisible (cpr, cp, ca, co) = 
     "digraph fsm {\nrankdir=LR;\n\n"
     ++ (convert_cluster "preambles" cpr)
     ++ (convert_cluster "m_traversal_paths" cp)
     ++ (convert_cluster "atcs" ca)
     ++ (unlines $ map (\(node,style) -> "node [" ++ style ++ " ]; " ++ node) (Set.elems $ Set.fromList $ fst co))
     ++ (unlines $ map (\(src,tgt,style) -> src ++ "->" ++ tgt ++ " [" ++ style ++ " ];") (Set.elems $ Set.fromList $ snd co))
+    -- add invisible nodes between clusters for formatting
+    
+    ++ (if addInvisible then (unlines $ map (\(node,style) -> "node [" ++ style ++ " ]; " ++ node) (Set.elems $ Set.fromList $ fst $ between_clusters "PRP" cpr cp))
+                              ++ (unlines $ map (\(src,tgt,style) -> src ++ "->" ++ tgt ++ " [" ++ style ++ " ];") (Set.elems $ Set.fromList $ snd $ between_clusters "PRP" cpr cp))
+                              ++ (unlines $ map (\(node,style) -> "node [" ++ style ++ " ]; " ++ node) (Set.elems $ Set.fromList $ fst $ between_clusters "PA" cp ca))
+                              ++ (unlines $ map (\(src,tgt,style) -> src ++ "->" ++ tgt ++ " [" ++ style ++ " ];") (Set.elems $ Set.fromList $ snd $ between_clusters "PA" cp ca))
+                        else "")
+    
     ++"}"
   where
     convert_cluster :: String -> ClusterDotData -> String
@@ -451,6 +479,10 @@ convert_to_dot_c (cpr, cp, ca, co) =
                                     ++ (unlines $ map (\(node,style) -> "\tnode [" ++ style ++ " ]; " ++ node) (Set.elems $ Set.fromList ns))
                                     ++ (unlines $ map (\(src,tgt,style) -> "\t" ++ src ++ "->" ++ tgt ++ " [" ++ style ++ " ];") (Set.elems $ Set.fromList es))
                                     ++ "\tstyle = filled; color = blue;\n" ++ "}\n\n"
+    between_clusters :: String -> ClusterDotData -> ClusterDotData -> OverallDotData
+    between_clusters sep (n1,e1) (n2,e2) = ( [(sep, "style = invisible")]
+                                           , concatMap (\(x,y) -> [(x,sep, "dir=none, style = invisible"),(sep,y,"dir=none, style = invisible")]) 
+                                                       [(fst x, fst y) | x <- n1, y <- n2])
 
 
 
@@ -506,31 +538,48 @@ collect_ATCs_hs xs = map (\((a,b,c),ds) -> (a,b,c,ds)) $ Map.assocs m
               Map.empty
               xs
 
-
-
---main = mapM_ (putStrLn . show) $ calculate_test_suite_w m_ex_H $ int_to_nat 8
-main2 = do
-  s <- Data.Time.getCurrentTime
-  putStrLn $ "Started : " ++ (show s)
-  --putStrLn $ show $ length $ calculate_test_suite_w m_ex_DR $ int_to_nat 12
-  --putStrLn $ show $ size m_ex_DR
-  --writeFile "dr_output" $ show $ calculate_test_suite_w m_ex_DR $ size m_ex_DR
-  --writeFile "dr_output_l" $ unlines $ map show $ calculate_test_suite_w m_ex_DR $ size m_ex_DR
-  ts_l <- readFile "dr_output_l"
-  --let ts = read ts_l :: [(Integer, (FSM_ext Integer (), ([(Integer, (Integer, (Integer, Integer)))], FSM_ext (Sum (Integer, Integer) Integer) ())))]
-  let ts = map (\t -> read t :: (Integer, (FSM_ext Integer (), ([(Integer, (Integer, (Integer, Integer)))], FSM_ext (Sum (Integer, Integer) Integer) ())))) 
-               (lines ts_l)
-  putStrLn $ show $ length ts
-  l <- Data.Time.getCurrentTime
-  putStrLn $ "Loaded  : " ++ (show l)
--- todo: inline collect_ATCs_hs?
-  putStrLn $ show $ length $ collect_ATCs_hs ts
-  f <- Data.Time.getCurrentTime
-  putStrLn $ "Finished: " ++ (show f)
+-}
 
 
 
-fsmName = "dr_small"
+fsmName = "dr"
+main = do
+  fsmFile <- readFile $ fsmName ++ ".fsm"
+  case readFSM fsmFile of 
+    Right fsm -> do 
+      s <- Data.Time.getCurrentTime
+      putStrLn $ "Started : " ++ (show s)
+      let (ts,ps) = calculate_test_suite fsm $ size fsm
+      putStrLn $ show $ length ts
+      putStrLn $ show $ length . fst . snd . last $ ts
+      c <- Data.Time.getCurrentTime
+      putStrLn $ "Calc'd   : " ++ (show c)
+      putStrLn $ "Diff     : " ++ (show $ Data.Time.diffUTCTime c s)
+      s <- Data.Time.getCurrentTime
+      putStrLn $ "Started (set) : " ++ (show s)
+      let (Set ts',ps') = calculate_test_suite_set fsm $ size fsm
+      putStrLn $ show $ length $ Data.List.nub ts' -- use nub, should be the same complexity as remdups
+      c <- Data.Time.getCurrentTime
+      putStrLn $ "Calc'd  (set) : " ++ (show c)
+      putStrLn $ "Diff    (set) : " ++ (show $ Data.Time.diffUTCTime c s)
+  case readFSM_rbt fsmFile of 
+    Right fsm -> do 
+      s <- Data.Time.getCurrentTime
+      putStrLn $ "Started : " ++ (show s)
+      let (ts,ps) = RBT.calculate_test_suite fsm $ RBT.size fsm
+      putStrLn $ show $ length ts
+      putStrLn $ show $ length . fst . snd . last $ ts
+      c <- Data.Time.getCurrentTime
+      putStrLn $ "Calc'd   : " ++ (show c)
+      putStrLn $ "Diff     : " ++ (show $ Data.Time.diffUTCTime c s)
+      s <- Data.Time.getCurrentTime
+      putStrLn $ "Started (set) : " ++ (show s)
+      let (RBT.Set (RBT.RBT ts'),ps') = RBT.calculate_test_suite_set fsm $ RBT.size fsm
+      putStrLn $ show $ length $ RBT.entries ts'
+      c <- Data.Time.getCurrentTime
+      putStrLn $ "Calc'd  (set) : " ++ (show c)
+      putStrLn $ "Diff    (set) : " ++ (show $ Data.Time.diffUTCTime c s)
+{-
 main = do
   s <- Data.Time.getCurrentTime
   putStrLn $ "Started : " ++ (show s)
@@ -578,11 +627,18 @@ main = do
       v <- Data.Time.getCurrentTime
       putStrLn $ "Converted: " ++ (show v)
 
-      writeFile (fsmName ++ "_test.dot") $ convert_to_dot_c (cpr, cp, ca, co)
+      -- todo: convert line-by-line ?
+      --let conv = convert_to_dot_c False (cpr, cp, ca, co)
+      let conv = convert_to_dot_c True (cpr, cp, ca, co)
+      putStrLn $ show $ length conv
+      v' <- Data.Time.getCurrentTime
+      putStrLn $ "Converted: " ++ (show v')
+
+      writeFile (fsmName ++ "_test.dot") $ conv
 
       f <- Data.Time.getCurrentTime
       putStrLn $ "Finished : " ++ (show f)
-
+-}
     
 {-
 

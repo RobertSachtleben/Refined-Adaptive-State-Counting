@@ -593,7 +593,7 @@ definition calculate_test_suite :: "'a FSM \<Rightarrow> nat \<Rightarrow> (('a 
 
 value "calculate_test_suite M_ex_H 4"
 
-definition calculate_test_suite_set :: "('a::linorder) FSM \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a) ATC) set \<times> ('a \<times> 'a Preamble) list)" where
+definition calculate_test_suite_set :: "'a FSM \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a) ATC) set \<times> ('a \<times> 'a Preamble) list)" where
   "calculate_test_suite_set M m = (case calculate_test_suite M m of (ts,ps) \<Rightarrow> (set ts,ps))"
 
 
