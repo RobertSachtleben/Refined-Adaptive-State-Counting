@@ -79,7 +79,8 @@ definition "M_ex''' = (\<lparr>
 
 
 (* example FSM of Hieron's paper *)
-definition "M_ex_H = (\<lparr> 
+definition M_ex_H :: "integer FSM" where
+  "M_ex_H = (\<lparr> 
                       initial = 1::integer, 
                       inputs = [0,1], 
                       outputs = [0,1], 
@@ -96,7 +97,8 @@ definition "M_ex_H = (\<lparr>
                                       ]\<rparr>)"
 
 (* example FSM of TA exercise 09 *)
-definition "M_ex_9 = (\<lparr> 
+definition M_ex_9 :: "integer FSM" where
+  "M_ex_9 = (\<lparr> 
                       initial = 0::integer, 
                       inputs = [0,1], 
                       outputs = [0,1,2,3], 
@@ -119,10 +121,11 @@ definition "M_ex_9 = (\<lparr>
 subsection \<open>Nodes\<close>
 
 
-inductive_set nodes :: "('state, 'b) FSM_scheme \<Rightarrow> 'state set" for M :: "('state, 'b) FSM_scheme" where
+inductive_set nodes ::"'state FSM \<Rightarrow> 'state set" for M :: "'state FSM" where
   initial[intro!]: "initial M \<in> nodes M" |
   step[intro!]: "t \<in> set (transitions M) \<Longrightarrow> t_source t \<in> nodes M \<Longrightarrow> t_input t \<in> set (inputs M) \<Longrightarrow> t_output t \<in> set (outputs M) \<Longrightarrow> t_target t \<in> nodes M"
 
+(*
 instantiation FSM_ext  :: (type,type) size 
 begin
 
@@ -131,6 +134,11 @@ definition size where [simp, code]: "size (m::('a, 'b) FSM_ext) = card (nodes m)
 instance ..
 
 end
+*)
+
+fun size :: "'a FSM \<Rightarrow> nat" where
+  "size M = card (nodes M)"
+
 
 
 
@@ -138,7 +146,7 @@ subsection \<open>Transition Relation as a List of IO-Valid Transitions Originat
 
 abbreviation(input) "is_io_valid_transition M t \<equiv> ((t_input t) \<in> set (inputs M) \<and> (t_output t) \<in> set (outputs M))"
 
-fun io_valid_transitions :: "('state, 'b) FSM_scheme \<Rightarrow> 'state Transition list" where
+fun io_valid_transitions :: "'state FSM \<Rightarrow> 'state Transition list" where
   "io_valid_transitions M = filter (is_io_valid_transition M) (transitions M)"
 
 abbreviation(input) "hIO M \<equiv> set (io_valid_transitions M)"
@@ -146,7 +154,7 @@ abbreviation(input) "hIO M \<equiv> set (io_valid_transitions M)"
 
 abbreviation(input) "is_wf_transition M t \<equiv> ((t_source t \<in> nodes M) \<and> (t_input t) \<in> set (inputs M) \<and> (t_output t) \<in> set (outputs M))"
 
-fun wf_transitions :: "('state, 'b) FSM_scheme \<Rightarrow> 'state Transition list" where
+fun wf_transitions :: "'state FSM \<Rightarrow> 'state Transition list" where
   "wf_transitions M = filter (is_wf_transition M) (transitions M)"
 
 lemma wf_transitions_alt_def : "wf_transitions M = filter (\<lambda>t . t_source t \<in> nodes M) (io_valid_transitions M)"
@@ -178,7 +186,7 @@ lemma wf_transition_target : "t \<in> h M \<Longrightarrow> t_target t \<in> nod
 
 subsection \<open>Paths\<close>
 
-inductive path :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> 'state Transition list \<Rightarrow> bool" where
+inductive path :: "'state FSM \<Rightarrow> 'state \<Rightarrow> 'state Transition list \<Rightarrow> bool" where
   nil[intro!] : "q \<in> nodes M \<Longrightarrow> path M q []" |
   cons[intro!] : "t \<in> h M \<Longrightarrow> path M (t_target t) ts \<Longrightarrow> path M (t_source t) (t#ts)"
 
@@ -244,7 +252,7 @@ lemma path_h :
   using assms by (induct p arbitrary: q; fastforce)
 
 
-fun paths_of_length :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> nat \<Rightarrow> 'state Transition list list" where
+fun paths_of_length :: "'state FSM \<Rightarrow> 'state \<Rightarrow> nat \<Rightarrow> 'state Transition list list" where
   "paths_of_length M q n = filter (path M q) (lists_of_length (wf_transitions M) n)"
 
 lemma paths_of_length_containment : 
@@ -268,7 +276,7 @@ lemma paths_of_length_path_set :
   "set (paths_of_length M q k) = { p . path M q p \<and> length p = k }"
 using paths_of_length_is_path[of _ M q k] paths_of_length_containment[of M q] by blast
 
-fun paths_up_to_length :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> nat \<Rightarrow> 'state Transition list list" where
+fun paths_up_to_length :: "'state FSM \<Rightarrow> 'state \<Rightarrow> nat \<Rightarrow> 'state Transition list list" where
   "paths_up_to_length M q 0 = [[]]" |
   "paths_up_to_length M q (Suc n) = (paths_up_to_length M q n) @ (paths_of_length M q (Suc n))"
 
@@ -733,8 +741,8 @@ proof (rule ccontr)
   moreover have "set (visited_states q p) \<subseteq> nodes M"
     by (metis assms(1) nodes_path path_prefix subsetI visited_states_prefix)
   ultimately have "\<not>distinct (visited_states q p)"
-    using nodes_finite unfolding size_def
-    by (metis "*" Suc_le_lessD \<open>length (visited_states q p) = Suc (length p)\<close> card_mono distinct_card size_def)
+    using nodes_finite 
+    by (metis "*" Suc_le_lessD \<open>length (visited_states q p) = Suc (length p)\<close> card_mono distinct_card size.simps)
   then show "False" using assms(2) by auto
 qed
 
@@ -752,7 +760,7 @@ proof (rule ccontr)
   moreover have "set (visited_states q p) \<subseteq> nodes M"
     by (metis assms(1) nodes_path path_prefix subsetI visited_states_prefix)
   ultimately have "\<not>distinct (visited_states q p)"
-    using nodes_finite unfolding size_def 
+    using nodes_finite  
     using "*" card_seteq distinct_card by fastforce
   then show "False" using assms(2) by auto
 qed
@@ -780,7 +788,7 @@ lemma distinct_path_to_node:
 
 
 
-fun distinct_paths_up_to_length_from_initial :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
+fun distinct_paths_up_to_length_from_initial :: "'a FSM \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
   "distinct_paths_up_to_length_from_initial M 0 = [[]]" |
   "distinct_paths_up_to_length_from_initial M (Suc n) = (let pn= distinct_paths_up_to_length_from_initial M n in
     pn @ map (\<lambda> pt . (fst pt)@[(snd pt)]) (filter (\<lambda>pt . (t_source (snd pt) = target (fst pt) (initial M)) \<and> distinct ((visited_states (initial M) (fst pt))@[(t_target (snd pt))])) (concat (map (\<lambda>p . map (\<lambda> t . (p,t)) (io_valid_transitions M)) (filter (\<lambda>p . length p = n) pn)))))"
@@ -923,7 +931,7 @@ next
 qed  
 
 
-fun nodes_from_distinct_paths :: "('a,'b) FSM_scheme \<Rightarrow> 'a list" where
+fun nodes_from_distinct_paths :: "'a FSM \<Rightarrow> 'a list" where
   "nodes_from_distinct_paths M = remdups (map (\<lambda>p . target p (initial M)) (distinct_paths_up_to_length_from_initial M (length (io_valid_transitions M))))"
 
 
@@ -968,7 +976,7 @@ value[code] "nodes M_ex_9"
 
 subsection \<open> Calculating Paths \<close>
 
-fun is_path :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
+fun is_path :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
   "is_path M q [] = (q \<in> nodes M)" |
   "is_path M q (t#p) = (t_source t = q \<and> t \<in> set (transitions M) \<and> t_source t \<in> nodes M \<and> t_input t \<in> set (inputs M) \<and> t_output t \<in> set (outputs M) \<and> path M (t_target t) p)"
 
@@ -983,13 +991,13 @@ lemma path_code[code] : "path M q p = is_path M q p"
 
 subsection \<open>Language\<close>
 
-fun language_state_for_input :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
+fun language_state_for_input :: "'state FSM \<Rightarrow> 'state \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
   "language_state_for_input M q xs = map p_io (filter (\<lambda> ts . xs = map t_input ts) (paths_of_length M q (length xs)))"
 
 value "language_state_for_input M_ex_H 2 [1]"
 value "language_state_for_input M_ex_9 0 [1,0]"
 
-fun language_state_for_inputs :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> Input list list \<Rightarrow> (Input \<times> Output) list list" where
+fun language_state_for_inputs :: "'state FSM \<Rightarrow> 'state \<Rightarrow> Input list list \<Rightarrow> (Input \<times> Output) list list" where
   "language_state_for_inputs M q xss = concat (map (language_state_for_input M q) xss)" 
 
 value "language_state_for_inputs M_ex_H 3 [[1]]"
@@ -1006,7 +1014,7 @@ lemma language_state_for_inputs_from_language_state_for_input :
 
 
 
-fun LS\<^sub>i\<^sub>n :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> Input list set \<Rightarrow> (Input \<times> Output) list set" where 
+fun LS\<^sub>i\<^sub>n :: "'state FSM \<Rightarrow> 'state \<Rightarrow> Input list set \<Rightarrow> (Input \<times> Output) list set" where 
   "LS\<^sub>i\<^sub>n M q U = { map (\<lambda> t . (t_input t, t_output t)) p | p . path M q p \<and> map t_input p \<in> U }"
 
 abbreviation(input) "L\<^sub>i\<^sub>n M \<equiv> LS\<^sub>i\<^sub>n M (initial M)"
@@ -1096,7 +1104,7 @@ value "LS\<^sub>i\<^sub>n M_ex 2 {[1]}"
 value "LS\<^sub>i\<^sub>n M_ex_9 2 {[1,1,1,1,1]}"
 
 
-fun LS :: "('state, 'b) FSM_scheme \<Rightarrow> 'state \<Rightarrow> (Input \<times> Output) list set" where
+fun LS :: "'state FSM \<Rightarrow> 'state \<Rightarrow> (Input \<times> Output) list set" where
   "LS M q = { p_io p | p . path M q p }"
 
 abbreviation(input) "L M \<equiv> LS M (initial M)"
@@ -1165,7 +1173,7 @@ qed
 
 
 
-fun language_up_to_length :: "('a, 'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list" where
+fun language_up_to_length :: "'a FSM \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list" where
   "language_up_to_length M k = map p_io (paths_up_to_length M (initial M) k)"
 
 lemma language_up_to_length_set : "set (language_up_to_length M k) = { io \<in> L M . length io \<le> k }"
@@ -1265,7 +1273,7 @@ qed
 
 subsection \<open> Basic FSM properties \<close>
 
-fun completely_specified :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun completely_specified :: "'a FSM \<Rightarrow> bool" where
   "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x)"
 
 lemma completely_specified_alt_def : "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> set (inputs M) . \<exists> q' y . (q,x,y,q') \<in> h M)"
@@ -1274,7 +1282,7 @@ lemma completely_specified_alt_def : "completely_specified M = (\<forall> q \<in
 value "completely_specified M_ex"
 value "completely_specified M_ex_9"
 
-fun completely_specified_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> bool" where
+fun completely_specified_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where
   "completely_specified_state M q = (\<forall> x \<in> set (inputs M) . \<exists> t \<in> h M . t_source t = q \<and> t_input t = x)"
 
 lemma completely_specified_states :
@@ -1282,7 +1290,7 @@ lemma completely_specified_states :
   unfolding completely_specified.simps completely_specified_state.simps by force
 
 
-fun deterministic :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun deterministic :: "'a FSM \<Rightarrow> bool" where
   "deterministic M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<longrightarrow> t_output t1 = t_output t2 \<and> t_target t1 = t_target t2)" 
 
 lemma deterministic_alt_def : "deterministic M = (\<forall> q1 x y' y''  q1' q1'' . (q1,x,y',q1') \<in> h M \<and> (q1,x,y'',q1'') \<in> h M \<longrightarrow> y' = y'' \<and> q1' = q1'')" 
@@ -1292,7 +1300,7 @@ value "deterministic M_ex"
 value "deterministic M_ex''"
 
 
-fun observable :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun observable :: "'a FSM \<Rightarrow> bool" where
   "observable M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2 \<longrightarrow> t_target t1 = t_target t2)" 
 
 lemma observable_alt_def : "observable M = (\<forall> q1 x y q1' q1'' . (q1,x,y,q1') \<in> h M \<and> (q1,x,y,q1'') \<in> h M \<longrightarrow> q1' = q1'')" 
@@ -1301,7 +1309,7 @@ lemma observable_alt_def : "observable M = (\<forall> q1 x y q1' q1'' . (q1,x,y,
 value "observable M_ex"
 value "observable M_ex'''"
 
-fun single_input :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun single_input :: "'a FSM \<Rightarrow> bool" where
   "single_input M = (\<forall> t1 \<in> h M . \<forall> t2 \<in> h M . t_source t1 = t_source t2 \<longrightarrow> t_input t1 = t_input t2)" 
 
 
@@ -1311,7 +1319,7 @@ lemma single_input_alt_def : "single_input M = (\<forall> q1 x x' y y' q1' q1'' 
 
 (* slightly more efficient method of deciding the single input property,
    avoids checking the same pair of transitions twice *)
-fun single_input_by_transition_list :: "('a, 'b) FSM_scheme \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
+fun single_input_by_transition_list :: "'a FSM \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
   "single_input_by_transition_list M [] = True" |
   "single_input_by_transition_list M (t1#ts) = (case find (\<lambda> t2 . t1 \<noteq> t2 \<and> t_source t1 = t_source t2 \<and> t_input t1 \<noteq> t_input t2) ts of
     None \<Rightarrow> single_input_by_transition_list M ts | 
@@ -1369,7 +1377,7 @@ value "single_input M_ex"
 
 
 
-fun output_complete :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun output_complete :: "'a FSM \<Rightarrow> bool" where
   "output_complete M = (\<forall> t \<in> h M . \<forall> y \<in> set (outputs M) . \<exists> t' \<in> h M . t_source t = t_source t' \<and> t_input t = t_input t' \<and> t_output t' = y)" 
 
 lemma output_complete_alt_def : "output_complete M = (\<forall> q x . (\<exists> y q' . (q,x,y,q') \<in> h M) \<longrightarrow> (\<forall> y \<in> set (outputs M) . \<exists> q' . (q,x,y,q') \<in> h M))" by (rule; fastforce)
@@ -1377,11 +1385,11 @@ lemma output_complete_alt_def : "output_complete M = (\<forall> q x . (\<exists>
 value "output_complete M_ex"
 
 
-fun acyclic :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun acyclic :: "'a FSM \<Rightarrow> bool" where
   "acyclic M = (\<forall> p . path M (initial M) p \<longrightarrow> distinct (visited_states (initial M) p))"
 
 
-fun contains_cyclic_path :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun contains_cyclic_path :: "'a FSM \<Rightarrow> bool" where
   "contains_cyclic_path M = (\<exists> p \<in> set (distinct_paths_up_to_length_from_initial M (size M)) . \<exists> t \<in> h M . path M (initial M) (p@[t]) \<and> \<not>distinct (visited_states (initial M) (p@[t]))) "
 
 
@@ -1548,7 +1556,7 @@ qed
 
 
 
-definition LS_acyclic :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set" where
+definition LS_acyclic :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set" where
   "LS_acyclic M q = set (map p_io (paths_up_to_length M q (card (h M))))"
 
 lemma distinct_path_length_limit_card :
@@ -1839,7 +1847,7 @@ qed
 
     
 (* note: does not require q to actually be a state of M *)   
-fun deadlock_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> bool" where 
+fun deadlock_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> bool" where 
   "deadlock_state M q = (\<not>(\<exists> t \<in> h M . t_source t = q))"
 
 lemma deadlock_state_alt_def : "deadlock_state M q = (LS M q \<subseteq> {[]})" 
@@ -1922,25 +1930,25 @@ next
 qed
 
 
-fun completed_path :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
+fun completed_path :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a Transition list \<Rightarrow> bool" where
   "completed_path M q p = deadlock_state M (target p q)"
 
-fun minimal :: "('a, 'b) FSM_scheme \<Rightarrow> bool" where
+fun minimal :: "'a FSM \<Rightarrow> bool" where
   "minimal M = (\<forall> q \<in> nodes M . \<forall> q' \<in> nodes M . q \<noteq> q' \<longrightarrow> LS M q \<noteq> LS M q')"
 
-definition retains_outputs_for_states_and_inputs :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> bool" where
+definition retains_outputs_for_states_and_inputs :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> bool" where
   "retains_outputs_for_states_and_inputs M S = (\<forall> tS \<in> h S . \<forall> tM \<in> h M . (t_source tS = t_source tM \<and> t_input tS = t_input tM) \<longrightarrow> tM \<in> h S)"
 
 
 subsection \<open>IO Targets and Observability\<close>
 
-fun fst_io_target' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a option" where
+fun fst_io_target' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a option" where
   "fst_io_target' M [] q = Some q" |
   "fst_io_target' M (xy#io) q = (case (find (\<lambda> t' . t_source t' = q \<and> t_input t' = fst xy \<and> t_output t' = snd xy) (wf_transitions M)) of
     None \<Rightarrow> None |
     Some t' \<Rightarrow> fst_io_target' M io (t_target t'))"
 
-fun fst_io_target :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
+fun fst_io_target :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "fst_io_target M io q = (case (fst_io_target' M io q) of 
     None \<Rightarrow> {} |
     Some t \<Rightarrow> {t})"
@@ -1991,14 +1999,14 @@ qed
 
 
 
-fun is_io_target :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+fun is_io_target :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "is_io_target M [] q q' = (q = q')" |
   "is_io_target M (xy#io) q q' = (\<exists> t \<in> h M . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target M io (t_target t) q')"
 
 value "is_io_target M_ex [(1,20)] (initial M_ex) 4"
 value "is_io_target M_ex [(1,20)] (initial M_ex) 3"
 
-fun is_io_target' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+fun is_io_target' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "is_io_target' M [] q q' = (q = q')" |
   "is_io_target' M (xy#io) q q' = (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy \<and> is_io_target' M io (t_target t) q') (wf_transitions M) \<noteq> [])"
 
@@ -2120,13 +2128,13 @@ qed
 
 
 
-fun io_targets :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
+fun io_targets :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "io_targets M io q = {target p q | p . path M q p \<and> p_io p = io}"
 
-fun io_targets' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
+fun io_targets' :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "io_targets' M io q = set (map (\<lambda> p . target p q) (filter (\<lambda> p . p_io p = io) (paths_of_length M q (length io))))"
 
-fun io_targets_list :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
+fun io_targets_list :: "'a FSM \<Rightarrow> (Input \<times> Output) list \<Rightarrow> 'a \<Rightarrow> 'a list" where
   "io_targets_list M [] q = [q]" |
   "io_targets_list M (xy#io) q = (concat (map (io_targets_list M io) (map t_target (filter (\<lambda> t . t_source t = q \<and> t_input t = fst xy \<and> t_output t = snd xy) (wf_transitions M)))))"
 
@@ -2545,7 +2553,7 @@ shows "\<not> L T \<subseteq> L M"
 
 subsection \<open>Conformity Relations\<close>
 
-fun is_io_reduction_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
+fun is_io_reduction_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
   "is_io_reduction_state A a B b = (LS A a \<subseteq> LS B b)"
 
 abbreviation(input) "is_io_reduction A B \<equiv> is_io_reduction_state A (initial A) B (initial B)" 
@@ -2553,7 +2561,7 @@ notation
   is_io_reduction ("_ \<preceq> _")
 
 
-fun is_io_reduction_state_on_inputs :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
+fun is_io_reduction_state_on_inputs :: "'a FSM \<Rightarrow> 'a \<Rightarrow> Input list set \<Rightarrow> 'b FSM \<Rightarrow> 'b \<Rightarrow> bool" where
   "is_io_reduction_state_on_inputs A a U B b = (LS\<^sub>i\<^sub>n A a U \<subseteq> LS\<^sub>i\<^sub>n B b U)"
 
 abbreviation(input) "is_io_reduction_on_inputs A U B \<equiv> is_io_reduction_state_on_inputs A (initial A) U B (initial B)" 
@@ -2564,7 +2572,7 @@ notation
 
 subsection \<open>Submachines\<close>
 
-fun is_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> bool" where 
+fun is_submachine :: "'a FSM \<Rightarrow> 'a FSM \<Rightarrow> bool" where 
   "is_submachine A B = (initial A = initial B \<and> h A \<subseteq> h B \<and> inputs A = inputs B \<and> outputs A = outputs B)"
   
 
@@ -2646,7 +2654,7 @@ proof - (* TODO: refactor auto-generated code *)
   obtain pps :: "(integer \<times> integer) list set \<Rightarrow> (integer \<times> integer) list set \<Rightarrow> (integer \<times> integer) list" where
     f1: "\<forall>x0 x1. (\<exists>v2. v2 \<in> x1 \<and> v2 \<notin> x0) = (pps x0 x1 \<in> x1 \<and> pps x0 x1 \<notin> x0)"
     by moura
-  obtain ppsa :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+  obtain ppsa :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> 'a FSM \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
     f2: "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (ppsa x0 x1 x2) \<and> path x2 x1 (ppsa x0 x1 x2))"
     by moura
   { assume "path M (initial M) (ppsa (pps (LS M (initial M)) (LS S (initial S))) (initial M) S)"
@@ -2687,12 +2695,12 @@ lemma observable_submachine_io_target :
   and     "io \<in> L S"
 shows "io_target S io (initial S) = io_target M io (initial M)"
 proof -
-  obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+  obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> 'a FSM \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
     "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
     by moura
   then have f1: "io = p_io (pps io (initial M) S) \<and> path S (initial M) (pps io (initial M) S)"
     using assms(2) assms(3) by force
-  have f2: "\<forall>f a ps. \<not> observable (f::('a, 'b) FSM_scheme) \<or> \<not> path f a ps \<or> target ps a = io_target f (p_io ps) a"
+  have f2: "\<forall>f a ps. \<not> observable (f::'a FSM) \<or> \<not> path f a ps \<or> target ps a = io_target f (p_io ps) a"
     by (metis (no_types) observable_path_io_target)
   then have f3: "target (pps io (initial M) S) (initial M) = io_target S (p_io (pps io (initial M) S)) (initial M)"
     using f1 assms(1) assms(2) submachine_observable by blast
@@ -2767,7 +2775,7 @@ qed
 
 subsection \<open>Changing Initial States\<close>
 
-fun from_FSM :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme" where
+fun from_FSM :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a FSM" where
   "from_FSM M q = \<lparr> initial = q, inputs = inputs M, outputs = outputs M, transitions = transitions M, \<dots> = FSM.more M \<rparr>"
 
 lemma from_FSM_simps[simp]:
@@ -2794,7 +2802,7 @@ next
     then have "path (from_FSM M q) (initial (from_FSM M q)) xs" using * by auto
     then show ?thesis
     proof -
-      have f1: "\<forall>f a p ps. is_path (f::('a, 'b) FSM_scheme) a (p # ps) = (t_source p = a \<and> p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f) \<and> path f (t_target p) ps)"
+      have f1: "\<forall>f a p ps. is_path (f::'a FSM) a (p # ps) = (t_source p = a \<and> p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f) \<and> path f (t_target p) ps)"
         using is_path.simps(2) by blast
       have f2: "t_source x = target xs q \<and> x \<in> set (transitions M) \<and> t_source x \<in> nodes M \<and> t_input x \<in> set (inputs M) \<and> t_output x \<in> set (outputs M) \<and> path M (t_target x) []"
         using \<open>path M q (xs @ [x])\<close> by force
@@ -2812,7 +2820,7 @@ next
     then have "path M q xs" using * by auto
     then show ?thesis
     proof -
-      have f1: "\<forall>f a p ps. is_path (f::('a, 'b) FSM_scheme) a (p # ps) = (t_source p = a \<and> p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f) \<and> path f (t_target p) ps)"
+      have f1: "\<forall>f a p ps. is_path (f::'a FSM) a (p # ps) = (t_source p = a \<and> p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f) \<and> path f (t_target p) ps)"
         using is_path.simps(2) by blast
       have f2: "t_source x = target xs q \<and> x \<in> set (transitions (from_FSM M q)) \<and> t_source x \<in> nodes (from_FSM M q) \<and> t_input x \<in> set (inputs (from_FSM M q)) \<and> t_output x \<in> set (outputs (from_FSM M q)) \<and> path (from_FSM M q) (t_target x) []"
         using \<open>path (from_FSM M q) (initial (from_FSM M q)) (xs @ [x])\<close> by force
@@ -2884,7 +2892,7 @@ proof -
     obtain aa :: "('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> 'a" and pp :: "('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) set \<Rightarrow> integer \<times> integer \<times> 'a" where
       f2: "\<forall>x0 x1. (\<exists>v2 v3. (v2, v3) \<in> x1 \<and> (v2, v3) \<notin> x0) = ((aa x0 x1, pp x0 x1) \<in> x1 \<and> (aa x0 x1, pp x0 x1) \<notin> x0)"
       by moura
-    have f3: "\<forall>p f. (p \<in> set (wf_transitions (f::('a, 'b) FSM_scheme))) = (p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f))"
+    have f3: "\<forall>p f. (p \<in> set (wf_transitions (f::'a FSM))) = (p \<in> set (transitions f) \<and> t_source p \<in> nodes f \<and> t_input p \<in> set (inputs f) \<and> t_output p \<in> set (outputs f))"
       by blast
     moreover
     { assume "(aa (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q))), pp (set (wf_transitions (from_FSM M q))) (set (wf_transitions (from_FSM S q)))) \<in> set (transitions M)"
@@ -3013,7 +3021,7 @@ proof -
     using assms(1)
   proof -
     assume a1: "\<And>p. \<lbrakk>path M (t_source t) p; p_io p = io # ios\<rbrakk> \<Longrightarrow> thesis"
-    obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+    obtain pps :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> 'a FSM \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
       "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (pps x0 x1 x2) \<and> path x2 x1 (pps x0 x1 x2))"
       by moura
     then have "\<exists>ps. path M (t_source t) ps \<and> p_io ps = io # ios"
@@ -3255,7 +3263,7 @@ qed
 
 
 
-fun trim_transitions :: "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme" where
+fun trim_transitions :: "'a FSM \<Rightarrow> 'a FSM" where
   "trim_transitions M = M\<lparr> transitions := wf_transitions M\<rparr>"
 
 lemma trim_transitions_simps[simp]:
@@ -3335,14 +3343,14 @@ proof-
     have "insert (initial S') {t_target p |p. p \<in> set (wf_transitions S)} = nodes S"
       by (metis (no_types) assms(1) h_nodes)
     then show ?thesis
-      by (metis \<open>set (wf_transitions S') = set (wf_transitions S)\<close> h_nodes)
+      by (meson \<open>set (wf_transitions S') = set (wf_transitions S)\<close> assms(1) nodes_paths_by_same_h_initial(1))
   qed
 qed
 
 subsection \<open>Further Reachability Formalisations\<close>
 
 (* nodes that are reachable in at most k transitions *)
-fun reachable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a set" where
+fun reachable_k :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a set" where
   "reachable_k M q n = {target p q | p . path M q p \<and> length p \<le> n}" 
 
 
@@ -3403,7 +3411,7 @@ qed
 
 subsubsection \<open>Generate all Submachines up to h-Equivalence\<close> 
 
-fun generate_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> bool list \<Rightarrow> ('a, 'b) FSM_scheme" where
+fun generate_submachine :: "'a FSM \<Rightarrow> bool list \<Rightarrow> 'a FSM" where
   "generate_submachine M bs = M\<lparr> transitions := map fst (filter snd (zip (transitions M) bs)) \<rparr>"
 
 lemma generate_submachine_is_submachine : "is_submachine (generate_submachine M bs) M" 
@@ -3414,7 +3422,7 @@ proof -
     using generate_submachine.simps by (metis submachine_by_transitions subsetI) 
 qed
 
-fun generate_submachines :: "('a, 'b) FSM_scheme \<Rightarrow> ('a, 'b) FSM_scheme list" where
+fun generate_submachines :: "'a FSM \<Rightarrow> 'a FSM list" where
   "generate_submachines M = map (generate_submachine M) (generate_selector_lists (length (transitions M)))"
 
 lemma generate_submachines_containment :
@@ -3457,7 +3465,7 @@ value "generate_submachines M_ex"
 
 subsubsection \<open>Generate all Single-Input Submachines up to h-Equivalence\<close> 
 
-fun generate_submachine_from_assignment :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> Input option) list \<Rightarrow> ('a, 'b) FSM_scheme" where
+fun generate_submachine_from_assignment :: "'a FSM \<Rightarrow> ('a \<times> Input option) list \<Rightarrow> 'a FSM" where
   "generate_submachine_from_assignment M assn = M\<lparr> transitions := filter (\<lambda> t . (t_source t, Some (t_input t)) \<in> set assn) (wf_transitions M)\<rparr>"
 
 lemma generate_submachine_for_contained_assn: "assn \<in> set assns \<Longrightarrow> generate_submachine_from_assignment CSep assn \<in> set (map (\<lambda> assn . generate_submachine_from_assignment CSep assn) assns)"
@@ -3514,7 +3522,7 @@ qed
 
 subsection \<open>Further Path Enumeration Algorithms\<close>
 
-fun paths_for_input :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> Input list \<Rightarrow> 'a Transition list list" where
+fun paths_for_input :: "'a FSM \<Rightarrow> 'a \<Rightarrow> Input list \<Rightarrow> 'a Transition list list" where
   "paths_for_input M q [] = [[]]" |
   "paths_for_input M q (x#xs) = 
     concat (map 
@@ -3621,7 +3629,7 @@ qed
 
 
 
-fun paths_up_to_length_or_condition :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a Transition list \<Rightarrow> bool) \<Rightarrow> 'a Transition list \<Rightarrow> 'a Transition list list" where
+fun paths_up_to_length_or_condition :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a Transition list \<Rightarrow> bool) \<Rightarrow> 'a Transition list \<Rightarrow> 'a Transition list list" where
   "paths_up_to_length_or_condition M q 0 f pref = (if f pref
     then [pref]
     else [])" | 
@@ -3856,7 +3864,7 @@ qed
 
 
 
-fun paths_up_to_length_or_condition_with_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a Transition list \<Rightarrow> 'c option) \<Rightarrow> 'a Transition list \<Rightarrow> ('a Transition list \<times> 'c) list" where
+fun paths_up_to_length_or_condition_with_witness :: "'a FSM \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a Transition list \<Rightarrow> 'c option) \<Rightarrow> 'a Transition list \<Rightarrow> ('a Transition list \<times> 'c) list" where
   "paths_up_to_length_or_condition_with_witness M q 0 f pref = (case f pref of
     Some x \<Rightarrow> [(pref,x)] |
     None   \<Rightarrow> [])" | 
@@ -4135,7 +4143,7 @@ qed
 
 
 
-fun maximal_acyclic_paths :: "('a,'b) FSM_scheme \<Rightarrow> 'a Transition list list" where
+fun maximal_acyclic_paths :: "'a FSM \<Rightarrow> 'a Transition list list" where
   "maximal_acyclic_paths M = (let ps = distinct_paths_up_to_length_from_initial M (size M - 1) in
                                   filter (\<lambda> p . \<not> (\<exists> p' \<in> set ps . is_prefix p p' \<and> p \<noteq> p')) ps)"
 
@@ -4331,7 +4339,7 @@ qed
 
 
 
-definition node_order :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> 'a) set" where
+definition node_order :: "'a FSM \<Rightarrow> ('a \<times> 'a) set" where
   "node_order M = set (linear_order_from_list_position (nodes_from_distinct_paths M))"
 
 value "node_order M_ex_9"

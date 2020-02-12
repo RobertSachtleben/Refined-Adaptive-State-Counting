@@ -6,7 +6,7 @@ begin
 
 subsection \<open>Product Machine\<close>
 
-fun product_transitions :: "('state1, 'b) FSM_scheme \<Rightarrow> ('state2, 'c) FSM_scheme \<Rightarrow> ('state1 \<times> 'state2) Transition list" where
+fun product_transitions :: "'a FSM \<Rightarrow> 'b FSM \<Rightarrow> ('a \<times> 'b) Transition list" where
   "product_transitions A B = map (\<lambda> (t1,t2). ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2))) (filter (\<lambda> (t1,t2) . t_input t1 = t_input t2 \<and> t_output t1 = t_output t2) (cartesian_product_list (wf_transitions A) (wf_transitions B)))"
 
 
@@ -53,7 +53,7 @@ proof -
 qed
 
 
-fun product :: "('state1, 'b) FSM_scheme \<Rightarrow> ('state2, 'c) FSM_scheme \<Rightarrow> (('state1 \<times> 'state2), 'b) FSM_scheme" where
+fun product :: "'a FSM \<Rightarrow> 'b FSM \<Rightarrow> ('a \<times> 'b) FSM" where
   "product A B =
   \<lparr>
     initial = (initial A, initial B),
@@ -170,16 +170,7 @@ proof -
       by (metis fst_conv io_valid_transition_simp wf_transition_simp)
     then have ***: "path (product A B) (initial (product A B)) ((zip_path xs ys)@[((target xs (initial A), target ys (initial B)), t_input x, t_output x, (t_target x, t_target y))])"
       using * **
-    proof -
-      have "\<forall>p f. p \<notin> nodes (f::('a \<times> 'c, 'b) FSM_scheme) \<or> path f p []"
-        by blast
-      then have "path (product A B) (t_source ((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)) [((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)]"
-        by (meson \<open>((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y) \<in> set (wf_transitions (product A B))\<close> cons nodes.step wf_transition_simp)
-      then have "path (product A B) (target (map (\<lambda>p. ((t_source (fst p), t_source (snd p)), t_input (fst p), t_output (fst p), t_target (fst p), t_target (snd p))) (zip xs ys)) (initial (product A B))) [((target xs (initial A), target ys (initial B)), t_input x, t_output x, t_target x, t_target y)]"
-        by (metis (no_types) "**" fst_conv)
-      then show ?thesis
-        using "*" by blast
-    qed     
+      by (metis (no_types, lifting) fst_conv path_append_last)    
 
     have "t_target x = target (xs@[x]) (initial A)" by auto
     moreover have "t_target y = target (ys@[y]) (initial B)" by auto
@@ -264,16 +255,7 @@ proof -
     moreover have "target (left_path p) (initial A) = fst (t_source t)"
       using \<open>t_source t = (target (left_path p) (initial A), target (right_path p) (initial B))\<close> by auto
     ultimately have "path A (initial A) ((left_path p)@[(fst (t_source t), t_input t, t_output t, fst (t_target t))])"
-    proof -
-      have "\<forall>a f. a \<notin> nodes (f::('a, 'c) FSM_scheme) \<or> path f a []"
-        by blast
-      then have "path A (t_source (fst (t_source t), t_input t, t_output t, fst (t_target t))) [(fst (t_source t), t_input t, t_output t, fst (t_target t))]"
-        by (meson \<open>(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> set (wf_transitions A)\<close> cons nodes.simps wf_transition_simp)
-      then have "path A (target (map (\<lambda>p. (fst (t_source p), t_input p, t_output p, fst (t_target p))) p) (initial A)) [(fst (t_source t), t_input t, t_output t, fst (t_target t))]"
-        using \<open>target (map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p) (initial A) = fst (t_source t)\<close> by auto
-      then show ?thesis
-        using \<open>path A (initial A) (map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p)\<close> by blast
-    qed 
+      by (simp add: \<open>path A (initial A) (map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p)\<close> path_append_last)
     then have *: "path A (initial A) (left_path (p@[t]))" by auto
 
     have "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> h B"
@@ -281,16 +263,7 @@ proof -
     moreover have "target (right_path p) (initial B) = snd (t_source t)"
       using \<open>t_source t = (target (left_path p) (initial A), target (right_path p) (initial B))\<close> by auto
     ultimately have "path B (initial B) ((right_path p)@[(snd (t_source t), t_input t, t_output t, snd (t_target t))])"
-    proof -
-      have "\<forall>b f. b \<notin> nodes (f::('b, 'd) FSM_scheme) \<or> path f b []"
-        by blast
-      then have "path B (t_source (snd (t_source t), t_input t, t_output t, snd (t_target t))) [(snd (t_source t), t_input t, t_output t, snd (t_target t))]"
-        by (meson \<open>(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> set (wf_transitions B)\<close> cons nodes.simps wf_transition_simp)
-      then have "path B (target (map (\<lambda>p. (snd (t_source p), t_input p, t_output p, snd (t_target p))) p) (initial B)) [(snd (t_source t), t_input t, t_output t, snd (t_target t))]"
-        using \<open>target (map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p) (initial B) = snd (t_source t)\<close> by auto
-      then show ?thesis
-        using \<open>path B (initial B) (map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p)\<close> by blast
-    qed
+      by (simp add: \<open>path B (initial B) (map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p)\<close> path_append_last)
     then have **: "path B (initial B) (right_path (p@[t]))" by auto
 
 

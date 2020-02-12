@@ -7,16 +7,15 @@ section \<open>Test Suites as (Preamble, m-Traversal-Sequence, ATC set) sets\<cl
 subsection \<open>Preliminary Definitions\<close>
 
 
-type_synonym ('a,'b) Preamble = "('a,'b) FSM_scheme"
+type_synonym 'a Preamble = "'a FSM"
 type_synonym 'a Traversal_Path = "'a Transition list"
-type_synonym ('a,'b) ATC = "('a,'b) FSM_scheme"
+type_synonym 'a ATC = "'a FSM"
 
 
-type_synonym ('a,'b) Test_Case = "(('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('a,'b) ATC set)"
-type_synonym ('a,'b) Test_Suite = "('a,'b) Test_Case set"
+
 
 (* todo: rename *)
-fun get_atc :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a Traversal_Path \<Rightarrow> 'a \<Rightarrow> 'a Traversal_Path \<Rightarrow> (('a \<times> 'a) \<times> ('c,'d) ATC) list \<Rightarrow> ('c,'d) ATC option" where
+fun get_atc :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a Traversal_Path \<Rightarrow> 'a \<Rightarrow> 'a Traversal_Path \<Rightarrow> (('a \<times> 'a) \<times> 'c ATC) list \<Rightarrow> 'c ATC option" where
   "get_atc M q1 p1 q2 p2 dists = (case find (\<lambda> ((q1',q2'),A) . q1' = target p1 q1 \<and> q2' = target p2 q2) dists of
                               Some ((q1'',q2''),A) \<Rightarrow> Some A |
                               None             \<Rightarrow> None)"
@@ -261,12 +260,12 @@ proof -
   
 (* Test cases between two prefixes of some traversal sequence *)
 (* Assumes that states in rd are pairwise r-d and uses fRD to retrieve a separator *)
-fun calculate_test_case_for_prefixes :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> 'a Traversal_Path \<Rightarrow> ('a set \<times> 'a set) \<Rightarrow> (('a Traversal_Path \<times> 'a Traversal_Path) \<times> ('c,'d) ATC) list" where
+fun calculate_test_case_for_prefixes :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> 'a Traversal_Path \<Rightarrow> ('a set \<times> 'a set) \<Rightarrow> (('a Traversal_Path \<times> 'a Traversal_Path) \<times> 'c ATC) list" where
   "calculate_test_case_for_prefixes q fRD p (rd,dr) = (map (\<lambda> (p1,p2) . ((p1,p2), fRD (target p1 q) (target p2 q)))      \<comment> \<open>retrieve separator using fRD\<close>
                                                  (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd) \<comment> \<open>ensure that a separator exists, assuming that the states in rd are pairwise r-d\<close>
                                                          (prefix_pairs p)))"
 
-fun calculate_test_cases_for_prefixes :: "'a \<Rightarrow> ('a,'b) Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> (('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+fun calculate_test_cases_for_prefixes :: "'a \<Rightarrow> 'a Preamble \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a Preamble \<times> 'a Traversal_Path \<times> 'c ATC) list" where
   "calculate_test_cases_for_prefixes q P fRD pds = concat (map (\<lambda> (p,d) . concat (map (\<lambda>((p1,p2),A) . [(P,p1,A),(P,p2,A)]) (calculate_test_case_for_prefixes q fRD p d))) pds)"
 
 
@@ -349,7 +348,7 @@ proof -
 
 subsubsection "Calculating Tests along m-Traversal-Paths"
 
-fun prefix_pair_tests'' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> 'a Traversal_Path \<times> ('a set \<times> 'a set) \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list list" where
+fun prefix_pair_tests'' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> 'a Traversal_Path \<times> ('a set \<times> 'a set) \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> 'c ATC) list list" where
   "prefix_pair_tests'' q fRD (p, (rd,dr)) = (map (\<lambda> (p1,p2) . [(q,p1,fRD (target p1 q) (target p2 q)), (q,p2,fRD (target p1 q) (target p2 q))])      \<comment> \<open>retrieve separator using fRD\<close>
                                                  (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)) \<comment> \<open>ensure that a separator exists, assuming that the states in rd are pairwise r-d\<close>
                                                          (prefix_pairs p)))"
@@ -372,11 +371,11 @@ proof -
 qed
 
 
-fun prefix_pair_tests' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+fun prefix_pair_tests' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> 'c ATC) list" where
   "prefix_pair_tests' q fRD pds = concat (concat (map (prefix_pair_tests'' q fRD) pds))"
 
 
-fun prefix_pair_tests :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> ('c,'d) ATC) set" where
+fun prefix_pair_tests :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> 'c ATC) set" where
   "prefix_pair_tests q fRD pds = \<Union>{{(q,p1,fRD (target p1 q) (target p2 q)), (q,p2,fRD (target p1 q) (target p2 q))} | p1 p2 . \<exists> (p,(rd,dr)) \<in> set pds . (p1,p2) \<in> set (prefix_pairs p) \<and> (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)}"
 
 lemma prefix_pair_tests_containment :
@@ -442,14 +441,14 @@ qed
 subsubsection "Calculating Tests between Preambles"
 
 
-fun preamble_prefix_tests' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> ('a,'b) Preamble) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+fun preamble_prefix_tests' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Preamble) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> 'c ATC) list" where
   "preamble_prefix_tests' q fRD pds PS = 
     concat (map (\<lambda>((p,(rd,dr)),(q2,P2),p1) . [(q,p1,fRD (target p1 q) q2), (q2,[],fRD (target p1 q) q2)]) 
                 (filter (\<lambda>((p,(rd,dr)),(q2,P2),p1) . (target p1 q) \<in> rd \<and> q2 \<in> rd \<and> (target p1 q) \<noteq> q2) 
                         (concat (map (\<lambda>((p,(rd,dr)),(q2,P2)) . map (\<lambda>p1 . ((p,(rd,dr)),(q2,P2),p1)) (prefixes p)) (cartesian_product_list pds PS)))))"
 
 
-fun preamble_prefix_tests :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('c,'d) ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> ('a,'b) Preamble) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> ('c,'d) ATC) set" where
+fun preamble_prefix_tests :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> ('a Traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Preamble) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> 'c ATC) set" where
   "preamble_prefix_tests q fRD pds PS = \<Union>{{(q,p1,fRD (target p1 q) q2), (q2,[],fRD (target p1 q) q2)} | p1 q2 . \<exists> (p,(rd,dr)) \<in> set pds . \<exists> (q2,P2) \<in> set PS . \<exists> p2 . p = p1@p2 \<and> (target p1 q) \<in> rd \<and> q2 \<in> rd \<and> (target p1 q) \<noteq> q2}"
 
 
@@ -462,14 +461,14 @@ lemma preamble_prefix_tests_code[code]:
 
 subsubsection "Calculating Tests between m-Traversal-Paths Prefixes and Preambles"
 
-fun preamble_pair_tests' :: "('a \<times> ('a,'b) Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> ('c,'d) ATC) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> ('c,'d) ATC) list" where
+fun preamble_pair_tests' :: "('a \<times> 'a Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> 'c ATC) list \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> 'c ATC) list" where
   "preamble_pair_tests' PS RDS = 
     concat (map (\<lambda>((q1,P1),(q2,P2)) . (case (find (\<lambda> qqA . fst qqA = (q1,q2)) RDS) of 
                                          Some ((q1',q2'),A) \<Rightarrow> [(q1,[],A),(q2,[],A)] |
                                          None \<Rightarrow> []))
            (cartesian_product_list PS PS))"
 
-fun preamble_pair_tests :: "('a \<times> ('a,'b) Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> ('c,'d) ATC) list \<Rightarrow> ('a \<times> ('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('c,'d) ATC) set" where
+fun preamble_pair_tests :: "('a \<times> 'a Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> 'c ATC) list \<Rightarrow> ('a \<times> 'a Preamble \<times> 'a Traversal_Path \<times> 'c ATC) set" where
   "preamble_pair_tests PS RDS = \<Union>{{(q1,P1,[],A),(q2,P2,[],A)} | P1 P2 A q1 q2 . (q1,P1) \<in> set PS \<and> (q2,P2) \<in> set PS \<and> ((q1,q2),A) \<in> set RDS}"
 
 (* TODO: code 
@@ -525,7 +524,7 @@ lemma collect_ATCs_set :
 subsection \<open>Calculating the Test Suite\<close>
 
 (* how to build with comments?
-definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ('a \<times> ('a,'b) Preamble \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC set) list" where
+definition calculate_test_suite' :: "'a FSM \<Rightarrow> nat \<Rightarrow> ('a \<times> 'a Preamble \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC set) list" where
   "calculate_test_suite' M m = 
     (let 
          RDSSL \<comment> \<open>R-D States with Separators\<close>
@@ -569,8 +568,8 @@ definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Righ
 
 
 
-definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> ('a,'b) Preamble) list)" where
-  "calculate_test_suite' M m = 
+definition calculate_test_suite :: "'a FSM \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a) ATC) list \<times> ('a \<times> 'a Preamble) list)" where
+  "calculate_test_suite M m = 
     (let 
          RDSSL = r_distinguishable_state_pairs_with_separators_naive M;
          RDS  = set (map fst RDSSL);
@@ -592,17 +591,20 @@ definition calculate_test_suite' :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Righ
       
     in  (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests, DRSP))"
 
-value "calculate_test_suite' M_ex_H 4"
+value "calculate_test_suite M_ex_H 4"
+
+definition calculate_test_suite_set :: "('a::linorder) FSM \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a) ATC) set \<times> ('a \<times> 'a Preamble) list)" where
+  "calculate_test_suite_set M m = (case calculate_test_suite M m of (ts,ps) \<Rightarrow> (set ts,ps))"
 
 
 (* TODO:
 
-fun convert_test_suite_elem :: "(('a::linorder \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> ('a,'b) Preamble)) \<Rightarrow> ('a \<times> ('a,'b) Preamble) list \<Rightarrow> 'a Transition list avl_tree" where
+fun convert_test_suite_elem :: "(('a::linorder \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> 'a Preamble)) \<Rightarrow> ('a \<times> 'a Preamble) list \<Rightarrow> 'a Transition list avl_tree" where
   "convert_test_suite_elem (q,p,atcs) preambles = empty"
 
 thm foldl.simps
 
-fun convert_test_suite :: "(('a::linorder \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> ('a,'b) Preamble) list) \<Rightarrow> 'a Transition list avl_tree" where
+fun convert_test_suite :: "(('a::linorder \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> 'a Preamble) list) \<Rightarrow> 'a Transition list avl_tree" where
   "convert_test_suite (elems,preambles) = foldl (\<lambda> prev elem . AVL_Set.union prev prev ) empty elems"
 *)
 

@@ -4,8 +4,8 @@ begin
 
 export_code FSM_ext
             M_ex_DR
-            calculate_test_suite_rbt
-
+            calculate_test_suite
+            calculate_test_suite_set
 
           
           

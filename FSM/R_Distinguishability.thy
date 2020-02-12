@@ -6,7 +6,7 @@ section \<open>R-Distinguishability\<close>
 
 subsection \<open>Basic Definitions\<close>
 
-definition r_compatible :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where 
+definition r_compatible :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where 
   "r_compatible M q1 q2 = ((\<exists> S . completely_specified S \<and> is_submachine S (product (from_FSM M q1) (from_FSM M q2))))"
 
 abbreviation(input) "r_distinguishable M q1 q2 \<equiv> \<not> r_compatible M q1 q2"
@@ -16,7 +16,7 @@ abbreviation(input) "r_distinguishable M q1 q2 \<equiv> \<not> r_compatible M q1
          This behaviour is justified by the assumption that tested machines are complete.
 *)
 
-fun r_distinguishable_k :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
+fun r_distinguishable_k :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
   "r_distinguishable_k M q1 q2 0 = (\<exists> x \<in> set (inputs M) . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))" |
   "r_distinguishable_k M q1 q2 (Suc k) = (r_distinguishable_k M q1 q2 k 
                                           \<or> (\<exists> x \<in> set (inputs M) . \<forall> t1 \<in> h M . \<forall> t2 \<in> h M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
@@ -611,7 +611,7 @@ subsection \<open>Bounds\<close>
 
 
 
-inductive is_least_r_d_k_path :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) \<times> Input \<times> nat) list \<Rightarrow> bool" where
+inductive is_least_r_d_k_path :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) \<times> Input \<times> nat) list \<Rightarrow> bool" where
   immediate[intro!] : "x \<in> set (inputs M) \<Longrightarrow> \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<Longrightarrow> is_least_r_d_k_path M q1 q2 [((q1,q2),x,0)]" |
   step[intro!] : "Suc k = (LEAST k' . r_distinguishable_k M q1 q2 k') 
                   \<Longrightarrow> x \<in> set (inputs M)
@@ -1036,7 +1036,7 @@ proof (rule ccontr)
   moreover have "card (set (map fst (t # p))) \<le> card (nodes (product (from_FSM M q1) (from_FSM M q2)))"
     using is_least_r_d_k_path_nodes[OF \<open>is_least_r_d_k_path M q1 q2 (t # p)\<close>] nodes_finite card_mono by blast
   ultimately have "length (t # p) \<le> size (product (from_FSM M q1) (from_FSM M q2))"
-    by (metis size_def) 
+    by (metis size.simps) 
   then show "False"
     using \<open>size (product (from_FSM M q1) (from_FSM M q2)) < length (t # p)\<close> by linarith
 qed
@@ -1046,7 +1046,7 @@ qed
 
 subsection \<open>Deciding R-Distinguishability\<close>
 
-fun r_distinguishable_k_least :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (nat \<times> Input) option" where
+fun r_distinguishable_k_least :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (nat \<times> Input) option" where
   "r_distinguishable_k_least M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs M)) of
     Some x \<Rightarrow> Some (0,x) |
     None \<Rightarrow> None)" |
@@ -1260,7 +1260,7 @@ proof
 qed
 
 
-definition is_r_distinguishable :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+definition is_r_distinguishable :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "is_r_distinguishable M q1 q2 = (\<exists> k . r_distinguishable_k M q1 q2 k)"
 
 lemma is_r_distinguishable_contained_code[code] :

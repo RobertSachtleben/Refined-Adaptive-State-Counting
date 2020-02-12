@@ -9,16 +9,16 @@ subsection \<open>Definitions\<close>
 
 abbreviation(input) "shift_Inl \<equiv> (\<lambda> t . (Inl (t_source t), t_input t, t_output t, Inl (t_target t)))"
 
-definition shifted_transitions :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
+definition shifted_transitions :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
   "shifted_transitions M q1 q2 = map shift_Inl (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))"
 
-definition distinguishing_transitions_left :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
+definition distinguishing_transitions_left :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
   "distinguishing_transitions_left M q1 q2 = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1 )) (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> \<not>(\<exists> t' \<in> set (transitions M) . t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
 
-definition distinguishing_transitions_right :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
+definition distinguishing_transitions_right :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) Transition list" where
   "distinguishing_transitions_right M q1 q2 = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2 )) (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> \<not>(\<exists> t' \<in> set (transitions M) . t_source t' = fst (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))))"
 
-definition canonical_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme" where
+definition canonical_separator :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) FSM" where
   "canonical_separator M q1 q2 = 
     \<lparr> initial = Inl (initial (product (from_FSM M q1) (from_FSM M q2))),
         inputs = inputs M,
@@ -46,7 +46,7 @@ lemma canonical_separator_simps :
 
 
 
-definition is_state_separator_from_canonical_separator :: "(('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> bool" where
+definition is_state_separator_from_canonical_separator :: "(('a \<times> 'a) + 'a) FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) FSM \<Rightarrow> bool" where
   "is_state_separator_from_canonical_separator CSep q1 q2 S = (
     is_submachine S CSep 
     \<and> single_input S
@@ -2491,7 +2491,7 @@ qed
 
 subsection \<open>Calculating State Separators\<close>
 
-fun calculate_state_separator_from_canonical_separator_naive :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme option" where
+fun calculate_state_separator_from_canonical_separator_naive :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) FSM option" where
   "calculate_state_separator_from_canonical_separator_naive M q1 q2 = 
     (let CSep = canonical_separator M q1 q2 in
       find 
@@ -2864,7 +2864,7 @@ value[code] "image (\<lambda> qq . (qq, (case calculate_state_separator_from_can
 subsection \<open>Sufficient Condition to Induce a State Separator\<close>
 
 
-definition induces_state_separator :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> bool" where
+definition induces_state_separator :: "'a FSM \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> bool" where
   "induces_state_separator M S = (
     
     is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
@@ -2875,7 +2875,7 @@ definition induces_state_separator :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<t
 )"
 
 (* restriction to a given product machine *)
-definition induces_state_separator_for_prod :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> bool" where
+definition induces_state_separator_for_prod :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> bool" where
   "induces_state_separator_for_prod M q1 q2 S = (
     is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
     \<and> single_input S
@@ -2884,7 +2884,7 @@ definition induces_state_separator_for_prod :: "('a, 'b) FSM_scheme \<Rightarrow
     \<and> retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) S
 )"
 
-definition choose_state_separator_deadlock_input :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a) \<Rightarrow> Input option" where
+definition choose_state_separator_deadlock_input :: "'a FSM \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> ('a \<times> 'a) \<Rightarrow> Input option" where
   "choose_state_separator_deadlock_input M S qq = (if (qq \<in> nodes S \<and> deadlock_state S qq) 
     then (find (\<lambda> x . \<not> (\<exists> t1 \<in> h M . \<exists> t2 \<in> h M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M))
     else None)"
@@ -2892,7 +2892,7 @@ definition choose_state_separator_deadlock_input :: "('a, 'b) FSM_scheme \<Right
 
 
 
-definition state_separator_from_product_submachine :: "('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> 'a, 'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme" where
+definition state_separator_from_product_submachine :: "'a FSM \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> (('a \<times> 'a) + 'a) FSM" where
   "state_separator_from_product_submachine M S =
     \<lparr> initial = Inl (initial S),
       inputs = inputs M,
@@ -2927,7 +2927,7 @@ declare from_FSM_simps[simp del]
 declare product_simps[simp del]
 
 lemma state_separator_from_induces_state_separator :
-  fixes M :: "('a,'b) FSM_scheme"
+  fixes M :: "'a FSM"
   assumes "induces_state_separator M S"
   and "fst (initial S) \<in> nodes M"
   and "snd (initial S) \<in> nodes M"
@@ -4633,7 +4633,7 @@ subsection \<open>Calculating a State Separator by Reachability Analysis\<close>
 *)
   
  
-fun s_states :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ('a \<times> Input) list" where
+fun s_states :: "'a FSM \<Rightarrow> nat \<Rightarrow> ('a \<times> Input) list" where
   "s_states C 0 = []" |
   "s_states C (Suc k) =  
     (if length (s_states C k) < k 
@@ -4654,7 +4654,7 @@ fun s_states' :: "('a \<times> Input) list \<Rightarrow> 'a Transition set \<Rig
                None \<Rightarrow> Q)))"
 
 (* Slightly more efficient formulation of s_states, avoids some repeated calculations *)
-fun s_states_opt :: "('a,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> ('a \<times> Input) list" where
+fun s_states_opt :: "'a FSM \<Rightarrow> nat \<Rightarrow> ('a \<times> Input) list" where
   "s_states_opt C k = s_states' (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs C)) (nodes_from_distinct_paths C))) (h C) k"
 
 
@@ -4941,7 +4941,7 @@ proof -
     using s_states_nodes[of M k]
           s_states_distinct_states[of M k]
           nodes_finite[of M]
-    by (metis card_mono distinct_card length_map size_def) 
+    by (metis card_mono distinct_card length_map size.simps) 
 qed
   
 lemma s_states_max_iterations :
@@ -5978,7 +5978,7 @@ lemma filter_ex_by_find :
 
 (* old version filtering by (\<lambda>t . \<exists> qqx \<in> set (take (Suc i) SS) . t_source t = fst qqx \<and> t_input t = snd qqx) *)
 (*
-definition calculate_state_separator_from_s_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme option" where
+definition calculate_state_separator_from_s_states :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) FSM option" where
   "calculate_state_separator_from_s_states M q1 q2 = 
     (let PR = product (from_FSM M q1) (from_FSM M q2); SS = (s_states_opt PR (size PR))  in
       (case find_index (\<lambda>qqt . fst qqt = (q1,q2)) SS of
@@ -5993,7 +5993,7 @@ definition calculate_state_separator_from_s_states :: "('a,'b) FSM_scheme \<Righ
         None \<Rightarrow> None))"
 *)
 
-definition calculate_state_separator_from_s_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b) FSM_scheme option" where
+definition calculate_state_separator_from_s_states :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a) FSM option" where
   "calculate_state_separator_from_s_states M q1 q2 = 
     (let PR = product (from_FSM M q1) (from_FSM M q2); SS = (s_states_opt PR (size PR))  in
       (case find_index (\<lambda>qqt . fst qqt = (q1,q2)) SS of
@@ -6304,9 +6304,9 @@ next
     proof -
       have f1: "\<forall>n. n \<le> Suc n"
         using Suc_leD by blast
-      then have f2: "\<forall>f. s_states (f::('a \<times> 'a, 'b) FSM_scheme) (Suc (Suc (FSM.size f))) = s_states f (FSM.size f)"
+      then have f2: "\<forall>f. s_states (f::('a \<times> 'a) FSM) (Suc (Suc (FSM.size f))) = s_states f (FSM.size f)"
         by (meson Suc_leD s_states_max_iterations)
-      have "\<forall>f. length (s_states (f::('a \<times> 'a, 'b) FSM_scheme) (FSM.size f)) \<le> Suc (FSM.size f)"
+      have "\<forall>f. length (s_states (f::('a \<times> 'a) FSM) (FSM.size f)) \<le> Suc (FSM.size f)"
         using f1 by (metis (no_types) s_states_length s_states_max_iterations)
       then show ?thesis
         using f2 f1 by (metis (no_types) Suc_le_mono \<open>s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))) = s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (length (s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))))))\<close> s_states_prefix take_all)
@@ -6458,7 +6458,7 @@ using assms proof (induction k arbitrary: q1 q2)
   have p_find_2: "((q1,q2),x) \<in> set (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs ?PM)) (nodes_from_distinct_paths ?PM)))"
     using concat_pair_set \<open>x \<in> set (inputs M)\<close> \<open>(q1,q2) \<in> set (nodes_from_distinct_paths ?PM)\<close>
   proof -
-    have f1: "\<forall>a ps aa f. set (concat (map (\<lambda>p. map (Pair (p::'a \<times> 'a)) (inputs (product (from_FSM (f::('a, 'b) FSM_scheme) a) (from_FSM f aa)))) ps)) = set (concat (map (\<lambda>p. map (Pair p) (inputs f)) ps))"
+    have f1: "\<forall>a ps aa f. set (concat (map (\<lambda>p. map (Pair (p::'a \<times> 'a)) (inputs (product (from_FSM (f::'a FSM) a) (from_FSM f aa)))) ps)) = set (concat (map (\<lambda>p. map (Pair p) (inputs f)) ps))"
       by (simp add: from_FSM_product_inputs)
     have "\<forall>is p ps. p \<in> set (concat (map (\<lambda>p. map (Pair (p::'a \<times> 'a)) is) ps)) \<or> \<not> (fst p \<in> set ps \<and> (snd p::integer) \<in> set is)"
       using concat_pair_set by blast
@@ -7078,7 +7078,7 @@ shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> S . is_state_s
 
 subsection \<open>Generalizing the Separator Definition\<close>
 
-definition is_separator :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> 'c \<Rightarrow> 'c \<Rightarrow> bool" where
+definition is_separator :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'c FSM \<Rightarrow> 'c \<Rightarrow> 'c \<Rightarrow> bool" where
   "is_separator M q1 q2 A t1 t2 = 
     (single_input A
      \<and> acyclic A

@@ -9,7 +9,7 @@ fun output_completion :: "(Input \<times> Output) list set \<Rightarrow> Output 
   "output_completion P Out = P \<union> {io@[(fst xy, y)] | io xy y . y \<in> Out \<and> io@[xy] \<in> P \<and> io@[(fst xy, y)] \<notin> P}"
 
 
-fun output_complete_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun output_complete_sequences :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "output_complete_sequences M P = (\<forall> io \<in> P . io = [] \<or> (\<forall> y \<in> set (outputs M) . (butlast io)@[(fst (last io), y)] \<in> P))"
 
 value "output_complete_sequences M_ex {}"  
@@ -22,10 +22,10 @@ value "output_complete_sequences M_ex {[],[(1,10),(1,10)],[(1,10),(1,20)],[(1,10
 
 
 
-fun acyclic_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun acyclic_sequences :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "acyclic_sequences M q P = (\<forall> p . (path M q p \<and> p_io p \<in> P) \<longrightarrow> distinct (visited_states q p))"
 
-fun acyclic_sequences' :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun acyclic_sequences' :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "acyclic_sequences' M q P = (\<forall> io \<in> P . \<forall> p \<in> set (paths_of_length M q (length io)) . (p_io p = io) \<longrightarrow> distinct (visited_states q p))"
 
 lemma acyclic_sequences_alt_def[code] : "acyclic_sequences M P = acyclic_sequences' M P"
@@ -41,10 +41,10 @@ value "acyclic_sequences M_ex (initial M_ex) {[(1,30),(2,20)]}"
 
 
 
-fun single_input_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun single_input_sequences :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "single_input_sequences M P = (\<forall> xys1 xys2 xy1 xy2 . (xys1@[xy1] \<in> P \<and> xys2@[xy2] \<in> P \<and> io_target M xys1 (initial M) = io_target M xys2 (initial M)) \<longrightarrow> fst xy1 = fst xy2)"
 
-fun single_input_sequences' :: "('a, 'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun single_input_sequences' :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "single_input_sequences' M P = (\<forall> io1 \<in> P . \<forall> io2 \<in> P . io1 = [] \<or> io2 = [] \<or> ((io_target M (butlast io1) (initial M) = io_target M (butlast io2) (initial M)) \<longrightarrow> fst (last io1) = fst (last io2)))"
 
 lemma single_input_sequences_alt_def[code] : "single_input_sequences M P = single_input_sequences' M P"
@@ -60,7 +60,7 @@ value "single_input_sequences M_ex {[(1,30)],[(1,30),(1,30)]}"
 value "single_input_sequences M_ex {[(1,30)],[(1,30),(2,30)]}"
 value "single_input_sequences M_ex {[(1,30)],[(1,30),(1,30)],[(1,30),(2,30)]}"
 
-fun output_complete_for_FSM_sequences_from_state :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun output_complete_for_FSM_sequences_from_state :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "output_complete_for_FSM_sequences_from_state M q P = (\<forall> io xy t . io@[xy] \<in> P \<and> t \<in> h M \<and> t_source t = io_target M io q \<and> t_input t = fst xy \<longrightarrow> io@[(fst xy, t_output t)] \<in> P)"
 
 lemma output_complete_for_FSM_sequences_from_state_alt_def :
@@ -106,7 +106,7 @@ proof -
   qed 
 qed
 
-fun output_complete_for_FSM_sequences_from_state' :: "('a, 'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun output_complete_for_FSM_sequences_from_state' :: "'a FSM \<Rightarrow> 'a \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "output_complete_for_FSM_sequences_from_state' M q P = (\<forall> io\<in>P . \<forall> t \<in> h M . io = [] \<or> (t_source t = io_target M (butlast io) q \<and> t_input t = fst (last io) \<longrightarrow> (butlast io)@[(fst (last io), t_output t)] \<in> P))"
 
 lemma output_complete_for_FSM_sequences_alt_def'[code] : "output_complete_for_FSM_sequences_from_state M q P = output_complete_for_FSM_sequences_from_state' M q P"
@@ -121,7 +121,7 @@ value "output_complete_for_FSM_sequences_from_state M_ex (initial M_ex) {[(1,10)
 value "output_complete_for_FSM_sequences_from_state M_ex (initial M_ex) {[(1,20)],[(1,30)]}"
 
 
-fun deadlock_states_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> 'a set \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun deadlock_states_sequences :: "'a FSM \<Rightarrow> 'a set \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "deadlock_states_sequences M Q P = (\<forall> xys \<in> P . 
                                         ((io_target M xys (initial M) \<in> Q 
                                           \<and> \<not> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys)))
@@ -141,7 +141,7 @@ value "deadlock_states_sequences M_ex {3,4} {[(1,20)],[(1,30)]}"
 
 
 
-fun reachable_states_sequences :: "('a, 'b) FSM_scheme \<Rightarrow> 'a set \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+fun reachable_states_sequences :: "'a FSM \<Rightarrow> 'a set \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "reachable_states_sequences M Q P = (\<forall> q \<in> Q . \<exists> xys \<in> P . io_target M xys (initial M) = q)"
 
 

@@ -8,7 +8,7 @@ subsection \<open>Basic Definition\<close>
 
 (* An ATC is a single input, acyclic, observable FSM, which is equivalent to a tree whose inner 
    nodes are labeled with inputs and whose edges are labeled with outputs *)
-definition is_ATC :: "('a,'b) FSM_scheme \<Rightarrow> bool" where
+definition is_ATC :: "'a FSM \<Rightarrow> bool" where
   "is_ATC M = (single_input M \<and> acyclic M \<and> observable M)"
 
 lemma is_ATC_from :
@@ -27,14 +27,14 @@ subsection \<open>Applying Adaptive Test Cases\<close>
 
 
 (* FSM A passes ATC A if and only if the parallel execution of M and A does not visit a fail_state in A and M produces no output not allowed in A *)
-fun pass_ATC' :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> 'c set \<Rightarrow> nat \<Rightarrow> bool" where
+fun pass_ATC' :: "'a FSM \<Rightarrow> 'c FSM \<Rightarrow> 'c set \<Rightarrow> nat \<Rightarrow> bool" where
   "pass_ATC' M A fail_states 0 = (\<not> (initial A \<in> fail_states))" |
   "pass_ATC' M A fail_states (Suc k) = ((\<not> (initial A \<in> fail_states)) \<and> (case find (\<lambda> x . \<exists> t \<in> h A . t_input t = x \<and> t_source t = initial A) (inputs A) of
     None \<Rightarrow> True |
     Some x \<Rightarrow> \<forall> t \<in> h M . (t_input t = x \<and> t_source t = initial M) \<longrightarrow> (\<exists> t' \<in> h A . t_input t' = x \<and> t_source t' = initial A \<and> t_output t' = t_output t \<and> pass_ATC' (from_FSM M (t_target t)) (from_FSM A (t_target t')) fail_states k)))"
 
 (* Applies pass_ATC' for a depth of at most (size A) (i.e., an upper bound on the length of paths in A) *)
-fun pass_ATC :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> 'c set \<Rightarrow> bool" where
+fun pass_ATC :: "'a FSM \<Rightarrow> 'c FSM \<Rightarrow> 'c set \<Rightarrow> bool" where
   "pass_ATC M A fail_states = pass_ATC' M A fail_states (size A)"
 
 
@@ -702,11 +702,11 @@ shows   "\<not> (L T \<subseteq> L M)"
 
 subsection \<open>State Separators as Adaptive Test Cases\<close>
 
-fun pass_separator_ATC :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'c \<Rightarrow> bool" where
+fun pass_separator_ATC :: "'a FSM \<Rightarrow> 'c FSM \<Rightarrow> 'a \<Rightarrow> 'c \<Rightarrow> bool" where
   "pass_separator_ATC M S q1 t2 = pass_ATC (from_FSM M q1) S {t2}"
 
 (*
-fun pass_separator_ATC :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
+fun pass_separator_ATC :: "'a FSM \<Rightarrow> (('a \<times> 'a) + 'a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "pass_separator_ATC M S q1 q2 = pass_ATC (from_FSM M q1) S {Inr q2}"
 *)
 
@@ -1377,12 +1377,12 @@ shows "LS S s2 - LS M q2 \<noteq> {}"
 
 subsection \<open>ATCs Represented as Sets of IO Sequences\<close>
 
-fun atc_to_io_set :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list set" where
+fun atc_to_io_set :: "'a FSM \<Rightarrow> 'c FSM \<Rightarrow> (Input \<times> Output) list set" where
   "atc_to_io_set M A = L M \<inter> L A"
 
 
 (* very inefficient calculation *)
-fun atc_to_io_list :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list list" where
+fun atc_to_io_list :: "'a FSM \<Rightarrow> 'c FSM \<Rightarrow> (Input \<times> Output) list list" where
   "atc_to_io_list M A = (let LA = set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1)));
                              LM = map p_io (paths_up_to_length M (initial M) (size A -1))
                           in filter (\<lambda>io . io \<in> LA) LM)"
@@ -1433,10 +1433,10 @@ qed
 
 (* TODO: define pass relation on io sequence sets and relate to pass_ATC *)
 
-definition pass_io_set :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+definition pass_io_set :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "pass_io_set M ios = (\<forall> io x y . io@[(x,y)] \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> io@[(x,y')] \<in> ios))"
 
-definition pass_io_set_maximal :: "('a,'b) FSM_scheme \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
+definition pass_io_set_maximal :: "'a FSM \<Rightarrow> (Input \<times> Output) list set \<Rightarrow> bool" where
   "pass_io_set_maximal M ios = (\<forall> io x y io' . io@[(x,y)]@io' \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> (\<exists> io''. io@[(x,y')]@io'' \<in> ios)))"
 
 
@@ -1583,32 +1583,32 @@ proof -
     qed
     moreover have "\<And> io . io \<in> {io' \<in> L M . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> L M)} \<Longrightarrow> io \<in> {p_io p | p. path M (initial M) p \<and> \<not>(\<exists> p' . p' \<noteq> [] \<and> path M (initial M) (p@p'))}"
     proof -
-    fix io :: "(integer \<times> integer) list"
-      assume "io \<in> {io' \<in> LS M (initial M). \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> LS M (initial M)}"
-      then have f1: "io \<in> LS M (initial M) \<and> (\<forall>ps. ps = [] \<or> io @ ps \<notin> LS M (initial M))"
+      fix io :: "(integer \<times> integer) list"
+      assume a1: "io \<in> {io' \<in> LS M (initial M). \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> LS M (initial M)}"
+      then have f2: "io \<in> LS M (initial M) \<and> (\<forall>ps. ps = [] \<or> io @ ps \<notin> LS M (initial M))"
         by blast
       obtain pps :: "('a \<times> integer \<times> integer \<times> 'a) list \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
-        f2: "\<forall>x0. (\<exists>v2. v2 \<noteq> [] \<and> path M (initial M) (x0 @ v2)) = (pps x0 \<noteq> [] \<and> path M (initial M) (x0 @ pps x0))"
+        f3: "\<forall>x0. (\<exists>v2. v2 \<noteq> [] \<and> path M (initial M) (x0 @ v2)) = (pps x0 \<noteq> [] \<and> path M (initial M) (x0 @ pps x0))"
         by moura
-      have f3: "\<exists>ps. io = p_io ps \<and> path M (initial M) ps"
-        using f1 by simp
-      obtain ppsa :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> ('a, 'b) FSM_scheme \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
+      have f4: "\<exists>ps. io = p_io ps \<and> path M (initial M) ps"
+        using a1 by simp
+      obtain ppsa :: "(integer \<times> integer) list \<Rightarrow> 'a \<Rightarrow> 'a FSM \<Rightarrow> ('a \<times> integer \<times> integer \<times> 'a) list" where
         "\<forall>x0 x1 x2. (\<exists>v3. x0 = p_io v3 \<and> path x2 x1 v3) = (x0 = p_io (ppsa x0 x1 x2) \<and> path x2 x1 (ppsa x0 x1 x2))"
         by moura
       then have "\<forall>f a ps. ((\<nexists>psa. ps = p_io psa \<and> path f a psa) \<or> ps = p_io (ppsa ps a f) \<and> path f a (ppsa ps a f)) \<and> ((\<exists>psa. ps = p_io psa \<and> path f a psa) \<or> (\<forall>psa. ps \<noteq> p_io psa \<or> \<not> path f a psa))"
         by blast
-      then have f4: "io = p_io (ppsa io (initial M) M) \<and> path M (initial M) (ppsa io (initial M) M)"
-        using f3 by blast
+      then have f5: "io = p_io (ppsa io (initial M) M) \<and> path M (initial M) (ppsa io (initial M) M)"
+        using f4 by blast
       moreover
       { assume "io @ p_io (pps (ppsa io (initial M) M)) \<notin> LS M (initial M)"
-        then have "\<forall>ps. p_io (ppsa io (initial M) M) @ p_io (pps (ppsa io (initial M) M)) \<noteq> p_io ps \<or> \<not> path M (initial M) ps"
-          using f4 by simp
-        then have "pps (ppsa io (initial M) M) = [] \<or> \<not> path M (initial M) (ppsa io (initial M) M @ pps (ppsa io (initial M) M))"
-          by simp
-        then have "\<exists>ps. io = p_io ps \<and> path M (initial M) ps \<and> (\<forall>psa. psa = [] \<or> \<not> path M (initial M) (ps @ psa))"
-          using f4 f2 by (metis (no_types)) }
+      then have "\<forall>ps. p_io (ppsa io (initial M) M) @ p_io (pps (ppsa io (initial M) M)) \<noteq> p_io ps \<or> \<not> path M (initial M) ps"
+        using f5 by simp
+      then have "pps (ppsa io (initial M) M) = [] \<or> \<not> path M (initial M) (ppsa io (initial M) M @ pps (ppsa io (initial M) M))"
+        by simp
+      then have "\<exists>ps. io = p_io ps \<and> path M (initial M) ps \<and> (\<forall>psa. psa = [] \<or> \<not> path M (initial M) (ps @ psa))"
+        using f5 f3 by (metis (no_types)) }
       ultimately have "\<exists>ps. io = p_io ps \<and> path M (initial M) ps \<and> (\<forall>psa. psa = [] \<or> \<not> path M (initial M) (ps @ psa))"
-        using f2 f1 by (meson map_is_Nil_conv)
+        using f3 f2 by (meson list.map_disc_iff)
       then show "io \<in> {p_io ps |ps. path M (initial M) ps \<and> (\<nexists>psa. psa \<noteq> [] \<and> path M (initial M) (ps @ psa))}"
         by simp
     qed
@@ -1621,10 +1621,10 @@ qed
 (* Attempt to calc atc_to_io_list_maximal for ATCs, probably unnecessary *)
 (* 
 
-definition atc_to_io_set_maximal :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list set" where
+definition atc_to_io_set_maximal :: "'a FSM \<Rightarrow> 'c FSM \<Rightarrow> (Input \<times> Output) list set" where
   "atc_to_io_set_maximal M A = {io' \<in> atc_to_io_set M A. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> atc_to_io_set M A}"
 
-fun atc_to_io_list_maximal :: "('a,'b) FSM_scheme \<Rightarrow> ('c,'d) FSM_scheme \<Rightarrow> (Input \<times> Output) list list" where
+fun atc_to_io_list_maximal :: "'a FSM \<Rightarrow> 'c FSM \<Rightarrow> (Input \<times> Output) list list" where
   "atc_to_io_list_maximal M A = (let LA = set (map p_io (maximal_acyclic_paths A));
                                      LM = map p_io (paths_up_to_length M (initial M) (size A -1))
                                   in filter (\<lambda>io . io \<in> LA) LM)"

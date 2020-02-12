@@ -4,7 +4,7 @@ begin
 
 subsection \<open>Calculating r-distinguishable State Pairs with Separators\<close>
 
-definition r_distinguishable_state_pairs_with_separators :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) set" where
+definition r_distinguishable_state_pairs_with_separators :: "'a FSM \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a) FSM) set" where
   "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M 
                                                                                 \<and> q2 \<in> nodes M 
                                                                                 \<and> q1 \<noteq> q2 
@@ -75,7 +75,7 @@ qed
 
 
 
-definition r_distinguishable_state_pairs_with_separators_naive :: "('a,'b) FSM_scheme \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b) FSM_scheme) list" where
+definition r_distinguishable_state_pairs_with_separators_naive :: "'a FSM \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a) FSM) list" where
   "r_distinguishable_state_pairs_with_separators_naive M =
     (let nonSymNodes = non_sym_dist_pairs (nodes_from_distinct_paths M);
          nonSymSeps = map (\<lambda> (q1,q2) . ((q1,q2),calculate_state_separator_from_s_states M q1 q2)) nonSymNodes;
@@ -271,7 +271,7 @@ qed
 
 (* calculate all pairs of r_distinguishable states *)
 (*
-definition r_distinguishable_state_pairs :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> 'a) list" where
+definition r_distinguishable_state_pairs :: "'a FSM \<Rightarrow> ('a \<times> 'a) list" where
   "r_distinguishable_state_pairs M = filter (\<lambda> qq . is_r_distinguishable M (fst qq) (snd qq)) (concat (map (\<lambda> q1 . map (\<lambda> q2 . (q1,q2)) (nodes_from_distinct_paths M)) (nodes_from_distinct_paths M)))"
 
 value "r_distinguishable_state_pairs M_ex_H"
@@ -294,7 +294,7 @@ qed
 *)   
     
 
-definition pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set list" where
+definition pairwise_r_distinguishable_state_sets_from_separators :: "'a FSM \<Rightarrow> 'a set list" where
   "pairwise_r_distinguishable_state_sets_from_separators M = (let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
                                                               in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
                                                                      (map set (pow_list (nodes_from_distinct_paths M))))"
@@ -303,7 +303,7 @@ definition pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM
 
 
 (*
-definition pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set list" where
+definition pairwise_r_distinguishable_state_sets_from_separators :: "'a FSM \<Rightarrow> 'a set list" where
   "pairwise_r_distinguishable_state_sets_from_separators M = (let RDS = r_distinguishable_state_pairs_with_separators M 
                                                               in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> image fst RDS) 
                                                                      (map set (pow_list (nodes_from_distinct_paths M))))"
@@ -384,10 +384,10 @@ qed
 
    
 (* old definitions
-definition pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
+definition pairwise_r_distinguishable_state_sets_from_separators :: "'a FSM \<Rightarrow> 'a set set" where
   "pairwise_r_distinguishable_state_sets_from_separators M = {S . S \<subseteq> nodes M \<and> (\<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M))}"
 
-definition pairwise_r_distinguishable_state_sets_from_separators_naive :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
+definition pairwise_r_distinguishable_state_sets_from_separators_naive :: "'a FSM \<Rightarrow> 'a set set" where
   "pairwise_r_distinguishable_state_sets_from_separators_naive M = (let PR = image fst (r_distinguishable_state_pairs_with_separators M) in {S \<in> Pow (set (nodes_from_distinct_paths M)) . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> PR})"
 
 lemma pairwise_r_distinguishable_state_sets_from_separators_code[code] :
@@ -407,7 +407,7 @@ qed
 
 
 
-definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set list" where
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "'a FSM \<Rightarrow> 'a set list" where
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = (let PR = (pairwise_r_distinguishable_state_sets_from_separators M) in filter (\<lambda> S . \<not>(\<exists> S' \<in> set PR . S \<subset> S')) PR)"
 
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_set_r_distinguishable : 
@@ -445,7 +445,7 @@ value "card (node_order M_ex_DR)"
 
 
 (* old set version 
-definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> 'a set set" where
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "'a FSM \<Rightarrow> 'a set set" where
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = (let PR = (pairwise_r_distinguishable_state_sets_from_separators M) in {S \<in> PR . \<not>(\<exists> S' \<in> PR . S \<subset> S')})"
 *)
 
@@ -486,7 +486,7 @@ subsection \<open>Calculating d-reachable States with Preambles\<close>
 
 
 (* calculate d-reachable states and a fixed assignment of preambles *)
-definition d_reachable_states_with_preambles :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ('a,'b) FSM_scheme) list" where
+definition d_reachable_states_with_preambles :: "'a FSM \<Rightarrow> ('a \<times> 'a FSM) list" where
   "d_reachable_states_with_preambles M = map (\<lambda> qp . (fst qp, the (snd qp))) (filter (\<lambda> qp . snd qp \<noteq> None) (map (\<lambda> q . (q, calculate_state_preamble_from_d_states M q)) (nodes_from_distinct_paths M)))"
 
 lemma d_reachable_states_with_preambles_exhaustiveness :
@@ -561,7 +561,7 @@ value "d_reachable_states_with_preambles M_ex_DR"
 (* preamble sets
 
 (* calculate d-reachable states and a fixed assignment of preambles *)
-definition d_reachable_states_with_preamble_sets :: "('a,'b) FSM_scheme \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
+definition d_reachable_states_with_preamble_sets :: "'a FSM \<Rightarrow> ('a \<times> ((Input \<times> Output) list set)) list" where
   "d_reachable_states_with_preamble_sets M = map (\<lambda> qp . (fst qp, the (snd qp))) (filter (\<lambda> qp . snd qp \<noteq> None) (map (\<lambda> q . (q, calculate_preamble_set_from_d_states M q)) (nodes_from_distinct_paths M)))"
 
 lemma d_reachable_states_with_preamble_sets_exhaustiveness :
@@ -625,7 +625,7 @@ value "d_reachable_states_with_preamble_sets M_ex_H"
 
 
 
-fun d_reachable_states :: "('a,'b) FSM_scheme \<Rightarrow> 'a list" where
+fun d_reachable_states :: "'a FSM \<Rightarrow> 'a list" where
   "d_reachable_states M = (map fst (d_reachable_states_with_preambles M))"
 
 lemma d_reachable_states_set : 
@@ -654,12 +654,12 @@ value "d_reachable_states M_ex_H"
 value "d_reachable_states M_ex_9"
 
 
-definition maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) list" where
+definition maximal_repetition_sets_from_separators :: "'a FSM \<Rightarrow> ('a set \<times> 'a set) list" where
   "maximal_repetition_sets_from_separators M = map (\<lambda> S . (S, S \<inter> set (d_reachable_states M))) (maximal_pairwise_r_distinguishable_state_sets_from_separators M)" 
 
 (* old set version *)
 (*
-definition maximal_repetition_sets_from_separators :: "('a,'b) FSM_scheme \<Rightarrow> ('a set \<times> 'a set) set" where
+definition maximal_repetition_sets_from_separators :: "'a FSM \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets_from_separators M = {(S, S \<inter> set (d_reachable_states M)) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}" 
 
 

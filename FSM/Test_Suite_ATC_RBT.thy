@@ -170,38 +170,140 @@ end
 
 
 
+instantiation FSM_ext :: (ord,ord) ord
+begin
+
+fun less_eq_FSM_ext ::  "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> bool" where
+  "less_eq_FSM_ext M1 M2 = 
+    (if initial M1 < initial M2 
+      then True
+      else ((initial M1 = initial M2) \<and> (if inputs M1 < inputs M2
+        then True
+        else ((inputs M1 = inputs M2) \<and> (if outputs M1 < outputs M2
+          then True
+          else ((outputs M1 = outputs M2) \<and> (if transitions M1 < transitions M2
+            then True
+            else ((transitions M1 = transitions M2) \<and> (more M1 \<le> more M2)))))))))"
+
+fun less_FSM_ext ::  "('a,'b) FSM_scheme \<Rightarrow> ('a,'b) FSM_scheme \<Rightarrow> bool" where
+  "less_FSM_ext a b = (a \<le> b \<and> a \<noteq> b)"
+
+instance by (intro_classes)
+end
+
+
+instantiation FSM_ext :: (linorder,linorder) linorder
+begin
 
 
 
-definition calculate_test_suite_rbt :: "('a::linorder,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) set \<times> ('a \<times> ('a,'b) Preamble) list)" where
-  "calculate_test_suite_rbt M m = 
-    (let 
-         RDSSL = r_distinguishable_state_pairs_with_separators_naive M;
-         RDS  = set (map fst RDSSL);
-         RDP  = filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) (map set (pow_list (nodes_from_distinct_paths M))); 
-         MPRD = filter (\<lambda> S . \<not>(\<exists> S' \<in> set RDP . S \<subset> S')) RDP;  
-         DRSP = d_reachable_states_with_preambles M;
-         DRS  = map fst DRSP; 
-         MRS  = map (\<lambda>S. (S, S \<inter> set DRS)) MPRD; 
-         MTP  = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
-         fTP  = list_as_fun MTP []; 
-         fRD  = \<lambda> q1 q2 . snd (the (find (\<lambda> qqA . fst qqA = (q1,q2)) RDSSL)); 
-         PMTP = concat (map (\<lambda> (q,P) . map (\<lambda>(p,d) . (q,p)) (fTP q)) DRSP);
-         PrefixPairTests 
-              = concat (map (\<lambda> (q,P) . prefix_pair_tests' q fRD (fTP q)) DRSP);             
-         PreamblePrefixTests
-              = concat (map (\<lambda> (q,P) . preamble_prefix_tests' q fRD (fTP q) DRSP) DRSP);              
-         PreamblePairTests
-              = preamble_pair_tests' DRSP RDSSL
-      
-    in  (set (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests), DRSP))"
+lemma less_le_not_le_FSM :
+  fixes x :: "('a,'b) FSM_scheme"
+  and   y :: "('a,'b) FSM_scheme"
+shows "(x < y) = (x \<le> y \<and> \<not> y \<le> x)"
+proof 
+  show "x < y \<Longrightarrow> x \<le> y \<and> \<not> y \<le> x" 
+    unfolding less_FSM_ext.simps less_eq_FSM_ext.simps
+    by (metis dual_order.antisym equality not_less_iff_gr_or_eq) 
+  show "x \<le> y \<and> \<not> y \<le> x \<Longrightarrow> x < y"
+    unfolding less_FSM_ext.simps less_eq_FSM_ext.simps
+    by blast
+qed
 
 
-value "calculate_test_suite_rbt M_ex_H 4"
+lemma order_refl_FSM :
+  fixes x :: "('a,'b) FSM_scheme"
+  shows "x \<le> x" 
+  by auto
+
+
+lemma order_trans_FSM :
+  fixes x :: "('a,'b) FSM_scheme"
+  fixes y :: "('a,'b) FSM_scheme"
+  fixes z :: "('a,'b) FSM_scheme"
+  shows "x \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z"
+  unfolding less_eq_FSM_ext.simps 
+  using less_trans[of "initial x" "initial y"]
+        less_trans[of "inputs x" "inputs y"]
+        less_trans[of "outputs x" "outputs y"]
+        less_trans[of "transitions x" "transitions y"]
+        less_trans[of "more x" "more y"]
+  using order_trans[of "initial x" "initial y"]
+        order_trans[of "inputs x" "inputs y"]
+        order_trans[of "outputs x" "outputs y"]
+        order_trans[of "transitions x" "transitions y"]
+        order_trans[of "more x" "more y"]
+  by metis 
+  
+
+lemma antisym_FSM :
+  fixes x :: "('a,'b) FSM_scheme"
+  fixes y :: "('a,'b) FSM_scheme"
+shows "x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y"
+  unfolding less_eq_FSM_ext.simps
+  by (metis dual_order.antisym equality not_less_iff_gr_or_eq) 
+
+
+lemma linear_FSM :
+  fixes x :: "('a,'b) FSM_scheme"
+  fixes y :: "('a,'b) FSM_scheme"
+shows "x \<le> y \<or> y \<le> x"
+  unfolding less_eq_FSM_ext.simps
+  by (metis linear not_less_iff_gr_or_eq) 
+
+
+
+
+instance 
+  using less_le_not_le_FSM order_refl_FSM order_trans_FSM antisym_FSM linear_FSM 
+  by (intro_classes; metis+)
+end
+
+
+
+
+
+
+
+
+
+lemma remdups_by_RBT :
+  "set (remdups xs) = set (RBT.keys (foldl (\<lambda> prev t . RBT.insert t () prev) RBT.empty xs))"
+proof (induction xs rule: rev_induct)
+  case Nil
+  then show ?case by (simp add: empty_Set set_keys) 
+next
+  case (snoc x xs)
+  then show ?case
+    using RBT_Set.insert_code(1) set_keys by fastforce 
+qed
+
+
+
+
+value "calculate_test_suite M_ex_H 4"
+value "calculate_test_suite_set M_ex_H 4"
+(*
+
+lemma x : "set (fst (calculate_test_suite' M m)) = set (fst (calculate_test_suite_rbt M m))"
+  unfolding calculate_test_suite_rbt_def calculate_test_suite'_def  
+  unfolding Let_def fst_conv
+  unfolding set_append set_remdups 
+  using set_append set_remdups
+  
+  unfolding remdups_by_RBT
 
 lemma calculate_test_suite_rbt_calculate_test_suite' :
-  "calculate_test_suite_rbt = calculate_test_suite'"
-  unfolding calculate_test_suite_rbt_def calculate_test_suite'_def by force
+  assumes "calculate_test_suite' M m = (tl1,pr1)"
+  and     "calculate_test_suite_rbt M m = (tl2,pr2)"
+shows "set tl1 = set tl2"
+and   "pr1 = pr2"
+  using assms 
+  unfolding calculate_test_suite_rbt_def calculate_test_suite'_def  
+  unfolding Let_def
+  using remdups_by_RBT
+  
+  *)
 
 
 (*

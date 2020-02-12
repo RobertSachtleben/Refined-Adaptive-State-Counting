@@ -7,10 +7,10 @@ section \<open>Traversal Sets for State Counting\<close>
 subsection \<open>Calculating Traversal Paths\<close>
 
 (*
-fun m_traversal_paths_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
+fun m_traversal_paths_up_to_length :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
   "m_traversal_paths_up_to_length M q D m k = paths_up_to_length_or_condition M q k (\<lambda> p . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) []"
 
-fun m_traversal_paths :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
+fun m_traversal_paths :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> 'a Transition list list" where
   "m_traversal_paths M q D m = m_traversal_paths_up_to_length M q D m (Suc (size M * m))"
 
 value "m_traversal_paths_up_to_length M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 10000"
@@ -26,10 +26,10 @@ value "m_traversal_paths_up_to_length M_ex_9 2 {({0,2,3},{0,2,3}),({1,2,3},{2,3}
 *)
 
 (* variation on traversal_paths that also retrieves the set of r-d states that satisfied the termination criterion *)
-fun m_traversal_paths_with_witness_up_to_length :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
+fun m_traversal_paths_with_witness_up_to_length :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
   "m_traversal_paths_with_witness_up_to_length M q D m k = paths_up_to_length_or_condition_with_witness M q k (\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D) []"
 
-fun m_traversal_paths_with_witness :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
+fun m_traversal_paths_with_witness :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> ('a Transition list \<times> ('a set \<times> 'a set)) list" where
   "m_traversal_paths_with_witness M q D m = m_traversal_paths_with_witness_up_to_length M q D m (Suc (size M * m))"
 
 
@@ -149,7 +149,7 @@ proof (rule ccontr)
       using \<open>\<forall> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) ?p) \<le> m\<close> by (meson sum_mono) 
     then have "length ?p \<le> m * (size M)"
       using path_length_sum[OF \<open>path M q ?p\<close>] 
-      using nodes_finite[of M] unfolding size_def
+      using nodes_finite[of M] 
       by (simp add: mult.commute)
 
     then show "False"
@@ -480,18 +480,18 @@ subsection \<open>Calculating Traversal Sets\<close>
 
 (*
 
-fun N :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list list" where
+fun N :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list list" where
   "N M q D m = add_prefixes (map (\<lambda> p . map t_input p) (m_traversal_paths M q D m))"
 
 value "remdups (N M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4)"
 
 
-fun T :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list" where
+fun T :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> (Input \<times> Output) list list" where
   "T M q D m = add_prefixes (map (\<lambda> p . p_io p) (m_traversal_paths M q D m))"
 
 value "remdups (T M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4)" 
 
-fun Traces :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
+fun Traces :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
   "Traces M q D m \<alpha> = filter (\<lambda>io . map fst io \<in> set (prefixes \<alpha>)) (T M q D m)"
 
 value "remdups (Traces M_ex_H 1 {({1,3,4},{1,3,4}),({2,3,4},{3,4})} 4 [1,1])"
@@ -500,14 +500,14 @@ value "remdups (T M_ex_9 1 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 5)"
 value "remdups (Traces M_ex_9 0 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 5 [1,1,1,1])"
 
 
-definition Traces_not_to_cut :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
+definition Traces_not_to_cut :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
   "Traces_not_to_cut M q D m \<alpha> = (let TR = (Traces M q D m \<alpha>) in filter (\<lambda> \<beta> . \<exists> \<gamma> \<in> set TR . \<beta> \<in> set (prefixes \<gamma>) \<and> length \<gamma> = length \<alpha>) TR)"
 
-definition Traces_to_cut :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
+definition Traces_to_cut :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
   "Traces_to_cut M q D m \<alpha> = (let TRTC = set (Traces M q D m \<alpha>) - set (Traces_not_to_cut M q D m \<alpha>) in 
                                 filter (\<lambda> \<beta> . (\<exists> \<beta>' \<in> TRTC . \<beta>' \<in> set (prefixes \<beta>) \<and> \<beta>' \<noteq> \<beta> )) (Traces M q D m \<alpha>))"
 
-definition Traces_simplified :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
+definition Traces_simplified :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> Input list \<Rightarrow> (Input \<times> Output) list list" where
   "Traces_simplified M q D m \<alpha> = filter (\<lambda> \<beta> . \<beta> \<notin> set (Traces_to_cut M q D m \<alpha>)) (Traces M q D m \<alpha>)"
 
 value "remdups (Traces_to_cut M_ex_9 0 {({0,2,3},{0,2,3}),({1,2,3},{2,3})} 5 [1,1,1,1])"
@@ -659,7 +659,7 @@ end (*
 
 (* N - helper *)
 (*
-fun m_traversal_sequences' :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list set \<Rightarrow> Input list set \<Rightarrow> Input list set" where
+fun m_traversal_sequences' :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list set \<Rightarrow> Input list set \<Rightarrow> Input list set" where
   "m_traversal_sequences' M q D m 0 current finished = finished" |
   "m_traversal_sequences' M q D m (Suc k) current finished = 
     m_traversal_sequences' M q D m k
@@ -685,7 +685,7 @@ qed
 
 
 (* TODO: extremely slow *)
-fun m_traversal_sequences_list :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list list" where
+fun m_traversal_sequences_list :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list list" where
   "m_traversal_sequences_list M q D m k = (filter ((\<lambda> xs . (\<forall> p \<in> set (paths_for_input M q xs) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d))))) \<and>
                                                           \<not>(\<forall> p \<in> set (paths_for_input M q (butlast xs)) . (\<exists> d \<in> D . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))))))
                                           (lists_up_to_length (inputs M) k))"
@@ -709,7 +709,7 @@ lemma m_traversal_sequences_bound :
 
 
 (* TODO: very awkward, try forward approach similar to distinct path calculation? *)
-fun m_traversal_sequences' :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list set \<Rightarrow> Input list set \<Rightarrow> Input list set" where
+fun m_traversal_sequences' :: "'a FSM \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) set \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> Input list set \<Rightarrow> Input list set \<Rightarrow> Input list set" where
   "m_traversal_sequences' M q D m 0 current finished = finished" |
   "m_traversal_sequences' M q D m (Suc k) current finished = 
     m_traversal_sequences' M q D m k
@@ -823,7 +823,7 @@ qed
 
 
 (* N *)
-fun m_traversal_sequences :: "('a,'b) FSM_scheme \<Rightarrow> 'a \<Rightarrow> 'a set set \<Rightarrow> nat \<Rightarrow> Input list set" where
+fun m_traversal_sequences :: "'a FSM \<Rightarrow> 'a \<Rightarrow> 'a set set \<Rightarrow> nat \<Rightarrow> Input list set" where
   "m_traversal_sequences M q D m = m_traversal_sequences' M q D m (Suc ((size M) * m)) {[]} {}"
 
 *)*)*)*)*)

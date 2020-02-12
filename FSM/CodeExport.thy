@@ -22,7 +22,8 @@ export_code set
             observable
             single_input
             nodes
-            calculate_test_suite'
+            calculate_test_suite
+            calculate_test_suite_set
 
             maximal_pairwise_r_distinguishable_state_sets_from_separators
            maximal_repetition_sets_from_separators
