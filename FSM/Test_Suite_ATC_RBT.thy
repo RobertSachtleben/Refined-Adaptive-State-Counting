@@ -1,5 +1,5 @@
 theory Test_Suite_ATC_RBT
-imports Test_Suite_ATC "HOL-Library.RBT_Set" (*"HOL-Data_Structures.AVL_Set"*)
+imports Test_Suite_ATC "HOL-Library.RBT_Set" "HOL-Library.RBT_Mapping" (*"HOL-Data_Structures.AVL_Set"*)
 begin
 
 (* from RBT_Set : *)
@@ -11,7 +11,13 @@ begin
   own equations using RBT trees. 
 *)
 
+lemma x:
+  fixes X :: "('a :: linorder) set"
+  
+  shows "set (sorted_list_of_set X) = X"
 
+end (*
+value "sorted_list_of_set (Mapping.keys (Mapping.empty :: (nat,nat) Mapping.mapping))"
 
 instantiation sum :: (ord,ord) ord
 begin

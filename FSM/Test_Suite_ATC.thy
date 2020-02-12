@@ -348,6 +348,17 @@ proof -
 
 subsubsection "Calculating Tests along m-Traversal-Paths"
 
+
+(*
+fun prefix_pair_tests :: "'a \<Rightarrow> (('a \<times> 'a) \<rightharpoonup> 'c ATC) \<Rightarrow> 'a Traversal_Path \<times> ('a set \<times> 'a set) \<Rightarrow> (('a \<times> 'a Traversal_Path) \<rightharpoonup> 'c ATC set)" where
+  "prefix_pair_tests q fRD (p, (rd,dr)) = 
+    foldl (\<lambda> prev (p1,p2) . prev) 
+          (insert (q,p) {} Map.empty)  
+          (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)) \<comment> \<open>ensure that a separator exists, assuming that the states in rd are pairwise r-d\<close>
+                  (prefix_pairs p))"
+
+*)
+
 fun prefix_pair_tests'' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c ATC) \<Rightarrow> 'a Traversal_Path \<times> ('a set \<times> 'a set) \<Rightarrow> ('a \<times> 'a Traversal_Path \<times> 'c ATC) list list" where
   "prefix_pair_tests'' q fRD (p, (rd,dr)) = (map (\<lambda> (p1,p2) . [(q,p1,fRD (target p1 q) (target p2 q)), (q,p2,fRD (target p1 q) (target p2 q))])      \<comment> \<open>retrieve separator using fRD\<close>
                                                  (filter (\<lambda> (p1,p2) . (target p1 q) \<in> rd \<and> (target p2 q) \<in> rd \<and> (target p1 q) \<noteq> (target p2 q)) \<comment> \<open>ensure that a separator exists, assuming that the states in rd are pairwise r-d\<close>
