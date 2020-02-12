@@ -71,11 +71,109 @@ end
 
 
 
+instantiation list :: (ord) ord
+begin
+
+fun less_eq_list ::  "'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
+  "less_eq_list [] xs = True" |
+  "less_eq_list (x#xs) [] = False" |
+  "less_eq_list (x#xs) (y#ys) = (x < y \<or> (x = y \<and> less_eq_list xs ys))"  
+
+fun less_list ::  "'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
+  "less_list a b = (a \<le> b \<and> a \<noteq> b)"
+
+instance by (intro_classes)
+end
+
+instantiation list :: (linorder) linorder
+begin
+
+lemma less_le_not_le_list :
+  fixes x :: "'a list"
+  and   y :: "'a list"
+shows "(x < y) = (x \<le> y \<and> \<not> y \<le> x)"
+proof 
+  show "x < y \<Longrightarrow> x \<le> y \<and> \<not> y \<le> x"
+    using less_eq_list.elims(2) by (induction rule: less_eq_list.induct; fastforce)
+  show "x \<le> y \<and> \<not> y \<le> x \<Longrightarrow> x < y"
+    by (induction rule: less_eq_list.induct; auto)
+qed
+
+  
+lemma order_refl_list :
+  fixes x :: "'a list"
+shows "x \<le> x"
+proof (induction x)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then show ?case by (cases xs; auto)
+qed
 
 
 
 
-definition calculate_test_suite_rbt :: "('a::linorder,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> ('a,'b) Preamble) list)" where
+
+lemma order_trans_list :
+  fixes x :: "'a list"
+  fixes y :: "'a list"
+  fixes z :: "'a list"
+shows "x \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z"
+proof (induction x arbitrary: y z)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then show ?case proof (induction y arbitrary: z)
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons y ys)
+    then show ?case proof (induction z)
+      case Nil
+      then show ?case by auto
+    next
+      case (Cons z zs)
+      from \<open>x # xs \<le> y # ys\<close> \<open>y # ys \<le> z # zs\<close>
+      consider "x < y" |
+               "x = y \<and> y < z" |
+               "x = y \<and> xs \<le> ys \<and> y = z \<and> ys \<le> zs"
+        using less_eq_list.simps(3) by blast 
+      then show ?case using Cons.prems(2,4) by (cases; auto)
+    qed
+  qed
+qed
+  
+
+lemma antisym_list :
+  fixes x :: "'a list"
+  fixes y :: "'a list"
+shows "x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y"
+  by (meson less_le_not_le_list less_list.elims(3))
+
+lemma linear_list :
+  fixes x :: "'a list"
+  fixes y :: "'a list"
+shows "x \<le> y \<or> y \<le> x"
+  by (induct rule: less_eq_list.induct; auto)
+
+
+
+
+instance 
+  using less_le_not_le_list order_refl_list order_trans_list antisym_list linear_list 
+  by (intro_classes; metis+)
+end
+
+
+
+
+
+
+
+
+definition calculate_test_suite_rbt :: "('a::linorder,'b) FSM_scheme \<Rightarrow> nat \<Rightarrow> (('a \<times> 'a Traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) set \<times> ('a \<times> ('a,'b) Preamble) list)" where
   "calculate_test_suite_rbt M m = 
     (let 
          RDSSL = r_distinguishable_state_pairs_with_separators_naive M;
@@ -96,7 +194,8 @@ definition calculate_test_suite_rbt :: "('a::linorder,'b) FSM_scheme \<Rightarro
          PreamblePairTests
               = preamble_pair_tests' DRSP RDSSL
       
-    in  (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests, DRSP))"
+    in  (set (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests), DRSP))"
+
 
 value "calculate_test_suite_rbt M_ex_H 4"
 
