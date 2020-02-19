@@ -15,7 +15,7 @@ record ('state, 'input, 'output) fsm_impl =
 definition set_as_map :: "('a \<times> 'b \<times> 'c) set \<Rightarrow> ('a \<times> 'b \<Rightarrow> 'c set option)" where
   "set_as_map s = (\<lambda> (x,y) . if (\<exists> z . (x,y,z) \<in> s) then Some {z . (x,y,z) \<in> s} else None)"
 
-
+(*
 lemma set_as_map_code[code] : "set_as_map (set xs) = (foldl (\<lambda> m (x,y,z) . case m (x,y) of
                                                                                   None \<Rightarrow> m ((x,y) \<mapsto> {z}) |
                                                                                   Some zs \<Rightarrow> m ((x,y) \<mapsto>  (insert z zs)))
@@ -113,6 +113,8 @@ proof -
   then show ?thesis
     unfolding set_as_map_def by simp
 qed
+*)
+
 
 
 

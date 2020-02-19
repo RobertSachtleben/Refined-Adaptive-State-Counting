@@ -6,6 +6,7 @@ abbreviation(input) "well_formed_fsm (M :: ('state, 'input, 'output) fsm_impl) \
       \<and> finite (nodes M)
       \<and> finite (inputs M)
       \<and> finite (outputs M)
+      \<and> finite (transitions M)
       \<and> (\<forall> t \<in> transitions M . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_target t \<in> nodes M \<and> t_output t \<in> outputs M)) " 
 
 typedef ('state, 'input, 'output) fsm = 
@@ -18,6 +19,7 @@ proof -
               \<and> finite (nodes M)
               \<and> finite (inputs M)
               \<and> finite (outputs M)
+              \<and> finite (transitions M)
               \<and> (\<forall> t \<in> transitions M . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_target t \<in> nodes M \<and> t_output t \<in> outputs M)"
     by auto
   then show ?thesis by blast
@@ -42,6 +44,18 @@ qed
 
 value "fsm_from_list 1 [(2::nat,3::nat,4::nat,5::nat)]"
 
+subsubsection \<open>Well-Formedness Properties Revisited\<close>
+
+lemma fsm_initial: "initial M \<in> nodes M" by (transfer; blast)
+lemma fsm_nodes_finite: "finite (nodes M)" by (transfer; blast)
+lemma fsm_inputs_finite: "finite (inputs M)" by (transfer; blast)
+lemma fsm_outputs_finite: "finite (outputs M)" by (transfer; blast)
+lemma fsm_transitions_finite: "finite (transitions M)" by (transfer; blast)
+lemma fsm_transition_source: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_source t \<in> nodes M" by (transfer; blast)
+lemma fsm_transition_target: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_target t \<in> nodes M" by (transfer; blast)
+lemma fsm_transition_input: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_input t \<in> inputs M" by (transfer; blast)
+lemma fsm_transition_output: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_output t \<in> outputs M" by (transfer; blast)
+
 
 subsection \<open>Example FSMs\<close>
 
@@ -63,8 +77,10 @@ subsection \<open>Transition Function h\<close>
 fun h :: "('state, 'input, 'output) fsm \<Rightarrow> ('state \<times> 'input) \<Rightarrow> ('output \<times> 'state) set" where
   "h M (q,x) = { (y,q') . (q,x,y,q') \<in> transitions M }"
 
+
 lemma h_code[code] : "h M (q,x) = (let m = set_as_map (transitions M) in (case m (q,x) of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
   unfolding set_as_map_def by auto
+
 
 value "h m_ex_H (1,0)"
 value "h m_ex_H (1,1)"
@@ -78,9 +94,14 @@ value "h m_ex_H (1,2)"
 
 
 
+lemma fsm_eq :
+  fixes M1 :: "('a,'b,'c) fsm"
+  fixes M2 :: "('a,'b,'c) fsm"
+  shows "M1 = M2 \<longleftrightarrow> initial M1 = initial M2 \<and> nodes M1 = nodes M2 \<and> inputs M1 = inputs M2 \<and> outputs M1 = outputs M2 \<and> transitions M1 = transitions M2"
+  apply transfer by auto
 
 
-
-
+(*declare [[code drop: h]] *)
+(*declare [[code drop: set_as_map]]*)
 
 end
