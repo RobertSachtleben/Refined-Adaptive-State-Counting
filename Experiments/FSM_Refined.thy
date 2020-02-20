@@ -23,19 +23,22 @@ value[code] "{1::nat}"
 
 
 
-instantiation fsm :: (equal,equal,equal) equal
-begin
+instantiation fsm :: (type,type,type) equal
+begin                                  
 definition equal_fsm :: "('a, 'b, 'c) fsm \<Rightarrow> ('a, 'b, 'c) fsm \<Rightarrow> bool" where
   "equal_fsm x y = (initial x = initial y \<and> nodes x = nodes y \<and> inputs x = inputs y \<and> outputs x = outputs y \<and> transitions x = transitions y)"
 
 instance
   apply (intro_classes)
   unfolding equal_fsm_def 
-  by (simp add: fsm_eq)
+  apply transfer by auto
 end 
 
 
-
+lemma fsm_eq :
+  fixes x :: "('a,'b,'c) fsm"
+  and   y :: "('a,'b,'c) fsm"
+shows "HOL.equal x y = (x = y)" using equal_class.equal by (metis (full_types))
 
 
 
@@ -172,7 +175,9 @@ lemma antisym_FSM :
   fixes y :: "('a,'b,'c) fsm"
 shows "x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y"
   unfolding less_eq_fsm.simps
-  by (metis fsm_eq order.asym set_less_aux_antisym)
+  using equal_fsm_def[of x y] 
+  unfolding equal_class.equal
+  by (metis order.asym set_less_aux_antisym)
 
 lemma linear_FSM :
   fixes x :: "('a,'b,'c) fsm"
@@ -366,7 +371,11 @@ value[code] "h (m_ex_H) (1,4)"
 
 (*code_printing class_instance integer :: mapping_impl \<rightharpoonup> (Haskell)*)
 code_deps h
-definition xy :: "(integer \<times> integer) \<Rightarrow> (integer \<times> integer) set" where "xy = h m_ex_H"
+
+(* TODO: xy is currently only added to force isabelle to export the mapping_impl instantiation of integer 
+  \<rightarrow> find out how to export instantiations OR
+  \<rightarrow> later only export the integer versions of the algorithms *)
+definition xy :: "(integer \<times> integer) \<Rightarrow> (integer \<times> integer) set" where "xy = h m_ex_H" 
 export_code open h m_ex_H FSM.initial mapping_impl xy in Haskell module_name H4
 
 end
