@@ -193,7 +193,7 @@ lemma path_append[intro!] :
   assumes "path M q p1"
       and "path M (target q p1) p2"
   shows "path M q (p1@p2)"
-using assms by (induct p1 arbitrary: p2; auto) 
+  using assms by (induct p1 arbitrary: p2; auto) 
 
 lemma path_target_is_node :
   assumes "path M q p"
@@ -232,10 +232,21 @@ lemma path_h :
   shows "set p \<subseteq> transitions M"
   using assms by (induct p arbitrary: q; fastforce)
 
+(* TODO: add simp ? *)
+lemma path_append_transition[intro!] :
+  assumes "path M q p"
+  and     "t \<in> transitions M"
+  and     "t_source t = target q p" 
+shows "path M q (p@[t])"
+  by (metis assms(1) assms(2) assms(3) cons fsm_transition_target nil path_append)
 
 
-
-
+lemma path_append_transition_elim[elim!] :
+  assumes "path M q (p@[t])"
+shows "path M q p"
+and   "t \<in> transitions M"
+and   "t_source t = target q p" 
+  using assms by auto
       
 
 subsubsection \<open>Paths of fixed length\<close>
@@ -279,44 +290,194 @@ abbreviation(input) "lookup_with_default f d \<equiv> (\<lambda> x . case f x of
 abbreviation(input) "m2f f \<equiv> lookup_with_default f {}" (* map to (set-valued) fun *)
 
 
-fun distinct_paths_up_to_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> ('a  \<Rightarrow> (('a\<times>'b\<times>'c\<times>'a) set option)) \<Rightarrow> 'b set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
-  "distinct_paths_up_to_length' prev q hF iM 0 = {prev}" |
-  "distinct_paths_up_to_length' prev q hF iM (Suc k) = 
-    (let tF = ((m2f hF) q)
-      in (insert prev (\<Union> (image (\<lambda> t . distinct_paths_up_to_length' (prev@[t]) (t_target t) ((hF)(q \<mapsto> {})) iM k) tF))))"
-
-end (*
-(* TODO : write set_as_map-version that copies the key into the first element of the value tuple:
-          s2m' (transitions_from M q) q' = {t : tr M . t_source t = q'  ? ? ? ? ?
-fun distinct_paths_up_to_length :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
-  "distinct_paths_up_to_length M q k = distinct_paths_up_to_length' [] q ((set_as_map (Set.filter (\<lambda>t . t_target t \<noteq> q) (transitions M)))) (inputs M) k"
+fun acyclic_paths_up_to_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> ('a  \<Rightarrow> (('b\<times>'c\<times>'a) set)) \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
+  "acyclic_paths_up_to_length' prev q hF visitedNodes 0 = {prev}" |
+  "acyclic_paths_up_to_length' prev q hF visitedNodes (Suc k) = 
+    (let tF = Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF q)
+      in (insert prev (\<Union> (image (\<lambda> (x,y,q') . acyclic_paths_up_to_length' (prev@[(q,x,y,q')]) q' hF (insert q' visitedNodes) k) tF))))"
 
 
+fun p_source :: "'a \<Rightarrow> ('a,'b,'c) path \<Rightarrow> 'a"
+  where "p_source q p = hd (visited_nodes q p)"
 
-value "distinct_paths_up_to_length m_ex_H 1 0"
-value "distinct_paths_up_to_length m_ex_H 1 1"
-value "distinct_paths_up_to_length m_ex_H 1 2"
-value "distinct_paths_up_to_length m_ex_H 1 3"
-value "distinct_paths_up_to_length m_ex_H 1 4"
-value "distinct_paths_up_to_length m_ex_H 1 5"
+lemma acyclic_paths_up_to_length'_prev : 
+  "p' \<in> acyclic_paths_up_to_length' (prev@prev') q hF visitedNodes k \<Longrightarrow> \<exists> p'' . p' = prev@p''" 
+  by (induction k arbitrary: p' q visitedNodes prev'; auto)
 
-lemma distinct_paths_up_to_length_set :
-  assumes "q \<in> nodes M"
-  and     "\<And> q'  . q' \<in> visited_nodes q p \<Longrightarrow> hM 
-  shows "distinct_paths_up_to_length M q k = { p . path M q p \<and> length p \<le> k \<and> distinct p }"
-using assms proof (induction k arbitrary: q)
+lemma acyclic_paths_up_to_length'_set :
+  assumes "path M (p_source q prev) prev"
+  and     "\<And> q' . hF q' = {(x,y,q'') | x y q'' . (q',x,y,q'') \<in> transitions M}"
+  and     "distinct (visited_nodes (p_source q prev) prev)"
+  and     "visitedNodes = set (visited_nodes (p_source q prev) prev)"
+shows "acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes k = { prev@p | p . path M (p_source q prev) (prev@p) \<and> length p \<le> k \<and> distinct (visited_nodes (p_source q prev) (prev@p)) }"
+using assms proof (induction k arbitrary: q hF prev visitedNodes)
   case 0
   then show ?case by auto
 next
   case (Suc k)
 
-  have "\<And> p . p \<in> distinct_paths_up_to_length M q (Suc k) \<Longrightarrow> path M q p \<and> length p \<le> (Suc k) \<and> distinct p"
-  proof -
-    fix p assume "p \<in> distinct_paths_up_to_length M q (Suc k)"
-    then have 
+  let ?tgt = "(target (p_source q prev) prev)"
 
-  then show ?case 
+  have "\<And> p . (prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) \<Longrightarrow> path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p))"
+  proof -
+    fix p assume "(prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
+    then consider (a) "(prev@p) = prev" |
+                  (b) "(prev@p) \<in> (\<Union> (image (\<lambda> (x,y,q') . acyclic_paths_up_to_length' (prev@[(?tgt,x,y,q')]) q' hF (insert q' visitedNodes) k) (Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF (target (p_source q prev) prev)))))"
+      by auto
+    then show "path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p))"
+    proof (cases)
+      case a
+      then show ?thesis using Suc.prems(1,3) by auto
+    next
+      case b
+      then obtain x y q' where *: "(x,y,q') \<in> Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF ?tgt)"
+                         and   **:"(prev@p) \<in> acyclic_paths_up_to_length' (prev@[(?tgt,x,y,q')]) q' hF (insert q' visitedNodes) k"
+        by auto
+
+      let ?t = "(?tgt,x,y,q')"
+
+      from * have "?t \<in> transitions M" and "q' \<notin> visitedNodes"
+        using Suc.prems(2)[of ?tgt] by simp+ 
+      moreover have "t_source ?t = target (p_source q prev) prev"
+        by simp
+      moreover have "p_source (p_source q prev) (prev@[?t]) = p_source q prev"
+        by auto
+      ultimately have p1: "path M (p_source (p_source q prev) (prev@[?t])) (prev@[?t])" using Suc.prems(1)
+        by (simp add: path_append_transition) 
+      
+      
+      have "q' \<notin> set (visited_nodes (p_source q prev) prev)"
+        using \<open>q' \<notin> visitedNodes\<close> Suc.prems(4) by auto
+      then have p2: "distinct (visited_nodes (p_source (p_source q prev) (prev@[?t])) (prev@[?t]))"
+        using Suc.prems(3) by auto
+
+      have p3: "(insert q' visitedNodes) = set (visited_nodes (p_source (p_source q prev) (prev@[?t])) (prev@[?t]))"
+        using Suc.prems(4) by auto
+
+      have ***: "(target (p_source (p_source q prev) (prev @ [(target (p_source q prev) prev, x, y, q')])) (prev @ [(target (p_source q prev) prev, x, y, q')])) = q'"
+        by auto
+
+      show ?thesis
+        using Suc.IH[OF p1 Suc.prems(2) p2 p3] ** 
+        unfolding *** 
+        unfolding \<open>p_source (p_source q prev) (prev@[?t]) = p_source q prev\<close>
+      proof -
+        assume "acyclic_paths_up_to_length' (prev @ [(target (p_source q prev) prev, x, y, q')]) q' hF (insert q' visitedNodes) k = {(prev @ [(target (p_source q prev) prev, x, y, q')]) @ p |p. path M (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ p) \<and> length p \<le> k \<and> distinct (visited_nodes (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ p))}"
+        then have "\<exists>ps. prev @ p = (prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps \<and> path M (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps) \<and> length ps \<le> k \<and> distinct (visited_nodes (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps))"
+          using \<open>prev @ p \<in> acyclic_paths_up_to_length' (prev @ [(target (p_source q prev) prev, x, y, q')]) q' hF (insert q' visitedNodes) k\<close> by blast
+        then show ?thesis
+          by (metis (no_types) Suc_le_mono append.assoc append.right_neutral append_Cons length_Cons same_append_eq)
+      qed 
+    qed
+  qed
+  moreover have "\<And> p' . p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) \<Longrightarrow> \<exists> p'' . p' = prev@p''"
+    using acyclic_paths_up_to_length'_prev[of _ prev "[]" "target (p_source q prev) prev" hF visitedNodes "Suc k"] by force
+  ultimately have fwd: "\<And> p' . p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) \<Longrightarrow> p' \<in> { prev@p | p . path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p)) }"
+    by blast
+
+  have "\<And> p . path M (p_source q prev) (prev@p) \<Longrightarrow> length p \<le> Suc k \<Longrightarrow> distinct (visited_nodes (p_source q prev) (prev@p)) \<Longrightarrow> (prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
+  proof -
+    fix p assume "path M (p_source q prev) (prev@p)"
+          and    "length p \<le> Suc k"
+          and    "distinct (visited_nodes (p_source q prev) (prev@p))"
+
+    show "(prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
+    proof (cases p)
+      case Nil
+      then show ?thesis by auto
+    next
+      case (Cons t p')
+
+      then have "t_source t = target (p_source q (prev)) (prev)" and "t \<in> transitions M"
+        using \<open>path M (p_source q prev) (prev@p)\<close> by auto
+      
+      have "path M (p_source q (prev@[t])) ((prev@[t])@p')"
+      and  "path M (p_source q (prev@[t])) ((prev@[t]))"
+        using Cons \<open>path M (p_source q prev) (prev@p)\<close> by auto
+      have "length p' \<le> k"
+        using Cons \<open>length p \<le> Suc k\<close> by auto
+      have "distinct (visited_nodes (p_source q (prev@[t])) ((prev@[t])@p'))"
+      and  "distinct (visited_nodes (p_source q (prev@[t])) ((prev@[t])))" 
+        using Cons \<open>distinct (visited_nodes (p_source q prev) (prev@p))\<close> by auto
+      then have "t_target t \<notin> visitedNodes"
+        using Suc.prems(4) by auto
+
+      let ?vN = "insert (t_target t) visitedNodes"
+      have "?vN = set (visited_nodes (p_source q (prev @ [t])) (prev @ [t]))"
+        using Suc.prems(4) by auto
+
+      have "prev@p = prev@([t]@p')"
+        using Cons by auto
+
+      have "(prev@[t])@p' \<in> acyclic_paths_up_to_length' (prev @ [t]) (target (p_source q (prev @ [t])) (prev @ [t])) hF (insert (t_target t) visitedNodes) k" 
+        using Suc.IH[of q "prev@[t]", OF \<open>path M (p_source q (prev@[t])) ((prev@[t]))\<close> Suc.prems(2)
+                                         \<open>distinct (visited_nodes (p_source q (prev@[t])) ((prev@[t])))\<close> 
+                                         \<open>?vN = set (visited_nodes (p_source q (prev @ [t])) (prev @ [t]))\<close> ]
+        using \<open>path M (p_source q (prev@[t])) ((prev@[t])@p')\<close>
+              \<open>length p' \<le> k\<close>
+              \<open>distinct (visited_nodes (p_source q (prev@[t])) ((prev@[t])@p'))\<close> 
+        by force
+
+      then have "(prev@[t])@p' \<in> acyclic_paths_up_to_length' (prev@[t]) (t_target t) hF ?vN k"
+        by auto
+      moreover have "(t_input t,t_output t, t_target t) \<in> Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF (t_source t))"
+        using Suc.prems(2)[of "t_source t"] \<open>t \<in> transitions M\<close> \<open>t_target t \<notin> visitedNodes\<close>
+      proof -
+        have "\<exists>b c a. snd t = (b, c, a) \<and> (t_source t, b, c, a) \<in> FSM.transitions M"
+          by (metis (no_types) \<open>t \<in> FSM.transitions M\<close> prod.collapse)
+        then show ?thesis
+          using \<open>hF (t_source t) = {(x, y, q'') |x y q''. (t_source t, x, y, q'') \<in> FSM.transitions M}\<close> \<open>t_target t \<notin> visitedNodes\<close> by fastforce
+      qed 
+      ultimately have "\<exists> (x,y,q') \<in> (Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF (target (p_source q prev) prev))) .
+                        (prev@[t])@p' \<in> (acyclic_paths_up_to_length' (prev@[((target (p_source q prev) prev),x,y,q')]) q' hF (insert q' visitedNodes) k)"
+        unfolding \<open>t_source t = target (p_source q (prev)) (prev)\<close>
+        by (metis (no_types, lifting) \<open>t_source t = target (p_source q prev) prev\<close> case_prodI prod.collapse) 
+       
+      then show ?thesis unfolding \<open>prev@p = prev@[t]@p'\<close> 
+        unfolding acyclic_paths_up_to_length'.simps Let_def by force
+    qed
+  qed
+  then have rev: "\<And> p' . p' \<in> {prev@p | p . path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p))} \<Longrightarrow> p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
+    by blast
+  
+  show ?case
+    using fwd rev by blast
 qed 
 
+
+fun acyclic_paths_up_to_length :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
+  "acyclic_paths_up_to_length M q k = { p . path M q p \<and> length p \<le> k \<and> distinct (visited_nodes q p) }"
+
+lemma acyclic_paths_up_to_length_code[code] :
+  "acyclic_paths_up_to_length M q k = (if q \<in> nodes M 
+      then acyclic_paths_up_to_length' [] q (m2f (set_as_map (transitions M))) {q} k
+      else {})"
+proof (cases "q \<in> nodes M")
+  case False
+  then have "acyclic_paths_up_to_length M q k = {}" 
+    using path_begin_node by fastforce
+  then show ?thesis using False by auto
+next
+  case True
+  then have *: "path M (p_source q []) []" by auto
+  have **: "(\<And>q'. (m2f (set_as_map (transitions M))) q' = {(x, y, q'') |x y q''. (q', x, y, q'') \<in> FSM.transitions M})"
+    unfolding set_as_map_def by auto 
+  have ***: "distinct (visited_nodes (p_source q []) [])"
+    by auto
+  have ****: "{q} = set (visited_nodes (p_source q []) [])"
+    by auto
+  
+  show ?thesis
+    using acyclic_paths_up_to_length'_set[OF * ** *** ****, of k ] 
+    using True by auto
+qed
+  
+
+value "acyclic_paths_up_to_length m_ex_H 1 0"
+value "acyclic_paths_up_to_length m_ex_H 1 1"
+value "acyclic_paths_up_to_length m_ex_H 1 2"
+value "acyclic_paths_up_to_length m_ex_H 1 3"
+value "acyclic_paths_up_to_length m_ex_H 1 4"
+value "acyclic_paths_up_to_length m_ex_H 1 5"
 
 end
