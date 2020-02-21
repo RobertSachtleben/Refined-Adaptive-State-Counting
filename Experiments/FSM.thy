@@ -227,7 +227,7 @@ lemma path_append_target_hd :
 using assms by (induction p) (simp+)
 
 
-lemma path_h :
+lemma path_transitions :
   assumes "path M q p"
   shows "set p \<subseteq> transitions M"
   using assms by (induct p arbitrary: q; fastforce)
@@ -247,7 +247,55 @@ shows "path M q p"
 and   "t \<in> transitions M"
 and   "t_source t = target q p" 
   using assms by auto
-      
+
+lemma path_prepend_t : "path M q' p \<Longrightarrow> (q,x,y,q') \<in> transitions M \<Longrightarrow> path M q ((q,x,y,q')#p)" 
+  by (metis (mono_tags, lifting) fst_conv path.intros(2) prod.sel(2)) 
+
+lemma path_target_append : "target q1 p1 = q2 \<Longrightarrow> target q2 p2 = q3 \<Longrightarrow> target q1 (p1@p2) = q3" by auto
+
+lemma single_transition_path : "t \<in> transitions M \<Longrightarrow> path M (t_source t) [t]" by auto
+
+lemma path_source_target_index :
+  assumes "Suc i < length p"
+  and     "path M q p"
+shows "t_target (p ! i) = t_source (p ! (Suc i))"
+  using assms proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc t ps)
+  then have "path M q ps" and "t_source t = target q ps" and "t \<in> transitions M" by auto
+  
+  show ?case proof (cases "Suc i < length ps")
+    case True
+    then have "t_target (ps ! i) = t_source (ps ! Suc i)" 
+      using snoc.IH \<open>path M q ps\<close> by auto
+    then show ?thesis
+      by (simp add: Suc_lessD True nth_append) 
+  next
+    case False
+    then have "Suc i = length ps"
+      using snoc.prems(1) by auto
+    then have "(ps @ [t]) ! Suc i = t"
+      by auto
+
+    show ?thesis proof (cases "ps = []")
+      case True
+      then show ?thesis using \<open>Suc i = length ps\<close> by auto
+    next
+      case False
+      then have "target q ps = t_target (last ps)"
+        unfolding target.simps visited_nodes.simps
+        by (simp add: last_map) 
+      then have "target q ps = t_target (ps ! i)"
+        using \<open>Suc i = length ps\<close>
+        by (metis False diff_Suc_1 last_conv_nth) 
+      then show ?thesis 
+        using \<open>t_source t = target q ps\<close>
+        by (metis \<open>(ps @ [t]) ! Suc i = t\<close> \<open>Suc i = length ps\<close> lessI nth_append) 
+    qed
+  qed   
+qed
 
 subsubsection \<open>Paths of fixed length\<close>
 
@@ -281,7 +329,7 @@ value "paths_up_to_length m_ex_H 1 2"
 
 (* TODO: correctness / completeness properties *)
 
-subsubsection \<open>Calculating Distinct Paths\<close>
+subsubsection \<open>Calculating Acyclic Paths\<close>
 
 abbreviation "member_option x ms \<equiv> (case ms of None \<Rightarrow> False | Some xs \<Rightarrow> x \<in> xs)"
 notation member_option ("(_\<in>\<^sub>o_)" [1000] 1000)
@@ -479,5 +527,211 @@ value "acyclic_paths_up_to_length m_ex_H 1 2"
 value "acyclic_paths_up_to_length m_ex_H 1 3"
 value "acyclic_paths_up_to_length m_ex_H 1 4"
 value "acyclic_paths_up_to_length m_ex_H 1 5"
+
+
+subsection \<open>Acyclic Paths\<close>
+
+lemma visited_nodes_prefix :
+  assumes "q' \<in> set (visited_nodes q p)"
+  shows   "\<exists> p1 p2 . p = p1@p2 \<and> target q p1 = q'"
+using assms proof (induction p arbitrary: q)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a p)
+  then show ?case 
+  proof (cases "q' \<in> set (visited_nodes (t_target a) p)")
+    case True
+    then obtain p1 p2 where "p = p1 @ p2 \<and> target (t_target a) p1 = q'"
+      using Cons.IH by blast
+    then have "(a#p) = (a#p1)@p2 \<and> target q (a#p1) = q'"
+      by auto
+    then show ?thesis by blast
+  next
+    case False
+    then have "q' = q" 
+      using Cons.prems by auto     
+    then show ?thesis
+      by auto 
+  qed
+qed 
+
+
+lemma cyclic_path_loop :
+  assumes "path M q p"
+  and     "\<not> distinct (visited_nodes q p)"
+shows "\<exists> p1 p2 p3 . p = p1@p2@p3 \<and> p2 \<noteq> [] \<and> target q p1 = target q (p1@p2)"
+using assms proof (induction p arbitrary: q)
+  case (nil M q)
+  then show ?case by auto
+next
+  case (cons t M ts)
+  then show ?case 
+  proof (cases "distinct (visited_nodes (t_target t) ts)")
+    case True
+    then have "q \<in> set (visited_nodes (t_target t) ts)"
+      using cons.prems by simp 
+    then obtain p2 p3 where "ts = p2@p3" and "target (t_target t) p2 = q" 
+      using visited_nodes_prefix[of q "t_target t" ts] by blast
+    then have "(t#ts) = []@(t#p2)@p3 \<and> (t#p2) \<noteq> [] \<and> target q [] = target q ([]@(t#p2))"
+      using cons.hyps by auto
+    then show ?thesis by blast
+  next
+    case False
+    then obtain p1 p2 p3 where "ts = p1@p2@p3" and "p2 \<noteq> []" and "target (t_target t) p1 = target (t_target t) (p1@p2)" 
+      using cons.IH by blast
+    then have "t#ts = (t#p1)@p2@p3 \<and> p2 \<noteq> [] \<and> target q (t#p1) = target q ((t#p1)@p2)"
+      by simp
+    then show ?thesis by blast    
+  qed
+qed
+
+
+lemma cyclic_path_pumping :
+  assumes "path M (initial M) p" 
+      and "\<not> distinct (visited_nodes (initial M) p)"
+  shows "\<exists> p . path M (initial M) p \<and> length p \<ge> n"
+proof -
+  from assms obtain p1 p2 p3 where "p = p1 @ p2 @ p3" and "p2 \<noteq> []" and "target (initial M) p1 = target (initial M) (p1 @ p2)"
+    using cyclic_path_loop[of M "initial M" p] by blast
+  then have "path M (target (initial M) p1) p3"
+    using path_suffix[of M "initial M" "p1@p2" p3] \<open>path M (initial M) p\<close> by auto
+  
+  have "path M (initial M) p1"
+    using path_prefix[of M "initial M" p1 "p2@p3"] \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> by auto
+  have "path M (initial M) ((p1@p2)@p3)"
+    using \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> by auto
+  have "path M (target (initial M) p1) p2" 
+    using path_suffix[of M "initial M" p1 p2, OF path_prefix[of M "initial M" "p1@p2" p3, OF \<open>path M (initial M) ((p1@p2)@p3)\<close>]] by assumption
+  have "target (target (initial M) p1) p2 = (target (initial M) p1)"
+    using path_append_target \<open>target (initial M) p1 = target (initial M) (p1 @ p2)\<close> by auto
+  
+  have "path M (initial M) (p1 @ (concat (replicate n p2)) @ p3)"  
+  proof (induction n)
+    case 0 
+    then show ?case using path_append[OF \<open>path M (initial M) p1\<close> \<open>path M (target (initial M) p1) p3\<close>]  by auto
+  next
+    case (Suc n)
+    then show ?case
+      using \<open>path M (target (initial M) p1) p2\<close> \<open>target (target (initial M) p1) p2 = target (initial M) p1\<close> by auto 
+  qed
+  moreover have "length (p1 @ (concat (replicate n p2)) @ p3) \<ge> n"
+  proof -
+    have "length (concat (replicate n p2)) = n * (length p2)" 
+      using concat_replicate_length by metis
+    moreover have "length p2 > 0"
+      using \<open>p2 \<noteq> []\<close> by auto
+    ultimately have "length (concat (replicate n p2)) \<ge> n"
+      by (simp add: Suc_leI)
+    then show ?thesis by auto
+  qed
+  ultimately show "\<exists> p . path M (initial M) p \<and> length p \<ge> n" by blast
+qed
+
+
+lemma cyclic_path_shortening : 
+  assumes "path M q p"
+  and     "\<not> distinct (visited_nodes q p)"
+shows "\<exists> p' . path M q p' \<and> target q p' = target q p \<and> length p' < length p"
+proof -
+  obtain p1 p2 p3 where *: "p = p1@p2@p3 \<and> p2 \<noteq> [] \<and> target q p1 = target q (p1@p2)" 
+    using cyclic_path_loop[OF assms] by blast
+  then have "path M q (p1@p3)"
+    using assms(1) by force
+  moreover have "target q (p1@p3) = target q p"
+    by (metis (full_types) * path_append_target)
+  moreover have "length (p1@p3) < length p"
+    using * by auto
+  ultimately show ?thesis by blast
+qed
+
+
+
+lemma paths_finite : "finite { p . path M q p \<and> length p \<le> k }"
+proof -
+  have "{ p . path M q p \<and> length p \<le> k } \<subseteq> {xs . set xs \<subseteq> transitions M \<and> length xs \<le> k}"
+    by (metis (no_types, lifting) Collect_mono path_transitions)     
+  then show "finite { p . path M q p \<and> length p \<le> k }"
+    using finite_lists_length_le[OF fsm_transitions_finite[of M], of k]
+    by (metis (mono_tags) finite_subset) 
+qed
+
+
+lemma acyclic_path_from_cyclic_path :
+  assumes "path M q p"
+  and     "\<not> distinct (visited_nodes q p)"
+obtains p' where "path M q p'" and "target q p = target q p'" and "distinct (visited_nodes q p')"
+proof -
+  
+  let ?paths = "{p' . (path M q p' \<and> target q p' = target q p \<and> length p' \<le> length p)}"
+  let ?minPath = "arg_min length (\<lambda> io . io \<in> ?paths)" 
+  
+  have "?paths \<noteq> empty" 
+    using assms(1) by auto
+  moreover have "finite ?paths" 
+    using paths_finite[of M q "length p"]
+    by (metis (no_types, lifting) Collect_mono rev_finite_subset)
+  ultimately have minPath_def : "?minPath \<in> ?paths \<and> (\<forall> p' \<in> ?paths . length ?minPath \<le> length p')" 
+    by (meson arg_min_nat_lemma equals0I)
+  then have "path M q ?minPath" and "target q ?minPath = target q p" 
+    by auto
+  
+  moreover have "distinct (visited_nodes q ?minPath)"
+  proof (rule ccontr)
+    assume "\<not> distinct (visited_nodes q ?minPath)"
+    have "\<exists> p' . path M q p' \<and> target q p' = target q p \<and> length p' < length ?minPath" 
+      using cyclic_path_shortening[OF \<open>path M q ?minPath\<close> \<open>\<not> distinct (visited_nodes q ?minPath)\<close>] minPath_def
+            \<open>target q ?minPath= target q p\<close> by auto
+    then show "False" 
+      using minPath_def using arg_min_nat_le dual_order.strict_trans1 by auto 
+  qed
+
+  ultimately show ?thesis
+    by (simp add: that)
+qed    
+
+
+lemma distinct_path_length_limit :
+  assumes "path M q p"
+  and     "distinct (visited_nodes q p)"
+shows "length p < size M"
+proof (rule ccontr)
+  assume *: "\<not> length p < size M"
+  then have "length p \<ge> card (nodes M)"
+    using size_def by auto
+  then have "length (visited_nodes q p) > card (nodes M)"
+    by auto
+  moreover have "set (visited_nodes q p) \<subseteq> nodes M"
+    by (metis assms(1) path_prefix path_target_is_node subsetI visited_nodes_prefix)
+  ultimately have "\<not> distinct (visited_nodes q p)"
+    using distinct_card[OF assms(2)] 
+    using List.finite_set[of "visited_nodes q p"]
+    by (metis card_mono fsm_nodes_finite leD) 
+  then show "False" using assms(2) by blast
+qed
+
+
+
+
+subsection \<open>Reachable Nodes\<close>
+
+definition reachable :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool" where
+  "reachable M q = (\<exists> p . path M (initial M) p \<and> target (initial M) p = q)"
+
+lemma transition_subset_path : 
+  assumes "transitions A \<subseteq> transitions B"
+  and "path A q p"
+  and "q \<in> nodes B"
+shows "path B q p"
+using assms(2) proof (induction p rule: rev_induct)
+  case Nil
+  show ?case using assms(3) by auto
+next
+  case (snoc t p)
+  then show ?case using assms(1) path_suffix
+    by fastforce   
+qed
+
+
 
 end
