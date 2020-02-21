@@ -691,7 +691,7 @@ proof -
 qed    
 
 
-lemma distinct_path_length_limit :
+lemma acyclic_path_length_limit :
   assumes "path M q p"
   and     "distinct (visited_nodes q p)"
 shows "length p < size M"
@@ -710,14 +710,11 @@ proof (rule ccontr)
   then show "False" using assms(2) by blast
 qed
 
-
-
-
-subsection \<open>Reachable Nodes\<close>
-
-definition reachable :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool" where
-  "reachable M q = (\<exists> p . path M (initial M) p \<and> target (initial M) p = q)"
-
+lemma visited_states_are_nodes :
+  assumes "path M q1 p"
+  shows "set (visited_nodes q1 p) \<subseteq> nodes M" 
+  by (metis assms path_prefix path_target_is_node subsetI visited_nodes_prefix) 
+  
 lemma transition_subset_path : 
   assumes "transitions A \<subseteq> transitions B"
   and "path A q p"
@@ -730,6 +727,50 @@ next
   case (snoc t p)
   then show ?case using assms(1) path_suffix
     by fastforce   
+qed
+
+
+
+subsection \<open>Reachable Nodes\<close>
+
+definition reachable :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool" where
+  "reachable M q = (\<exists> p . path M (initial M) p \<and> target (initial M) p = q)"
+
+definition reachable_nodes :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a set" where
+  "reachable_nodes M q = {q . \<exists> p . path M (initial M) p \<and> target (initial M) p = q }"
+
+lemma acyclic_paths_set :
+  "acyclic_paths_up_to_length M q (size M - 1) = {p . path M q p \<and> distinct (visited_nodes q p)}"
+  unfolding acyclic_paths_up_to_length.simps using acyclic_path_length_limit[of M q]
+  by (metis (no_types, lifting) One_nat_def Suc_pred cyclic_path_shortening leD list.size(3) not_less_eq_eq not_less_zero path.intros(1) path_begin_node) 
+
+
+
+lemma reachable_nodes_code[code] : 
+  "reachable_nodes M q = image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1))"
+proof -
+  have "\<And> q' . q' \<in> reachable_nodes M q \<Longrightarrow> q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1))"
+  proof -
+    fix q' assume "q' \<in> reachable_nodes M q"
+    then obtain p where "path M (initial M) p" and "target (initial M) p = q'"
+      unfolding reachable_nodes_def by blast
+    
+    obtain p' where "path M (initial M) p'" and "target (initial M) p' = q'" and "distinct (visited_nodes (initial M) p')"
+    proof (cases "distinct (visited_nodes (initial M) p)")
+      case True
+      then show ?thesis using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q'\<close> that by auto
+    next
+      case False
+      then show ?thesis 
+        using acyclic_path_from_cyclic_path[OF \<open>path M (initial M) p\<close>] 
+        unfolding \<open>target (initial M) p = q'\<close> using that by blast
+    qed
+    then show "q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1))"
+      unfolding acyclic_paths_set by force
+  qed
+  moreover have "\<And> q' . q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1)) \<Longrightarrow> q' \<in> reachable_nodes M q"
+    unfolding reachable_nodes_def acyclic_paths_set by blast
+  ultimately show ?thesis by blast
 qed
 
 
