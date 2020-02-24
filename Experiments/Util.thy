@@ -1513,4 +1513,53 @@ lemma map_set :
   shows "f x \<in> set (map f xs)" using assms by auto
 
 
+lemma maximal_distinct_prefix :
+  assumes "\<not> distinct xs"
+  obtains n where "distinct (take (Suc n) xs)"
+            and   "\<not> (distinct (take (Suc (Suc n)) xs))"
+using assms proof (induction xs rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc x xs)
+  
+  show ?case proof (cases "distinct xs")
+    case True
+    then have "distinct (take (length xs) (xs@[x]))" by auto
+    moreover have"\<not> (distinct (take (Suc (length xs)) (xs@[x])))" using snoc.prems(2) by auto
+    ultimately show ?thesis using that by (metis Suc_pred distinct_singleton length_greater_0_conv self_append_conv2 snoc.prems(1) snoc.prems(2))
+  next
+    case False
+    
+    then show ?thesis using snoc.IH that
+      by (metis Suc_mono butlast_snoc length_append_singleton less_SucI linorder_not_le snoc.prems(1) take_all take_butlast) 
+  qed
+qed 
+
+
+(* TODO: continue if necessary *)
+(*
+subsection \<open>Transitive Closure\<close>
+
+inductive trancl_from :: "'a \<Rightarrow> ('a \<Rightarrow> 'a set) \<Rightarrow> 'a \<Rightarrow> bool" where
+  "b \<in> f a \<Longrightarrow> trancl_from a f b" |
+  "c \<in> f b \<Longrightarrow> trancl_from a f b \<Longrightarrow> trancl_from a f c"
+
+fun trancl_from' :: "nat \<Rightarrow> 'a set \<Rightarrow> ('a \<Rightarrow> 'a set) \<Rightarrow> 'a set" where
+  "trancl_from' 0 qs f = {}" |
+  "trancl_from' (Suc k) qs f = qs \<union> (\<Union> (image (\<lambda> q . trancl_from' k (f q) f) qs))"
+
+(* use (c)sorted_list_of_set *)
+fun trancl_from'' :: "nat \<Rightarrow> 'a list \<Rightarrow> ('a \<Rightarrow> 'a list) \<Rightarrow> 'a set \<Rightarrow> 'a set" where
+  "trancl_from'' 0 _ _ prev = prev" |
+  "trancl_from'' _ [] _ prev = prev" |
+  "trancl_from'' (Suc k) (q#qs) f prev = 
+    (let unknowns = filter (\<lambda> q' . q' \<notin> prev) (f q)
+      in trancl_from'' k (unknowns@qs) f (prev \<union> set unknowns))"
+
+
+value "trancl_from' 1 {0::nat} ((\<lambda> x . {1,2})(1:={3},2:={4}))"
+value "trancl_from'' 0 [0::nat] ((\<lambda> x . [1,2])(1:=[3],2:=[4])) {0}"
+*)
+
 end
