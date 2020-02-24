@@ -23,22 +23,7 @@ value[code] "{1::nat}"
 
 
 
-instantiation fsm :: (type,type,type) equal
-begin                                  
-definition equal_fsm :: "('a, 'b, 'c) fsm \<Rightarrow> ('a, 'b, 'c) fsm \<Rightarrow> bool" where
-  "equal_fsm x y = (initial x = initial y \<and> nodes x = nodes y \<and> inputs x = inputs y \<and> outputs x = outputs y \<and> transitions x = transitions y)"
 
-instance
-  apply (intro_classes)
-  unfolding equal_fsm_def 
-  apply transfer by auto
-end 
-
-
-lemma fsm_eq :
-  fixes x :: "('a,'b,'c) fsm"
-  and   y :: "('a,'b,'c) fsm"
-shows "HOL.equal x y = (x = y)" using equal_class.equal by (metis (full_types))
 
 
 

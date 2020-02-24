@@ -35,6 +35,11 @@ fun fsm_impl_from_list :: "'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times>
                                       , outputs = image t_output ts'
                                       , transitions = ts' \<rparr>)"
 
+subsection \<open>Changing the initial State\<close>
+
+fun from_FSM :: "('a,'b,'c) fsm_impl \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "from_FSM M q = (if q \<in> nodes M then \<lparr> initial = q, nodes = nodes M, inputs = inputs M, outputs = outputs M, transitions = transitions M \<rparr> else M)"
+
 
 
 end

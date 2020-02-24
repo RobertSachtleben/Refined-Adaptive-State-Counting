@@ -1,5 +1,5 @@
 theory Util
-  imports Main
+  imports Main HOL.Finite_Set
 begin
 
 subsection \<open>Converting Sets to Maps\<close>
@@ -1561,5 +1561,21 @@ fun trancl_from'' :: "nat \<Rightarrow> 'a list \<Rightarrow> ('a \<Rightarrow> 
 value "trancl_from' 1 {0::nat} ((\<lambda> x . {1,2})(1:={3},2:={4}))"
 value "trancl_from'' 0 [0::nat] ((\<lambda> x . [1,2])(1:=[3],2:=[4])) {0}"
 *)
+
+
+
+fun reachable_nodes_dfs :: "nat \<Rightarrow> ('a::linorder) set \<Rightarrow> ('a \<Rightarrow> 'a set) \<Rightarrow> 'a set \<Rightarrow> 'a set" where
+  "reachable_nodes_dfs 0 _ _ visitedNodes = visitedNodes" |
+  "reachable_nodes_dfs (Suc k) nodesToHandle f visitedNodes = 
+    (if nodesToHandle = {} 
+      then visitedNodes
+      else (let q = Max nodesToHandle;
+                visitedNodes'  = (insert q visitedNodes) \<union> f q;
+                nodesToHandle' = (nodesToHandle \<union> f q) - (insert q visitedNodes)
+             in reachable_nodes_dfs k nodesToHandle' f visitedNodes'))"
+
+value "reachable_nodes_dfs 10 {1::nat} ((\<lambda>x . {})(1:={2,3},2:={1,4},3:={2,4},4:={1,2})) {1}"
+                       
+  
 
 end
