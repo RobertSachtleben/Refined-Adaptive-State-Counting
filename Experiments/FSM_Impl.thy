@@ -44,14 +44,14 @@ subsection \<open>Product Construction\<close>
 
 fun product :: "('a,'b,'c) fsm_impl \<Rightarrow> ('d,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'd,'b,'c) fsm_impl" where
   "product A B = \<lparr> initial = (initial A, initial B),
-                   nodes   = {(qA,qB) | qA qB . qA \<in> nodes A \<and> qB \<in> nodes B},
+                   nodes   = (nodes A) \<times> (nodes B),
                    inputs  = inputs A \<union> inputs B,
                    outputs  = outputs A \<union> outputs B,
                    transitions = {((qA,qB),x,y,(qA',qB')) | qA qB x y qA' qB' . (qA,x,y,qA') \<in> transitions A \<and> (qB,x,y,qB') \<in> transitions B} \<rparr>"
 
 lemma product_code_naive[code] :
   "product A B = \<lparr> initial = (initial A, initial B),
-                   nodes   = (\<Union>(image (\<lambda> qA . image (\<lambda> qB . (qA,qB)) (nodes B)) (nodes A))) ,
+                   nodes   = (nodes A) \<times> (nodes B) ,
                    inputs  = inputs A \<union> inputs B,
                    outputs  = outputs A \<union> outputs B,
                    transitions = image (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . ((qA,qB),x,y,(qA',qB'))) (Set.filter (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . x = x' \<and> y = y') (\<Union>(image (\<lambda> tA . image (\<lambda> tB . (tA,tB)) (transitions B)) (transitions A)))) \<rparr>"

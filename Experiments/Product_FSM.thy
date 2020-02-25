@@ -62,14 +62,14 @@ qed
 value "product m_ex_H m_ex_9"
 value "reachable_nodes (product m_ex_H m_ex_9)"
 
-abbreviation(input) "left_path p \<equiv> map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p"
-abbreviation(input) "right_path p \<equiv> map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p"
-abbreviation(input) "zip_path p1 p2 \<equiv> (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))"
+abbreviation "left_path p \<equiv> map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p"
+abbreviation "right_path p \<equiv> map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p"
+abbreviation "zip_path p1 p2 \<equiv> (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))"
 
 
 lemma product_simps[simp]:
   "initial (product A B) = (initial A, initial B)"  
-  "nodes (product A B) = {(qA,qB) | qA qB . qA \<in> nodes A \<and> qB \<in> nodes B}"
+  "nodes (product A B) = (nodes A) \<times> (nodes B)"
   "inputs (product A B) = inputs A \<union> inputs B"
   "outputs (product A B) = outputs A \<union> outputs B"  
   by (transfer; simp)+
@@ -261,131 +261,70 @@ qed
 
 
 
+lemma zip_path_left_right[simp] :
+  "(zip_path (left_path p) (right_path p)) = p" by (induction p; auto)
+
+lemma product_reachable_node_paths :
+  assumes "(q1,q2) \<in> reachable_nodes (product A B)" 
+obtains p1 p2 
+  where "path A (initial A) p1" 
+  and   "path B (initial B) p2" 
+  and   "target (initial A) p1 = q1" 
+  and   "target (initial B) p2 = q2" 
+  and   "p_io p1 = p_io p2"
+  and   "path (product A B) (initial (product A B)) (zip_path p1 p2)"
+  and   "target (initial (product A B)) (zip_path p1 p2) = (q1,q2)"
+proof -
+  let ?P = "product A B"
+  from assms obtain p where "path ?P (initial ?P) p" and "target (initial ?P) p = (q1,q2)"
+    unfolding reachable_nodes_def by auto
+  
+  have "path A (initial A) (left_path p)"
+   and "path B (initial B) (right_path p)"
+   and "target (initial A) (left_path p) = q1"
+   and "target (initial B) (right_path p) = q2"
+    using paths_from_product_path[OF \<open>path ?P (initial ?P) p\<close>] \<open>target (initial ?P) p = (q1,q2)\<close> by auto
+
+  moreover have "p_io (left_path p) = p_io (right_path p)" by auto
+  moreover have "path (product A B) (initial (product A B)) (zip_path (left_path p) (right_path p))"
+    using \<open>path ?P (initial ?P) p\<close> by auto
+  moreover have "target (initial (product A B)) (zip_path (left_path p) (right_path p)) = (q1,q2)"
+    using \<open>target (initial ?P) p = (q1,q2)\<close> by auto
+  ultimately show ?thesis using that by blast
+qed
+
+
+
+
 lemma product_reachable_nodes[iff] :
   "(q1,q2) \<in> reachable_nodes (product A B) \<longleftrightarrow> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-
-
-
-end (* lemma product_transition :
-  "((q1,q2),x,y,(q1',q2')) \<in> transitions (product A B) \<longleftrightarrow> (q1,x,y,q1') \<in> transitions A \<and> (q2,x,y,q2') \<in> transitions B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
 proof 
-  show "((q1,q2),x,y,(q1',q2')) \<in> transitions (product A B) \<Longrightarrow> (q1,x,y,q1') \<in> transitions A \<and> (q2,x,y,q2') \<in> transitions B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-  proof -
-    assume "((q1,q2),x,y,(q1',q2')) \<in> transitions (product A B)"
-    then have "(q1,q2) \<in> nodes (product A B)"
-      by (metis fst_conv wf_transition_simp) 
-    then obtain p where "path (product A B) (initial (product A B)) p" and "target (initial (product A B)) p = (q1,q2)"
-      by (metis path_to_node)
-
-    have "path A (initial A) (left_path p) \<and> path B (initial B) (right_path p) \<and> target (initial A) (left_path p) = q1 \<and> target (initial B) (right_path p) = q2"
-      using paths_from_product_path[OF \<open>path (product A B) (initial (product A B)) p\<close>] \<open>target (initial (product A B)) p = (q1,q2)\<close> by auto
-    moreover have "p_io (left_path p) = p_io (right_path p)" by auto
-    ultimately have "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-      by blast
-    moreover have "(q1,x,y,q1') \<in> transitions A \<and> (q2,x,y,q2') \<in> transitions B"
-      using \<open>((q1,q2),x,y,(q1',q2')) \<in> transitions (product A B)\<close>
-      by (metis product_simps(4) product_transition_hIO product_transitions_io_valid wf_transition_simp)
-    ultimately show ?thesis by simp
-  qed
-
-  show "(q1,x,y,q1') \<in> transitions A \<and> (q2,x,y,q2') \<in> transitions B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2) \<Longrightarrow> ((q1,q2),x,y,(q1',q2')) \<in> transitions (product A B)"
-  proof -
-    assume assm: "(q1,x,y,q1') \<in> transitions A \<and> (q2,x,y,q2') \<in> transitions B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-    then obtain p1 p2 where pr1: "path A (initial A) p1" 
-                        and pr2: "path B (initial B) p2" 
-                        and pr3: "target (initial A) p1 = q1" 
-                        and pr4: "target (initial B) p2 = q2" 
-                        and pr5: "p_io p1 = p_io p2"
-      by blast
-
-    have "(q1,x,y,q1') \<in> transitions A" and "(q2,x,y,q2') \<in> transitions B"
-      using assm by auto
-
-    have "initial (product A B) \<in> nodes (product A B)"
-      by blast 
-    moreover have "path (product A B) (initial (product A B)) (zip_path p1 p2)"
-      using product_path_from_paths(1)[OF pr1 pr2 pr5] by assumption
-    moreover have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[OF pr1 pr2 pr5] pr3 pr4 by fast
-    ultimately have "(q1,q2) \<in> nodes (product A B)" 
-      using nodes_path[of "product A B" "initial (product A B)" "zip_path p1 p2"] by metis
-    then have "t_source ((q1,q2),x,y,(q1',q2')) \<in> nodes (product A B)"
-      by auto
-
-    moreover have "((q1,q2),x,y,(q1',q2')) \<in> transitionsIO (product A B)"
-      using product_transitions_alt3[of A B] \<open>(q1,x,y,q1') \<in> transitions A\<close> \<open>(q2,x,y,q2') \<in> transitions B\<close> by force
-    ultimately show "((q1,q2),x,y,(q1',q2')) \<in> transitions (product A B)" 
-      using hIO_alt_def[of "product A B"] h_alt_def[of "product A B"] by blast
-  qed
-qed
-
-end (* lemma product_transition_t :
-  "t \<in> transitions (product A B) \<longleftrightarrow> (fst (t_source t),t_input t,t_output t,fst (t_target t)) \<in> transitions A \<and> (snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> transitions B \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = fst (t_source t) \<and> target (initial B) p2 = snd (t_source t) \<and> p_io p1 = p_io p2)"
-proof -
-  have "t = ((fst (t_source t), snd (t_source t)), t_input t, t_output t, fst (t_target t), snd (t_target t))"
-    by auto
-  then show ?thesis
-    using product_transition[of "fst (t_source t)" "snd (t_source t)" "t_input t" "t_output t" "fst (t_target t)" "snd (t_target t)" A B] by presburger
-qed
-
-end (* lemma product_transition_from_transitions :
-  assumes "t1 \<in> transitions A" 
-      and "t2 \<in> transitions B" 
-      and "t_input t1 = t_input t2" 
-      and "t_output t1 = t_output t2" 
-      and "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = t_source t1 \<and> target (initial B) p2 = t_source t2 \<and> p_io p1 = p_io p2)"
-  shows "((t_source t1,t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2)) \<in> transitions (product A B)  "
-proof-
-  note product_transition[of "t_source t1" "t_source t2" "t_input t1" "t_output t1" "t_target t1" "t_target t2" A B]
-  moreover have "(t_source t1, t_input t1, t_output t1, t_target t1) \<in> set (wf_transitions A)"
-    using assms(1) by auto
-  moreover have "(t_source t2, t_input t1, t_output t1, t_target t2) \<in> set (wf_transitions B)"
-    using assms(2-4) by auto
-  moreover note assms(5)
-  ultimately show ?thesis by presburger
-qed
- 
-
-
-end (* lemma product_node_from_path :
-  "(q1,q2) \<in> nodes (product A B) \<longleftrightarrow> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-proof 
-  show "(q1,q2) \<in> nodes (product A B) \<Longrightarrow> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-  proof -
-    assume "(q1,q2) \<in> nodes (product A B)"
-    then obtain p where "path (product A B) (initial (product A B)) p" and "target (initial (product A B)) p = (q1,q2)"
-      by (metis path_to_node) 
-    then have "path A (initial A) (left_path p) \<and> path B (initial B) (right_path p) \<and> target (initial A) (left_path p) = q1 \<and> target (initial B) (right_path p) = q2 \<and> p_io (left_path p) = p_io (right_path p)"
-      using paths_from_product_path[OF \<open>path (product A B) (initial (product A B)) p\<close>] by simp
-    then show "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-      by blast
-  qed
-
-  show "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2) \<Longrightarrow> (q1,q2) \<in> nodes (product A B)"
+  show "(q1,q2) \<in> reachable_nodes (product A B) \<Longrightarrow> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
+    using product_reachable_node_paths[of q1 q2 A B] by blast
+  show "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2) \<Longrightarrow> (q1,q2) \<in> reachable_nodes (product A B)"
   proof -
     assume "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-    then obtain p1 p2 where *: "path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2"
+    then obtain p1 p2 where "path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2"
       by blast
-
-    have "initial (product A B) \<in> nodes (product A B)"
-      by blast 
-    moreover have "path (product A B) (initial (product A B)) (zip_path p1 p2)"
-      using product_path_from_paths(1)[of A p1 B p2] * by metis
-    moreover have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[of A p1 B p2] * by metis
-    ultimately show "(q1,q2) \<in> nodes (product A B)" 
-      using nodes_path[of "product A B" "initial (product A B)" "zip_path p1 p2"] by metis
+    then show ?thesis 
+      using product_path_from_paths[of A p1 B p2] unfolding reachable_nodes_def
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
   qed
 qed
 
 
-end (* lemma left_path_zip : "length p1 = length p2 \<Longrightarrow> left_path (zip_path p1 p2) = p1" 
+
+
+
+
+
+lemma left_path_zip : "length p1 = length p2 \<Longrightarrow> left_path (zip_path p1 p2) = p1" 
   by (induction p1 p2 rule: list_induct2; simp)
 
-end (* lemma right_path_zip : "length p1 = length p2 \<Longrightarrow> p_io p1 = p_io p2 \<Longrightarrow> right_path (zip_path p1 p2) = p2" 
+lemma right_path_zip : "length p1 = length p2 \<Longrightarrow> p_io p1 = p_io p2 \<Longrightarrow> right_path (zip_path p1 p2) = p2" 
   by (induction p1 p2 rule: list_induct2; simp)
 
-end (* lemma zip_path_append_left_right : "length p1 = length p2 \<Longrightarrow> zip_path (p1@(left_path p)) (p2@(right_path p)) = (zip_path p1 p2)@p"
+lemma zip_path_append_left_right : "length p1 = length p2 \<Longrightarrow> zip_path (p1@(left_path p)) (p2@(right_path p)) = (zip_path p1 p2)@p"
 proof (induction p1 p2 rule: list_induct2)
   case Nil
   then show ?case by (induction p; simp)
@@ -397,92 +336,51 @@ qed
     
       
 
-end (* lemma product_path:
-  "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2))"
-proof 
-  show "path (product A B) (q1,q2) p \<Longrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2))"
+lemma product_path:
+  "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p))"
+proof (induction p arbitrary: q1 q2)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t p)
+  
+  
+  have "path (Product_FSM.product A B) (q1, q2) (t # p) \<Longrightarrow> (path A q1 (left_path (t # p)) \<and> path B q2 (right_path (t # p)))"
   proof -
-    assume "path (product A B) (q1,q2) p"
-    then have "(q1,q2) \<in> nodes (product A B)"
-      by (meson path_begin_node) 
-    then have ex12: "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-      using product_node_from_path[of q1 q2 A B] by blast
-    then obtain p1 p2 where *: "path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2"
-      by blast
-    then have "path (product A B) (initial (product A B)) (zip_path p1 p2)" 
-      using product_path_from_paths(1)[of A p1 B p2] by metis
-
-    have "path A (initial A) p1" and "path B (initial B) p2" and "target (initial A) p1 = q1" and "target (initial B) p2 = q2" and "p_io p1 = p_io p2"
-      using * by linarith+
-
-    have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[of A p1 B p2] * by metis
-
-    have "path (product A B) (initial (product A B)) ((zip_path p1 p2) @ p)" 
-      using path_append[OF \<open>path (product A B) (initial (product A B)) (zip_path p1 p2)\<close>, of p]
-            \<open>target (zip_path p1 p2) (initial (product A B)) = (q1,q2)\<close>
-            \<open>path (product A B) (q1,q2) p\<close> by metis
-
-    have "path A (initial A) (left_path ((zip_path p1 p2) @ p))"
-      and "path B (initial B) (right_path ((zip_path p1 p2) @ p))"
-      and "target (left_path ((zip_path p1 p2) @ p)) (initial A) = fst (target ((zip_path p1 p2) @ p) (initial (product A B)))"
-      and "target (right_path ((zip_path p1 p2) @ p)) (initial B) = snd (target ((zip_path p1 p2) @ p) (initial (product A B)))"
-      using paths_from_product_path[OF \<open>path (product A B) (initial (product A B)) ((zip_path p1 p2) @ p)\<close>] by linarith+
-
-    have "length p1 = length p2"
-      using \<open>p_io p1 = p_io p2\<close> map_eq_imp_length_eq by blast 
-
-    have "(left_path ((zip_path p1 p2) @ p)) = p1@(left_path p)"
-      using left_path_zip[OF \<open>length p1 = length p2\<close>] by (induction p; simp)
-    then have "path A (initial A) (p1@(left_path p))"
-      using \<open>path A (initial A) (left_path ((zip_path p1 p2) @ p))\<close> by simp
-    have lp: "path A q1 (left_path p)" 
-      using path_suffix[OF \<open>path A (initial A) (p1@(left_path p))\<close>] \<open>target (initial A) p1 = q1\<close> by simp
-
-    
-    have "(right_path ((zip_path p1 p2) @ p)) = p2@(right_path p)"
-      using right_path_zip[OF \<open>length p1 = length p2\<close> \<open>p_io p1 = p_io p2\<close>] by (induction p; simp)  
-    then have "path B (initial B) (p2@(right_path p))"
-      using \<open>path B (initial B) (right_path ((zip_path p1 p2) @ p))\<close> by simp
-    have rp: "path B q2 (right_path p)" 
-      using path_suffix[OF \<open>path B (initial B) (p2@(right_path p))\<close>] \<open>target (initial B) p2 = q2\<close> by simp  
-
-    show "(path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2))"
-      using lp rp ex12 by simp
+    assume "path (Product_FSM.product A B) (q1, q2) (t # p)"
+    then obtain x y qA' qB' where "t = ((q1,q2),x,y,(qA',qB'))" using prod.collapse
+      by (metis path_cons_elim) 
+    then have "((q1,q2),x,y,(qA',qB')) \<in> transitions (product A B)"
+      using \<open>path (Product_FSM.product A B) (q1, q2) (t # p)\<close> by auto
+    then have "(q1, x, y, qA') \<in> FSM.transitions A" and "(q2, x, y, qB') \<in> FSM.transitions B"
+      unfolding product_transitions_def by blast+
+    moreover have "(path A qA' (left_path p) \<and> path B qB' (right_path p))"
+      using Cons.IH[of qA' qB'] \<open>path (Product_FSM.product A B) (q1, q2) (t # p)\<close> unfolding \<open>t = ((q1,q2),x,y,(qA',qB'))\<close> by auto
+    ultimately show ?thesis 
+      unfolding \<open>t = ((q1,q2),x,y,(qA',qB'))\<close>
+      by (simp add: path_prepend_t) 
   qed
 
-
-  show "(path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)) \<Longrightarrow> path (product A B) (q1,q2) p"
-  proof-
-    assume "(path A q1 (left_path p) \<and> path B q2 (right_path p) \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2))"
-    then have "path A q1 (left_path p)" and "path B q2 (right_path p)" and "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
-      by auto
-    then obtain p1 p2 where *: "path A (initial A) p1" and "path B (initial B) p2" and "target (initial A) p1 = q1" and "target (initial B) p2 = q2" and "p_io p1 = p_io p2"
-      by blast 
-
-    have "path A (initial A) (p1@(left_path p))"
-      using path_append[OF \<open>path A (initial A) p1\<close>, of "left_path p"] \<open>target (initial A) p1 = q1\<close> \<open>path A q1 (left_path p)\<close> by metis
-    have "path B (initial B) (p2@(right_path p))"
-      using path_append[OF \<open>path B (initial B) p2\<close>, of "right_path p"] \<open>target (initial B) p2 = q2\<close> \<open>path B q2 (right_path p)\<close> by metis
-    have "p_io (p1@(left_path p)) = p_io (p2@(right_path p))"
-      using \<open>p_io p1 = p_io p2\<close> by (induction p; simp)
-    
-    have "path (product A B) (initial (product A B)) ((zip_path p1 p2)@p)"
-      using product_path_from_paths(1)[OF \<open>path A (initial A) (p1@(left_path p))\<close> \<open>path B (initial B) (p2@(right_path p))\<close> \<open>p_io (p1@(left_path p)) = p_io (p2@(right_path p))\<close>]
-            zip_path_append_left_right[of p1 p2 p]
-      by (metis (no_types, lifting) \<open>p_io p1 = p_io p2\<close> map_eq_imp_length_eq) 
-
-    have "path (product A B) (initial (product A B)) (zip_path p1 p2)"
-      using product_path_from_paths(1)[OF \<open>path A (initial A) p1\<close> \<open>path B (initial B) p2\<close> \<open>p_io p1 = p_io p2\<close>] by metis
-    moreover have "target (zip_path p1 p2) (initial (product A B)) = (q1,q2)"
-      using product_path_from_paths(2)[OF \<open>path A (initial A) p1\<close> \<open>path B (initial B) p2\<close> \<open>p_io p1 = p_io p2\<close>] \<open>target (initial A) p1 = q1\<close> \<open>target (initial B) p2 = q2\<close> by metis
-    
-    
-    ultimately show "path (product A B) (q1,q2) p"
-      using path_suffix[OF \<open>path (product A B) (initial (product A B)) ((zip_path p1 p2)@p)\<close>]
-      by presburger 
+  moreover have "path A q1 (left_path (t # p)) \<Longrightarrow> path B q2 (right_path (t # p)) \<Longrightarrow> path (Product_FSM.product A B) (q1, q2) (t # p)"
+  proof -
+    assume "path A q1 (left_path (t # p))" and "path B q2 (right_path (t # p))"
+    then obtain x y qA' qB' where "t = ((q1,q2),x,y,(qA',qB'))" using prod.collapse
+      by (metis (no_types, lifting) fst_conv list.simps(9) path_cons_elim)
+    then have "(q1, x, y, qA') \<in> FSM.transitions A" and "(q2, x, y, qB') \<in> FSM.transitions B"
+      using \<open>path A q1 (left_path (t # p))\<close> \<open>path B q2 (right_path (t # p))\<close> by auto
+    then have "((q1,q2),x,y,(qA',qB')) \<in> transitions (product A B)"
+      unfolding product_transitions_def by blast
+    moreover have "path (Product_FSM.product A B) (qA', qB') p"
+      using Cons.IH[of qA' qB'] \<open>path A q1 (left_path (t # p))\<close> \<open>path B q2 (right_path (t # p))\<close> unfolding \<open>t = ((q1,q2),x,y,(qA',qB'))\<close> by auto
+    ultimately show "path (Product_FSM.product A B) (q1, q2) (t # p)"
+      unfolding \<open>t = ((q1,q2),x,y,(qA',qB'))\<close>
+      by (simp add: path_prepend_t) 
   qed
+      
+  ultimately show ?case by force
 qed
+
+
     
       
 
@@ -497,10 +395,9 @@ qed
 
 
 
-end (* lemma product_path_rev:
+lemma product_path_rev:
   assumes "p_io p1 = p_io p2"
-  shows "path (product A B) (q1,q2) (zip_path p1 p2)
-          \<longleftrightarrow> (path A q1 p1 \<and> path B q2 p2 \<and> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2))"
+  shows "path (product A B) (q1,q2) (zip_path p1 p2) \<longleftrightarrow> (path A q1 p1 \<and> path B q2 p2)"
 proof -
   have "length p1 = length p2" using assms
     using map_eq_imp_length_eq by blast 
@@ -521,8 +418,7 @@ qed
 
 
 
-end (* lemma product_language_state : 
-  assumes "(\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
+lemma product_language_state : 
   shows "LS (product A B) (q1,q2) = LS A q1 \<inter> LS B q2"
 proof 
   show "LS (product A B) (q1, q2) \<subseteq> LS A q1 \<inter> LS B q2"
@@ -561,141 +457,74 @@ proof
     then have "p_io ?p = io" 
       using \<open>io = p_io p1\<close> by auto
     moreover have "path (product A B) (q1, q2) ?p"
-      using product_path_rev[OF \<open>p_io p1 = p_io p2\<close>, of A B q1 q2] \<open>path A q1 p1\<close> \<open>path B q2 p2\<close> assms by auto
+      using product_path_rev[OF \<open>p_io p1 = p_io p2\<close>, of A B q1 q2] \<open>path A q1 p1\<close> \<open>path B q2 p2\<close> by auto
     ultimately show "io \<in> LS (product A B) (q1, q2)" 
       unfolding LS.simps by blast
   qed
 qed
 
 
-end (* lemma product_language : "L (product A B) = L A \<inter> L B"
-proof -
-  have "path A (initial A) [] \<and>
-         path B (initial B) [] \<and>
-         target [] (initial A) = initial A \<and> target [] (initial B) = initial B \<and> p_io [] = p_io []" by auto
-  then have "\<exists>p1 p2.
-       path A (initial A) p1 \<and>
-       path B (initial B) p2 \<and>
-       target (initial A) p1 = initial A \<and> target (initial B) p2 = initial B \<and> p_io p1 = p_io p2" by blast
-  then show ?thesis
-    using product_language_state[of A B "initial A" "initial B"] unfolding product.simps by simp
-qed
+lemma product_language : "L (product A B) = L A \<inter> L B"
+  unfolding product_simps product_language_state by blast
 
-end (* lemma product_nodes : "nodes (product A B) \<subseteq> (nodes A) \<times> (nodes B)"
-proof 
-  fix q assume "q \<in> nodes (product A B)"
-  then obtain p where "path (product A B) (initial (product A B)) p"
-                and   "q = target (initial (product A B)) p" 
-    by (metis path_to_node)
 
-  let ?p1 = "left_path p"
-  let ?p2 = "right_path p"
-
-  have "path A (initial A) ?p1 \<and> path B (initial B) ?p2"
-    by (metis \<open>path (product A B) (initial (product A B)) p\<close> product_path[of A B "initial A" "initial B" p] product_simps(1))
-
-  moreover have "target (initial (product A B)) p = (target ?p1 (initial A), target ?p2 (initial B))"
-    by (induction p; force)  
-
-  ultimately show "q \<in> (nodes A) \<times> (nodes B)"
-    by (metis (no_types, lifting) SigmaI \<open>q = target (initial (product A B)) p\<close> nodes_path_initial)
-qed
-
-end (* lemma product_transition_split_ob :
+(* TODO: omit? *)
+lemma product_transition_split_ob :
   assumes "t \<in> transitions (product A B)"
   obtains t1 t2 
   where "t1 \<in> transitions A \<and> t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
     and "t2 \<in> transitions B \<and> t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)"      
-proof -
-  have "t \<in> set (transitions (product A B))"
-    using assms by blast
-  
-  then have "t \<in> set (map (\<lambda>(t1, t2).
-                      ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2))
-               (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)
-                 (cartesian_product_list (wf_transitions A) (wf_transitions B))))"
-    by (metis product_simps(4) product_transitions.elims) 
+  using assms unfolding product_transitions_alt_def
+  by auto 
 
-  then obtain t1 t2 where "t = ((t_source t1, t_source t2),t_input t1,t_output t1,(t_target t1,t_target t2))"
-                 and "(t1,t2) \<in> set (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)
-                                      (cartesian_product_list (wf_transitions A) (wf_transitions B)))"
-    by (metis (no_types, lifting) case_prod_beta' imageE prod.collapse set_map)
 
-  then have *: "t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)" 
-    by auto
-  have **: "t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
-    by (simp add: \<open>t = ((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2)\<close>)
-
-  have "(t1,t2) \<in> transitions A \<times> h B"
-    using \<open>(t1,t2) \<in> set (filter (\<lambda>(t1, t2). t_input t1 = t_input t2 \<and> t_output t1 = t_output t2) (cartesian_product_list (wf_transitions A) (wf_transitions B)))\<close> cartesian_product_list_set[of "(wf_transitions A)" "(wf_transitions B)"] by auto
-  then have "t1 \<in> transitions A" and "t2 \<in> transitions B" by auto
-
-  have "t1 \<in> transitions A \<and> t_source t1 = fst (t_source t) \<and> t_input t1 = t_input t \<and> t_output t1 = t_output t \<and> t_target t1 = fst (t_target t)"
-   and "t2 \<in> transitions B \<and> t_source t2 = snd (t_source t) \<and> t_input t2 = t_input t \<and> t_output t2 = t_output t \<and> t_target t2 = snd (t_target t)" 
-    using \<open>t1 : h A\<close> * \<open>t2 \<in> transitions B\<close> ** by auto
-
-  then show ?thesis
-    using that by blast 
-qed
-
-end (* lemma product_transition_split :
+(* TODO: omit? *)
+lemma product_transition_split :
   assumes "t \<in> transitions (product A B)"
   shows "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> transitions A"
     and "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> transitions B"      
-  using product_transition_split_ob[OF assms] prod.collapse by metis+
+  using product_transition_split_ob[OF assms] prod.collapse by fastforce+
 
 
 
 subsection \<open>Other Lemmata\<close>
 
-end (* lemma  product_target_split:
-  assumes "target p (q1,q2) = (q1',q2')"
-  shows "target (left_path p) q1 = q1'"
-    and "target (right_path p) q2 = q2'"
+lemma  product_target_split:
+  assumes "target (q1,q2) p = (q1',q2')"
+  shows "target q1 (left_path p) = q1'"
+    and "target q2 (right_path p) = q2'"
 using assms by (induction p arbitrary: q1 q2; force)+
 
 
-
-
-
-end (* lemma h_from_paths :
-  assumes "\<And> p . path A (initial A) p = path B (initial B) p"
-  shows "h A = h B"
-proof (rule ccontr)
-  assume "h A \<noteq> h B"
-  then consider  "(\<exists> tA \<in> transitions A . tA \<notin> h B)" | "(\<exists> tB \<in> transitions B . tB \<notin> h A)" by blast
-  then show "False" proof (cases)
-    case 1
-    then obtain tA where "tA \<in> transitions A" and "tA \<notin> h B" by blast
-    then have "t_source tA \<in> nodes A" by auto
-    then obtain p where "path A (initial A) p" and "target p (initial A) = t_source tA" 
-      using path_to_node by metis
-    then have "path A (initial A) (p@[tA])" using path_append_last \<open>tA \<in> transitions A\<close> by metis
-    moreover have "\<not> path B (initial B) (p@[tA])" using \<open>tA \<notin> h B\<close> by auto
-    ultimately show "False" using assms by metis
-  next
-    case 2
-    then obtain tB where "tB \<in> transitions B" and "tB \<notin> h A" by blast
-    then have "t_source tB \<in> nodes B" by auto
-    then obtain p where "path B (initial B) p" and "target p (initial B) = t_source tB" 
-      using path_to_node by metis
-    then have "path B (initial B) (p@[tB])" using path_append_last \<open>tB \<in> transitions B\<close> by metis
-    moreover have "\<not> path A (initial A) (p@[tB])" using \<open>tB \<notin> h A\<close> by auto
-    ultimately show "False" using assms by metis
-  qed
-qed
-
-
-
-
-end (* lemma single_transitions_path : 
-  assumes "(q,x,y,q') \<in> transitions M" 
-  shows "path M q [(q,x,y,q')]" 
-  using  path.cons[OF assms path.nil[OF wf_transition_target[OF assms]]] by auto
-
-end (* lemma product_from_next :
+lemma product_from_reachable_next : 
   assumes "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-  shows "h (product (from_FSM M q1') (from_FSM M q2')) = h (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))"
+  and     "q1 \<in> reachable_nodes M"
+  and     "q2 \<in> reachable_nodes M"
+  shows   "(product (from_FSM M q1') (from_FSM M q2')) = (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))" 
+          (is "?P1 = ?P2")
+proof -
+  have "q1 \<in> nodes (from_FSM M q1)" and "q2 \<in> nodes (from_FSM M q2)" and "q1' \<in> nodes (from_FSM M q1)" and "q2' \<in> nodes (from_FSM M q2)"
+    using fsm_transition_target[OF assms] fsm_transition_source[OF assms] unfolding fst_conv snd_conv product_simps by auto
+
+  have "initial ?P1 = initial ?P2"
+    using from_FSM_simps(1)[OF fsm_transition_target[OF assms]] 
+    unfolding snd_conv 
+    unfolding product_simps  
+
+end (*
+
+lemma product_from_next :
+  assumes "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
+  shows "transitions (product (from_FSM M q1') (from_FSM M q2')) = transitions (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2'))"
+  using fsm_transition_target[OF assms] unfolding snd_conv 
+  using from_FSM_simps(4)[OF ]
+proof -
+  
+
+  have "q1 \<in> nodes (from_FSM M q1)" and "q2 \<in> nodes (from_FSM M q2)" and "q1' \<in> nodes (from_FSM M q1)" and "q2' \<in> nodes (from_FSM M q2)"
+    using fsm_transition_target[OF assms] fsm_transition_source[OF assms] unfolding fst_conv snd_conv product_simps by auto
+  
+end (*
 proof -
   let ?t = "((q1,q2),x,y,(q1',q2'))"
 
@@ -931,18 +760,18 @@ proof
            target p1 (initial (from_FSM M q1)) = q1 \<and> target p2 (initial (from_FSM M q2)) = q2 \<and> p_io p1 = p_io p2)"
     using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 p] \<open>path ?P (initial ?P) p\<close> by auto
 
-  have "target (left_path p) q1 = q1'" and "target (right_path p) q2 = q2'"
+  have "target q1 (left_path p) = q1'" and "target q2 (right_path p) = q2'"
     using product_target_split[of p q1 q2 q1' q2'] \<open>target p (initial ?P) = (q1',q2')\<close> by auto
 
   have "q1' \<in> nodes (from_FSM M q1)"
-    using path_target_is_node[OF \<open>path (from_FSM M q1) q1 (left_path p)\<close>] \<open>target (left_path p) q1 = q1'\<close> by metis
+    using path_target_is_node[OF \<open>path (from_FSM M q1) q1 (left_path p)\<close>] \<open>target q1 (left_path p) = q1'\<close> by metis
   have "h (from_FSM M q1') \<subseteq> h (from_FSM M q1)"
     using from_FSM_h[OF \<open>q1' \<in> nodes (from_FSM M q1)\<close>] by simp
   then have *: "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> transitions (from_FSM M q1)"
     using \<open>(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> transitions (from_FSM M q1')\<close> by blast
 
   have "q2' \<in> nodes (from_FSM M q2)"
-    using path_target_is_node[OF \<open>path (from_FSM M q2) q2 (right_path p)\<close>] \<open>target (right_path p) q2 = q2'\<close> by metis
+    using path_target_is_node[OF \<open>path (from_FSM M q2) q2 (right_path p)\<close>] \<open>target q2 (right_path p) = q2'\<close> by metis
   have "h (from_FSM M q2') \<subseteq> h (from_FSM M q2)"
     using from_FSM_h[OF \<open>q2' \<in> nodes (from_FSM M q2)\<close>] by simp
   then have **: "(snd (t_source t), t_input t, t_output t, snd (t_target t)) \<in> transitions (from_FSM M q2)"
@@ -967,13 +796,13 @@ proof
       using from_FSM_path \<open>q2' \<in> nodes (from_FSM M q2)\<close> \<open>path (from_FSM M q2') q2' p2'\<close> by (metis from_from)
 
     have "path (from_FSM M q1) (initial (from_FSM M q1)) ((left_path p)@p1')" 
-      using path_append[OF \<open>path (from_FSM M q1) q1 (left_path p)\<close>, of p1']  \<open>target (left_path p) q1 = q1'\<close> \<open>path (from_FSM M q1) q1' p1'\<close> by auto
+      using path_append[OF \<open>path (from_FSM M q1) q1 (left_path p)\<close>, of p1']  \<open>target q1 (left_path p) = q1'\<close> \<open>path (from_FSM M q1) q1' p1'\<close> by auto
     moreover have "path (from_FSM M q2) (initial (from_FSM M q2)) ((right_path p)@p2')" 
-      using path_append[OF \<open>path (from_FSM M q2) q2 (right_path p)\<close>, of p2']  \<open>target (right_path p) q2 = q2'\<close> \<open>path (from_FSM M q2) q2' p2'\<close> by auto
+      using path_append[OF \<open>path (from_FSM M q2) q2 (right_path p)\<close>, of p2']  \<open>target q2 (right_path p) = q2'\<close> \<open>path (from_FSM M q2) q2' p2'\<close> by auto
     moreover have "target ((left_path p)@p1') (initial (from_FSM M q1)) = fst (t_source t)"
-      using path_target_append[OF \<open>target (left_path p) q1 = q1'\<close> \<open>target p1' q1' = fst (t_source t)\<close>] by auto
+      using path_target_append[OF \<open>target q1 (left_path p) = q1'\<close> \<open>target p1' q1' = fst (t_source t)\<close>] by auto
     moreover have "target ((right_path p)@p2') (initial (from_FSM M q2)) = snd (t_source t)"
-      using path_target_append[OF \<open>target (right_path p) q2 = q2'\<close> \<open>target p2' q2' = snd (t_source t)\<close>] by auto
+      using path_target_append[OF \<open>target q2 (right_path p) = q2'\<close> \<open>target p2' q2' = snd (t_source t)\<close>] by auto
     moreover have "p_io ((left_path p)@p1') = p_io ((right_path p)@p2')"
       using \<open>p_io p1' = p_io p2'\<close> by auto
     ultimately show ?thesis by blast
