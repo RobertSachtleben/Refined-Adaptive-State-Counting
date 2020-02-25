@@ -98,6 +98,20 @@ definition m_ex_H :: "(integer,integer,integer) fsm" where
                               (4,0,0,3),
                               (4,1,0,1)]"
 
+(* example FSM of exercise 9 of Testautomation SoSe 2019 *)
+definition m_ex_9 :: "(integer,integer,integer) fsm" where
+  "m_ex_9 = fsm_from_list 0 [ (0,0,2,2),
+                              (0,0,3,2),
+                              (0,1,0,3),
+                              (0,1,1,3),
+                              (1,0,3,2),
+                              (1,1,1,3),
+                              (2,0,2,2),
+                              (2,1,3,3),
+                              (3,0,2,2),
+                              (3,1,0,2),
+                              (3,1,1,1)]"
+
 subsection \<open>Transition Function h\<close>
 
 (* TODO: main idea for later common subexpression elimination: calculate all kinds of h functions once

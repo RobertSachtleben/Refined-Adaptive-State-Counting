@@ -40,6 +40,43 @@ subsection \<open>Changing the initial State\<close>
 fun from_FSM :: "('a,'b,'c) fsm_impl \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) fsm_impl" where
   "from_FSM M q = (if q \<in> nodes M then \<lparr> initial = q, nodes = nodes M, inputs = inputs M, outputs = outputs M, transitions = transitions M \<rparr> else M)"
 
+subsection \<open>Product Construction\<close>
+
+fun product :: "('a,'b,'c) fsm_impl \<Rightarrow> ('d,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'd,'b,'c) fsm_impl" where
+  "product A B = \<lparr> initial = (initial A, initial B),
+                   nodes   = {(qA,qB) | qA qB . qA \<in> nodes A \<and> qB \<in> nodes B},
+                   inputs  = inputs A \<union> inputs B,
+                   outputs  = outputs A \<union> outputs B,
+                   transitions = {((qA,qB),x,y,(qA',qB')) | qA qB x y qA' qB' . (qA,x,y,qA') \<in> transitions A \<and> (qB,x,y,qB') \<in> transitions B} \<rparr>"
+
+lemma product_code_naive[code] :
+  "product A B = \<lparr> initial = (initial A, initial B),
+                   nodes   = (\<Union>(image (\<lambda> qA . image (\<lambda> qB . (qA,qB)) (nodes B)) (nodes A))) ,
+                   inputs  = inputs A \<union> inputs B,
+                   outputs  = outputs A \<union> outputs B,
+                   transitions = image (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . ((qA,qB),x,y,(qA',qB'))) (Set.filter (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . x = x' \<and> y = y') (\<Union>(image (\<lambda> tA . image (\<lambda> tB . (tA,tB)) (transitions B)) (transitions A)))) \<rparr>"
+  (is "?P1 = ?P2")
+proof -
+  have "(\<Union>(image (\<lambda> tA . image (\<lambda> tB . (tA,tB)) (transitions B)) (transitions A))) = {(tA,tB) | tA tB . tA \<in> transitions A \<and> tB \<in> transitions B}"
+    by auto
+  then have "(Set.filter (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . x = x' \<and> y = y') (\<Union>(image (\<lambda> tA . image (\<lambda> tB . (tA,tB)) (transitions B)) (transitions A)))) = {((qA,x,y,qA'),(qB,x,y,qB')) | qA qB x y qA' qB' . (qA,x,y,qA') \<in> transitions A \<and> (qB,x,y,qB') \<in> transitions B}"
+    by auto
+  then have "image (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . ((qA,qB),x,y,(qA',qB'))) (Set.filter (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . x = x' \<and> y = y') (\<Union>(image (\<lambda> tA . image (\<lambda> tB . (tA,tB)) (transitions B)) (transitions A)))) 
+              = image (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . ((qA,qB),x,y,(qA',qB'))) {((qA,x,y,qA'),(qB,x,y,qB')) | qA qB x y qA' qB' . (qA,x,y,qA') \<in> transitions A \<and> (qB,x,y,qB') \<in> transitions B}"
+    by auto
+  moreover have "image (\<lambda>((qA,x,y,qA'), (qB,x',y',qB')) . ((qA,qB),x,y,(qA',qB'))) {((qA,x,y,qA'),(qB,x,y,qB')) | qA qB x y qA' qB' . (qA,x,y,qA') \<in> transitions A \<and> (qB,x,y,qB') \<in> transitions B} =  {((qA,qB),x,y,(qA',qB')) | qA qB x y qA' qB' . (qA,x,y,qA') \<in> transitions A \<and> (qB,x,y,qB') \<in> transitions B}"
+    by force
+  ultimately have "transitions ?P1 = transitions ?P2" 
+    unfolding product.simps by auto
+  moreover have "initial ?P1 = initial ?P2" by auto
+  moreover have "nodes ?P1 = nodes ?P2" by auto
+  moreover have "inputs ?P1 = inputs ?P2" by auto
+  moreover have "outputs ?P1 = outputs ?P2" by auto
+  ultimately show ?thesis by auto
+qed
+
+ 
+    
 
 
 end
