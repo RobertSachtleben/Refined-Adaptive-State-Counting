@@ -1396,6 +1396,93 @@ proof
 qed
 
 
+
+subsection \<open>Filter And Remove\<close>
+
+(* note: does only remove from the first list *)
+fun find_remove_2' :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> ('a \<times> 'b \<times> 'a list) option" where
+  "find_remove_2' P [] _ _ = None" |
+  "find_remove_2' P (x#xs) ys prev = (case find (\<lambda>y . P x y) ys of
+      Some y \<Rightarrow> Some (x,y,prev@xs) |
+      None   \<Rightarrow> find_remove_2' P xs ys (x#prev))"
+
+fun find_remove_2 :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> ('a \<times> 'b \<times> 'a list) option" where
+  "find_remove_2 P xs ys = find_remove_2' P xs ys []"
+
+value "find_remove_2 (\<lambda> x y . y = 2 * x) [1::nat,2,3,4,5] [3,5,1,9,8,10]"
+value "find_remove_2 (\<lambda> q x . q \<noteq> 1 \<and> card (h m_ex_H (q,x)) > 1) (nodes_as_list m_ex_H) (inputs_as_list m_ex_H)"
+
+lemma find_remove_2'_set : 
+  assumes "find_remove_2' P xs ys prev = Some (x,y,xs')"
+shows "P x y"
+and   "x \<in> set xs"
+and   "y \<in> set ys"
+and   "distinct (prev@xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
+proof -
+  have "P x y \<and> x \<in> set xs \<and> y \<in> set ys \<and> (distinct (prev@xs) \<longrightarrow> set xs' = (set prev \<union> set xs) - {x})"
+    using assms 
+  proof (induction xs arbitrary: prev xs' x y)
+    case Nil
+    then show ?case by auto 
+  next
+    case (Cons x' xs)
+    then show ?case proof (cases "find (\<lambda>y . P x' y) ys")
+      case None
+      then have "find_remove_2' P (x' # xs) ys prev = find_remove_2' P xs ys (x'#prev)"
+        using Cons.prems(1) by auto
+      hence "find_remove_2' P xs ys (x'#prev) = Some (x, y, xs')"
+        using Cons.prems(1) by simp
+      moreover have "distinct (prev @ x' # xs) \<longrightarrow> distinct ((x' # prev) @ xs)"
+        by auto
+      ultimately show ?thesis using Cons.IH by fastforce
+    next
+      case (Some y')
+      then have "find_remove_2' P (x' # xs) ys prev = Some (x',y',prev@xs)"
+        by auto
+      then show ?thesis using Some
+        using Cons.prems(1) find_condition find_set by fastforce 
+    qed
+  qed
+  then show "P x y"
+      and   "x \<in> set xs"
+      and   "y \<in> set ys"
+      and   "distinct (prev @ xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
+    by blast+
+qed
+
+lemma find_remove_2'_set_rev :
+  assumes "x \<in> set xs"
+  and     "y \<in> set ys"
+  and     "P x y"
+shows "find_remove_2' P xs ys prev \<noteq> None" 
+using assms(1) proof(induction xs arbitrary: prev)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x' xs)
+  then show ?case proof (cases "find (\<lambda>y . P x' y) ys")
+    case None
+    then have "x \<noteq> x'" 
+      using assms(2,3) by (metis find_None_iff) 
+    then have "x \<in> set xs"
+      using Cons.prems by auto
+    then show ?thesis 
+      using Cons.IH unfolding find_remove_2'.simps None by auto
+  next
+    case (Some a)
+    then show ?thesis by auto
+  qed
+qed
+
+
+
+lemma find_remove_2_None_iff :
+  "find_remove_2 P xs ys = None \<longleftrightarrow> \<not> (\<exists>x y . x \<in> set xs \<and> y \<in> set ys \<and> P x y)"
+  unfolding find_remove_2.simps 
+  using find_remove_2'_set(1-3) find_remove_2'_set_rev
+  by (metis old.prod.exhaust option.exhaust)
+
+
 subsection \<open>Other Lemmata\<close>
 
 lemma list_append_subset3 : "set xs1 \<subseteq> set ys1 \<Longrightarrow> set xs2 \<subseteq> set ys2 \<Longrightarrow> set xs3 \<subseteq> set ys3 \<Longrightarrow> set (xs1@xs2@xs3) \<subseteq> set(ys1@ys2@ys3)" by auto

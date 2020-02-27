@@ -76,7 +76,18 @@ proof -
 qed
 
  
-    
+subsubsection \<open>Initial Singleton FSM (For Trivial Preamble)\<close>    
+
+fun initial_singleton :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "initial_singleton M = \<lparr> initial = initial M,
+                           nodes = {initial M},
+                           inputs = inputs M,
+                           outputs = outputs M,
+                           transitions = {} \<rparr>"
+
+
+
+
 
 
 end

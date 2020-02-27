@@ -349,6 +349,11 @@ qed
 
 declare pretty_sets[code_post del]
 value[code] "h (m_ex_H) (1,1)"
+
+
+value[code] "{1::integer,2,3,4,5}"
+value[code] "sorted_list_of_set {1::integer,2,3,4,5}"
+
 declare pretty_sets[code_post]
 value[code] "h (m_ex_H) (1,1)"
 value[code] "h (m_ex_H) (1,2)"

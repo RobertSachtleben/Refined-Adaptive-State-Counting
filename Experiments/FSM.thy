@@ -2719,6 +2719,26 @@ lemma maximal_acyclic_paths_deadlock_targets :
   using maximal_acyclic_path_deadlock[OF assms] 
   unfolding maximal_acyclic_paths_def
   by (metis (no_types, lifting) acyclic.elims(2) assms)
-  
+
+
+
+
+subsubsection \<open>Nodes and Inputs as List\<close>
+
+(* Idea: To be used in functions like d_states which require finding (in an executable way) some element of the nodes or inputs satisfying a property *)
+
+fun nodes_as_list :: "('a :: linorder, 'b, 'c) fsm \<Rightarrow> 'a list" where
+  "nodes_as_list M = sorted_list_of_set (nodes M)"
+
+lemma nodes_as_list_set : "set (nodes_as_list M) = nodes M"
+  by (simp add: fsm_nodes_finite)
+
+fun inputs_as_list :: "('a, 'b :: linorder, 'c) fsm \<Rightarrow> 'b list" where
+  "inputs_as_list M = sorted_list_of_set (inputs M)"
+
+lemma inputs_as_list_set : "set (inputs_as_list M) = inputs M"
+  by (simp add: fsm_inputs_finite)
+
+
 
 end
