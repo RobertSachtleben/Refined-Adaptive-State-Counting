@@ -1418,8 +1418,9 @@ shows "P x y"
 and   "x \<in> set xs"
 and   "y \<in> set ys"
 and   "distinct (prev@xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
+and   "distinct (prev@xs) \<Longrightarrow> distinct xs'"
 proof -
-  have "P x y \<and> x \<in> set xs \<and> y \<in> set ys \<and> (distinct (prev@xs) \<longrightarrow> set xs' = (set prev \<union> set xs) - {x})"
+  have "P x y \<and> x \<in> set xs \<and> y \<in> set ys \<and> (distinct (prev@xs) \<longrightarrow> set xs' = (set prev \<union> set xs) - {x}) \<and> (distinct (prev@xs) \<longrightarrow> distinct xs')"
     using assms 
   proof (induction xs arbitrary: prev xs' x y)
     case Nil
@@ -1447,6 +1448,7 @@ proof -
       and   "x \<in> set xs"
       and   "y \<in> set ys"
       and   "distinct (prev @ xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
+      and   "distinct (prev@xs) \<Longrightarrow> distinct xs'"
     by blast+
 qed
 
@@ -1481,6 +1483,15 @@ lemma find_remove_2_None_iff :
   unfolding find_remove_2.simps 
   using find_remove_2'_set(1-3) find_remove_2'_set_rev
   by (metis old.prod.exhaust option.exhaust)
+
+lemma find_remove_2_set : 
+  assumes "find_remove_2 P xs ys = Some (x,y,xs')"
+shows "P x y"
+and   "x \<in> set xs"
+and   "y \<in> set ys"
+and   "distinct xs \<Longrightarrow> set xs' = (set xs) - {x}"
+and   "distinct xs \<Longrightarrow> distinct xs'"
+  using assms find_remove_2'_set[of P xs ys "[]" x y xs'] unfolding find_remove_2.simps by auto
 
 
 subsection \<open>Other Lemmata\<close>

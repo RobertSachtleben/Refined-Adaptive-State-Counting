@@ -2730,6 +2730,8 @@ subsubsection \<open>Nodes and Inputs as List\<close>
 fun nodes_as_list :: "('a :: linorder, 'b, 'c) fsm \<Rightarrow> 'a list" where
   "nodes_as_list M = sorted_list_of_set (nodes M)"
 
+lemma nodes_as_list_distinct : "distinct (nodes_as_list M)" by auto
+
 lemma nodes_as_list_set : "set (nodes_as_list M) = nodes M"
   by (simp add: fsm_nodes_finite)
 
@@ -2738,6 +2740,8 @@ fun inputs_as_list :: "('a, 'b :: linorder, 'c) fsm \<Rightarrow> 'b list" where
 
 lemma inputs_as_list_set : "set (inputs_as_list M) = inputs M"
   by (simp add: fsm_inputs_finite)
+
+lemma inputs_as_list_distinct : "distinct (inputs_as_list M)" by auto
 
 
 
