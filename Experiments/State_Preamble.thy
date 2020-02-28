@@ -213,7 +213,7 @@ fun d_states' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Righta
     of (m', u', v', k') \<Rightarrow> 
       (if k' < k 
         then (m', u', v', k')
-        else case find_remove_2 (\<lambda> q x . q \<notin> v' \<and> f (q,x) \<noteq> {} \<and> (\<forall> (y,q') \<in> f (q,x) . (q' = q \<or> q' \<in> v'))) u' inputList
+        else case find_remove_2 (\<lambda> q' x . q' \<notin> v' \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> v'))) u' inputList
           of None            \<Rightarrow> (m', u', v', k') |
              Some (q',x,u'') \<Rightarrow> (m'@[(q',x)], u'', insert q' v', Suc k')))"
 
@@ -268,7 +268,7 @@ proof -
       by (metis prod_cases4) 
       
 
-    show ?case proof (cases "k'' < k \<or> find_remove_2 (\<lambda>q x. q \<notin> v' \<and> f (q, x) \<noteq> {} \<and> (\<forall>(y, q')\<in>f (q, x). q' = q \<or> q' \<in> v')) u' inputList = None")
+    show ?case proof (cases "k'' < k \<or> find_remove_2 (\<lambda> q' x . q' \<notin> v' \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> v'))) u' inputList = None")
       case True
       then have "(m, u, v, k') = (m',u',v',k'')"
         using Suc.prems unfolding d_states'.simps unfolding *[symmetric] by auto
@@ -276,7 +276,7 @@ proof -
         using Suc.IH[OF \<open>(m',u',v',k'') = d_states' f q nodeList inputList k\<close>] by auto
     next
       case False
-      then obtain q' x u'' where **: "find_remove_2 (\<lambda>q x. q \<notin> v' \<and> f (q, x) \<noteq> {} \<and> (\<forall>(y, q')\<in>f (q, x). q' = q \<or> q' \<in> v')) u' inputList = Some (q', x, u'')"
+      then obtain q' x u'' where **: "find_remove_2 (\<lambda> q' x . q' \<notin> v' \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> v'))) u' inputList = Some (q', x, u'')"
         by auto
       then have ***: "(m, u, v, k') = (m' @ [(q', x)], u'', insert q' v', Suc k'')"
         using Suc.prems False unfolding d_states'.simps unfolding *[symmetric] by auto
@@ -395,7 +395,7 @@ next
     next
       case False      
       then have *: "(d_states' f q nL iL (Suc k)) = 
-          (case find_remove_2 (\<lambda> q x . q \<notin> v \<and> f (q,x) \<noteq> {} \<and> (\<forall> (y,q') \<in> f (q,x) . (q' = q \<or> q' \<in> v))) u iL
+          (case find_remove_2 (\<lambda> q' x . q' \<notin> v \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> v))) u iL
           of None            \<Rightarrow> (m, u, v, k') |
              Some (q',x,u'') \<Rightarrow> (m@[(q',x)], u'', insert q' v, Suc k'))"
         unfolding d_states'.simps
@@ -405,7 +405,7 @@ next
       then consider (a1) "(d_states' f q nL iL (Suc k)) = (d_states' f q nL iL k)" |
                     (a2) "\<exists> q' x u'' . (d_states' f q nL iL (Suc k)) = (m@[(q',x)], u'', insert q' v, Suc k')"  
         unfolding \<open>d_states' f q nL iL k = (m,u,v,k')\<close> 
-        by (cases "find_remove_2 (\<lambda> q x . q \<notin> v \<and> f (q,x) \<noteq> {} \<and> (\<forall> (y,q') \<in> f (q,x) . (q' = q \<or> q' \<in> v))) u iL"; auto) 
+        by (cases "find_remove_2 (\<lambda> q' x . q' \<notin> v \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> v))) u iL"; auto) 
       then show ?thesis proof cases
         case a1
         then show ?thesis using Suc.IH[OF a] by simp
@@ -532,17 +532,13 @@ proof -
       have "\<not> length (d_states M k q) < k"
         using \<open>length (d_states M k q) = k\<close> by simp
 
-      obtain u'' where *: "find_remove_2
-              (\<lambda>q x. q \<notin> v \<and> h M (q, x) \<noteq> {} \<and> (\<forall>(y, q')\<in>h M (q, x). q' = q \<or> q' \<in> v)) u
-              (inputs_as_list M) = Some (q',x,u'')"
+      obtain u'' where *: "find_remove_2 (\<lambda>q' x. q' \<notin> v \<and> h M (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (q', x). q'' = q \<or> q'' \<in> v)) u (inputs_as_list M) = Some (q',x,u'')"
         using \<open>d_states M (Suc k) q = (d_states M k q)@[(q',x)]\<close>
         
         unfolding d_states.simps d_states'.simps 
         unfolding \<open>(d_states' (h M) q (nodes_as_list M) (inputs_as_list M) k) = (m,u,v,k')\<close>
         unfolding case_case_fun fst_conv
-        using d_states_case_helper[of "k' < k" m u v k' "\<lambda> qxu . snd (snd qxu)" "\<lambda> qxu . insert (fst qxu) v" "\<lambda> qxu . Suc k'" "find_remove_2
-              (\<lambda>q x. q \<notin> v \<and> h M (q, x) \<noteq> {} \<and> (\<forall>(y, q')\<in>h M (q, x). q' = q \<or> q' \<in> v)) u
-              (inputs_as_list M)" q' x]
+        using d_states_case_helper[of "k' < k" m u v k' "\<lambda> qxu . snd (snd qxu)" "\<lambda> qxu . insert (fst qxu) v" "\<lambda> qxu . Suc k'" "find_remove_2 (\<lambda>q' x. q' \<notin> v \<and> h M (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (q', x). q'' = q \<or> q'' \<in> v)) u (inputs_as_list M)" q' x]
         unfolding snd_conv fst_conv by blast
 
       have "q \<in> set (nodes_as_list M)"
@@ -551,7 +547,7 @@ proof -
       
       let ?qx = "last (d_states M (Suc k) q)"
       have "?qx = (q',x)" using \<open>d_states M (Suc k) q = (d_states M k q)@[(q',x)]\<close> by auto
-      have "q' \<notin> v" and "h M (q', x) \<noteq> {}" and "(\<forall>(y, q'')\<in>h M (q', x). q'' = q' \<or> q'' \<in> v)" and "q' \<in> set u" and "x \<in> set (inputs_as_list M)"
+      have "q' \<notin> v" and "h M (q', x) \<noteq> {}" and "(\<forall>(y, q'')\<in>h M (q', x). q'' = q \<or> q'' \<in> v)" and "q' \<in> set u" and "x \<in> set (inputs_as_list M)"
         using find_remove_2_set[OF *] by blast+
       
       have "insert q (set (map fst m)) = v"
@@ -564,6 +560,19 @@ proof -
        and "distinct (map fst m)"
         using d_states'_props(6,7,8)[OF \<open>(d_states' (h M) q (nodes_as_list M) (inputs_as_list M) k) = (m,u,v,k')\<close>[symmetric] \<open>q \<in> set (nodes_as_list M)\<close> nodes_as_list_distinct] by blast+
 
+      have "q' \<notin> set (map fst m)"
+        using \<open>insert q (set (map fst m)) = v\<close> \<open>q' \<notin> v\<close> by auto
+        
+      have "take i (d_states M (Suc k) q) = d_states M k q"
+        by (metis \<open>d_states M (Suc k) q = d_states M k q @ [last (d_states M (Suc k) q)]\<close> \<open>i = length (d_states M k q)\<close> append_eq_conv_conj)
+        
+
+      have "\<And> q'' . q'' \<in> v = (q'' = q \<or> q'' \<in> set (map fst m))"
+        unfolding \<open>insert q (set (map fst m)) = v\<close>[symmetric]
+        by simp
+        
+
+
 
       have "q' \<in> FSM.nodes M"
         using \<open>q' \<in> set u\<close> \<open>set u \<union> v = set (nodes_as_list M)\<close> nodes_as_list_set by auto
@@ -571,25 +580,31 @@ proof -
         using \<open>q' \<notin> v\<close> \<open>q \<in> v\<close> by blast
       moreover have "x \<in> FSM.inputs M"
         using \<open>x \<in> set (inputs_as_list M)\<close> inputs_as_list_set by blast 
-
+      moreover have "(\<forall>qx'\<in>set (take i (d_states M (Suc k) q)). q' \<noteq> fst qx')" 
+        unfolding \<open>d_states M (Suc k) q = (d_states M k q)@[(q',x)]\<close> 
+                  \<open>i = length (d_states M k q)\<close> 
+                  \<open>length (d_states M k q) = k\<close>
+        using     \<open>length (d_states M k q) = k\<close>
+        unfolding d_states.simps
+                  \<open>(d_states' (h M) q (nodes_as_list M) (inputs_as_list M) k) = (m,u,v,k')\<close> fst_conv
+        using \<open>q' \<notin> set (map fst m)\<close>
+        by auto 
+      moreover have "(\<exists>t\<in>FSM.transitions M. t_source t = q' \<and> t_input t = x)"
+        using \<open>h M (q', x) \<noteq> {}\<close> by fastforce
+      moreover have "\<And> t . t \<in> transitions M \<Longrightarrow> t_source t = q' \<Longrightarrow> t_input t = x \<Longrightarrow> t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states M (Suc k) q)). fst qx' = t_target t)"
+      proof - 
+        fix t assume "t \<in> transitions M" and "t_source t = q'" and "t_input t = x"
+        then have "(t_output t,t_target t) \<in> h M (q',x)"
+          unfolding h.simps by auto
+        then have "t_target t = q \<or> t_target t \<in> v"
+          using \<open>(\<forall>(y, q'')\<in>h M (q', x). q'' = q \<or> q'' \<in> v)\<close> by blast
+        then show "t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states M (Suc k) q)). fst qx' = t_target t)"
+          unfolding \<open>take i (d_states M (Suc k) q) = d_states M k q\<close> 
+          unfolding d_states.simps \<open>(d_states' (h M) q (nodes_as_list M) (inputs_as_list M) k) = (m,u,v,k')\<close> fst_conv 
+          unfolding \<open>\<And> q'' . q'' \<in> v = (q'' = q \<or> q'' \<in> set (map fst m))\<close> by force
+      qed
       ultimately show ?thesis
-        unfolding \<open>(d_states M (Suc k) q) ! i = last (d_states M (Suc k) q)\<close>  \<open>?qx = (q',x)\<close> fst_conv snd_conv 
-        using Suc.IH
-end (*     
-      have "?qx \<in> set (concat (map (\<lambda>q. map (Pair q) (inputs M)) (nodes_from_distinct_paths M)))"
-        using find_set[OF *] by assumption
-      then have "fst ?qx \<in> nodes M \<and> snd ?qx \<in> inputs M"
-        using nodes_code[of M] concat_pair_set[of "inputs M" "nodes_from_distinct_paths M"] by blast
-      moreover have "(fst ?qx \<noteq> q) \<and> (\<forall>qx'\<in>set (take i (d_states M (Suc k) q)). fst ?qx \<noteq> fst qx')"
-        by (metis find_condition[OF *] \<open>i = length (d_states M k q)\<close> \<open>d_states M (Suc k) q = d_states M k q @ [last (d_states M (Suc k) q)]\<close> append_eq_conv_conj)
-      moreover have "(\<exists>t\<in>set (wf_transitions M). t_source t = fst ?qx \<and> t_input t = snd ?qx)"
-        using find_condition[OF *] \<open>(d_states M (Suc k) q) ! i = last (d_states M (Suc k) q)\<close> by force
-      moreover have "(\<forall>t\<in>set (wf_transitions M).
-        t_source t = fst (d_states M (Suc k) q ! i) \<and> t_input t = snd (d_states M (Suc k) q ! i) \<longrightarrow>
-        (t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states M (Suc k) q)). fst qx' = t_target t)))"
-        using find_condition[OF *] \<open>(d_states M (Suc k) q) ! i = last (d_states M (Suc k) q)\<close>
-        by (metis \<open>i = length (d_states M k q)\<close> le_imp_less_Suc less_or_eq_imp_le d_states_length d_states_prefix d_states_self_length) 
-      ultimately show ?thesis by (presburger add:\<open>(d_states M (Suc k) q) ! i = last (d_states M (Suc k) q)\<close>)
+        unfolding \<open>(d_states M (Suc k) q) ! i = last (d_states M (Suc k) q)\<close>  \<open>?qx = (q',x)\<close> fst_conv snd_conv by blast
     qed
   qed
 
