@@ -230,6 +230,161 @@ value "d_states m_ex_H 5 3"
 value "d_states m_ex_H 5 4"
 
 
+lemma d_states'_cases[case_names nil_initial_success nil_initial_failure Cons_initial_success Cons_initial_failure_other_failure Cons_initial_failure_other_success] :
+  assumes "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = None \<Longrightarrow> P f q q0 inputList nodeList nodeSet 0 m m"
+  and     "\<And> x . find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = Some x \<Longrightarrow> P f q q0 inputList nodeList nodeSet 0 m (m@[(q0,x)])"
+  and     "\<And> x k . find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = Some x \<Longrightarrow>  P f q q0 inputList nodeList nodeSet (Suc k) m (m@[(q0,x)])"
+  and     "\<And> k. find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = None \<Longrightarrow> find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList = None \<Longrightarrow> P f q q0 inputList nodeList nodeSet (Suc k) m m"
+  and     "\<And> k q' x nodeList'. find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = None \<Longrightarrow> find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList') \<Longrightarrow> P f q q0 inputList nodeList nodeSet (Suc k) m (d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])) "   
+shows "P f q q0 inputList nodeList nodeSet k m (d_states' f q q0 inputList nodeList nodeSet k m)" 
+  proof(cases k)
+  case 0
+  show ?thesis proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList")
+    case None
+    then show ?thesis using assms(1)[OF None] unfolding 0 by auto
+  next
+    case (Some a)
+    then show ?thesis using assms(2)[OF Some] unfolding 0 by auto
+  qed 
+next
+  case (Suc k')
+  show ?thesis proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList")
+    case None
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList")
+      case None
+      then show ?thesis using assms(4)[OF \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nodeSet)) inputList = None\<close> None, of k'] \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nodeSet)) inputList = None\<close>
+        unfolding Suc by auto
+    next
+      case (Some a)
+      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList')"
+        by (metis prod_cases3)
+      then show ?thesis using assms(5)[OF None *, of k'] None unfolding Suc by auto
+    qed
+  next
+    case (Some a)
+    then show ?thesis using assms(3)[OF Some, of k'] unfolding Suc by auto
+  qed
+qed
+
+
+lemma d_states'_induct[case_names nil_initial_success nil_initial_failure Cons_initial_success Cons_initial_failure_other_failure Cons_initial_failure_other_success] :
+  assumes "\<And> nodeList nodeSet m .find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = None \<Longrightarrow> P f q q0 inputList nodeList nodeSet 0 m m"
+  and     "\<And> nodeList nodeSet m x . find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = Some x \<Longrightarrow> P f q q0 inputList nodeList nodeSet 0 m (m@[(q0,x)])"
+  and     "\<And> nodeList nodeSet m x k . find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = Some x \<Longrightarrow>  P f q q0 inputList nodeList nodeSet (Suc k) m (m@[(q0,x)])"
+  and     "\<And> nodeList nodeSet m k. find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = None \<Longrightarrow> find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList = None \<Longrightarrow> P f q q0 inputList nodeList nodeSet (Suc k) m m"
+  and     "\<And> nodeList nodeSet m k q' x nodeList'. find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList = None \<Longrightarrow> find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList') \<Longrightarrow> P f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)]) (d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])) \<Longrightarrow> P f q q0 inputList nodeList nodeSet (Suc k) m (d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])) "   
+shows "P f q q0 inputList nodeList nodeSet k m (d_states' f q q0 inputList nodeList nodeSet k m)" 
+proof(induction k arbitrary: nodeList nodeSet m)
+  case 0
+  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList")
+    case None
+    then show ?thesis using assms(1)[OF None] unfolding 0 by auto
+  next
+    case (Some a)
+    then show ?thesis using assms(2)[OF Some] unfolding 0 by auto
+  qed 
+next
+  case (Suc k')
+  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nodeSet))) inputList")
+    case None
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList")
+      case None
+      then show ?thesis using assms(4)[OF \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nodeSet)) inputList = None\<close> None, of k'] \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nodeSet)) inputList = None\<close>
+        unfolding Suc by auto
+    next
+      case (Some a)
+      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList')"
+        by (metis prod_cases3)
+      show ?thesis 
+        using assms(5)[OF None *, of k' m, OF Suc.IH] 
+        unfolding d_states'.simps * None by auto
+    qed
+  next
+    case (Some a)
+    then show ?thesis using assms(3)[OF Some] unfolding Suc by auto
+  qed
+qed
+
+
+lemma d_states'_length :
+  "length (d_states' f q q0 inputList nodeList nodeSet k m) \<le> (length m) + Suc k"
+proof (induction k arbitrary: nodeList nodeSet m)
+  case 0
+
+  
+
+  let ?P = "\<lambda> f q q0 inputList nodeList nodeSet k m m' . length m' \<le> (length m) + Suc k"
+
+  thm d_states'_induct[of f q0 q inputList ?P nodeList nodeSet k m]
+
+  show "?P f q q0 inputList nodeList nodeSet 0 m (d_states' f q q0 inputList nodeList nodeSet 0 m)"
+    
+  proof (cases rule: d_states'_cases[of f q0 q nodeSet inputList ?P nodeList m 0])
+    case nil_initial_success
+    then show ?case by auto
+  next
+    case (nil_initial_failure x)
+    then show ?case by auto
+  next
+    case (Cons_initial_success x k)
+    then show ?case by auto
+  next
+    case (Cons_initial_failure_other_failure k)
+    then show ?case by auto
+  next
+    case (Cons_initial_failure_other_success k q' x nodeList')
+    then show ?case 
+  qed
+
+next
+  case (Suc k)
+  then show ?case sorry
+qed
+  let ?P = "\<lambda> f q q0 inputList nodeList nodeSet k m m' . length m' \<le> Suc k"
+  show "?P f q q0 inputList nodeList nodeSet k [] (d_states' f q q0 inputList nodeList nodeSet k [])"
+    thm d_states'_induct[of f q0 q inputList ?P nodeList nodeSet k "[]"]
+  proof (cases rule: d_states'_cases[of f q0 q nodeSet inputList ?P nodeList "[]" k])
+    case nil_initial_success
+    then show ?case by auto
+  next
+    case (nil_initial_failure x)
+    then show ?case by auto
+  next
+    case (Cons_initial_success x k)
+    then show ?case by auto
+  next
+    case (Cons_initial_failure_other_failure k)
+    then show ?case by auto
+  next
+    case (Cons_initial_failure_other_success k q' x nodeList')
+    then show ?case 
+  qed
+
+lemma d_states'_length :
+  "length (d_states' f q q0 inputList nodeList nodeSet k m) \<le> (length m) + Suc k"
+proof -
+  let ?P = "\<lambda> f q q0 inputList nodeList nodeSet k m m' . length m' \<le> length m + Suc k"
+  show "?P f q q0 inputList nodeList nodeSet k m (d_states' f q q0 inputList nodeList nodeSet k m)"
+
+    
+  proof (cases rule: d_states'_cases[of f q0 q nodeSet inputList ?P nodeList m k])
+    case nil_initial_success
+    then show ?case by auto
+  next
+    case (nil_initial_failure x)
+    then show ?case by auto
+  next
+    case (Cons_initial_success x k)
+    then show ?case by auto
+  next
+    case (Cons_initial_failure_other_failure k)
+    then show ?case by auto
+  next
+    case (Cons_initial_failure_other_success k q' x nodeList')
+    then show ?case 
+  qed
+
+end (*
 
 
 lemma d_states'_cases_nil :
