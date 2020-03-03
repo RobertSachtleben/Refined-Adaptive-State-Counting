@@ -229,22 +229,6 @@ value "d_states m_ex_H 5 2"
 value "d_states m_ex_H 5 3"
 value "d_states m_ex_H 5 4"
 
-fun d_states'' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> nat \<Rightarrow> (('a \<times> 'b) list \<times> 'a list \<times> 'a set \<times> nat)" where
-  "d_states'' f q q0 nodeList inputList 0 = ([], removeAll q0 (removeAll q nodeList), {q}, 0)" |
-  "d_states'' f q q0 nodeList inputList (Suc k) = (case d_states'' f q q0 nodeList inputList k
-    of (m', u', v', k') \<Rightarrow> 
-      (if k' < k \<or> q0 \<in> v'
-        then (m', u', v', k')
-        else case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> v'))) inputList 
-          of Some x \<Rightarrow> (m'@[(q0,x)], u', insert q0 v', Suc k') |
-             None   \<Rightarrow> (case find_remove_2 (\<lambda> q' x . q' \<notin> v' \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> v'))) u' inputList
-              of None            \<Rightarrow> (m', u', v', k') |
-                 Some (q',x,u'') \<Rightarrow> (m'@[(q',x)], u'', insert q' v', Suc k'))))"
-
-
-lemma d_states'_d_states'' :
-  "d_states' f q q0 iL nL nS k [] = fst (d_states'' f q q0 nL iL k)" 
-
 
 
 lemma d_states'_length :
@@ -287,15 +271,186 @@ qed
 
 
 
-lemma d_states'_fix : 
-  assumes "(d_states' f q q0 iL nL nS (Suc k) m) = m"
-  shows "(d_states' f q q0 iL nL nS k m) = m" using assms 
+lemma d_states'_helper1 :
+  "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = Some x \<Longrightarrow> (d_states' f q q0 iL nL nS k m) = m@[(q0,x)]" 
+  by (cases k; auto)
+
+
+
+
+lemma d_states'_next :
+  "\<exists> m' . (d_states' f q q0 iL nL nS (Suc k) m) = (d_states' f q q0 iL nL nS k m)@m'" 
+proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nS))) iL")
+  case None
+  then show ?thesis proof (induction k arbitrary: nL nS m)
+    case 0
+    show ?case proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nS))) nL iL")
+      case None
+      show ?thesis unfolding d_states'.simps \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> None by auto
+    next
+      case (Some a)
+      then obtain q' x nodeList' where **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nS))) nL iL = Some (q',x,nodeList')"
+          by (metis prod_cases3)
+      show ?thesis unfolding d_states'.simps None **
+        by (simp add: option.case_eq_if) 
+    qed
+  next
+    case (Suc k')
+    show ?case proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nS))) nL iL")
+      case None
+      then show ?thesis unfolding d_states'.simps \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> None by auto
+    next
+      case (Some a)
+      then obtain q' x nodeList' where **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nS))) nL iL = Some (q',x,nodeList')"
+          by (metis prod_cases3)
+      show ?thesis proof (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>a\<in>f (q0, x). case a of (y, q'') \<Rightarrow> q'' = q \<or> q'' \<in> (insert q' nS))) iL")
+        case None
+        show ?thesis 
+          using Suc.IH[OF None]
+          using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> ** by auto
+      next
+        case (Some x')
+
+        have "d_states' f q q0 iL nL nS (Suc (Suc k')) m = d_states' f q q0 iL nodeList' (insert q' nS) (Suc k') (m@[(q',x)])"
+         and "d_states' f q q0 iL nL nS (Suc k') m = d_states' f q q0 iL nodeList' (insert q' nS) k' (m@[(q',x)])"
+          using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> ** 
+          by auto
+        then have "d_states' f q q0 iL nL nS (Suc (Suc k')) m = d_states' f q q0 iL nL nS (Suc k') m"
+          unfolding d_states'_helper1[OF Some] by auto
+
+        then show ?thesis by auto
+      qed
+    qed
+  qed
+next
+  case (Some a)
+  show ?thesis using d_states'_helper1[OF Some]
+    by (metis append_Nil2) 
+qed
+  
+
+
+
 
 lemma d_states'_prefix :
   assumes "i \<le> k"
-  and     "q0 \<notin> set (map fst (d_states' f q q0 iL nL nS k m))"
-shows "take (length m + i) (d_states' f q q0 iL nL nS k m) = (d_states' f q q0 iL nL nS i m)" 
-using assms proof (induction k arbitrary: m nL nS)
+  shows "take (length (d_states' f q q0 iL nL nS i m)) (d_states' f q q0 iL nL nS k m) = (d_states' f q q0 iL nL nS i m)" 
+using assms proof (induction "k - i" arbitrary: nL nS m k i)
+  case 0
+  then show ?case by auto
+next
+  case (Suc d)
+  then have "i < k" by auto
+  
+  show ?case proof (cases d)
+    case 0
+    then have "k = Suc i" using Suc by auto
+    show ?thesis unfolding \<open>k = Suc i\<close> using d_states'_next[of f q q0 iL nL nS i m]
+      by auto 
+  next
+    case (Suc d')
+    moreover obtain k' where "k = Suc k'"
+      using Suc.hyps by (metis Suc_le_D diff_le_self) 
+    ultimately have "Suc d = Suc k' - i" using Suc.hyps(2) by auto 
+    then have "d = k' - i" by auto 
+
+    have "i \<le> k'" using \<open>k = Suc k'\<close> \<open>i < k\<close> by auto
+
+    show ?thesis 
+      using Suc.hyps(1)[OF \<open>d = k' - i\<close> \<open>i \<le> k'\<close>]
+      by (metis \<open>k = Suc k'\<close> append_assoc append_eq_conv_conj append_take_drop_id d_states'_next) 
+  qed
+qed
+
+
+
+
+
+end (*
+
+
+  using assms proof (induction k arbitrary: nL nS m i)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+
+  show ?case proof (cases "i = Suc k")
+    case True
+    then show ?thesis by auto
+  next
+    case False
+    then have "i \<le> k" using Suc.prems by auto
+    
+    thm Suc.IH[OF \<open>i \<le> k\<close>]
+    
+    
+    then show ?thesis proof (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL")
+      case None
+      then show ?thesis 
+    next
+      case (Some a)
+      then show ?thesis unfolding d_states'_helper1[OF Some] by auto
+    qed
+  qed
+qed
+
+end (*
+  
+  show ?case proof (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL")
+    case None
+    then show ?thesis proof (cases i)
+      case 0
+
+      have *: "\<And> nL nS m . take (length (d_states' f q q0 iL nL nS 0 m)) (d_states' f q q0 iL nL nS k m) = d_states' f q q0 iL nL nS 0 m"
+        using Suc.IH[of 0] by auto
+
+      show ?thesis proof (cases "find_remove_2 (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' = q \<or> q'' \<in> nS)) nL iL")
+        case None
+        show ?thesis unfolding 0 d_states'.simps None \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> by auto
+      next
+        case (Some a)
+        then obtain q' x nodeList' where **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nS))) nL iL = Some (q',x,nodeList')"
+          by (metis prod_cases3)
+
+
+        have "d_states' f q q0 iL nL nS (Suc k) m =  d_states' f q q0 iL nodeList' (insert q' nS) k (m @ [(q', x)])"
+          using ** \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> 
+          by auto
+
+        have "d_states' f q q0 iL nL nS i m"
+
+        show ?thesis 
+          using * unfolding 0 d_states'.simps(2) ** None
+          unfolding 0 d_states'.simps ** \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> 
+      qed
+    next
+      case (Suc i')
+      then show ?thesis sorry
+    qed
+  next
+    case (Some a)
+    show ?thesis unfolding d_states'_helper1[OF Some] by auto
+  qed
+qed
+
+end (*
+
+lemma d_states'_prefix :
+  assumes "i < k"
+  and     "q0 \<notin> nS"
+  and     "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nS))) iL = None"
+  and     "take (length m + Suc i) (d_states' f q q0 iL nL nS k m) = T1"
+  and     "(d_states' f q q0 iL nL nS i m) = T2"
+shows "T1 = T2" nitpick
+
+
+lemma d_states'_prefix :
+  assumes "i \<le> k"
+  and     "q0 \<notin> nS"
+  and     "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nS))) iL = None"
+shows "take (length m + i) (d_states' f q q0 iL nL nS k m) = (d_states' f q q0 iL nL nS i m)" nitpic
+using assms proof (induction k arbitrary: m nL nS i)
   case 0
   then have "i = 0" by auto
   
@@ -306,15 +461,45 @@ next
     case True
     then show ?thesis proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nS))) iL")
       case None
+
+      have *: "\<And> m nL . take (length m + i) (d_states' f q q0 iL nL nS k m) = d_states' f q q0 iL nL nS i m"
+        using Suc.IH[OF True Suc.prems(2)] by blast
+
       show ?thesis proof (cases "find_remove_2 (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' = q \<or> q'' \<in> nS)) nL iL")
         case None
-        show ?thesis 
-          unfolding d_states'.simps \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> None
-          using Suc.prems
-          using Suc.IH[OF True, of ]
+        show ?thesis proof (induction i)
+          case 0
+          show ?case 
+            unfolding d_states'.simps \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> None by auto
+          
+        next
+          case (Suc i')
+          show ?case 
+            unfolding Suc d_states'.simps \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' = q \<or> q'' \<in> nS)) iL = None\<close> None
+            by auto
+        qed          
       next
         case (Some a)
-        then show ?thesis sorry
+          
+        then obtain q' x nodeList' where **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' = q \<or> q'' \<in> nS))) nL iL = Some (q',x,nodeList')"
+          by (metis prod_cases3)
+
+        have "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' = q \<or> q'' \<in> nS))) iL"
+
+        show ?thesis using Suc.IH[OF True None] proof (induction i)
+          case 0
+          then show ?case 
+            
+            unfolding d_states'.simps None **
+        next
+          case (Suc i)
+          then show ?case sorry
+        qed
+
+        show ?thesis 
+          using Suc.IH[OF True None]
+          unfolding d_states'.simps None **
+          
       qed
         unfolding d_states'.simps
         using Suc.IH[OF True ] unfolding None using None
