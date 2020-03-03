@@ -377,6 +377,7 @@ lemma d_states'_index_properties :
   and     "q0 \<noteq> q"
   and     "nS = insert q (set (map fst m))"
   and     "q \<in> nodes M"
+  and     "distinct nL"
 shows "fst (d_states' (h M) q q0 iL nL nS k m ! i) \<in> (insert q0 (set nL))" 
       "fst (d_states' (h M) q q0 iL nL nS k m ! i) \<noteq> q"
       "snd (d_states' (h M) q q0 iL nL nS k m ! i) \<in> set iL"
@@ -392,46 +393,155 @@ proof -
       \<and> (\<exists> t \<in> transitions M . t_source t = fst (d_states' (h M) q q0 iL nL nS k m ! i) \<and> t_input t = snd (d_states' (h M) q q0 iL nL nS k m ! i))
       \<and> (\<forall> t \<in> transitions M . (t_source t = fst (d_states' (h M) q q0 iL nL nS k m ! i) \<and> t_input t = snd (d_states' (h M) q q0 iL nL nS k m ! i)) \<longrightarrow> (t_target t = q \<or> (\<exists> qx' \<in> set (take i (d_states' (h M) q q0 iL nL nS k m)) . fst qx' = (t_target t))))"    
   using assms proof (induction k arbitrary: nL nS m)
-  case 0
-  show ?case proof (cases "find (\<lambda> x . (h M) (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q0,x) . (q'' \<in> nS))) iL")
-    case None
-    then have "(d_states' (h M) q q0 iL nL nS 0 m) = m" by auto
-    then have "False" using "0.prems"(1,2) by auto
-    then show ?thesis by simp
-  next
-    case (Some x)
-    have "(d_states' (h M) q q0 iL nL nS 0 m) = m@[(q0,x)]" using d_states'_helper1[OF Some] by assumption
-    then have "(d_states' (h M) q q0 iL nL nS 0 m ! i) = (q0,x)" using "0.prems"(1,2)
-      using antisym by fastforce 
-
-    have "fst (q0, x) \<in> insert q0 (set nL)" by auto
-    moreover have "fst (q0, x) \<noteq> q" using \<open>q0 \<noteq> q\<close> by auto
-    moreover have "snd (q0, x) \<in> set iL" using find_set[OF Some] by auto
-    moreover have "\<And> qx' . qx' \<in> set (take i (d_states' (h M) q q0 iL nL nS 0 m)) - set (take (length m) (d_states' (h M) q q0 iL nL nS 0 m)) \<Longrightarrow> fst (q0, x) \<noteq> fst qx'"
-      using "0.prems"(1) "0.prems"(2) \<open>d_states' (h M) q q0 iL nL nS 0 m = m @ [(q0, x)]\<close> by auto
-    moreover have "(\<exists>t\<in>FSM.transitions M. t_source t = fst (q0, x) \<and> t_input t = snd (q0, x))"
-      using find_condition[OF Some] unfolding fst_conv snd_conv h.simps
-      by fastforce 
-    moreover have "\<And> t . t \<in> FSM.transitions M \<Longrightarrow>
-        t_source t = fst (q0, x) \<Longrightarrow> t_input t = snd (q0, x) \<Longrightarrow>
-        t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states' (h M) q q0 iL nL nS 0 m)). fst qx' = t_target t)"   
-    proof -
-      fix t assume "t \<in> FSM.transitions M" "t_source t = fst (q0, x)" "t_input t = snd (q0, x)"
-      then have "t_target t \<in> nS"
-        using find_condition[OF Some] unfolding h.simps fst_conv snd_conv
-        by (metis (mono_tags, lifting) case_prod_beta' mem_Collect_eq prod.collapse) 
-      then show "t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states' (h M) q q0 iL nL nS 0 m)). fst qx' = t_target t)"
-        using \<open>nS = insert q (set (map fst m))\<close>
-        using "0.prems"(1) "0.prems"(2) \<open>d_states' (h M) q q0 iL nL nS 0 m = m @ [(q0, x)]\<close> by fastforce    
+    case 0
+    show ?case proof (cases "find (\<lambda> x . (h M) (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q0,x) . (q'' \<in> nS))) iL")
+      case None
+      then have "(d_states' (h M) q q0 iL nL nS 0 m) = m" by auto
+      then have "False" using "0.prems"(1,2) by auto
+      then show ?thesis by simp
+    next
+      case (Some x)
+      have "(d_states' (h M) q q0 iL nL nS 0 m) = m@[(q0,x)]" using d_states'_helper1[OF Some] by assumption
+      then have "(d_states' (h M) q q0 iL nL nS 0 m ! i) = (q0,x)" using "0.prems"(1,2)
+        using antisym by fastforce 
+  
+      have "fst (q0, x) \<in> insert q0 (set nL)" by auto
+      moreover have "fst (q0, x) \<noteq> q" using \<open>q0 \<noteq> q\<close> by auto
+      moreover have "snd (q0, x) \<in> set iL" using find_set[OF Some] by auto
+      moreover have "\<And> qx' . qx' \<in> set (take i (d_states' (h M) q q0 iL nL nS 0 m)) - set (take (length m) (d_states' (h M) q q0 iL nL nS 0 m)) \<Longrightarrow> fst (q0, x) \<noteq> fst qx'"
+        using "0.prems"(1) "0.prems"(2) \<open>d_states' (h M) q q0 iL nL nS 0 m = m @ [(q0, x)]\<close> by auto
+      moreover have "(\<exists>t\<in>FSM.transitions M. t_source t = fst (q0, x) \<and> t_input t = snd (q0, x))"
+        using find_condition[OF Some] unfolding fst_conv snd_conv h.simps
+        by fastforce 
+      moreover have "\<And> t . t \<in> FSM.transitions M \<Longrightarrow>
+          t_source t = fst (q0, x) \<Longrightarrow> t_input t = snd (q0, x) \<Longrightarrow>
+          t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states' (h M) q q0 iL nL nS 0 m)). fst qx' = t_target t)"   
+      proof -
+        fix t assume "t \<in> FSM.transitions M" "t_source t = fst (q0, x)" "t_input t = snd (q0, x)"
+        then have "t_target t \<in> nS"
+          using find_condition[OF Some] unfolding h.simps fst_conv snd_conv
+          by (metis (mono_tags, lifting) case_prod_beta' mem_Collect_eq prod.collapse) 
+        then show "t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states' (h M) q q0 iL nL nS 0 m)). fst qx' = t_target t)"
+          using \<open>nS = insert q (set (map fst m))\<close>
+          using "0.prems"(1) "0.prems"(2) \<open>d_states' (h M) q q0 iL nL nS 0 m = m @ [(q0, x)]\<close> by fastforce    
+      qed
+        
+      ultimately show ?thesis 
+        unfolding \<open>(d_states' (h M) q q0 iL nL nS 0 m ! i) = (q0,x)\<close> by blast
     qed
-      
-    ultimately show ?thesis 
-      unfolding \<open>(d_states' (h M) q q0 iL nL nS 0 m ! i) = (q0,x)\<close> by blast
+  next
+    case (Suc k)
+
+
+    show ?case proof (cases "find (\<lambda> x . (h M) (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q0,x) . (q'' \<in> nS))) iL")
+      case None
+      show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS))) nL iL")
+        case None
+        then have "(d_states' (h M) q q0 iL nL nS (Suc k) m) = m" using \<open>find (\<lambda>x. h M (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (q0, x). q'' \<in> nS)) iL = None\<close> by auto
+        then have "False" using Suc.prems(1,2) by auto
+        then show ?thesis by simp
+      next
+        case (Some a)
+        then obtain q' x nL' where **: "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS))) nL iL = Some (q',x,nL')"
+          by (metis prod_cases3)
+        then have "d_states' (h M) q q0 iL nL nS (Suc k) m = d_states' (h M) q q0 iL nL' (insert q' nS) k (m@[(q',x)])"
+          using None by auto
+        then have "i < length (d_states' (h M) q q0 iL nL' (insert q' nS) k (m@[(q',x)]))"
+          using Suc.prems(1) by auto
+
+        have "insert q' nS = insert q (set (map fst (m @ [(q', x)])))"
+          using Suc.prems(4) by auto
+        
+        show ?thesis proof (cases "length (m @ [(q', x)]) \<le> i")
+          case True
+
+          have "distinct nL'"
+            using find_remove_2_set(5)[OF ** \<open>distinct nL\<close>] by assumption
+          have "set nL' \<subseteq> set nL"
+            using find_remove_2_set(4)[OF ** \<open>distinct nL\<close>] by blast
+
+          have p1: "fst (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i) \<in> insert q0 (set nL')" 
+          and p2: "fst (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i) \<noteq> q \<and>
+                  snd (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i) \<in> set iL \<and>
+                  (\<forall>qx'\<in>set (take i (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]))) -
+                         set (take (length (m @ [(q', x)]))
+                               (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]))).
+                      fst (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i) \<noteq> fst qx') \<and>
+                  (\<exists>t\<in>FSM.transitions M.
+                      t_source t = fst (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i) \<and>
+                      t_input t = snd (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i)) \<and>
+                  (\<forall>t\<in>FSM.transitions M.
+                      t_source t = fst (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i) \<and>
+                      t_input t = snd (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]) ! i) \<longrightarrow>
+                      t_target t = q \<or>
+                      (\<exists>qx'\<in>set (take i (d_states' (h M) q q0 iL nL' (insert q' nS) k (m @ [(q', x)]))).
+                          fst qx' = t_target t))" 
+            using Suc.IH[OF \<open>i < length (d_states' (h M) q q0 iL nL' (insert q' nS) k (m@[(q',x)]))\<close> 
+                            True
+                            \<open>q0 \<noteq> q\<close> 
+                            \<open>insert q' nS = insert q (set (map fst (m @ [(q', x)])))\<close>
+                            \<open>q \<in> nodes M\<close>
+                            \<open>distinct nL'\<close> ] by blast+
+
+
+          then have "fst (d_states' (h M) q q0 iL nL nS (Suc k) m ! i) \<in> insert q0 (set nL)"
+            using p1 
+
+          show ?thesis
+            
+            
+            unfolding \<open>d_states' (h M) q q0 iL nL nS (Suc k) m = d_states' (h M) q q0 iL nL' (insert q' nS) k (m@[(q',x)])\<close> 
+            using \<open>set nL' \<subseteq> set nL\<close> 
+        next
+          case False
+          then show ?thesis sorry
+        qed 
+
+
+        thm Suc.IH[OF \<open>i < length (d_states' (h M) q q0 iL nL' (insert q' nS) k (m@[(q',x)]))\<close> 
+                      _ 
+                      \<open>q0 \<noteq> q\<close> 
+                      \<open>insert q' nS = insert q (set (map fst (m @ [(q', x)])))\<close>
+                      \<open>q \<in> nodes M\<close>
+                  ]
+        
+        
+        show ?thesis sorry
+      qed
+    next
+      case (Some x)
+      have "(d_states' (h M) q q0 iL nL nS (Suc k) m) = m@[(q0,x)]" using d_states'_helper1[OF Some] by assumption
+      then have "(d_states' (h M) q q0 iL nL nS (Suc k) m ! i) = (q0,x)" using Suc.prems(1,2)
+        using antisym by fastforce 
+  
+      have "fst (q0, x) \<in> insert q0 (set nL)" by auto
+      moreover have "fst (q0, x) \<noteq> q" using \<open>q0 \<noteq> q\<close> by auto
+      moreover have "snd (q0, x) \<in> set iL" using find_set[OF Some] by auto
+      moreover have "\<And> qx' . qx' \<in> set (take i (d_states' (h M) q q0 iL nL nS (Suc k) m)) - set (take (length m) (d_states' (h M) q q0 iL nL nS (Suc k) m)) \<Longrightarrow> fst (q0, x) \<noteq> fst qx'"
+        using Suc.prems(1,2) \<open>d_states' (h M) q q0 iL nL nS (Suc k) m = m @ [(q0, x)]\<close> by auto
+      moreover have "(\<exists>t\<in>FSM.transitions M. t_source t = fst (q0, x) \<and> t_input t = snd (q0, x))"
+        using find_condition[OF Some] unfolding fst_conv snd_conv h.simps
+        by fastforce 
+      moreover have "\<And> t . t \<in> FSM.transitions M \<Longrightarrow>
+          t_source t = fst (q0, x) \<Longrightarrow> t_input t = snd (q0, x) \<Longrightarrow>
+          t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states' (h M) q q0 iL nL nS (Suc k) m)). fst qx' = t_target t)"   
+      proof -
+        fix t assume "t \<in> FSM.transitions M" "t_source t = fst (q0, x)" "t_input t = snd (q0, x)"
+        then have "t_target t \<in> nS"
+          using find_condition[OF Some] unfolding h.simps fst_conv snd_conv
+          by (metis (mono_tags, lifting) case_prod_beta' mem_Collect_eq prod.collapse) 
+        then show "t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states' (h M) q q0 iL nL nS (Suc k) m)). fst qx' = t_target t)"
+          using \<open>nS = insert q (set (map fst m))\<close>
+          using Suc.prems(1,2) \<open>d_states' (h M) q q0 iL nL nS (Suc k) m = m @ [(q0, x)]\<close> by fastforce    
+      qed
+        
+      ultimately show ?thesis 
+        unfolding \<open>(d_states' (h M) q q0 iL nL nS (Suc k) m ! i) = (q0,x)\<close> by blast
+    qed
+
+
+
   qed
-next
-  case (Suc k)
-  then show ?case sorry
-qed
 
 
 
