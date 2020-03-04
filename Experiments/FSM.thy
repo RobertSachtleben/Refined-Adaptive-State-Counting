@@ -2745,4 +2745,23 @@ lemma inputs_as_list_distinct : "distinct (inputs_as_list M)" by auto
 
 
 
+subsubsection \<open>Filtering Transitions\<close>
+
+lift_definition filter_transitions :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.filter_transitions 
+proof -
+  fix M  :: "('a,'b,'c) fsm_impl"
+  fix P  :: "('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> bool"
+  assume "well_formed_fsm M"
+  then show "well_formed_fsm (FSM_Impl.filter_transitions M P)" 
+    unfolding FSM_Impl.filter_transitions.simps by force
+qed
+
+lemma filter_transitions_simps[simp] :
+  "initial (filter_transitions M P) = initial M"
+  "nodes (filter_transitions M P) = nodes M"
+  "inputs (filter_transitions M P) = inputs M"
+  "outputs (filter_transitions M P) = outputs M"
+  "transitions (filter_transitions M P) = {t \<in> transitions M . P t}"
+  by (transfer;auto)+
+
 end

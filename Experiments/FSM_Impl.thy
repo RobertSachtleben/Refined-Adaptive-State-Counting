@@ -75,6 +75,15 @@ proof -
   ultimately show ?thesis by auto
 qed
 
+
+subsubsection \<open>Filtering Transitions\<close>
+
+fun filter_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "filter_transitions M P = \<lparr> initial = initial M
+                            , nodes = nodes M
+                            , inputs = inputs M
+                            , outputs = outputs M
+                            , transitions = Set.filter P (transitions M) \<rparr>"
  
 subsubsection \<open>Initial Singleton FSM (For Trivial Preamble)\<close>    
 
