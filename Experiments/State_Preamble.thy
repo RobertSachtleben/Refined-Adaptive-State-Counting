@@ -1112,7 +1112,7 @@ proof -
 qed
 
 
-lemma d_states_acyclic_paths :
+lemma d_states_acyclic_paths' :
   fixes M :: "('a::linorder,'b::linorder,'c) fsm"
   assumes "path (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M k q))) q' p"
   and     "target q' p = q'"
@@ -1212,142 +1212,62 @@ proof -
 qed
 
 
-end (*
-  then have "f ((p@[t']) ! 0) > f ((p@[t']) ! (length (p@[t']) - 1))"  
-  
-
-    
-  have "\<And> i j . j < i \<Longrightarrow> i < length (d_states M k q) \<Longrightarrow> fst (d_states M k q ! j) \<noteq> fst (d_states M k q ! i)"
-  proof -
-    fix i j assume "j < i" and "i < length (d_states M k q)"
-    then have "i < length (map fst (d_states M k q))" by auto
-    then have "(map fst (d_states M k q)) ! j \<noteq> (map fst (d_states M k q)) ! i"
-      using nth_eq_iff_index_eq[OF d_states_distinct[of M k q]] \<open>j < i\<close> by auto
-    then show "fst (d_states M k q ! j) \<noteq> fst (d_states M k q ! i)" 
-      using \<open>j < i\<close> \<open>i < length (d_states M k q)\<close> by auto
-  qed
-  
-  have "\<And> i j . j < i \<Longrightarrow> i < length p \<Longrightarrow> t_source ((p@[t']) ! j) \<noteq> t_source ((p@[t']) ! i)"
-  proof 
-    fix i j assume "j < i" and "i < length p" and "t_source ((p@[t']) ! j) = t_source ((p@[t']) ! i)"
-    then have "(p@[t']) ! i \<in> set p" and "(p@[t']) ! j \<in> set p" by auto
-    then have "(p@[t']) ! i \<in> transitions M" and "(p@[t']) ! j \<in> transitions M" 
-      using assms(2) path_transitions by fastforce+
-
-    have "f ((p@[t']) ! i) < length (d_states M k q)"
-    and  "(d_states M k q) ! (f ((p@[t']) ! i)) = (t_source ((p@[t']) ! i), t_input ((p@[t']) ! i))"
-    and  "(\<forall>j<f ((p@[t']) ! i). fst (d_states M k q ! j) \<noteq> t_source ((p@[t']) ! i))"
-      using f_prop[OF \<open>(p@[t']) ! i \<in> set p\<close>] by auto
-
-    have "f ((p@[t']) ! j) < length (d_states M k q)"
-    and  "(d_states M k q) ! (f ((p@[t']) ! j)) = (t_source ((p@[t']) ! j), t_input ((p@[t']) ! j))"
-    and  "(\<forall>j'<f ((p@[t']) ! j). fst (d_states M k q ! j') \<noteq> t_source ((p@[t']) ! j))"
-      using f_prop[OF \<open>(p@[t']) ! j \<in> set p\<close>] by auto
 
 
-    have "f ((p@[t']) ! j) = f ((p@[t']) ! i)"
-      by (metis \<open>\<forall>j'<f ((p@[t']) ! j). fst (d_states M k q ! j') \<noteq> t_source ((p@[t']) ! j)\<close> \<open>\<forall>j<f ((p@[t']) ! i). fst (d_states M k q ! j) \<noteq> t_source ((p@[t']) ! i)\<close> \<open>d_states M k q ! f ((p@[t']) ! i) = (t_source ((p@[t']) ! i), t_input ((p@[t']) ! i))\<close> \<open>d_states M k q ! f ((p@[t']) ! j) = (t_source ((p@[t']) ! j), t_input ((p@[t']) ! j))\<close> \<open>t_source ((p@[t']) ! j) = t_source ((p@[t']) ! i)\<close> fst_conv nat_neq_iff)
-
-    moreover have "f ((p@[t']) ! j) < f ((p@[t']) ! i)"
-      using \<open>\<And> i . Suc i < length p \<Longrightarrow> f ((p@[t']) ! i) > f ((p@[t']) ! (Suc i))\<close>
-    using \<open>j < i\<close> proof (induction "i - j")
-      case 0
-      then show ?case by auto
-    next
-      case (Suc d)
-      then show ?case
-      proof -
-        have f1: "i \<noteq> j"
-          using Suc.prems(2) nat_neq_iff by presburger
-        have f2: "\<forall>n ps f. \<not> n < length ps \<or> map f ps ! n = (f (ps ! n::'a \<times> 'b \<times> 'c \<times> 'a)::nat)"
-          using nth_map by blast
-        have "\<forall>n na nb. \<not> (n::nat) < na \<or> \<not> na < nb \<or> n < nb"
-          by (metis (no_types) less_trans)
-        then have "j < length p"
-          using Suc.prems(2) \<open>i < length p\<close> by blast
-        then show ?thesis
-          using f2 f1 by (metis (full_types) Suc.prems(1) Suc_lessD \<open>i < length p\<close> calculation length_map nth_eq_iff_index_eq ordered_list_distinct_rev)
-      qed
-    qed
-
-    ultimately show "False" by simp
-  qed
-
-
-  have "\<And> i . i < length p \<Longrightarrow> t_source ((p@[t']) ! i) \<noteq> target q' p"
-  proof - 
-    fix i assume "i < length p"
-    show "t_source ((p@[t']) ! i) \<noteq> target q' p"
-    proof (cases "length p")
-      case 0
-      then show ?thesis using \<open>i < length p\<close> by auto
-    next
-      case (Suc nat)
-      then have "t_source ((p@[t']) ! 0) = q'"
-        using assms(2) by (metis (no_types, lifting) Zero_not_Suc length_0_conv nth_Cons_0 path.cases) 
-
-      have "t_target (last p) = q'"
-        using Suc assms(3) unfolding target.simps visited_nodes.simps
-        by (metis (no_types, lifting) Zero_not_Suc last.simps last_map length_0_conv map_is_Nil_conv) 
-      then have "t_target ((p@[t']) ! (length p - 1)) = q'"
-        using Suc by (metis Zero_not_Suc last_conv_nth list.size(3))  
-      
-      then show ?thesis sorry
-    qed
-    
-
-end (*
-
-
-    then have "fst (d_states M k q ! (f ((p@[t']) ! j))) = fst (d_states M k q ! (f ((p@[t']) ! i)))"
-      by simp
-    moreover have "fst (d_states M k q ! (f ((p@[t']) ! j))) \<noteq> fst (d_states M k q ! (f ((p@[t']) ! i)))"
-      using \<open>\<And> i j . j < i \<Longrightarrow> i < length (d_states M k q) \<Longrightarrow> fst (d_states M k q ! j) \<noteq> fst (d_states M k q ! i)\<close>[of "f ((p@[t']) ! j)" "f ((p@[t']) ! i)"]
-      
-    
-  
-
-
-end (*
-lemma d_states_acyclic_paths :
-  assumes "q \<in> nodes M"
-  and     "t \<in> transitions (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M k q)))"
-  and     "path (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M k q))) (t_target t) p"
-  and     "target (t_target t) p = (t_source t)"
-shows "False"
+(* TODO: move *)
+lemma cycle_from_cyclic_path :
+  assumes "path M q p"
+  and     "\<not> distinct (visited_nodes q p)"
+obtains i j where
+  "take j (drop i p) \<noteq> []"
+  "target (target q (take i p)) (take j (drop i p)) = (target q (take i p))"
+  "path M (target q (take i p)) (take j (drop i p))"
 proof -
+  obtain i j where "i < j" and "j < length (visited_nodes q p)" and "(visited_nodes q p) ! i = (visited_nodes q p) ! j"
+    using assms(2) non_distinct_repetition_indices by blast 
 
-  obtain i where "(d_states M k q) ! i = (t_source t, t_input t)" and "i < length (d_states M k q)"
-    using assms(2) unfolding filter_transitions_simps
-    by (metis (no_types, lifting) in_set_conv_nth mem_Collect_eq)
+  have "(target q (take i p)) = (visited_nodes q p) ! i"
+    using \<open>i < j\<close> \<open>j < length (visited_nodes q p)\<close>
+    by (metis less_trans take_last_index target.simps visited_nodes_take)
 
-  have "t_source t \<in> FSM.nodes M - {q}"
-        "t_source t \<noteq> q"
-        "t_input t \<in> FSM.inputs M"
-        "\<And> qx' . qx'\<in>set (take i (d_states M k q)) \<Longrightarrow> t_source t \<noteq> fst qx'"
-        "\<exists>ta\<in>FSM.transitions M. t_source ta = t_source t \<and> t_input ta = t_input t"
-        "\<And> ta . ta\<in>FSM.transitions M \<Longrightarrow>
-           t_source ta = t_source t \<Longrightarrow> t_input ta = t_input t \<Longrightarrow>
-           t_target ta = q \<or> (\<exists>qx'\<in>set (take i (d_states M k q)). fst qx' = t_target ta)"
-    using d_states_index_properties[OF \<open>i < length (d_states M k q)\<close>] 
-    unfolding \<open>(d_states M k q) ! i = (t_source t, t_input t)\<close> fst_conv snd_conv by blast+
+  then have "(target q (take i p)) = (visited_nodes q p) ! j"
+    using \<open>(visited_nodes q p) ! i = (visited_nodes q p) ! j\<close> by auto
 
-  then have "t_target t = q \<or> (\<exists>qx'\<in>set (take i (d_states M k q)). fst qx' = t_target t)"
-    using assms(2) by auto
-  then have "t_target t \<noteq> t_source t"
-    using \<open>t_source t \<noteq> q\<close> \<open>(d_states M k q) ! i = (t_source t, t_input t)\<close>
-    by (metis \<open>i < length (d_states M k q)\<close> d_states_index_properties(4) fst_conv)
+  have p1: "take (j-i) (drop i p) \<noteq> []"
+    using \<open>i < j\<close> \<open>j < length (visited_nodes q p)\<close> by auto 
 
-  show ?thesis using assms(3,4) proof (induction p arbitrary: t rule: list.induct)
-    case Nil
-    then have "t_source t = t_target t" by auto
-    then have "False" using \<open>t_target t \<noteq> t_source t\<close> by simp
-    then show ?case by simp
-  next
-    case (Cons t' p)
-    then show ?case  sorry
-  qed
+  have "target (target q (take i p)) (take (j-i) (drop i p)) = (target q (take j p))"
+    using \<open>i < j\<close> by (metis add_diff_inverse_nat less_asym' path_append_target take_add)
+  then have p2: "target (target q (take i p)) (take (j-i) (drop i p)) = (target q (take i p))"
+    using \<open>(target q (take i p)) = (visited_nodes q p) ! i\<close>
+    using \<open>(target q (take i p)) = (visited_nodes q p) ! j\<close>
+    by (metis \<open>j < length (visited_nodes q p)\<close> take_last_index target.simps visited_nodes_take)
 
+  have p3: "path M (target q (take i p)) (take (j-i) (drop i p))"
+    by (metis append_take_drop_id assms(1) path_append_elim)
+
+  show ?thesis using p1 p2 p3 that by blast
+qed
+  
+
+
+
+lemma d_states_acyclic_paths :
+  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
+  assumes "path (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M k q))) q' p"
+          (is "path ?FM q' p")
+shows "distinct (visited_nodes q' p)"
+proof (rule ccontr)
+  assume "\<not> distinct (visited_nodes q' p)"
+  
+  obtain i j where p1:"take j (drop i p) \<noteq> []"
+               and p2:"target (target q' (take i p)) (take j (drop i p)) = (target q' (take i p))"
+               and p3:"path ?FM (target q' (take i p)) (take j (drop i p))"
+    using cycle_from_cyclic_path[OF assms \<open>\<not> distinct (visited_nodes q' p)\<close>] by blast
+  
+  show "False"
+    using d_states_acyclic_paths'[OF p3 p2 p1] by assumption
+qed
 
 
 
