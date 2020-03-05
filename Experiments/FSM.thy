@@ -1443,13 +1443,16 @@ lemma deadlock_state_alt_def_h : "deadlock_state M q = (\<forall> x \<in> inputs
   unfolding deadlock_state.simps h.simps 
   using fsm_transition_input by force
 
+lemma reachable_node_is_node : 
+  "q \<in> reachable_nodes M \<Longrightarrow> q \<in> nodes M" 
+  unfolding reachable_nodes_def using path_target_is_node by fastforce 
 
-lemma acyclic_deadlock_states :
+lemma acyclic_deadlock_reachable :
   assumes "acyclic M"
-  shows "\<exists> q \<in> nodes M . deadlock_state M q"
+  shows "\<exists> q \<in> reachable_nodes M . deadlock_state M q"
 proof (rule ccontr)
-  assume "\<not> (\<exists>q\<in>nodes M. deadlock_state M q)"
-  then have *: "\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists> t \<in> transitions M . t_source t = q)"
+  assume "\<not> (\<exists>q\<in>reachable_nodes M. deadlock_state M q)"
+  then have *: "\<And> q . q \<in> reachable_nodes M \<Longrightarrow> (\<exists> t \<in> transitions M . t_source t = q)"
     unfolding deadlock_state.simps by blast
 
   let ?p = "arg_max_on length {p. path M (initial M) p}"
@@ -1465,7 +1468,8 @@ proof (rule ccontr)
     by (metis mem_Collect_eq not_le_imp_less)
 
   then obtain t where "t \<in> transitions M" and "t_source t = target (initial M) p"
-    using * path_target_is_node by metis
+    using *[of "target (initial M) p"] unfolding reachable_nodes_def
+    by blast
 
   then have "path M (initial M) (p@[t])"
     using \<open>path M (initial M) p\<close>
@@ -2345,9 +2349,7 @@ subsubsection \<open>Induction Schemes\<close>
 
 
 
-lemma reachable_node_is_node : 
-  "q \<in> reachable_nodes M \<Longrightarrow> q \<in> nodes M" 
-  unfolding reachable_nodes_def using path_target_is_node by fastforce 
+
 
 lemma reachable_nodes_next : 
   assumes "q \<in> reachable_nodes M" and "t \<in> transitions M" and "t_source t = q" 
