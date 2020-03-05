@@ -1543,9 +1543,198 @@ and   "snd (qxs ! i) \<in> inputs M"
 qed
 
 
+(* TODO: study old proof again ... *)
+
+end (*
+
+(* show that the result of finding a preamble does not depend on the ordering of iL, only the kind of preamble depends on the ordering of iL *)
+lemma y :
+  assumes "set nL1 = nLC \<union> nS1X"
+  and     "set nL2 = nLC \<union> nS2X"
+  and     "nLC \<inter> nS1X = {}"
+  and     "nLC \<inter> nS2X = {}"
+  and     "nS1X \<inter> nS2X = {}"
+  and     "card nS1X = card nS2X"
+  and     "distinct nL1"
+  and     "distinct nL2"
+  and     "set nL1 \<inter> nS1 = {}"
+  and     "set nL2 \<inter> nS2 = {}"
+  
+
+
+  and     "q0 \<noteq> q"
+  and     "distinct (map fst m)"
+  and     "set (map fst m) \<subseteq> nS"
+  and     "q0 \<notin> nS"
+  and     "nS = insert q (set (map fst m))"
+  and     "distinct nL"
+  and     "distinct nLX"
+  and     "q0 \<notin> set nL"
+  and     "set nL \<inter> nS = {}"
+  
+shows "(\<exists> qx \<in> set (d_states' f q q0 iL nL nS k m) . fst qx = q0) = (\<exists> qx \<in> set (d_states' f q q0 iL nLX nS k m) . fst qx = q0)" 
+
+
+(* show that the result of finding a preamble does not depend on the ordering of iL, only the kind of preamble depends on the ordering of iL *)
+lemma y :
+  assumes "set nLX = set nL"
+ and     "set nL \<inter> nS = {}"
+  and     "q0 \<noteq> q"
+  and     "distinct (map fst m)"
+  and     "set (map fst m) \<subseteq> nS"
+  and     "q0 \<notin> nS"
+  and     "nS = insert q (set (map fst m))"
+  and     "distinct nL"
+  and     "distinct nLX"
+  and     "q0 \<notin> set nL"
+  and     "set nL \<inter> nS = {}"
+  
+shows "(\<exists> qx \<in> set (d_states' f q q0 iL nL nS k m) . fst qx = q0) = (\<exists> qx \<in> set (d_states' f q q0 iL nLX nS k m) . fst qx = q0)" 
+using assms proof (induction k arbitrary: nL nLX nS m)
+  case 0 (* nL not used, identical result *)
+  show ?case by auto
+next
+  case (Suc k)
+  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL")
+    case None
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL")
+      case None
+      then have "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nLX iL = None"
+        using \<open>set nLX = set nL\<close> unfolding find_remove_2_None_iff
+        by blast 
+      then show ?thesis using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL = None\<close> None by auto
+    next
+      case (Some a)
+      then obtain q' x nL' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL = Some (q',x,nL')"
+        by (metis prod_cases3)
+
+      have "find_remove_2 (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nS)) nLX iL \<noteq> None"
+        unfolding find_remove_2_None_iff
+        using find_remove_2_set(1,2,3)[OF *] unfolding \<open>set nLX = set nL\<close>[symmetric] by blast
+      then obtain q'X xX nL'X where **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nLX iL = Some (q'X,xX,nL'X)"
+        by auto
+
+      have "set nL' = set nL'X"
+        using find_remove_2_set(4)[OF *] find_remove_2_set(4)[OF **] \<open>distinct nL\<close> \<open>distinct nLX\<close>
+
+      thm Suc.IH
+      then show ?thesis sorry
+    qed
+  next
+    case (Some a)
+    show ?thesis unfolding d_states'_helper1[OF Some] by auto
+  qed
+qed
+proof (cases "q' = q")
+  case True
+  then show ?thesis by auto
+next
+  case False
+  show ?thesis proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL")
+    case None
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL")
+      case None
+      then have "False"
+        unfolding find_remove_2_None_iff 
+        using \<open>q' \<in> set nL\<close> \<open>x \<in> set iL\<close> \<open>f (q',x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))\<close> by blast
+      then show ?thesis by simp
+    next
+      case (Some a)
+      then show ?thesis sorry
+    qed
+    
+  next
+    case (Some a)
+    show ?thesis unfolding d_states'_helper1[OF Some] by auto
+  qed
+qed
 
 
 end (*
+
+lemma x :
+  assumes "f (q',x) \<noteq> {}"
+  and     "q' \<in> set nL"
+  and     "x \<in> set iL"
+  and     "(\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))"
+  and     "\<And> y q'' . q'' = q \<or> (\<exists> qx \<in> set (d_states' f q'' q0 iL (removeAll q'' nL) (insert q'' nS) k (m@[(q',x)])) . fst qx = q0)"  
+  and     "set nL \<inter> nS = {}"
+  and     "q0 \<noteq> q"
+  and     "distinct (map fst m)"
+  and     "set (map fst m) \<subseteq> nS"
+  and     "q0 \<notin> nS"
+  and     "nS = insert q (set (map fst m))"
+  and     "distinct nL"
+  and     "q0 \<notin> set nL"
+  and     "set nL \<inter> nS = {}"
+
+  and     "q0 \<notin> set (map fst m)"
+  
+shows "q' = q \<or> (\<exists> qx \<in> set (d_states' f q q0 iL nL nS (Suc k) m) . fst qx = q0)" 
+proof (cases "q' = q")
+  case True
+  then show ?thesis by auto
+next
+  case False
+  show ?thesis proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL")
+    case None
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL")
+      case None
+      then have "False"
+        unfolding find_remove_2_None_iff 
+        using \<open>q' \<in> set nL\<close> \<open>x \<in> set iL\<close> \<open>f (q',x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))\<close> by blast
+      then show ?thesis by simp
+    next
+      case (Some a)
+      then show ?thesis sorry
+    qed
+    
+  next
+    case (Some a)
+    show ?thesis unfolding d_states'_helper1[OF Some] by auto
+  qed
+qed
+
+  
+
+
+end (*
+
+lemma x :
+  assumes "t1 \<in> transitions M"
+  assumes "t_source t1 \<in> reachable_nodes M"
+  assumes "t2 \<in> transitions M"
+  assumes "t_source t2 = t_target t1"
+  assumes "q \<noteq> t_source t1"
+  assumes "\<And> t . t \<in> transitions M \<Longrightarrow> t_input t \<in> inputs M"
+  assumes "\<And> t . t \<in> FSM.transitions M \<Longrightarrow>
+                        t_source t = t_source t2 \<Longrightarrow>
+                        t_input t = t_input t2 \<Longrightarrow>
+                        t_target t = q \<or>
+                        (\<exists>qx\<in>set (d_states (FSM.from_FSM M (t_source t)) (size_r (FSM.from_FSM M (t_source t)) - 1) q).
+                            fst qx = t_source t)"
+and "(d_states (FSM.from_FSM M (t_source t1)) (size_r (FSM.from_FSM M (t_source t1)) - 1) q) = T"
+  shows "t_target t1 = q \<or> (\<exists>qx\<in>set (d_states (FSM.from_FSM M (t_source t1)) (size_r (FSM.from_FSM M (t_source t1)) - 1) q). fst qx = t_source t1)"  
+  nitpick
+proof (cases "t_target tS = q")
+  case True
+  then show ?thesis by auto
+next
+  case False
+
+  then have 
+
+  
+
+  then show ?thesis sorry
+qed
+  
+  
+
+
+end (*
+
+
 
 lemma calculate_state_preamble_from_d_states_exhaustiveness :
   assumes "is_preamble S M q"
@@ -1578,9 +1767,9 @@ proof -
 
 
 
-  have "\<forall>qa\<in>reachable_nodes S. qa = q \<or> (\<exists>qx\<in>set (d_states (from_FSM M qa) (FSM.size (from_FSM M qa)-1) q). fst qx = qa)"
+  have "\<forall>qa\<in>reachable_nodes S. qa = q \<or> (\<exists>qx\<in>set (d_states (from_FSM M qa) (size_r (from_FSM M qa)-1) q). fst qx = qa)"
     using \<open>acyclic S\<close> proof (induction rule:
-                              acyclic_induction[of S "\<lambda> q' . q' = q \<or> (\<exists> qx \<in> set (d_states (from_FSM M q') (size (from_FSM M q') - 1) q) . fst qx = q')" ])
+                              acyclic_induction[of S "\<lambda> q' . q' = q \<or> (\<exists> qx \<in> set (d_states (from_FSM M q') (size_r (from_FSM M q') - 1) q) . fst qx = q')" ])
     case (reachable_node qs)
     show ?case proof (cases "qs = q")
       case True
@@ -1598,7 +1787,7 @@ proof -
                         t_source t = qs \<Longrightarrow>
                         t_input t = t_input ts \<Longrightarrow>
                         t_target t = q \<or>
-                        (\<exists>qx\<in>set (d_states (FSM.from_FSM M (t_target t)) (FSM.size (FSM.from_FSM M (t_target t)) - 1) q).
+                        (\<exists>qx\<in>set (d_states (FSM.from_FSM M (t_target t)) (size_r (FSM.from_FSM M (t_target t)) - 1) q).
                             fst qx = t_target t)"
         
         using  ***[OF \<open>qs \<in> reachable_nodes S\<close> \<open>ts \<in> transitions S\<close> \<open>t_source ts = qs\<close>]

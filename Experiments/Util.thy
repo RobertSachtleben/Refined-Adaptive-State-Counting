@@ -1404,7 +1404,7 @@ fun find_remove_2' :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a
   "find_remove_2' P [] _ _ = None" |
   "find_remove_2' P (x#xs) ys prev = (case find (\<lambda>y . P x y) ys of
       Some y \<Rightarrow> Some (x,y,prev@xs) |
-      None   \<Rightarrow> find_remove_2' P xs ys (x#prev))"
+      None   \<Rightarrow> find_remove_2' P xs ys (prev@[x]))"
 
 fun find_remove_2 :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> ('a \<times> 'b \<times> 'a list) option" where
   "find_remove_2 P xs ys = find_remove_2' P xs ys []"
@@ -1419,8 +1419,9 @@ and   "x \<in> set xs"
 and   "y \<in> set ys"
 and   "distinct (prev@xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
 and   "distinct (prev@xs) \<Longrightarrow> distinct xs'"
+and   "xs' = prev@(remove1 x xs)"
 proof -
-  have "P x y \<and> x \<in> set xs \<and> y \<in> set ys \<and> (distinct (prev@xs) \<longrightarrow> set xs' = (set prev \<union> set xs) - {x}) \<and> (distinct (prev@xs) \<longrightarrow> distinct xs')"
+  have "P x y \<and> x \<in> set xs \<and> y \<in> set ys \<and> (distinct (prev@xs) \<longrightarrow> set xs' = (set prev \<union> set xs) - {x}) \<and> (distinct (prev@xs) \<longrightarrow> distinct xs') \<and> (xs' = prev@(remove1 x xs))"
     using assms 
   proof (induction xs arbitrary: prev xs' x y)
     case Nil
@@ -1429,13 +1430,17 @@ proof -
     case (Cons x' xs)
     then show ?case proof (cases "find (\<lambda>y . P x' y) ys")
       case None
-      then have "find_remove_2' P (x' # xs) ys prev = find_remove_2' P xs ys (x'#prev)"
+      then have "find_remove_2' P (x' # xs) ys prev = find_remove_2' P xs ys (prev@[x'])"
         using Cons.prems(1) by auto
-      hence "find_remove_2' P xs ys (x'#prev) = Some (x, y, xs')"
+      hence *: "find_remove_2' P xs ys (prev@[x']) = Some (x, y, xs')"
         using Cons.prems(1) by simp
+      
+      have "x' \<noteq> x"
+        by (metis "*" Cons.IH None find_from)
       moreover have "distinct (prev @ x' # xs) \<longrightarrow> distinct ((x' # prev) @ xs)"
         by auto
-      ultimately show ?thesis using Cons.IH by fastforce
+      ultimately show ?thesis using Cons.IH[OF *]
+        by auto
     next
       case (Some y')
       then have "find_remove_2' P (x' # xs) ys prev = Some (x',y',prev@xs)"
@@ -1449,6 +1454,7 @@ proof -
       and   "y \<in> set ys"
       and   "distinct (prev @ xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
       and   "distinct (prev@xs) \<Longrightarrow> distinct xs'"
+      and   "xs' = prev@(remove1 x xs)"
     by blast+
 qed
 
@@ -1491,7 +1497,15 @@ and   "x \<in> set xs"
 and   "y \<in> set ys"
 and   "distinct xs \<Longrightarrow> set xs' = (set xs) - {x}"
 and   "distinct xs \<Longrightarrow> distinct xs'"
+and   "xs' = (remove1 x xs)"
   using assms find_remove_2'_set[of P xs ys "[]" x y xs'] unfolding find_remove_2.simps by auto
+
+lemma find_remove_2_removeAll :
+  assumes "find_remove_2 P xs ys = Some (x,y,xs')"
+  and     "distinct xs"
+shows "xs' = removeAll x xs"
+  using find_remove_2_set(6)[OF assms(1)]
+  by (simp add: assms(2) distinct_remove1_removeAll) 
 
 
 subsection \<open>Other Lemmata\<close>
