@@ -262,6 +262,34 @@ value "d_states m_ex_H 5 2"
 value "d_states m_ex_H 5 3"
 value "d_states m_ex_H 5 4"
 
+(*
+fun d_states_old :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states_old M 0 q = []" |
+  "d_states_old M (Suc k) q =  
+    (if length (d_states_old M k q) < k 
+      then (d_states_old M k q)
+      else (case find 
+                  (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old M k q) . fst qx \<noteq> fst qx') \<and> (\<exists> t \<in> transitions M . t_source t = fst qx \<and> t_input t = snd qx) \<and> (\<forall> t \<in> transitions M . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (t_target t = q \<or> (\<exists> qx' \<in> set (d_states_old M k q) . fst qx' = (t_target t))))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs_as_list M)) ((initial M) # (removeAll (initial M) (nodes_as_list M)))))
+            of Some qx \<Rightarrow> (d_states_old M k q)@[qx] | 
+               None \<Rightarrow> (d_states_old M k q)))"
+
+
+lemma d_states_old_d_states':
+shows  "(\<exists> qx \<in> set (d_states' (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []) . fst qx = initial M)
+    \<or>((d_states' (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []) = d_states_old M (Suc k) q)" 
+proof (induction k)
+  case 0
+  then show ?case 
+next
+  case (Suc k)
+  then show ?case sorry
+qed
+*)  
+
+
+
+
 
 
 lemma d_states'_length :
@@ -1580,7 +1608,7 @@ qed
 
 
 (* if q0 can be added, it will be added *)
-lemma d_states'_q0 :
+lemma d_states'_q0_containment :
   assumes "f (q0,x) \<noteq> {}"
   and     "(\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))"   
   and     "x \<in> set iL"
@@ -1594,7 +1622,42 @@ proof -
     unfolding d_states'_helper1[OF *] by auto
 qed
 
-end (*
+
+(*
+lemma x :
+  assumes "t \<in> transitions M"
+  and     "t_source t \<in> reachable_nodes M"
+  and     "q \<noteq> t_target t"
+shows "\<exists> q (d_states (FSM.from_FSM M (t_target t)) (size_r (FSM.from_FSM M (t_target t)) - 1) q)
+*)
+
+
+lemma x :
+  assumes "\<not> (\<exists> qx \<in> set (d_states' f q q0 iL nL nS k m) . fst qx = q0)"
+  and     "q0 \<noteq> q"
+  and     "q0 \<notin> nS"
+  and     "q0 \<notin> set nL"
+shows "(d_states' f q q0 iL nL nS k m) = (d_states' f q q0 iL (removeAll q0 nL) (nS - {q0}) k m)" 
+using assms proof (induction k arbitrary: nL nS m)
+  case 0
+  then show ?case
+    by simp 
+next
+  case (Suc k)
+  then show ?case
+    by auto 
+qed
+
+
+
+
+
+
+
+
+
+
+
 
 lemma calculate_state_preamble_from_d_states_exhaustiveness :
   assumes "is_preamble S M q"
@@ -1687,6 +1750,24 @@ proof -
       
         obtain ts where "ts \<in> transitions S" and "t_source ts = qs"
           using *[OF \<open>qs \<in> reachable_nodes S\<close>] False unfolding deadlock_state.simps by blast
+        then have "ts \<in> transitions M"
+          using \<open>ts \<in> transitions S\<close> \<open>is_submachine S M\<close> by auto
+        then have "(t_output ts, t_target ts) \<in> h M (qs, t_input ts)"
+          unfolding h.simps \<open>t_source ts = qs\<close>[symmetric] by simp 
+        then have "h M (qs, t_input ts) \<noteq> {}"
+          by blast
+          
+
+        (* TODO? : use different node list for targets
+          \<rightarrow> based on reachable nodes of S from target
+          \<rightarrow> each gets (reachable nodes of S from qs - targets)@[target]
+             \<rightarrow> all but the last node are shared between each d_states call
+             \<rightarrow> all but the last elements in the d_states results are identical between calls
+             \<rightarrow> last elements are unique (due to fixed input list order)
+             \<rightarrow> qs not contained
+          \<rightarrow> BUT: requires transfer from d-reachable nodes in S to all nodes in M?
+          \<rightarrow> MAIN BUT: requires result that (\<exists>qx\<in>set (d_states ...). fst qx = t_target t) is independent of the chosen node order
+        *)
   
         have ****: "\<And> t . t \<in> transitions S \<Longrightarrow> t_source t = qs \<Longrightarrow> t_input t = t_input ts"
           using \<open>single_input S\<close> by (metis \<open>t_source ts = qs\<close> \<open>ts \<in> FSM.transitions S\<close> single_input.elims(2)) 
@@ -1701,9 +1782,9 @@ proof -
           using  ***[OF \<open>qs \<in> reachable_nodes S\<close> \<open>ts \<in> transitions S\<close> \<open>t_source ts = qs\<close>]
           using reachable_node.IH(2)  ****
           by blast 
+        then have "\<forall>(y, q'')\<in>h M (qs, t_input ts). q'' \<in> ?nS"
 
-
-
+        thm d_states'_q0_containment[of "h M", OF \<open>h M (qs, t_input ts) \<noteq> {}\<close>]
   
       
 
