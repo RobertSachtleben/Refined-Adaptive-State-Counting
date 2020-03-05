@@ -1543,6 +1543,179 @@ and   "snd (qxs ! i) \<in> inputs M"
 qed
 
 
+
+(* TODO: move *)
+lemma acyclic_single_deadlock_reachable :
+  assumes "acyclic M"
+  and     "\<And> q' . q' \<in> reachable_nodes M \<Longrightarrow> q' = qd \<or> \<not> deadlock_state M q'"
+shows "qd \<in> reachable_nodes M"
+  using acyclic_deadlock_reachable[OF assms(1)]
+  using assms(2) by auto 
+
+(* TODO: move *)
+lemma acyclic_paths_to_single_deadlock :
+  assumes "acyclic M"
+  and     "\<And> q' . q' \<in> reachable_nodes M \<Longrightarrow> q' = qd \<or> \<not> deadlock_state M q'"
+  and     "q \<in> reachable_nodes M"
+obtains p where "path M q p" and "target q p = qd"
+proof -
+  have "q \<in> nodes M" using assms(3) reachable_node_is_node by metis
+  have "acyclic (from_FSM M q)"
+    using from_FSM_acyclic[OF assms(3,1)] by assumption
+
+  have *: "(\<And>q'. q' \<in> reachable_nodes (FSM.from_FSM M q) \<Longrightarrow> q' = qd \<or> \<not> deadlock_state (FSM.from_FSM M q) q')"
+    using assms(2) from_FSM_reachable_nodes[OF assms(3)] 
+    unfolding deadlock_state.simps from_FSM_simps[OF \<open>q \<in> nodes M\<close>] by blast
+
+  obtain p where "path (from_FSM M q) q p" and "target q p = qd"
+    using acyclic_single_deadlock_reachable[OF \<open>acyclic (from_FSM M q)\<close> *]
+    unfolding reachable_nodes_def from_FSM_simps[OF \<open>q \<in> nodes M\<close>]
+    by blast 
+
+  then show ?thesis
+    using that by (metis \<open>q \<in> FSM.nodes M\<close> from_FSM_path) 
+qed
+
+
+
+
+(* if q0 can be added, it will be added *)
+lemma d_states'_q0 :
+  assumes "f (q0,x) \<noteq> {}"
+  and     "(\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))"   
+  and     "x \<in> set iL"
+shows "(\<exists> qx \<in> set (d_states' f q q0 iL nL nS k m) . fst qx = q0)" 
+proof -
+  have "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL \<noteq> None"
+    using assms unfolding find_None_iff by blast
+  then obtain x' where *: "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL = Some x'"
+    by auto
+  show ?thesis 
+    unfolding d_states'_helper1[OF *] by auto
+qed
+
+end (*
+
+lemma calculate_state_preamble_from_d_states_exhaustiveness :
+  assumes "is_preamble S M q"
+  shows "calculate_state_preamble_from_d_states M q \<noteq> None"
+proof -
+  have "acyclic S"
+  and  "single_input S" 
+  and  "is_submachine S M" 
+  and  "q \<in> reachable_nodes S"
+  and  "deadlock_state S q" 
+  and  *: "\<And> q' . q' \<in> reachable_nodes S \<Longrightarrow> (q = q' \<or> \<not> deadlock_state S q')"
+  and **: "\<And> q' x . q' \<in> reachable_nodes S \<Longrightarrow> x \<in> inputs M \<Longrightarrow> (\<exists> t \<in> transitions S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> transitions M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> transitions S)"
+    using assms(1) unfolding is_preamble_def by blast+
+
+  obtain p where "path S (initial S) p" and "target (initial S) p = q"
+    using \<open>q \<in> reachable_nodes S\<close> unfolding reachable_nodes_def by blast
+  then have "is_preamble S M (target (initial S) p)"
+    using assms by auto
+
+  have ***: "\<And> q' t t' . q' \<in> reachable_nodes S \<Longrightarrow> t \<in> transitions S \<Longrightarrow> t_source t = q' \<Longrightarrow> t' \<in> transitions M  \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = t_input t \<Longrightarrow> t' \<in> transitions S"
+  proof -
+    fix q' t t' assume "q' \<in> reachable_nodes S" and "t_source t = q'" and "t \<in> transitions S" and "t' \<in> transitions M" and "t_source t' = q'" and "t_input t' = t_input t"
+    then have "t_input t \<in> inputs M"
+      using \<open>is_submachine S M\<close> unfolding is_submachine.simps by auto
+    
+    show "t' \<in> transitions S"
+      using **[OF \<open>q' \<in> reachable_nodes S\<close> \<open>t_input t \<in> inputs M\<close> ] \<open>t_source t = q'\<close> \<open>t_source t' = q'\<close> \<open>t_input t' = t_input t\<close>
+      using \<open>t \<in> FSM.transitions S\<close> \<open>t' \<in> FSM.transitions M\<close> by blast
+  qed
+
+
+
+  have "\<forall>qa\<in>reachable_nodes S. qa = q \<or> (\<exists>qx\<in>set (d_states (from_FSM M qa) (size_r (from_FSM M qa)-1) q). fst qx = qa)"
+    using \<open>acyclic S\<close> proof (induction rule:
+                              acyclic_induction[of S "\<lambda> q' . q' = q \<or> (\<exists> qx \<in> set (d_states (from_FSM M q') (size_r (from_FSM M q') - 1) q) . fst qx = q')" ])
+    case (reachable_node qs)
+
+    have "qs \<in> nodes M" 
+      using reachable_node reachable_node_is_node
+      using \<open>is_submachine S M\<close> by fastforce 
+
+    obtain pq where "path S qs pq" and "target qs pq = q"
+      using * by (metis \<open>FSM.acyclic S\<close> acyclic_paths_to_single_deadlock reachable_node.IH(1))
+    then have "q \<in> reachable_nodes (from_FSM M qs)"
+      using \<open>is_submachine S M\<close> \<open>qs \<in> nodes M\<close>
+      by (metis from_FSM_path_rev_initial from_FSM_simps(1) reachable_nodes_intro submachine_path)
+      
+
+
+    
+
+    have "q \<in> reachable_nodes M"
+      using \<open>q \<in> reachable_nodes S\<close> submachine_path_initial[OF \<open>is_submachine S M\<close>] \<open>is_submachine S M\<close>
+      unfolding reachable_nodes_def is_submachine.simps
+      by auto 
+
+
+    have "inputs_as_list (from_FSM M qs) = inputs_as_list M"
+    and  "h (from_FSM M qs) = h M"
+      using from_FSM_simps(2,4)[OF \<open>qs \<in> nodes M\<close>] by auto
+
+    show ?case proof (cases "qs = q")
+      case True
+      then show ?thesis by auto
+    next
+      case False
+      then have "q \<noteq> initial (from_FSM M qs)"
+        unfolding from_FSM_simps(1)[OF \<open>qs \<in> nodes M\<close>] by simp
+      
+
+      then have "d_states (from_FSM M qs) (size_r (from_FSM M qs) - 1) q = d_states' (h M) q qs (inputs_as_list M) (removeAll q (removeAll qs (reachable_nodes_as_list (from_FSM M qs)))) {q} (size_r (from_FSM M qs) - 1) []"
+                (is "?ds = ?ds'")
+           and  "d_states (from_FSM M qs) (Suc (size_r (from_FSM M qs) - 1)) q = d_states' (h M) q qs (inputs_as_list M) (removeAll q (removeAll qs (reachable_nodes_as_list (from_FSM M qs)))) {q} (Suc (size_r (from_FSM M qs) - 1)) []"
+                (is "?ds = ?ds''")
+        unfolding d_states.simps
+                  from_FSM_simps[OF \<open>qs \<in> nodes M\<close>] 
+                  \<open>inputs_as_list (from_FSM M qs) = inputs_as_list M\<close>
+                  \<open>h (from_FSM M qs) = h M\<close> 
+        by simp+
+
+      then have "?ds' = ?ds''" 
+        using d_states_max_iterations[of _ "(Suc (size_r (from_FSM M qs) - 1))", OF _ \<open>q \<in> reachable_nodes (from_FSM M qs)\<close>] by simp
+
+      have "(\<exists>qx\<in>set (d_states (FSM.from_FSM M qs) (size_r (FSM.from_FSM M qs) - 1) q). fst qx = qs)"
+      proof (rule ccontr)
+        assume "\<not> (\<exists>qx\<in>set (d_states (FSM.from_FSM M qs) (size_r (FSM.from_FSM M qs) - 1) q). fst qx = qs)"
+        
+
+
+      
+        obtain ts where "ts \<in> transitions S" and "t_source ts = qs"
+          using *[OF \<open>qs \<in> reachable_nodes S\<close>] False unfolding deadlock_state.simps by blast
+  
+        have ****: "\<And> t . t \<in> transitions S \<Longrightarrow> t_source t = qs \<Longrightarrow> t_input t = t_input ts"
+          using \<open>single_input S\<close> by (metis \<open>t_source ts = qs\<close> \<open>ts \<in> FSM.transitions S\<close> single_input.elims(2)) 
+  
+        have "\<And> t . t \<in> FSM.transitions M \<Longrightarrow>
+                          t_source t = qs \<Longrightarrow>
+                          t_input t = t_input ts \<Longrightarrow>
+                          t_target t = q \<or>
+                          (\<exists>qx\<in>set (d_states (FSM.from_FSM M (t_target t)) (size_r (FSM.from_FSM M (t_target t)) - 1) q).
+                              fst qx = t_target t)"
+          
+          using  ***[OF \<open>qs \<in> reachable_nodes S\<close> \<open>ts \<in> transitions S\<close> \<open>t_source ts = qs\<close>]
+          using reachable_node.IH(2)  ****
+          by blast 
+
+
+
+  
+      
+
+      
+
+
+
+
+end (*
+
+
+
 (* TODO: study old proof again ... *)
 
 end (*
