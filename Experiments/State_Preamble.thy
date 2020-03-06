@@ -262,122 +262,9 @@ value "d_states m_ex_H 5 2"
 value "d_states m_ex_H 5 3"
 value "d_states m_ex_H 5 4"
 
-(* Version of d_states' without early cutoff for q0 *)
-fun d_states'' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
-  "d_states'' f q q0 inputList nodeList nodeSet 0 m = (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
-      Some x \<Rightarrow> m@[(q0,x)] |
-      None   \<Rightarrow> m)" |
-  "d_states'' f q q0 inputList nodeList nodeSet (Suc k) m = 
-    (case find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList
-      of None            \<Rightarrow> m |
-         Some (q',x,nodeList') \<Rightarrow> d_states'' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)]))"
-
-lemma d_states''_d_states' :
-  assumes "q0 \<notin> set nodeList"
-  shows "(\<exists> qx \<in> set (d_states' f q q0 inputList nodeList nodeSet k m) . fst qx = q0)
-   \<or> (d_states' f q q0 inputList nodeList nodeSet k m = d_states'' f q q0 inputList (q0#nodeList) nodeSet k m)" 
-using assms proof (induction k arbitrary: nodeList nodeSet m)
-  case 0
-  then show ?case by auto
-next
-  case (Suc k)
-  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
-    case None
-    then have *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList
-                  = find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList [q0]"
-      by auto
-    have **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList
-                  = find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList []"
-      by auto
-
-    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
-      case None
-      then have "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList = None"
-        unfolding * ** using find_remove_2'_diff_prev_None by force
-      then show ?thesis using None \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> by auto
-    next
-      case (Some a)
-      then obtain q' x nodeList' where a1: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList')"
-        by (metis prod_cases3)
-      then obtain nodeList'' where a2: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList = Some (q',x,nodeList'')"
-        unfolding * ** using find_remove_2'_diff_prev_Some
-      proof -
-        assume a1: "\<And>nodeList''. find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList [q0] = Some (q', x, nodeList'') \<Longrightarrow> thesis"
-        assume "find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList [] = Some (q', x, nodeList')"
-        then show ?thesis
-          using a1 by (meson find_remove_2'_diff_prev_Some)
-      qed
-
-      have "d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])"
-        using None a1 by auto
-
-      have "d_states'' f q q0 inputList (q0#nodeList) nodeSet (Suc k) m = d_states'' f q q0 inputList nodeList'' (insert q' nodeSet) k (m@[(q',x)])"
-        using None a2 by auto
-
-      have "nodeList'' = (q0 # nodeList')" and "q0 \<notin> set nodeList'"
-        using find_remove_2_set(2,6)[OF a1] find_remove_2_set(6)[OF a2] Suc.prems
-        by auto 
-
-      show ?thesis proof (cases "(\<exists>qx\<in>set (d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m @ [(q', x)])). fst qx = q0)")
-        case True
-        then show ?thesis using \<open>d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])\<close> by auto
-      next
-        case False
-        then have "d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m @ [(q', x)]) = d_states'' f q q0 inputList (q0 # nodeList') (insert q' nodeSet) k (m @ [(q', x)])"
-          using Suc.IH[of nodeList' "insert q' nodeSet" "m@[(q',x)]", OF \<open>q0 \<notin> set nodeList'\<close>] by blast
-        then show ?thesis 
-          unfolding \<open>d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])\<close>
-                    \<open>d_states'' f q q0 inputList (q0#nodeList) nodeSet (Suc k) m = d_states'' f q q0 inputList nodeList'' (insert q' nodeSet) k (m@[(q',x)])\<close> 
-                    \<open>nodeList'' = (q0 # nodeList')\<close>
-          by blast
-      qed
-        
-    qed
-  next
-    case (Some x)
-
-    moreover have "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList = Some (q0,x,nodeList)"
-      unfolding find_remove_2.simps find_remove_2'.simps Some
-      by simp
-
-    ultimately show ?thesis by auto
-  qed
-qed
 
 
 
-
-
-(* TODO: use d_states'' for proofs ? *)
-
-end (*
-
-
-
-(*
-fun d_states_old :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b) list" where
-  "d_states_old M 0 q = []" |
-  "d_states_old M (Suc k) q =  
-    (if length (d_states_old M k q) < k 
-      then (d_states_old M k q)
-      else (case find 
-                  (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old M k q) . fst qx \<noteq> fst qx') \<and> (\<exists> t \<in> transitions M . t_source t = fst qx \<and> t_input t = snd qx) \<and> (\<forall> t \<in> transitions M . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (t_target t = q \<or> (\<exists> qx' \<in> set (d_states_old M k q) . fst qx' = (t_target t))))) 
-                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs_as_list M)) ((initial M) # (removeAll (initial M) (nodes_as_list M)))))
-            of Some qx \<Rightarrow> (d_states_old M k q)@[qx] | 
-               None \<Rightarrow> (d_states_old M k q)))"
-
-
-lemma d_states_old_d_states':
-shows  "(\<exists> qx \<in> set (d_states' (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []) . fst qx = initial M)
-    \<or>((d_states' (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []) = d_states_old M (Suc k) q)" 
-proof (induction k)
-  case 0
-  then show ?case 
-next
-  case (Suc k)
-  then show ?case sorry
-qed
-*)  
 
 
 
@@ -546,6 +433,273 @@ lemma d_states'_prefix_ex :
   assumes "i \<le> k"
   shows "\<exists> m' . (d_states' f q q0 iL nL nS k m) = (d_states' f q q0 iL nL nS i m) @ m'" 
   using d_states'_prefix[OF assms] by (metis (no_types) append_take_drop_id)
+
+
+
+
+
+
+
+(*
+fun d_states_old :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states_old f q inputList nodeList 0 m = m" |
+  "d_states_old f q inputList nodeList (Suc k) m =   
+    (if length (d_states_old f q inputList nodeList k m) < k 
+      then (d_states_old f q inputList nodeList k m)
+      else (case find 
+                  (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeList k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeList k m) . fst qx' = snd yq')))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeList))
+            of Some qx \<Rightarrow> (d_states_old f q inputList nodeList k m)@[qx] | 
+               None \<Rightarrow> (d_states_old f q inputList nodeList k m)))"
+*)
+fun d_states_old :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states_old f q inputList nodeList 0 m = m" |
+  "d_states_old f q inputList nodeList (Suc k) m =   
+    (case find 
+            (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeList k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeList k m) . fst qx' = snd yq')))) 
+            (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeList))
+      of Some qx \<Rightarrow> (d_states_old f q inputList nodeList k m)@[qx] | 
+         None \<Rightarrow> (d_states_old f q inputList nodeList k m))"
+
+
+lemma d_states_Suc_m :
+  assumes "d_states' f q q0 inputList nodeList nodeSet (Suc k) m = m"
+  shows "d_states' f q q0 inputList nodeList nodeSet k m = m"
+  by (metis Suc_n_not_le_n assms d_states'_length_min d_states'_prefix nat_le_linear take_all)
+
+
+lemma x :
+  assumes "\<not> (\<exists> qx \<in> set (d_states' f q q0 inputList nodeList nodeSet k m) . fst qx = q0)"
+  and     "nodeSet = insert q (set (map fst (butlast (d_states_old f q inputList nodeListOrig k m))))"
+  and     "q \<noteq> q0"
+  and     "set nodeList \<inter> nodeSet = {}"
+  and     "nodeList = filter (\<lambda> q' . q' \<notin> nodeSet) nodeListOrig"
+shows "d_states' f q q0 inputList nodeList nodeSet k m = d_states_old f q inputList nodeListOrig k m" 
+using assms proof (induction k arbitrary: nodeListOrig nodeList nodeSet m)
+  case 0
+
+  have "d_states_old f q inputList nodeListOrig 0 m = m" by auto
+  moreover have "d_states' f q q0 inputList nodeList nodeSet 0 m = m"
+  proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
+    case None
+    then show ?thesis by auto
+  next
+    case (Some x)
+    then have "(q0,x) \<in> set (d_states' f q q0 inputList nodeList nodeSet 0 m)"
+      by auto
+    then show ?thesis using \<open>\<not> (\<exists> qx \<in> set (d_states' f q q0 inputList nodeList nodeSet 0 m) . fst qx = q0)\<close> by auto
+  qed
+  ultimately show ?case by simp
+next
+  case (Suc k)
+  
+  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
+    case None
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
+      case None
+      
+      have "find
+                  (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx' = snd yq')))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeListOrig)) = None"
+      proof (rule ccontr)
+        assume "find
+                  (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx' = snd yq')))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeListOrig)) \<noteq> None"
+        then obtain qx where *: "find
+                  (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx' = snd yq')))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeListOrig)) = Some qx"
+          by auto
+
+        obtain q' x where "qx = (q',x)"
+                    and   "q' \<in> set nodeListOrig"
+                    and   "x \<in> set inputList"
+          using find_set[OF *]
+          by auto 
+
+        have "butlast (d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m)"
+          using * unfolding d_states_old.simps by auto
+
+        then have "nodeSet = insert q (set (map fst (d_states_old f q inputList nodeListOrig k m)))"
+          using Suc.prems by auto
+
+
+        have "q' \<noteq> q" and "(\<forall>qx'\<in>set (d_states_old f q inputList nodeListOrig k m). q' \<noteq> fst qx')"
+        and  "f (q', x) \<noteq> {}" and "(\<forall>yq'\<in>f (q', x). snd yq' = q \<or> (\<exists>qx'\<in>set (d_states_old f q inputList nodeListOrig k m). fst qx' = snd yq'))"
+          using find_condition[OF *]
+          unfolding \<open>qx = (q',x)\<close> fst_conv snd_conv by blast+
+
+        then have "q' \<in> set (filter (\<lambda>q'. q' \<notin> insert q (set (map fst (d_states_old f q inputList nodeListOrig k m)))) nodeListOrig)"
+          using \<open>q' \<in> set nodeListOrig\<close> by auto
+          
+        moreover have "(\<forall>(y, q'')\<in>f (q', x). q'' \<in> insert q (set (map fst (d_states_old f q inputList nodeListOrig k m))))"
+          using  \<open>(\<forall>yq'\<in>f (q', x). snd yq' = q \<or> (\<exists>qx'\<in>set (d_states_old f q inputList nodeListOrig k m). fst qx' = snd yq'))\<close>
+          by (metis insertI1 insertI2 map_set prod.case_eq_if) 
+
+
+        ultimately have "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList \<noteq> None"
+          unfolding find_remove_2_None_iff  \<open>nodeList = filter (\<lambda> q' . q' \<notin> nodeSet) nodeListOrig\<close> \<open>nodeSet = insert q (set (map fst (d_states_old f q inputList nodeListOrig k m)))\<close>
+          using \<open>x \<in> set inputList\<close> \<open>f (q', x) \<noteq> {}\<close> 
+          by blast
+        then show "False"
+          using None by simp
+      qed
+      then have d2: "(d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m)" 
+        by auto
+         
+
+      have "d_states' f q q0 inputList nodeList nodeSet (Suc k) m = m"
+        using None \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> by auto
+      then have d1: "d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList nodeSet k m"
+        using d_states_Suc_m by metis
+
+
+      show ?thesis 
+        using Suc.IH Suc.prems
+        using d1 d2
+        by (metis (no_types, lifting) filter_cong)
+    next
+      case (Some a)
+      then obtain q' x nodeList' where **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList')"
+        by (metis prod_cases3)
+
+      (* TODO: use find_remove_2_index to show that the result for _old must be identical, as the filtering retains the ordering and removes only elements that do not satisfy P *)
+      
+
+      then show ?thesis sorry
+    qed
+  next
+    case (Some x)
+    then have "(q0,x) \<in> set (d_states' f q q0 inputList nodeList nodeSet (Suc k) m)"
+      by auto
+    then show ?thesis using \<open>\<not> (\<exists> qx \<in> set (d_states' f q q0 inputList nodeList nodeSet (Suc k) m) . fst qx = q0)\<close> by auto
+  qed
+qed
+
+end (*
+
+(* Version of d_states' without early cutoff for q0 *)
+fun d_states'' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states'' f q q0 inputList nodeList nodeSet 0 m = (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
+      Some x \<Rightarrow> m@[(q0,x)] |
+      None   \<Rightarrow> m)" |
+  "d_states'' f q q0 inputList nodeList nodeSet (Suc k) m = 
+    (case find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList
+      of None            \<Rightarrow> m |
+         Some (q',x,nodeList') \<Rightarrow> d_states'' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)]))"
+
+lemma d_states''_d_states' :
+  assumes "q0 \<notin> set nodeList"
+  shows "(\<exists> qx \<in> set (d_states' f q q0 inputList nodeList nodeSet k m) . fst qx = q0)
+   \<or> (d_states' f q q0 inputList nodeList nodeSet k m = d_states'' f q q0 inputList (q0#nodeList) nodeSet k m)" 
+using assms proof (induction k arbitrary: nodeList nodeSet m)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
+    case None
+    then have *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList
+                  = find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList [q0]"
+      by auto
+    have **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList
+                  = find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList []"
+      by auto
+
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
+      case None
+      then have "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList = None"
+        unfolding * ** using find_remove_2'_diff_prev_None by force
+      then show ?thesis using None \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> by auto
+    next
+      case (Some a)
+      then obtain q' x nodeList' where a1: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList')"
+        by (metis prod_cases3)
+      then obtain nodeList'' where a2: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList = Some (q',x,nodeList'')"
+        unfolding * ** using find_remove_2'_diff_prev_Some
+      proof -
+        assume a1: "\<And>nodeList''. find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList [q0] = Some (q', x, nodeList'') \<Longrightarrow> thesis"
+        assume "find_remove_2' (\<lambda>q' x. f (q', x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q', x). q'' \<in> nodeSet)) nodeList inputList [] = Some (q', x, nodeList')"
+        then show ?thesis
+          using a1 by (meson find_remove_2'_diff_prev_Some)
+      qed
+
+      have "d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])"
+        using None a1 by auto
+
+      have "d_states'' f q q0 inputList (q0#nodeList) nodeSet (Suc k) m = d_states'' f q q0 inputList nodeList'' (insert q' nodeSet) k (m@[(q',x)])"
+        using None a2 by auto
+
+      have "nodeList'' = (q0 # nodeList')" and "q0 \<notin> set nodeList'"
+        using find_remove_2_set(2,6)[OF a1] find_remove_2_set(6)[OF a2] Suc.prems
+        by auto 
+
+      show ?thesis proof (cases "(\<exists>qx\<in>set (d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m @ [(q', x)])). fst qx = q0)")
+        case True
+        then show ?thesis using \<open>d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])\<close> by auto
+      next
+        case False
+        then have "d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m @ [(q', x)]) = d_states'' f q q0 inputList (q0 # nodeList') (insert q' nodeSet) k (m @ [(q', x)])"
+          using Suc.IH[of nodeList' "insert q' nodeSet" "m@[(q',x)]", OF \<open>q0 \<notin> set nodeList'\<close>] by blast
+        then show ?thesis 
+          unfolding \<open>d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])\<close>
+                    \<open>d_states'' f q q0 inputList (q0#nodeList) nodeSet (Suc k) m = d_states'' f q q0 inputList nodeList'' (insert q' nodeSet) k (m@[(q',x)])\<close> 
+                    \<open>nodeList'' = (q0 # nodeList')\<close>
+          by blast
+      qed
+        
+    qed
+  next
+    case (Some x)
+
+    moreover have "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (q0#nodeList) inputList = Some (q0,x,nodeList)"
+      unfolding find_remove_2.simps find_remove_2'.simps Some
+      by simp
+
+    ultimately show ?thesis by auto
+  qed
+qed
+
+
+
+
+
+(* TODO: use d_states'' for proofs ? *)
+
+end (*
+
+
+
+(*
+fun d_states_old :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states_old M 0 q = []" |
+  "d_states_old M (Suc k) q =  
+    (if length (d_states_old M k q) < k 
+      then (d_states_old M k q)
+      else (case find 
+                  (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old M k q) . fst qx \<noteq> fst qx') \<and> (\<exists> t \<in> transitions M . t_source t = fst qx \<and> t_input t = snd qx) \<and> (\<forall> t \<in> transitions M . (t_source t = fst qx \<and> t_input t = snd qx) \<longrightarrow> (t_target t = q \<or> (\<exists> qx' \<in> set (d_states_old M k q) . fst qx' = (t_target t))))) 
+                  (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs_as_list M)) ((initial M) # (removeAll (initial M) (nodes_as_list M)))))
+            of Some qx \<Rightarrow> (d_states_old M k q)@[qx] | 
+               None \<Rightarrow> (d_states_old M k q)))"
+
+
+lemma d_states_old_d_states':
+shows  "(\<exists> qx \<in> set (d_states' (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []) . fst qx = initial M)
+    \<or>((d_states' (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []) = d_states_old M (Suc k) q)" 
+proof (induction k)
+  case 0
+  then show ?case 
+next
+  case (Suc k)
+  then show ?case sorry
+qed
+*)  
+
+
+
+
+
+
+
  
 lemma d_states'_take :
   "take (length m) (d_states' f q q0 iL nL nS k m) = m"

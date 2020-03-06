@@ -1458,6 +1458,64 @@ proof -
     by blast+
 qed
 
+
+lemma find_remove_2'_index : 
+  assumes "find_remove_2' P xs ys prev = Some (x,y,xs')"
+  obtains i where "i < length xs" 
+                  "xs ! i = x"
+                  "\<And> j . j < i \<Longrightarrow> find (\<lambda>y . P (xs ! j) y) ys = None"
+proof -
+  have "\<exists> i . i < length xs \<and> xs ! i = x \<and> (\<forall> j < i . find (\<lambda>y . P (xs ! j) y) ys = None)"
+    using assms 
+  proof (induction xs arbitrary: prev xs' x y)
+    case Nil
+    then show ?case by auto 
+  next
+    case (Cons x' xs)
+    then show ?case proof (cases "find (\<lambda>y . P x' y) ys")
+      case None
+      then have "find_remove_2' P (x' # xs) ys prev = find_remove_2' P xs ys (prev@[x'])"
+        using Cons.prems(1) by auto
+      hence *: "find_remove_2' P xs ys (prev@[x']) = Some (x, y, xs')"
+        using Cons.prems(1) by simp
+      
+      have "x' \<noteq> x"
+        using find_remove_2'_set(1,3)[OF *] None unfolding find_None_iff
+        by blast
+
+      obtain i where "i < length xs" and "xs ! i = x" and "(\<forall> j < i . find (\<lambda>y . P (xs ! j) y) ys = None)"
+        using Cons.IH[OF *] by blast
+
+      have "Suc i < length (x'#xs)"
+        using \<open>i < length xs\<close> by auto
+      moreover have "(x'#xs) ! Suc i = x"
+        using \<open>xs ! i = x\<close> by auto
+      moreover have "(\<forall> j < Suc i . find (\<lambda>y . P ((x'#xs) ! j) y) ys = None)"
+      proof -
+        have "\<And> j . j > 0 \<Longrightarrow> j < Suc i \<Longrightarrow> find (\<lambda>y . P ((x'#xs) ! j) y) ys = None"
+          using \<open>(\<forall> j < i . find (\<lambda>y . P (xs ! j) y) ys = None)\<close> by auto 
+        then show ?thesis using None
+          by (metis neq0_conv nth_Cons_0) 
+      qed
+      
+      ultimately show ?thesis using that by blast
+    next
+      case (Some y')
+      then show ?thesis 
+        using Cons.prems(1) by fastforce 
+    qed
+  qed
+  then show ?thesis using that by blast
+qed
+
+lemma find_remove_2_index : 
+  assumes "find_remove_2 P xs ys = Some (x,y,xs')"
+  obtains i where "i < length xs" 
+                  "xs ! i = x"
+                  "\<And> j . j < i \<Longrightarrow> find (\<lambda>y . P (xs ! j) y) ys = None"
+  using assms find_remove_2'_index[of P xs ys "[]" x y xs'] by auto
+
+
 lemma find_remove_2'_set_rev :
   assumes "x \<in> set xs"
   and     "y \<in> set ys"
