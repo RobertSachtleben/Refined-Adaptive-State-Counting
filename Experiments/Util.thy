@@ -1420,8 +1420,9 @@ and   "y \<in> set ys"
 and   "distinct (prev@xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
 and   "distinct (prev@xs) \<Longrightarrow> distinct xs'"
 and   "xs' = prev@(remove1 x xs)"
+and   "find (P x) ys = Some y"
 proof -
-  have "P x y \<and> x \<in> set xs \<and> y \<in> set ys \<and> (distinct (prev@xs) \<longrightarrow> set xs' = (set prev \<union> set xs) - {x}) \<and> (distinct (prev@xs) \<longrightarrow> distinct xs') \<and> (xs' = prev@(remove1 x xs))"
+  have "P x y \<and> x \<in> set xs \<and> y \<in> set ys \<and> (distinct (prev@xs) \<longrightarrow> set xs' = (set prev \<union> set xs) - {x}) \<and> (distinct (prev@xs) \<longrightarrow> distinct xs') \<and> (xs' = prev@(remove1 x xs)) \<and> find (P x) ys = Some y"
     using assms 
   proof (induction xs arbitrary: prev xs' x y)
     case Nil
@@ -1455,17 +1456,21 @@ proof -
       and   "distinct (prev @ xs) \<Longrightarrow> set xs' = (set prev \<union> set xs) - {x}"
       and   "distinct (prev@xs) \<Longrightarrow> distinct xs'"
       and   "xs' = prev@(remove1 x xs)"
+      and   "find (P x) ys = Some y"
     by blast+
 qed
 
 
 lemma find_remove_2'_index : 
   assumes "find_remove_2' P xs ys prev = Some (x,y,xs')"
-  obtains i where "i < length xs" 
-                  "xs ! i = x"
-                  "\<And> j . j < i \<Longrightarrow> find (\<lambda>y . P (xs ! j) y) ys = None"
+  obtains i i' where "i < length xs" 
+                     "xs ! i = x"
+                     "\<And> j . j < i \<Longrightarrow> find (\<lambda>y . P (xs ! j) y) ys = None"
+                     "i' < length ys"
+                     "ys ! i' = y"
+                     "\<And> j . j < i' \<Longrightarrow> \<not> P (xs ! i) (ys ! j)"
 proof -
-  have "\<exists> i . i < length xs \<and> xs ! i = x \<and> (\<forall> j < i . find (\<lambda>y . P (xs ! j) y) ys = None)"
+  have "\<exists> i i' . i < length xs \<and> xs ! i = x \<and> (\<forall> j < i . find (\<lambda>y . P (xs ! j) y) ys = None) \<and> i' < length ys \<and> ys ! i' = y \<and> (\<forall> j < i' . \<not> P (xs ! i) (ys ! j))"
     using assms 
   proof (induction xs arbitrary: prev xs' x y)
     case Nil
@@ -1483,7 +1488,7 @@ proof -
         using find_remove_2'_set(1,3)[OF *] None unfolding find_None_iff
         by blast
 
-      obtain i where "i < length xs" and "xs ! i = x" and "(\<forall> j < i . find (\<lambda>y . P (xs ! j) y) ys = None)"
+      obtain i i' where "i < length xs" and "xs ! i = x" and "(\<forall> j < i . find (\<lambda>y . P (xs ! j) y) ys = None)" and "i' < length ys" and "ys ! i' = y" and "(\<forall> j < i' . \<not> P (xs ! i) (ys ! j))"
         using Cons.IH[OF *] by blast
 
       have "Suc i < length (x'#xs)"
@@ -1497,12 +1502,20 @@ proof -
         then show ?thesis using None
           by (metis neq0_conv nth_Cons_0) 
       qed
+      moreover have "(\<forall> j < i' . \<not> P ((x'#xs) ! Suc i) (ys ! j))"
+        using \<open>(\<forall> j < i' . \<not> P (xs ! i) (ys ! j))\<close>
+        by simp 
       
-      ultimately show ?thesis using that by blast
+      ultimately show ?thesis using that \<open>i' < length ys\<close> \<open>ys ! i' = y\<close> by blast
     next
       case (Some y')
-      then show ?thesis 
-        using Cons.prems(1) by fastforce 
+      then have "x' = x" and "y' = y"
+        using Cons.prems by force+
+      
+      have "0 < length (x'#xs) \<and> (x'#xs) ! 0 = x' \<and> (\<forall> j < 0 . find (\<lambda>y . P ((x'#xs) ! j) y) ys = None)" by auto
+      moreover obtain i' where "i' < length ys" and "ys ! i' = y'" and "(\<forall> j < i' . \<not> P ((x'#xs) ! 0) (ys ! j))" 
+        using find_sort_index[OF Some] by auto
+      ultimately show ?thesis  unfolding \<open>x' = x\<close> \<open>y' = y\<close> by blast
     qed
   qed
   then show ?thesis using that by blast
@@ -1510,9 +1523,12 @@ qed
 
 lemma find_remove_2_index : 
   assumes "find_remove_2 P xs ys = Some (x,y,xs')"
-  obtains i where "i < length xs" 
-                  "xs ! i = x"
-                  "\<And> j . j < i \<Longrightarrow> find (\<lambda>y . P (xs ! j) y) ys = None"
+  obtains i i' where "i < length xs" 
+                     "xs ! i = x"
+                     "\<And> j . j < i \<Longrightarrow> find (\<lambda>y . P (xs ! j) y) ys = None"
+                     "i' < length ys"
+                     "ys ! i' = y"
+                     "\<And> j . j < i' \<Longrightarrow> \<not> P (xs ! i) (ys ! j)"
   using assms find_remove_2'_index[of P xs ys "[]" x y xs'] by auto
 
 

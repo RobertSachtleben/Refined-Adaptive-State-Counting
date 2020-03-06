@@ -468,9 +468,19 @@ lemma d_states_Suc_m :
   by (metis Suc_n_not_le_n assms d_states'_length_min d_states'_prefix nat_le_linear take_all)
 
 
+lemma d_states_old_Suc_cases :
+  "((d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m))
+   \<or> (\<exists> a . (d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m)@[a])" 
+by (cases "find
+           (\<lambda>qx. fst qx \<noteq> q \<and>
+                 (\<forall>qx'\<in>set (d_states_old f q inputList nodeListOrig k m). fst qx \<noteq> fst qx') \<and>
+                 f qx \<noteq> {} \<and> (\<forall>yq'\<in>f qx. snd yq' = q \<or> (\<exists>qx'\<in>set (d_states_old f q inputList nodeListOrig k m). fst qx' = snd yq')))
+           (concat (map (\<lambda>q. map (Pair q) inputList) nodeListOrig))"; auto)
+
 lemma x :
   assumes "\<not> (\<exists> qx \<in> set (d_states' f q q0 inputList nodeList nodeSet k m) . fst qx = q0)"
-  and     "nodeSet = insert q (set (map fst (butlast (d_states_old f q inputList nodeListOrig k m))))"
+  (*and     "nodeSet = insert q (set (map fst (butlast (d_states_old f q inputList nodeListOrig k m))))"*)
+  and     "nodeSet = insert q (set (map fst m))"
   and     "q \<noteq> q0"
   and     "set nodeList \<inter> nodeSet = {}"
   and     "nodeList = filter (\<lambda> q' . q' \<notin> nodeSet) nodeListOrig"
@@ -561,9 +571,49 @@ next
       case (Some a)
       then obtain q' x nodeList' where **: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList = Some (q',x,nodeList')"
         by (metis prod_cases3)
+      then have "d_states' f q q0 inputList nodeList nodeSet (Suc k) m = d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])"
+        using None by auto
 
       (* TODO: use find_remove_2_index to show that the result for _old must be identical, as the filtering retains the ordering and removes only elements that do not satisfy P *)
-      
+
+      have "find
+              (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx' = snd yq')))) 
+              (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeListOrig)) = Some (q',x)"
+           (is "?fOrig = Some (q',x)")
+      proof (cases "(d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m)")
+        case True
+        moreover have "\<And> a . ?fOrig = Some a \<Longrightarrow> (d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m)@[a]"
+          by auto
+        ultimately have "?fOrig = None" 
+          unfolding d_states_old.simps
+          using not_Some_eq by fastforce 
+        then have "\<not> (\<exists> qx . qx \<in> set (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeListOrig)) \<and> (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx' = snd yq'))))"
+          unfolding find_None_iff by blast
+        then have "\<not> (\<exists> q' x . q' \<in> set nodeListOrig \<and> x \<in> set inputList \<and> (q' \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . q' \<noteq> fst qx') \<and> ((f (q',x)) \<noteq> {}) \<and> (\<forall> yq' \<in> (f (q',x)) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . fst qx' = snd yq'))))"
+          by auto
+        then have "\<not> (\<exists> q' x . q' \<in> set nodeListOrig \<and> x \<in> set inputList \<and> (q' \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . q' \<noteq> fst qx') \<and> ((f (q',x)) \<noteq> {}) \<and> (\<forall> yq' \<in> (f (q',x)) . (snd yq' = q \<or> (\<exists> qx' \<in> set (butlast (d_states_old f q inputList nodeListOrig k m)) . fst qx' = snd yq'))))"
+          by (metis in_set_butlastD)
+        moreover have "\<And> yq' . (snd yq' = q \<or> (\<exists>qx'\<in>set (butlast (d_states_old f q inputList nodeListOrig k m)). fst qx' = snd yq')) = (snd yq' \<in> insert q (set (map fst (butlast (d_states_old f q inputList nodeListOrig k m)))))"
+          by force
+        ultimately have "\<not> (\<exists> q' x . q' \<in> set nodeListOrig \<and> x \<in> set inputList \<and> (q' \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeListOrig k m) . q' \<noteq> fst qx') \<and> ((f (q',x)) \<noteq> {}) \<and> (\<forall> yq' \<in> (f (q',x)) . (snd yq' \<in> insert q (set (map fst (butlast (d_states_old f q inputList nodeListOrig k m)))))))"
+          by blast
+
+        moreover have "\<And> q' . q' \<in> set (filter (\<lambda>q'. q' \<notin> insert q (set (map fst (butlast (d_states_old f q inputList nodeListOrig k m))))) nodeListOrig) \<Longrightarrow> q' \<in> set nodeListOrig \<and> q' \<noteq> q" 
+          by auto
+
+        ultimately have "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList = None"
+          unfolding \<open>nodeSet = insert q (set (map fst (butlast (d_states_old f q inputList nodeListOrig (Suc k) m))))\<close> True  \<open>nodeList = filter (\<lambda> q' . q' \<notin> nodeSet) nodeListOrig\<close> find_remove_2_None_iff
+          
+        then show ?thesis sorry
+      next
+        case False
+        then show ?thesis sorry
+      qed
+        have "?fOrig \<noteq> None"
+          unfolding find_None_iff
+          using find_remove_2_index[OF **] 
+          unfolding \<open>nodeList = filter (\<lambda> q' . q' \<notin> nodeSet) nodeListOrig\<close>
+
 
       then show ?thesis sorry
     qed
