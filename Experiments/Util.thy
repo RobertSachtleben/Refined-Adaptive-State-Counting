@@ -1483,6 +1483,44 @@ next
 qed
 
 
+lemma find_remove_2'_diff_prev_None :
+  "(find_remove_2' P xs ys prev = None \<Longrightarrow> find_remove_2' P xs ys prev' = None)" 
+proof (induction xs arbitrary: prev prev')
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  show ?case proof (cases "find (\<lambda>y . P x y) ys")
+    case None
+    then have "find_remove_2' P (x#xs) ys prev = find_remove_2' P xs ys (prev@[x])" 
+         and  "find_remove_2' P (x#xs) ys prev' = find_remove_2' P xs ys (prev'@[x])"
+      by auto
+    then show ?thesis using Cons by auto 
+  next
+    case (Some a)
+    then show ?thesis using Cons by auto
+  qed
+qed
+
+lemma find_remove_2'_diff_prev_Some :
+  "(find_remove_2' P xs ys prev = Some (x,y,xs') \<Longrightarrow> \<exists> xs'' . find_remove_2' P xs ys prev' = Some (x,y,xs''))" 
+proof (induction xs arbitrary: prev prev')
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  show ?case proof (cases "find (\<lambda>y . P x y) ys")
+    case None
+    then have "find_remove_2' P (x#xs) ys prev = find_remove_2' P xs ys (prev@[x])" 
+         and  "find_remove_2' P (x#xs) ys prev' = find_remove_2' P xs ys (prev'@[x])"
+      by auto
+    then show ?thesis using Cons by auto 
+  next
+    case (Some a)
+    then show ?thesis using Cons by auto
+  qed
+qed
+
 
 lemma find_remove_2_None_iff :
   "find_remove_2 P xs ys = None \<longleftrightarrow> \<not> (\<exists>x y . x \<in> set xs \<and> y \<in> set ys \<and> P x y)"
