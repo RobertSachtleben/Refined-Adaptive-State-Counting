@@ -436,6 +436,51 @@ lemma d_states'_prefix_ex :
 
 
 
+
+
+
+subsubsection \<open>Simpler Versions of the Preamble Calculation Algorithm\<close>
+
+fun d_states'_without_shortcut :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states'_without_shortcut f q inputList nodeList nodeSet 0 m = m" |
+  "d_states'_without_shortcut f q inputList nodeList nodeSet (Suc k) m = 
+    (case find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList
+          of None            \<Rightarrow> m |
+             Some (q',x,nodeList') \<Rightarrow> d_states'_without_shortcut f q inputList nodeList' (insert q' nodeSet) k (m@[(q',x)]))"
+
+lemma d_states'_without_shortcut_eq :
+  assumes "q0 \<notin> set (map fst (d_states' f q q0 iL nL nS k m))"
+  shows "(d_states' f q q0 iL nL nS k m) = (d_states'_without_shortcut f q iL nL nS k m)" 
+using assms proof (induction k arbitrary: nL nS m)
+  case 0
+  then show ?case by (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL"; auto)
+next
+  case (Suc k)
+  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL")
+    case None
+    show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL")
+      case None
+      then show ?thesis using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL = None\<close> by auto
+    next
+      case (Some a)
+      then obtain q' x nL' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL = Some (q',x,nL')"
+        by (metis prod_cases3)
+      have "(d_states' f q q0 iL nL nS (Suc k) m) = (d_states' f q q0 iL nL' (insert q' nS) k (m@[(q',x)]))"
+      and  "(d_states'_without_shortcut f q iL nL nS (Suc k) m) = (d_states'_without_shortcut f q iL nL' (insert q' nS) k (m@[(q',x)]))"
+        unfolding None * d_states'.simps d_states'_without_shortcut.simps by auto
+      then show ?thesis using Suc by presburger 
+    qed
+  next
+    case (Some a)
+    then show ?thesis using Suc by auto
+  qed
+qed
+
+
+
+
+
+
 (*
 fun d_states' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
   "d_states' f q q0 inputList nodeList nodeSet 0 m = (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
