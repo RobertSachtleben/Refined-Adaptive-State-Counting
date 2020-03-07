@@ -436,8 +436,70 @@ lemma d_states'_prefix_ex :
 
 
 
+(*
+fun d_states' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states' f q q0 inputList nodeList nodeSet 0 m = (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
+      Some x \<Rightarrow> m@[(q0,x)] |
+      None   \<Rightarrow> m)" |
+  "d_states' f q q0 inputList nodeList nodeSet (Suc k) m = 
+    (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
+      Some x \<Rightarrow> m@[(q0,x)] |
+      None   \<Rightarrow> (case find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList
+          of None            \<Rightarrow> m |
+             Some (q',x,nodeList') \<Rightarrow> d_states' f q q0 inputList nodeList' (insert q' nodeSet) k (m@[(q',x)])))"
+
+*)
+
+(* version of d_states' without explicit nodeSet or refining nodeList *)
+fun d_states'' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states'' f q q0 inputList nodeList 0 m = (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> insert q (set (map fst m))))) inputList of 
+      Some x \<Rightarrow> m@[(q0,x)] |
+      None   \<Rightarrow> m)" |
+  "d_states'' f q q0 inputList nodeList (Suc k) m = 
+    (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> insert q (set (map fst m))))) inputList of 
+      Some x \<Rightarrow> m@[(q0,x)] |
+      None   \<Rightarrow> (case find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst m)) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst m))))) nodeList inputList
+          of None            \<Rightarrow> m |
+             Some (q',x,_) \<Rightarrow> d_states'' f q q0 inputList nodeList k (m@[(q',x)])))"
 
 
+lemma x :
+  assumes "nS = insert q (set (map fst m))"
+  and     "q \<notin> set (map fst m)"
+  and     "distinct (map fst m)"
+  and     "set (map fst m) \<subseteq> nS"
+  and     "q0 \<notin> nS"
+  and     "nS = insert q (set (map fst m))"
+  and     "distinct nL"
+  and     "q0 \<notin> set nL"
+  and     "set nL \<inter> nS = {}"
+shows "d_states' f q q0 iL nL nS k m = d_states'' f q q0 iL nL k m" 
+using assms proof (induction k)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> insert q (set (map fst m))))) iL")
+    case None
+    then show ?thesis sorry
+  next
+    case (Some a)
+    show ?thesis unfolding d_states'.simps d_states''.simps Suc Some by auto
+  qed
+qed
+
+
+
+fun d_states_r :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> (('a \<times> 'b) list \<times> 'a list \<times> 'a set)" where
+  "d_states_r f q q0 iL nL 0 = ([],nL,{q})" |
+  "d_states_r f q q0 iL nL (Suc k) = (case d_states_r f q q0 iL nL k
+    of (m
+
+
+
+
+
+end (*
 
 
 (*
@@ -452,14 +514,14 @@ fun d_states_old :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rig
             of Some qx \<Rightarrow> (d_states_old f q inputList nodeList k m)@[qx] | 
                None \<Rightarrow> (d_states_old f q inputList nodeList k m)))"
 *)
-fun d_states_old :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
-  "d_states_old f q inputList nodeList 0 m = m" |
-  "d_states_old f q inputList nodeList (Suc k) m =   
+fun d_states_old :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states_old f q inputList nodeList 0 = []" |
+  "d_states_old f q inputList nodeList (Suc k) =   
     (case find 
-            (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeList k m) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeList k m) . fst qx' = snd yq')))) 
+            (\<lambda> qx . (fst qx \<noteq> q) \<and> (\<forall> qx' \<in> set (d_states_old f q inputList nodeList k) . fst qx \<noteq> fst qx') \<and> ((f qx) \<noteq> {}) \<and> (\<forall> yq' \<in> (f qx) . (snd yq' = q \<or> (\<exists> qx' \<in> set (d_states_old f q inputList nodeList k) . fst qx' = snd yq')))) 
             (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) inputList) nodeList))
-      of Some qx \<Rightarrow> (d_states_old f q inputList nodeList k m)@[qx] | 
-         None \<Rightarrow> (d_states_old f q inputList nodeList k m))"
+      of Some qx \<Rightarrow> (d_states_old f q inputList nodeList k)@[qx] | 
+         None \<Rightarrow> (d_states_old f q inputList nodeList k))"
 
 
 lemma d_states_Suc_m :
@@ -469,12 +531,12 @@ lemma d_states_Suc_m :
 
 
 lemma d_states_old_Suc_cases :
-  "((d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m))
-   \<or> (\<exists> a . (d_states_old f q inputList nodeListOrig (Suc k) m) = (d_states_old f q inputList nodeListOrig k m)@[a])" 
+  "((d_states_old f q inputList nodeListOrig (Suc k))  = (d_states_old f q inputList nodeListOrig k))
+   \<or> (\<exists> a . (d_states_old f q inputList nodeListOrig (Suc k)) = (d_states_old f q inputList nodeListOrig k)@[a])" 
 by (cases "find
            (\<lambda>qx. fst qx \<noteq> q \<and>
-                 (\<forall>qx'\<in>set (d_states_old f q inputList nodeListOrig k m). fst qx \<noteq> fst qx') \<and>
-                 f qx \<noteq> {} \<and> (\<forall>yq'\<in>f qx. snd yq' = q \<or> (\<exists>qx'\<in>set (d_states_old f q inputList nodeListOrig k m). fst qx' = snd yq')))
+                 (\<forall>qx'\<in>set (d_states_old f q inputList nodeListOrig k). fst qx \<noteq> fst qx') \<and>
+                 f qx \<noteq> {} \<and> (\<forall>yq'\<in>f qx. snd yq' = q \<or> (\<exists>qx'\<in>set (d_states_old f q inputList nodeListOrig k). fst qx' = snd yq')))
            (concat (map (\<lambda>q. map (Pair q) inputList) nodeListOrig))"; auto)
 
 lemma x :
@@ -484,7 +546,8 @@ lemma x :
   and     "q \<noteq> q0"
   and     "set nodeList \<inter> nodeSet = {}"
   and     "nodeList = filter (\<lambda> q' . q' \<notin> nodeSet) nodeListOrig"
-shows "d_states' f q q0 inputList nodeList nodeSet k m = d_states_old f q inputList nodeListOrig k m" 
+  and     "m = 
+shows "d_states' f q q0 inputList nodeList nodeSet k m = d_states_old f q inputList nodeListOrig k" 
 using assms proof (induction k arbitrary: nodeListOrig nodeList nodeSet m)
   case 0
 
