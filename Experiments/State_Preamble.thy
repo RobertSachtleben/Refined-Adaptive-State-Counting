@@ -478,6 +478,103 @@ qed
 
 
 
+fun d_states'_without_nodeList_removal :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states'_without_nodeList_removal f q inputList nodeList 0 m = m" |
+  "d_states'_without_nodeList_removal f q inputList nodeList (Suc k) m = 
+    (case find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst m)) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst m))))) nodeList inputList
+          of None            \<Rightarrow> m |
+             Some (q',x,_) \<Rightarrow> d_states'_without_nodeList_removal f q inputList nodeList k (m@[(q',x)]))"
+
+lemma filter_filter' :
+  "filter P1 (filter P2 xs) = filter (\<lambda> x . P1 x \<and> P2 x) xs"
+  by (metis (mono_tags, lifting) filter_cong filter_filter) 
+
+
+
+
+lemma d_states'_without_nodeList_removal_eq :
+  assumes "distinct nL"
+shows "d_states'_without_shortcut f q iL (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) (insert q (set (map fst m))) k m = d_states'_without_nodeList_removal f q iL nL k m" 
+proof (induction k arbitrary: m)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+
+  show ?case 
+  proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> (insert q (set (map fst m)))))) (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) iL")
+    case None
+    then have "find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst m)) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst m))))) nL iL = None"
+      unfolding find_remove_2_None_iff by auto
+    then show ?thesis using None by auto
+  next
+    case (Some a)
+    then obtain q' x nL' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> (insert q (set (map fst m)))))) (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) iL = Some (q',x,nL')"
+      by (metis prod_cases3)
+    
+    have "d_states'_without_shortcut f q iL (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) (insert q (set (map fst m))) (Suc k) m
+          = (d_states'_without_shortcut f q iL (remove1 q' (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL)) (insert q' (insert q (set (map fst m)))) k (m@[(q',x)]))"
+      unfolding d_states'_without_shortcut.simps * find_remove_2_set(6)[OF *] by auto
+    moreover have "(remove1 q' (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL)) = (filter (\<lambda>q'' . q'' \<notin> insert q (set (map fst (m@[(q',x)])))) nL)"
+    proof -
+      have "insert q' (insert q (set (map fst m))) = insert q (set (map fst (m@[(q',x)])))"
+        by auto
+
+      have "(remove1 q' (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL)) = (removeAll q' (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL))"
+        using \<open>distinct nL\<close>
+        by (simp add: distinct_remove1_removeAll) 
+      also have "... = filter (\<lambda> q'' . q'' \<noteq> q') ((filter (\<lambda>q'' . q'' \<notin> insert q (set (map fst m))) nL))"
+        by (metis (mono_tags, lifting) filter_cong removeAll_filter_not_eq)
+      also have "... = (filter (\<lambda>q'' . q'' \<notin> insert q (set (map fst m)) \<and> q'' \<noteq> q') nL)"
+        using filter_filter by blast 
+      also have "... = (filter (\<lambda>q'' . q'' \<notin> insert q' (insert q (set (map fst m)))) nL)"
+        by (metis insert_iff)
+      also have "... = (filter (\<lambda>q'' . q'' \<notin> insert q (set (map fst (m@[(q',x)])))) nL)"
+        unfolding \<open>insert q' (insert q (set (map fst m))) = insert q (set (map fst (m@[(q',x)])))\<close> by auto
+      finally show ?thesis by assumption
+    qed
+    moreover have "(insert q' (insert q (set (map fst m)))) = (insert q (set (map fst (m@[(q',x)]))))"
+      by auto
+    ultimately have d1: "d_states'_without_shortcut f q iL (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) (insert q (set (map fst m))) (Suc k) m
+                   = (d_states'_without_shortcut f q iL (filter (\<lambda>q'' . q'' \<notin> insert q (set (map fst (m@[(q',x)])))) nL) (insert q (set (map fst (m@[(q',x)])))) k (m@[(q',x)]))"
+      by simp
+
+    
+    have **: "find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst m)) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst m))))) (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) iL = Some (q',x,nL')"
+      using find_remove_2_strengthening[OF \<open>find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> (insert q (set (map fst m)))))) (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) iL = Some (q',x,nL')\<close>,
+                                        of \<open>(\<lambda> q' x . q' \<notin> insert q (set (map fst m)) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst m)))))\<close>]
+            find_remove_2_set(1,2)[OF \<open>find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> (insert q (set (map fst m)))))) (filter (\<lambda>q' . q' \<notin> insert q (set (map fst m))) nL) iL = Some (q',x,nL')\<close>]
+      by simp
+
+    obtain nL'' where ***: "find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst m)) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst m))))) nL iL = Some (q',x,nL'')"
+      using find_remove_2_filter[OF **]
+      by blast 
+
+    have d2: "d_states'_without_nodeList_removal f q iL nL (Suc k) m = d_states'_without_nodeList_removal f q iL nL k (m@[(q',x)])"
+      using *** by auto
+
+    
+
+    show ?thesis
+      using Suc.IH[of "m@[(q',x)]"] unfolding d1 d2 by assumption
+  qed
+qed
+
+
+
+
+fun d_states'_append :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states'_append f q inputList nodeList 0 = []" |
+  "d_states'_append f q inputList nodeList (Suc k) = 
+    (case find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst (d_states'_append f q inputList nodeList k))) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst (d_states'_append f q inputList nodeList k)))))) nodeList inputList
+          of None            \<Rightarrow> (d_states'_append f q inputList nodeList k) |
+             Some (q',x,_) \<Rightarrow> (d_states'_append f q inputList nodeList k)@[(q',x)])"
+
+
+lemma d_states'_append_eq :
+  "d_states'_without_nodeList_removal f q iL nL k m = m @ (d_states'_append f q iL nL k)" 
+
+end (*
 
 
 

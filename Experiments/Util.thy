@@ -1461,6 +1461,127 @@ proof -
 qed
 
 
+
+lemma find_remove_2'_strengthening : 
+  assumes "find_remove_2' P xs ys prev = Some (x,y,xs')"
+  and     "P' x y"
+  and     "\<And> x' y' . P' x' y' \<Longrightarrow> P x' y'"
+shows "find_remove_2' P' xs ys prev = Some (x,y,xs')"
+  using assms proof (induction xs arbitrary: prev)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x' xs)
+  then show ?case proof (cases "find (\<lambda>y . P x' y) ys")
+    case None
+    then show ?thesis using Cons
+      by (metis (mono_tags, lifting) find_None_iff find_remove_2'.simps(2) option.simps(4))  
+  next
+    case (Some a)
+    then have "x' = x" and "a = y"
+      using Cons.prems(1) unfolding find_remove_2'.simps by auto
+    then have "find (\<lambda>y . P x y) ys = Some y"
+      using find_remove_2'_set[OF Cons.prems(1)] by auto
+    then have "find (\<lambda>y . P' x y) ys = Some y"
+      using Cons.prems(3) proof (induction ys)
+      case Nil
+      then show ?case by auto
+    next
+      case (Cons y' ys)
+      then show ?case
+        by (metis assms(2) find.simps(2) option.inject) 
+    qed
+      
+    then show ?thesis  
+      using find_remove_2'_set(6)[OF Cons.prems(1)]
+      unfolding \<open>x' = x\<close> find_remove_2'.simps by auto      
+  qed
+qed
+
+lemma find_remove_2_strengthening : 
+  assumes "find_remove_2 P xs ys = Some (x,y,xs')"
+  and     "P' x y"
+  and     "\<And> x' y' . P' x' y' \<Longrightarrow> P x' y'"
+shows "find_remove_2 P' xs ys = Some (x,y,xs')"
+  using assms find_remove_2'_strengthening
+  by (metis find_remove_2.simps) 
+
+
+
+lemma find_remove_2'_prev_independence :
+  assumes "find_remove_2' P xs ys prev = Some (x,y,xs')"
+  shows "\<exists> xs'' . find_remove_2' P xs ys prev' = Some (x,y,xs'')" 
+  using assms proof (induction xs arbitrary: prev prev' xs')
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x' xs)
+  show ?case proof (cases "find (\<lambda>y . P x' y) ys")
+    case None
+    then show ?thesis
+      using Cons.IH Cons.prems by auto
+      
+  next
+    case (Some a)
+    then show ?thesis using Cons.prems unfolding find_remove_2'.simps
+      by simp 
+  qed
+qed
+
+
+lemma find_remove_2'_filter :
+  assumes "find_remove_2' P (filter P' xs) ys prev = Some (x,y,xs')"
+  and     "\<And> x y . \<not> P' x \<Longrightarrow> \<not> P x y"
+shows "\<exists> xs'' . find_remove_2' P xs ys prev = Some (x,y,xs'')"
+  using assms(1) proof (induction xs arbitrary: prev prev xs')
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x' xs)
+  then show ?case proof (cases "P' x'")
+    case True
+    then have "find_remove_2' P (filter P' (x' # xs)) ys prev = find_remove_2' P (x' # filter P' xs) ys prev" 
+      by auto
+      
+    show ?thesis proof (cases "find (\<lambda>y . P x' y) ys")
+      case None
+      then show ?thesis
+        by (metis Cons.IH Cons.prems \<open>find_remove_2' P (filter P' (x' # xs)) ys prev = find_remove_2' P (x' # filter P' xs) ys prev\<close> find_remove_2'.simps(2) option.simps(4))
+    next
+      case (Some a) 
+      then have "x' = x" and "a = y"
+        using Cons.prems
+        unfolding \<open>find_remove_2' P (filter P' (x' # xs)) ys prev = find_remove_2' P (x' # filter P' xs) ys prev\<close>  
+        unfolding find_remove_2'.simps by auto
+        
+      show ?thesis using Some unfolding \<open>x' = x\<close> \<open>a = y\<close> find_remove_2'.simps
+        by simp
+    qed
+  next
+    case False
+    then have "find_remove_2' P (filter P' xs) ys prev = Some (x,y,xs')"
+      using Cons.prems by auto
+
+    from False assms(2) have "find (\<lambda>y . P x' y) ys = None"
+      by (simp add: find_None_iff)
+    then have "find_remove_2' P (x'#xs) ys prev = find_remove_2' P xs ys (prev@[x'])"
+      by auto
+    
+    show ?thesis 
+      using Cons.IH[OF \<open>find_remove_2' P (filter P' xs) ys prev = Some (x,y,xs')\<close>] 
+      unfolding \<open>find_remove_2' P (x'#xs) ys prev = find_remove_2' P xs ys (prev@[x'])\<close>
+      using find_remove_2'_prev_independence by metis
+  qed
+qed
+
+
+lemma find_remove_2_filter :
+  assumes "find_remove_2 P (filter P' xs) ys = Some (x,y,xs')"
+  and     "\<And> x y . \<not> P' x \<Longrightarrow> \<not> P x y"
+shows "\<exists> xs'' . find_remove_2 P xs ys = Some (x,y,xs'')"
+  using assms by (simp add: find_remove_2'_filter)  
+
+
 lemma find_remove_2'_index : 
   assumes "find_remove_2' P xs ys prev = Some (x,y,xs')"
   obtains i i' where "i < length xs" 
