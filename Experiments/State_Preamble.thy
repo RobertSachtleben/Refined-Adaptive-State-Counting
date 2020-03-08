@@ -561,18 +561,45 @@ next
 qed
 
 
+(* TODO: restore soundness result and move completeness attempts to new theory *)
+(* TODO: describe the growth (dep. on k) of d_states'_without_nodeList_removal as Cons-operation *)
+lemma d_states'_without_nodeList_removal_append :
+  assumes "d_states'_without_nodeList_removal f q iL nL (Suc k) m \<noteq> d_states'_without_nodeList_removal f q iL nL k m"
+  shows "\<exists> q' x nL' . (find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst (d_states'_without_nodeList_removal f q iL nL k m))) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst (d_states'_without_nodeList_removal f q iL nL k m)))))) nL iL = Some (q',x,nL'))
+                       \<and> ((d_states'_without_nodeList_removal f q iL nL (Suc k) m) = ((d_states'_without_nodeList_removal f q iL nL k m))@[(q',x)])" 
+using assms proof (induction k arbitrary: m)
+  case 0
+  then have "d_states'_without_nodeList_removal f q iL nL (Suc 0) m \<noteq> m"
+    by auto
+  then show ?case 
+next
+  case (Suc k)
+  then show ?case sorry
+qed
+
+end (*
 
 
-fun d_states'_append :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list" where
-  "d_states'_append f q inputList nodeList 0 = []" |
-  "d_states'_append f q inputList nodeList (Suc k) = 
-    (case find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst (d_states'_append f q inputList nodeList k))) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst (d_states'_append f q inputList nodeList k)))))) nodeList inputList
-          of None            \<Rightarrow> (d_states'_append f q inputList nodeList k) |
-             Some (q',x,_) \<Rightarrow> (d_states'_append f q inputList nodeList k)@[(q',x)])"
+fun d_states'_append :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "d_states'_append f q inputList nodeList 0 m = m" |
+  "d_states'_append f q inputList nodeList (Suc k) m = 
+    (case find_remove_2 (\<lambda> q' x . q' \<notin> insert q (set (map fst (d_states'_append f q inputList nodeList k m))) \<and> f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> insert q (set (map fst (d_states'_append f q inputList nodeList k m)))))) nodeList inputList
+          of None            \<Rightarrow> (d_states'_append f q inputList nodeList k m) |
+             Some (q',x,_) \<Rightarrow> (d_states'_append f q inputList nodeList k m)@[(q',x)])"
 
 
 lemma d_states'_append_eq :
-  "d_states'_without_nodeList_removal f q iL nL k m = m @ (d_states'_append f q iL nL k)" 
+  "d_states'_without_nodeList_removal f q iL nL k m = d_states'_append f q iL nL k m" 
+proof (induction k arbitrary: m)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+
+  
+
+  then show ?case 
+qed
 
 end (*
 
