@@ -84,6 +84,17 @@ fun filter_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'b \<
                             , inputs = inputs M
                             , outputs = outputs M
                             , transitions = Set.filter P (transitions M) \<rparr>"
+
+
+subsubsection \<open>Filtering Nodes\<close>
+
+fun filter_nodes :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "filter_nodes M P = (if P (initial M) then \<lparr> initial = initial M
+                                              , nodes = Set.filter P (nodes M)
+                                              , inputs = inputs M
+                                              , outputs = outputs M
+                                              , transitions = Set.filter (\<lambda> t . P (t_source t) \<and> P (t_target t)) (transitions M) \<rparr>
+                                         else M)"
  
 subsubsection \<open>Initial Singleton FSM (For Trivial Preamble)\<close>    
 

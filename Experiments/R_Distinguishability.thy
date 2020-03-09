@@ -6,6 +6,7 @@ section \<open>R-Distinguishability\<close>
 
 subsection \<open>Basic Definitions\<close>
 
+(* Note: maybe add requirement that all nodes in the submachine are reachable *)
 definition r_compatible :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where 
   "r_compatible M q1 q2 = ((\<exists> S . completely_specified S \<and> is_submachine S (product (from_FSM M q1) (from_FSM M q2))))"
 
@@ -398,6 +399,14 @@ lemma filter_transitions_reachable_nodes :
 
 
 
+
+
+
+
+
+
+
+
 lemma r_distinguishable_alt_def :
   assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
   shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> k . r_distinguishable_k M q1 q2 k)"
@@ -419,10 +428,11 @@ proof
   
     let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
     (* filter function to restrict transitions of ?P *)
-    let ?f = "\<lambda> t . \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> \<not> (\<exists> k . r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k)"
+    let ?f = "\<lambda> t . \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> \<not> (\<exists> k . r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k) \<and> t_source t \<in> reachable_nodes ?P"
     let ?ft = "Set.filter ?f (transitions ?P)"
     (* resulting submachine of ?P *)
     let ?PC = "filter_transitions ?P ?f" 
+    let ?PCR = "restrict_to_reachable_nodes ?PC"
   
   
     have h_ft : "transitions ?PC = { t \<in> transitions ?P . ?f t }" 
@@ -450,6 +460,8 @@ proof
           using h_ft by blast 
       qed
     qed
+    then have nodes_non_r_d_k_PCR: "\<And> q . q \<in> nodes ?PCR \<Longrightarrow> \<not> (\<exists> k . r_distinguishable_k M (fst q) (snd q) k)"
+      unfolding restrict_to_reachable_nodes_simps by blast
 
     have "\<And> q . q \<in> reachable_nodes ?PC \<Longrightarrow> completely_specified_state ?PC q"  
     proof -
@@ -487,8 +499,9 @@ proof
           proof 
             fix t assume "t \<in> ?tp"
             then have "\<not> ?f t" using not_f by blast
-            then obtain k where "r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k"
-              using False \<open>t \<in> ?tp\<close> by blast
+            then obtain k where "r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k" 
+              using False \<open>t \<in> ?tp\<close>
+              using \<open>q \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))\<close> by blast
             then have "\<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k'"
               using nat_induct_at_least by fastforce
             then show "\<exists> k . \<forall> k' . k' \<ge> k \<longrightarrow> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k'" by auto
@@ -551,14 +564,27 @@ proof
           using nodes_non_r_d_k[OF \<open>q \<in> reachable_nodes ?PC\<close>] by blast
       qed
     qed
-        
-    then have "completely_specified ?PC"
-      using completely_specified_states 
-      end (*by blast 
+    then have "\<And> q . q \<in> nodes ?PCR \<Longrightarrow> completely_specified_state ?PCR q"
+      unfolding restrict_to_reachable_nodes_simps completely_specified_state.simps
+      by blast 
+
+    
+    
+
+
+    then have "completely_specified ?PCR"
+      using completely_specified_states by blast 
   
-    moreover have "is_submachine ?PC ?P"
-       using transition_filter_submachine by metis
-  
+    moreover have "is_submachine ?PCR ?P"
+    proof -
+      have "is_submachine ?PC ?P"
+        unfolding is_submachine.simps filter_transitions_simps by blast
+      moreover have "is_submachine ?PCR ?PC"
+        unfolding is_submachine.simps restrict_to_reachable_nodes_simps
+        using reachable_node_is_node by fastforce 
+      ultimately show ?thesis
+        using submachine_transitive by blast
+    qed
     ultimately have "r_compatible M q1 q2"
       unfolding r_compatible_def by blast
     then show "False" using \<open>r_distinguishable M q1 q2\<close>

@@ -2774,4 +2774,53 @@ lemma filter_transitions_simps[simp] :
   "transitions (filter_transitions M P) = {t \<in> transitions M . P t}"
   by (transfer;auto)+
 
+subsection \<open>Filtering Nodes\<close>
+
+lift_definition filter_nodes :: "('a,'b,'c) fsm \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.filter_nodes 
+proof -
+  fix M  :: "('a,'b,'c) fsm_impl"
+  fix P  :: "'a \<Rightarrow> bool"
+  assume *: "well_formed_fsm M"
+
+  then show "well_formed_fsm (FSM_Impl.filter_nodes M P)" 
+    by (cases "P (FSM_Impl.initial M)"; auto)
+qed
+
+lemma filter_nodes_simps[simp] :
+  assumes "P (initial M)"
+shows "initial (filter_nodes M P) = initial M"
+      "nodes (filter_nodes M P) = Set.filter P (nodes M)"
+      "inputs (filter_nodes M P) = inputs M"
+      "outputs (filter_nodes M P) = outputs M"
+      "transitions (filter_nodes M P) = {t \<in> transitions M . P (t_source t) \<and> P (t_target t)}"
+  using assms by (transfer;auto)+
+
+fun restrict_to_reachable_nodes :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm" where
+  "restrict_to_reachable_nodes M = filter_nodes M (\<lambda> q . q \<in> reachable_nodes M)"
+
+lemma reachable_nodes_initial :
+  "initial M \<in> reachable_nodes M"
+  unfolding reachable_nodes_def by auto
+
+lemma restrict_to_reachable_nodes_simps[simp] :
+shows "initial (restrict_to_reachable_nodes M) = initial M"
+      "nodes (restrict_to_reachable_nodes M) = reachable_nodes M"
+      "inputs (restrict_to_reachable_nodes M) = inputs M"
+      "outputs (restrict_to_reachable_nodes M) = outputs M"
+      "transitions (restrict_to_reachable_nodes M) = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M}"
+proof -
+  show "initial (restrict_to_reachable_nodes M) = initial M"
+       "nodes (restrict_to_reachable_nodes M) = reachable_nodes M"
+       "inputs (restrict_to_reachable_nodes M) = inputs M"
+       "outputs (restrict_to_reachable_nodes M) = outputs M"
+      
+    using filter_nodes_simps[of "(\<lambda> q . q \<in> reachable_nodes M)", OF reachable_nodes_initial] 
+    using reachable_node_is_node[of _ M] by auto
+
+  have "transitions (restrict_to_reachable_nodes M) = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M \<and> (t_target t) \<in> reachable_nodes M}"
+    using filter_nodes_simps[of "(\<lambda> q . q \<in> reachable_nodes M)", OF reachable_nodes_initial] by auto
+  then show "transitions (restrict_to_reachable_nodes M) = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M}"
+    using reachable_nodes_next[of _ M] by auto
+qed
+
 end
