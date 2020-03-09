@@ -624,32 +624,31 @@ proof
                             and "completely_specified S"
           by (meson r_compatible_def) 
 
-        have "x \<in> set (inputs (product (from_FSM M q1) (from_FSM M q2)))"
-          using \<open>x \<in> (inputs M)\<close> by auto
-        then have "x \<in> set (inputs S)" 
+        have "x \<in> (inputs (product (from_FSM M q1) (from_FSM M q2)))"
+          by (simp add: Suc.prems(4) \<open>x \<in> FSM.inputs M\<close>) 
+        then have "x \<in> (inputs S)" 
           using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
           by (metis is_submachine.elims(2)) 
 
         moreover have "initial S = (q1,q2)"
           using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
-          by (metis from_FSM_product_initial is_submachine.elims(2)) 
+          by (simp add: Suc.prems(3) Suc.prems(4))
         ultimately obtain y q1' q2' where "((q1,q2),x,y,(q1',q2')) \<in> transitions S"
-          using \<open>completely_specified S\<close> using nodes.initial by fastforce 
+          using \<open>completely_specified S\<close> using fsm_initial by fastforce 
         then have "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
           using \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close>
-          using submachine_h by blast
+          by auto
         then have "(q1, x, y, q1') \<in> transitions (from_FSM M q1)" and "(q2, x, y, q2') \<in> transitions (from_FSM M q2)" 
-          using product_transition[of q1 q2 x y q1' q2' "from_FSM M q1" "from_FSM M q2"] by presburger+
-        
-        then have "(q1, x, y, q1') \<in> transitions M" and "(q2, x, y, q2') \<in> transitions M" 
-          using from_FSM_h[OF Suc.prems(3)] from_FSM_h[OF Suc.prems(4)] by blast+
+          unfolding product_transitions_def by force+
+        then have "(q1, x, y, q1') \<in> transitions M" and "(q2, x, y, q2') \<in> transitions M"
+          by (simp add: Suc.prems(3,4))+
         then have "r_distinguishable_k M q1' q2' k" 
           using \<open>\<forall>y q1' q2'. (q1, x, y, q1') \<in> transitions M \<and> (q2, x, y, q2') \<in> transitions M \<longrightarrow> r_distinguishable_k M q1' q2' k\<close> by blast
         have "r_distinguishable M q1' q2'"
-          using Suc.IH[OF \<open>r_distinguishable_k M q1' q2' k\<close>] wf_transition_target[OF \<open>(q1, x, y, q1') \<in> transitions M\<close>] wf_transition_target[OF \<open>(q2, x, y, q2') \<in> transitions M\<close>] by auto
+          by (metis (no_types) Suc.IH \<open>(q1, x, y, q1') \<in> FSM.transitions M\<close> \<open>(q2, x, y, q2') \<in> FSM.transitions M\<close> \<open>r_distinguishable_k M q1' q2' k\<close> fsm_transition_target snd_conv) 
         moreover have "\<exists> S' . completely_specified S' \<and> is_submachine S' (product (from_FSM M q1') (from_FSM M q2'))"
-          using \<open>((q1,q2),x,y,(q1',q2')) \<in> transitions S\<close>
-          by (meson \<open>completely_specified S\<close> \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close> submachine_transition_complete_product_from submachine_transition_product_from) 
+          using submachine_transition_complete_product_from[OF \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close> \<open>completely_specified S\<close> \<open>((q1,q2),x,y,(q1',q2')) \<in> transitions S\<close> Suc.prems(3,4)]
+                submachine_transition_product_from[OF \<open>is_submachine S (product (from_FSM M q1) (from_FSM M q2))\<close> \<open>((q1,q2),x,y,(q1',q2')) \<in> transitions S\<close> Suc.prems(3,4)]          by blast 
 
         ultimately show "False" unfolding r_compatible_def by blast
       qed
@@ -662,7 +661,7 @@ subsection \<open>Bounds\<close>
 
 
 
-inductive is_least_r_d_k_path :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) \<times> Input \<times> nat) list \<Rightarrow> bool" where
+inductive is_least_r_d_k_path :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) \<times> 'b \<times> nat) list \<Rightarrow> bool" where
   immediate[intro!] : "x \<in> (inputs M) \<Longrightarrow> \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<Longrightarrow> is_least_r_d_k_path M q1 q2 [((q1,q2),x,0)]" |
   step[intro!] : "Suc k = (LEAST k' . r_distinguishable_k M q1 q2 k') 
                   \<Longrightarrow> x \<in> (inputs M)
@@ -677,32 +676,33 @@ inductive_cases is_least_r_d_k_path_immediate_elim[elim!]: "is_least_r_d_k_path 
 inductive_cases is_least_r_d_k_path_step_elim[elim!]: "is_least_r_d_k_path M q1 q2 (((q1,q2),x,Suc k)#p)"
 
 
-end (* lemma is_least_r_d_k_path_nonempty :
+lemma is_least_r_d_k_path_nonempty :
   assumes "is_least_r_d_k_path M q1 q2 p"
   shows "p \<noteq> []"
   using is_least_r_d_k_path.cases[OF assms] by blast
 
-end (* lemma is_least_r_d_k_path_0_extract : 
+lemma is_least_r_d_k_path_0_extract : 
   assumes "is_least_r_d_k_path M q1 q2 [t]"
   shows "\<exists> x . t = ((q1,q2),x,0)"
     using is_least_r_d_k_path.cases[OF assms]
     by (metis (no_types, lifting) list.inject is_least_r_d_k_path_nonempty) 
 
-end (* lemma is_least_r_d_k_path_Suc_extract : 
+lemma is_least_r_d_k_path_Suc_extract : 
   assumes "is_least_r_d_k_path M q1 q2 (t#t'#p)"
   shows "\<exists> x k . t = ((q1,q2),x,Suc k)"
     using is_least_r_d_k_path.cases[OF assms]
     by (metis (no_types, lifting) list.distinct(1) list.inject)
 
-end (* lemma is_least_r_d_k_path_Suc_transitions :
+lemma is_least_r_d_k_path_Suc_transitions :
   assumes "is_least_r_d_k_path M q1 q2 (((q1,q2),x,Suc k)#p)"
   shows "(\<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k)"
   using is_least_r_d_k_path_step_elim[OF assms]
-        Suc_inject[of _ k] prod.collapse wf_transition_simp[of _ M] by metis
+        Suc_inject[of _ k]  
+  by metis
 
 
 
-end (* lemma is_least_r_d_k_path_is_least :
+lemma is_least_r_d_k_path_is_least :
   assumes "is_least_r_d_k_path M q1 q2 (t#p)"
   shows "r_distinguishable_k M q1 q2 (snd (snd t)) \<and> (snd (snd t)) = (LEAST k' . r_distinguishable_k M q1 q2 k')"
 proof (cases p)
@@ -735,10 +735,12 @@ next
     by (metis \<open>t = ((q1, q2), x, Suc k)\<close> snd_conv) 
 qed
 
-end (* lemma Max_elem : "finite (xs :: 'a set) \<Longrightarrow> xs \<noteq> {} \<Longrightarrow> \<exists> x \<in> xs . Max (image (f :: 'a \<Rightarrow> nat) xs) = f x"
+(* TODO: move *)
+lemma Max_elem : "finite (xs :: 'a set) \<Longrightarrow> xs \<noteq> {} \<Longrightarrow> \<exists> x \<in> xs . Max (image (f :: 'a \<Rightarrow> nat) xs) = f x"
   by (metis (mono_tags, hide_lams) Max_in empty_is_image finite_imageI imageE)
 
-end (* lemma r_distinguishable_k_least_next :
+
+lemma r_distinguishable_k_least_next :
   assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
       and "(LEAST k . r_distinguishable_k M q1 q2 k) = Suc k"
       and "x \<in> (inputs M)"
@@ -761,8 +763,8 @@ proof -
     using assms(3,4) Least_le by blast
 
   show ?thesis proof (rule ccontr)
-    assume assm : "\<not> (\<exists>t1\<in>set (wf_transitions M).
-           \<exists>t2\<in>set (wf_transitions M).
+    assume assm : "\<not> (\<exists>t1\<in>(transitions M).
+           \<exists>t2\<in>(transitions M).
               (t_source t1 = q1 \<and>
                t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<and>
               (LEAST k. r_distinguishable_k M (t_target t1) (t_target t2) k) = k)"
@@ -775,8 +777,8 @@ proof -
     let ?hs = "{(t1,t2) | t1 t2 . t1 \<in> transitions M \<and> t2 \<in> transitions M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2}"
     have "finite ?hs"
     proof -
-      have "?hs \<subseteq> (h M \<times> h M)" by blast
-      moreover have "finite (h M \<times> h M)" by blast
+      have "?hs \<subseteq> (transitions M \<times> transitions M)" by blast
+      moreover have "finite (transitions M \<times> transitions M)" using fsm_transitions_finite by blast
       ultimately show ?thesis
         by (simp add: finite_subset) 
     qed
@@ -855,7 +857,7 @@ qed
     
 
 
-end (* lemma is_least_r_d_k_path_length_from_r_d :
+lemma is_least_r_d_k_path_length_from_r_d :
   assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
   shows "\<exists> t p . is_least_r_d_k_path M q1 q2 (t#p) \<and> length (t#p) = Suc (LEAST k . r_distinguishable_k M q1 q2 k)"
 proof -
@@ -877,8 +879,8 @@ proof -
     then have "r_distinguishable_k M q1 q2 (Suc k)" by auto
     moreover have "\<not> r_distinguishable_k M q1 q2 k"
       using Suc by (metis lessI not_less_Least) 
-    ultimately obtain x where "x \<in> (inputs M)" and *: "(\<forall>t1\<in>set (wf_transitions M).
-           \<forall>t2\<in>set (wf_transitions M).
+    ultimately obtain x where "x \<in> (inputs M)" and *: "(\<forall>t1\<in>(transitions M).
+           \<forall>t2\<in>(transitions M).
               t_source t1 = q1 \<and>
               t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<longrightarrow>
               r_distinguishable_k M (t_target t1) (t_target t2) k)"
@@ -910,68 +912,61 @@ qed
 
 
 
-
-end (* lemma is_least_r_d_k_path_nodes :
+(* TODO: rework to use the number of reachable nodes as limit *)
+lemma is_least_r_d_k_path_nodes :
   assumes "is_least_r_d_k_path M q1 q2 p"
+      and "q1 \<in> nodes M"
+      and "q2 \<in> nodes M"
 shows "set (map fst p) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
   using assms proof (induction p)
-  case (immediate x M q1 q2)
-  then show ?case using nodes.initial[of \<open>product (from_FSM M q1) (from_FSM M q2)\<close>] by auto
+  case (immediate x M q1 q2) 
+  then show ?case by auto
 next
   case (step k M q1 q2 x t1 t2 p)
-  then have "t_target t1 \<in> nodes M" and "t_target t2 \<in> nodes M" 
-    using wf_transition_target by metis+
+  then have "t_target t1 \<in> nodes M" and "t_target t2 \<in> nodes M" by blast+
   have "t_source t1 = q1" and "t_source t2 = q2"
     using step by metis+
 
   have "t_target t1 \<in> nodes (from_FSM M q1)"
-    by (metis from_FSM_transition_initial step.hyps(4,6) wf_transition_target)+ 
+    by (simp add: \<open>t_target t1 \<in> FSM.nodes M\<close> step.prems(1))
   have "t_target t2 \<in> nodes (from_FSM M q2)"
-    by (metis from_FSM_transition_initial step.hyps(5,6) wf_transition_target)+ 
+    by (simp add: \<open>t_target t2 \<in> FSM.nodes M\<close> step.prems(2)) 
 
   have "t1 \<in> transitions (from_FSM M q1)"
-    using \<open>t_source t1 = q1\<close> from_FSM_transition_initial step.hyps(4) by fastforce
+    by (simp add: step.hyps(4) step.prems(1))    
   have "t2 \<in> transitions (from_FSM M q2)"
-    using \<open>t_source t2 = q2\<close> from_FSM_transition_initial step.hyps(5) by fastforce
+    by (simp add: step.hyps(5) step.prems(2))
   have "t_input t1 = t_input t2" using step.hyps(6) by auto
   have "t_output t1 = t_output t2" using step.hyps(6) by auto
 
-  have "((q1,q2),t_input t1, t_output t1, (t_target t1, t_target t2)) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-    using product_transition_from_transitions[OF \<open>t1 \<in> transitions (from_FSM M q1)\<close> \<open>t2 \<in> transitions (from_FSM M q2)\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close>]  
-          from_product_initial_paths_ex[of M q1 q2] \<open>t_source t1 = q1\<close> \<open>t_source t2 = q2\<close> by blast
+  have "((q1,q2),t_input t1, t_output t1, (t_target t1, t_target t2)) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))" 
+    using \<open>t1 \<in> transitions (from_FSM M q1)\<close> \<open>t2 \<in> transitions (from_FSM M q2)\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close> \<open>t_source t1 = q1\<close> \<open>t_source t2 = q2\<close>
+    unfolding product_transitions_alt_def by blast
 
   then have "(t_target t1, t_target t2) \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
-    using wf_transition_target
+    using fsm_transition_target
     by (metis snd_conv) 
+
   moreover have "nodes (product (from_FSM M (t_target t1)) (from_FSM M (t_target t2))) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
-    using product_from_path[OF calculation] 
-          path_to_node[of _ "(product (from_FSM M (t_target t1)) (from_FSM M (t_target t2)))"]
-    by (metis from_FSM_product_initial path_target_is_node subrelI)
+    using calculation step.prems(1) step.prems(2) by auto
+    
+
   moreover have "set (map fst p) \<subseteq> nodes (product (from_FSM M (t_target t1)) (from_FSM M (t_target t2)))"
-    using step.IH by assumption
+    using step.IH  \<open>t_target t1 \<in> nodes (from_FSM M q1)\<close>  \<open>t_target t2 \<in> nodes (from_FSM M q2)\<close>
+    using step.prems by auto
   ultimately have "set (map fst p) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
     by blast
   
   moreover have "set (map fst [((q1,q2),x,Suc k)]) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))"
-    using \<open>((q1, q2), t_input t1, t_output t1, t_target t1, t_target t2) \<in> set (wf_transitions (product (from_FSM M q1) (from_FSM M q2)))\<close>
-    by (metis (no_types, lifting) empty_iff empty_set fst_conv list.simps(8) list.simps(9) set_ConsD subsetI wf_transition_simp) 
+    using fsm_transition_source[OF \<open>((q1, q2), t_input t1, t_output t1, t_target t1, t_target t2) \<in> (transitions (product (from_FSM M q1) (from_FSM M q2)))\<close>]
+    by auto
     
   ultimately show ?case
-  proof -
-    have f1: "\<And>p f pa ps. (p::'a \<times> 'a) \<notin> set (map f ((pa::('a \<times> 'a) \<times> integer \<times> nat) # ps)) \<or> p = f pa \<or> p \<in> set (map f ps)"
-      by fastforce
-    obtain pp :: "('a \<times> 'a) list \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> 'a \<times> 'a" where
-      f2: "\<And>ps r. (set ps \<subseteq> r \<or> pp ps r \<in> set ps) \<and> (pp ps r \<notin> r \<or> set ps \<subseteq> r)"
-      by moura
-    have "pp (map fst (((q1, q2), x, Suc k) # p)) (nodes (product (from_FSM M q1) (from_FSM M q2))) = fst ((q1, q2), x, Suc k) \<longrightarrow> pp (map fst (((q1, q2), x, Suc k) # p)) (nodes (product (from_FSM M q1) (from_FSM M q2))) \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
-      by (metis (no_types) \<open>set (map fst [((q1, q2), x, Suc k)]) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> insert_iff list.simps(15) list.simps(9) subset_iff)
-    then show ?thesis
-      using f2 f1 by (meson \<open>set (map fst p) \<subseteq> nodes (product (from_FSM M q1) (from_FSM M q2))\<close> subset_iff)
-  qed
+    by auto
 qed
 
 
-end (* lemma is_least_r_d_k_path_decreasing :
+lemma is_least_r_d_k_path_decreasing :
   assumes "is_least_r_d_k_path M q1 q2 p"
   shows "\<forall> t' \<in> set (tl p) . snd (snd t') < snd (snd (hd p))"
 using assms proof(induction p)
@@ -998,7 +993,7 @@ next
   qed
 qed
 
-end (* lemma is_least_r_d_k_path_suffix :
+lemma is_least_r_d_k_path_suffix :
   assumes "is_least_r_d_k_path M q1 q2 p"
       and "i < length p"
     shows "is_least_r_d_k_path M (fst (fst (hd (drop i p)))) (snd (fst (hd (drop i p)))) (drop i p)"
@@ -1022,7 +1017,7 @@ qed
 
   
 
-end (* lemma is_least_r_d_k_path_distinct :
+lemma is_least_r_d_k_path_distinct :
   assumes "is_least_r_d_k_path M q1 q2 p"
   shows "distinct (map fst p)"
 using assms proof(induction p)
@@ -1064,18 +1059,20 @@ qed
 
 
 
-end (* lemma r_distinguishable_k_least_bound :
+lemma r_distinguishable_k_least_bound :
   assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
-  shows "(LEAST k . r_distinguishable_k M q1 q2 k) \<le> size (product (from_FSM M q1) (from_FSM M q2))"
+      and "q1 \<in> nodes M"
+      and "q2 \<in> nodes M"
+  shows "(LEAST k . r_distinguishable_k M q1 q2 k) \<le> (size (product (from_FSM M q1) (from_FSM M q2)))"
 proof (rule ccontr)
-  assume "\<not> (LEAST k. r_distinguishable_k M q1 q2 k) \<le> FSM.size (product (from_FSM M q1) (from_FSM M q2))"
-  then have c_assm : "size (product (from_FSM M q1) (from_FSM M q2)) < (LEAST k. r_distinguishable_k M q1 q2 k)"
+  assume "\<not> (LEAST k. r_distinguishable_k M q1 q2 k) \<le> (size (product (from_FSM M q1) (from_FSM M q2)))"
+  then have c_assm : "(size (product (from_FSM M q1) (from_FSM M q2))) < (LEAST k. r_distinguishable_k M q1 q2 k)"
     by linarith
 
   obtain t p where "is_least_r_d_k_path M q1 q2 (t # p)" 
                and "length (t # p) = Suc (LEAST k. r_distinguishable_k M q1 q2 k)"
-    using is_least_r_d_k_path_length_from_r_d[OF assms] by blast
-  then have "size (product (from_FSM M q1) (from_FSM M q2)) < length (t # p)"
+    using is_least_r_d_k_path_length_from_r_d[OF assms(1)] by blast
+  then have "(size (product (from_FSM M q1) (from_FSM M q2))) < length (t # p)"
     using c_assm by linarith
 
    
@@ -1084,10 +1081,10 @@ proof (rule ccontr)
     using is_least_r_d_k_path_distinct[OF \<open>is_least_r_d_k_path M q1 q2 (t # p)\<close>] by assumption
   then have "card (set (map fst (t # p))) = length (t # p)"
     using distinct_card by fastforce
-  moreover have "card (set (map fst (t # p))) \<le> card (nodes (product (from_FSM M q1) (from_FSM M q2)))"
-    using is_least_r_d_k_path_nodes[OF \<open>is_least_r_d_k_path M q1 q2 (t # p)\<close>] nodes_finite card_mono by blast
+  moreover have "card (set (map fst (t # p))) \<le> size (product (from_FSM M q1) (from_FSM M q2))"
+    using is_least_r_d_k_path_nodes[OF \<open>is_least_r_d_k_path M q1 q2 (t # p)\<close> assms(2,3)] fsm_nodes_finite card_mono unfolding size_def by blast
   ultimately have "length (t # p) \<le> size (product (from_FSM M q1) (from_FSM M q2))"
-    by (metis size.simps) 
+    by (metis) 
   then show "False"
     using \<open>size (product (from_FSM M q1) (from_FSM M q2)) < length (t # p)\<close> by linarith
 qed
@@ -1097,41 +1094,42 @@ qed
 
 subsection \<open>Deciding R-Distinguishability\<close>
 
-fun r_distinguishable_k_least :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (nat \<times> Input) option" where
-  "r_distinguishable_k_least M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs M)) of
+fun r_distinguishable_k_least :: "('a, 'b::linorder, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> (nat \<times> 'b) option" where
+  "r_distinguishable_k_least M q1 q2 0 = (case find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs_as_list M)) of
     Some x \<Rightarrow> Some (0,x) |
     None \<Rightarrow> None)" |
   "r_distinguishable_k_least M q1 q2 (Suc n) = (case r_distinguishable_k_least M q1 q2 n of
     Some k \<Rightarrow> Some k |
-    None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs M)) of
+    None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs_as_list M)) of
       Some x \<Rightarrow> Some (Suc n,x) |
       None \<Rightarrow> None))"
 
 
-value "r_distinguishable_k_least M_ex_9 0 3 0"
-value "r_distinguishable_k_least M_ex_9 0 3 1"
-value "r_distinguishable_k_least M_ex_9 0 3 2"
+value "r_distinguishable_k_least m_ex_9 0 3 0"
+value "r_distinguishable_k_least m_ex_9 0 3 1"
+value "r_distinguishable_k_least m_ex_9 0 3 2"
 
 
 
 
 
 
-end (* lemma r_distinguishable_k_least_ex : 
+lemma r_distinguishable_k_least_ex : 
   assumes "r_distinguishable_k_least M q1 q2 k = None" 
   shows "\<not> r_distinguishable_k M q1 q2 k"
 using assms proof (induction k)
   case 0
   show ?case proof (rule ccontr)
     assume "\<not> \<not> r_distinguishable_k M q1 q2 0"
-    then have "(\<exists>x\<in>set (sort (inputs M)).
-                 \<not> (\<exists>t1\<in>set (wf_transitions M).
-                        \<exists>t2\<in>set (wf_transitions M).
+    then have "(\<exists>x\<in>set (sort (inputs_as_list M)).
+                 \<not> (\<exists>t1\<in>(transitions M).
+                        \<exists>t2\<in>(transitions M).
                            t_source t1 = q1 \<and>
                            t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))"
-      unfolding r_distinguishable_k.simps by auto
-    then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs M)) = Some x"
-      unfolding r_distinguishable_k.simps using find_None_iff[of "\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" "sort (inputs M)"] by blast
+      unfolding r_distinguishable_k.simps
+      using inputs_as_list_set by auto 
+    then obtain x where "find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs_as_list M)) = Some x"
+      unfolding r_distinguishable_k.simps using find_None_iff[of "\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" "sort (inputs_as_list M)"] by blast
     then have "r_distinguishable_k_least M q1 q2 0 = Some (0,x)"
       unfolding r_distinguishable_k_least.simps by auto
     then show "False" using 0 by simp
@@ -1146,28 +1144,29 @@ next
     using Suc.IH by auto
 
   have "find
-             (\<lambda>x. \<forall>t1\<in>set (wf_transitions M).
-                     \<forall>t2\<in>set (wf_transitions M).
+             (\<lambda>x. \<forall>t1\<in>(transitions M).
+                     \<forall>t2\<in>(transitions M).
                         t_source t1 = q1 \<and>
                         t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<longrightarrow>
                         r_distinguishable_k M (t_target t1) (t_target t2) k)
-             (sort (inputs M))  = None"
+             (sort (inputs_as_list M))  = None"
     using Suc.prems \<open>r_distinguishable_k_least M q1 q2 k = None\<close> unfolding r_distinguishable_k_least.simps
     using option.disc_eq_case(2) by force 
 
-  then have **: "\<not>(\<exists> x \<in> set (sort (inputs M)) .  (\<forall>t1\<in>set (wf_transitions M).
-                     \<forall>t2\<in>set (wf_transitions M).
+  then have **: "\<not>(\<exists> x \<in> set (sort (inputs_as_list M)) .  (\<forall>t1\<in>(transitions M).
+                     \<forall>t2\<in>(transitions M).
                         t_source t1 = q1 \<and>
                         t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<longrightarrow>
                         r_distinguishable_k M (t_target t1) (t_target t2) k))"
-    using find_None_iff[of "(\<lambda>x. \<forall>t1\<in>set (wf_transitions M).
-                     \<forall>t2\<in>set (wf_transitions M).
+    using find_None_iff[of "(\<lambda>x. \<forall>t1\<in>(transitions M).
+                     \<forall>t2\<in>(transitions M).
                         t_source t1 = q1 \<and>
                         t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2 \<longrightarrow>
-                        r_distinguishable_k M (t_target t1) (t_target t2) k)" "(sort (inputs M))"] by auto
+                        r_distinguishable_k M (t_target t1) (t_target t2) k)" "(sort (inputs_as_list M))"] by auto
   
     
-  show ?case using * ** unfolding r_distinguishable_k.simps by auto
+  show ?case using * ** unfolding r_distinguishable_k.simps
+    using inputs_as_list_set by fastforce 
 qed
   
 
@@ -1175,7 +1174,7 @@ qed
 
 
 
-end (* lemma r_distinguishable_k_least_0_correctness :
+lemma r_distinguishable_k_least_0_correctness :
   assumes  "r_distinguishable_k_least M q1 q2 n = Some (0,x)"  
   shows "r_distinguishable_k M q1 q2 0 \<and> 0 = 
             (LEAST k . r_distinguishable_k M q1 q2 k) 
@@ -1183,34 +1182,27 @@ end (* lemma r_distinguishable_k_least_0_correctness :
             \<and> (\<forall> x' \<in> (inputs M) . x' < x \<longrightarrow> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x' \<and> t_input t2 = x' \<and> t_output t1 = t_output t2))"
 using assms proof (induction n)
   case 0
-  then obtain x' where x'_def : "find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs M)) = Some x'"
+  then obtain x' where x'_def : "find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (sort (inputs_as_list M)) = Some x'"
     unfolding r_distinguishable_k_least.simps by fastforce 
   then have "x = x'" using 0 unfolding r_distinguishable_k_least.simps by fastforce
-  then have "x \<in> set (sort (inputs M)) \<and> \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" using 0 unfolding r_distinguishable_k_least.simps r_distinguishable_k.simps 
+  then have "x \<in> set (sort (inputs_as_list M)) \<and> \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" using 0 unfolding r_distinguishable_k_least.simps r_distinguishable_k.simps 
     using find_condition[OF x'_def] find_set[OF x'_def] by blast
   moreover have "r_distinguishable_k M q1 q2 0"
-    using calculation List.linorder_class.set_sort unfolding r_distinguishable_k.simps by metis 
+    using calculation List.linorder_class.set_sort unfolding r_distinguishable_k.simps
+    using inputs_as_list_set by auto
   moreover have "0 = (LEAST k . r_distinguishable_k M q1 q2 k)"
     using calculation(2) by auto
   moreover have "(\<forall> x' \<in> (inputs M) . x' < x \<longrightarrow> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x' \<and> t_input t2 = x' \<and> t_output t1 = t_output t2))"
-    using find_sort_least(1)[OF x'_def] \<open>x = x'\<close>
-    using leD by blast  
-  ultimately show ?case
-    by force  
+    using find_sort_least(1)[OF x'_def] \<open>x = x'\<close> inputs_as_list_set
+    using leD by blast
+  ultimately show ?case unfolding inputs_as_list_set set_sort by force
 next
   case (Suc n)
   then show ?case proof (cases "r_distinguishable_k_least M q1 q2 n")
     case None
-    then have "r_distinguishable_k_least M q1 q2 (Suc n) \<noteq> Some (0, x)"
-      using Suc.prems 
-    proof -
-      have "find (\<lambda>i. \<forall>p. p \<in> set (wf_transitions M) \<longrightarrow> (\<forall>pa. pa \<in> set (wf_transitions M) \<longrightarrow> t_source p = q1 \<and> t_source pa = q2 \<and> t_input p = i \<and> t_input pa = i \<and> t_output p = t_output pa \<longrightarrow> r_distinguishable_k M (t_target p) (t_target pa) n)) (inputs M) \<noteq> None \<or> (case find (\<lambda>i. \<forall>p. p \<in> set (wf_transitions M) \<longrightarrow> (\<forall>pa. pa \<in> set (wf_transitions M) \<longrightarrow> t_source p = q1 \<and> t_source pa = q2 \<and> t_input p = i \<and> t_input pa = i \<and> t_output p = t_output pa \<longrightarrow> r_distinguishable_k M (t_target p) (t_target pa) n)) (inputs M) of None \<Rightarrow> None | Some i \<Rightarrow> Some (Suc n, i)) \<noteq> Some (0, x)"
-        by force
-      then show ?thesis
-        unfolding r_distinguishable_k_least.simps
-        using \<open>r_distinguishable_k_least M q1 q2 n = None\<close>
-        by (simp add: option.case_eq_if) 
-    qed
+    have "r_distinguishable_k_least M q1 q2 (Suc n) \<noteq> Some (0, x)"
+      using Suc.prems unfolding r_distinguishable_k_least.simps None
+      by (metis (no_types, lifting) Zero_not_Suc fst_conv option.case_eq_if option.distinct(1) option.sel) 
     then show ?thesis using Suc.prems by auto
   next
     case (Some a)
@@ -1220,7 +1212,8 @@ next
   qed
 qed
 
-end (* lemma r_distinguishable_k_least_Suc_correctness :
+
+lemma r_distinguishable_k_least_Suc_correctness :
   assumes  "r_distinguishable_k_least M q1 q2 n = Some (Suc k,x)"  
   shows "r_distinguishable_k M q1 q2 (Suc k) \<and> (Suc k) = 
           (LEAST k . r_distinguishable_k M q1 q2 k) 
@@ -1229,23 +1222,23 @@ end (* lemma r_distinguishable_k_least_Suc_correctness :
 using assms proof (induction n)
   case 0
   then show ?case by (cases " find
-         (\<lambda>x. \<not> (\<exists>t1\<in>set (wf_transitions M).
-                     \<exists>t2\<in>set (wf_transitions M).
+         (\<lambda>x. \<not> (\<exists>t1\<in>(transitions M).
+                     \<exists>t2\<in>(transitions M).
                         t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2))
-         (sort (inputs M))"; auto)
+         (sort (inputs_as_list M))"; auto)
 next
   case (Suc n)
   then show ?case proof (cases "r_distinguishable_k_least M q1 q2 n")
     case None
-    then have *: "(case find (\<lambda> x . \<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs M)) of
+    then have *: "(case find (\<lambda> x . \<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs_as_list M)) of
       Some x \<Rightarrow> Some (Suc n,x) |
       None \<Rightarrow> None) = Some (Suc k,x)"
       using Suc.prems unfolding r_distinguishable_k_least.simps by auto
-    then obtain x' where x'_def : "find (\<lambda> x . \<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs M)) =  Some x'" 
+    then obtain x' where x'_def : "find (\<lambda> x . \<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs_as_list M)) =  Some x'" 
       by fastforce
     then have "x = x'" using * by fastforce
     then have p3: "x \<in> (inputs M) \<and> (\<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n)"  
-      using find_condition[OF x'_def] find_set[OF x'_def] set_sort by metis
+      using find_condition[OF x'_def] find_set[OF x'_def] set_sort inputs_as_list_set by metis
     then have p1: "r_distinguishable_k M q1 q2 (Suc n)"
       unfolding r_distinguishable_k.simps by blast
     moreover have "\<not> r_distinguishable_k M q1 q2 n"
@@ -1255,7 +1248,7 @@ next
 
     from * have "k = n" using x'_def by auto
     then have "(\<forall> x' \<in> (inputs M) . x' < x \<longrightarrow> \<not>(\<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x' \<and> t_input t2 = x' \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) k))"
-      using find_sort_least(1)[OF x'_def] \<open>x = x'\<close>
+      using find_sort_least(1)[OF x'_def] \<open>x = x'\<close> inputs_as_list_set
       using leD by blast
     then show ?thesis using p1 p2 p3 \<open>k = n\<close> by blast
   next
@@ -1269,7 +1262,7 @@ qed
 
 
 
-end (* lemma r_distinguishable_k_least_is_least :
+lemma r_distinguishable_k_least_is_least :
   assumes "r_distinguishable_k_least M q1 q2 n = Some (k,x)"
   shows "(\<exists> k . r_distinguishable_k M q1 q2 k) \<and> (k = (LEAST k . r_distinguishable_k M q1 q2 k))"
 proof (cases k)
@@ -1281,13 +1274,14 @@ next
 qed 
 
 
-end (* lemma r_distinguishable_k_from_r_distinguishable_k_least :
-  "(\<exists> k . r_distinguishable_k M q1 q2 k) = (r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) \<noteq> None)"
+lemma r_distinguishable_k_from_r_distinguishable_k_least :
+  assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
+shows "(\<exists> k . r_distinguishable_k M q1 q2 k) = (r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) \<noteq> None)"
   (is "?P1 = ?P2")
 proof 
   show "?P1 \<Longrightarrow> ?P2"
-    using r_distinguishable_k_least_ex r_distinguishable_k_least_bound
-    by (metis LeastI r_distinguishable_k_by_larger)
+    using r_distinguishable_k_least_ex r_distinguishable_k_least_bound[OF _ assms] r_distinguishable_k_by_larger
+    by (metis LeastI)
   show "?P2 \<Longrightarrow> ?P1"
   proof -
     assume ?P2
@@ -1314,13 +1308,41 @@ qed
 definition is_r_distinguishable :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "is_r_distinguishable M q1 q2 = (\<exists> k . r_distinguishable_k M q1 q2 k)"
 
-end (* lemma is_r_distinguishable_contained_code[code] :
-  "is_r_distinguishable M q1 q2 = (r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) \<noteq> None)"
-unfolding is_r_distinguishable_def using r_distinguishable_k_from_r_distinguishable_k_least by metis
+lemma is_r_distinguishable_contained_code[code] :
+  "is_r_distinguishable M q1 q2 = (if (q1 \<in> nodes M \<and> q2 \<in> nodes M) then (r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) \<noteq> None)
+                                                                    else \<not>(inputs M = {}))"
+proof (cases "q1 \<in> nodes M \<and> q2 \<in> nodes M")
+  case True
+  then show ?thesis 
+    unfolding is_r_distinguishable_def using r_distinguishable_k_from_r_distinguishable_k_least by metis
+next
+  case False
+  then have *: "(\<not> (\<exists> t \<in> transitions M . t_source t = q1)) \<or> (\<not> (\<exists> t \<in> transitions M . t_source t = q2))"
+    using fsm_transition_source by auto
+  show ?thesis proof (cases "inputs M = {}")
+    case True
+    moreover have "\<And> k . r_distinguishable_k M q1 q2 k \<Longrightarrow> inputs M \<noteq> {}"
+    proof -
+      fix k assume "r_distinguishable_k M q1 q2 k"
+      then show "inputs M \<noteq> {}" by (induction k; auto)
+    qed
+    ultimately have "is_r_distinguishable M q1 q2 = False"
+      by (meson is_r_distinguishable_def)
+    then show ?thesis using False True by auto
+  next
+    case False
+    then show ?thesis
+      by (meson "*" equals0I fst_conv is_r_distinguishable_def r_distinguishable_k_0_alt_def r_distinguishable_k_from_r_distinguishable_k_least) 
+  qed 
+qed
 
-value "is_r_distinguishable M_ex_9 1 3"
-value "is_r_distinguishable M_ex_9 0 1"
 
+value "is_r_distinguishable m_ex_9 1 3"
+
+(* TODO: reduce (size (product (from_FSM M q1) (from_FSM M q2))) to the size of the reachable nodes 
+
+value "is_r_distinguishable m_ex_H 1 2"
+*)
 
 
 end

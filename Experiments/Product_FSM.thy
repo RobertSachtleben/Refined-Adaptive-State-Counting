@@ -499,8 +499,8 @@ lemma target_single_transition[simp] : "target q1 [(q1, x, y, q1')] = q1'" by au
 
 lemma product_from_reachable_next : 
   assumes "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
   shows   "(from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1', q2')) = (product (from_FSM M q1') (from_FSM M q2'))" 
           (is "?P1 = ?P2")
 proof -
@@ -539,8 +539,8 @@ qed
 lemma submachine_transition_product_from :
   assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
   and     "((q1,q2),x,y,(q1',q2')) \<in> transitions S"
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
  shows "is_submachine (from_FSM S (q1',q2')) (product (from_FSM M q1') (from_FSM M q2'))"
 proof -
   have "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
@@ -556,8 +556,8 @@ lemma submachine_transition_complete_product_from :
   assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
       and "completely_specified S"
       and "((q1,q2),x,y,(q1',q2')) \<in> transitions S"
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
  shows "completely_specified (from_FSM S (q1',q2'))"
 proof -
   let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
@@ -602,8 +602,8 @@ shows "initial (product (from_FSM M q1) (from_FSM M q2)) = (q1,q2)"
 
 lemma product_from_reachable_next' :
   assumes "t \<in> transitions (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
-  and     "fst (t_source t) \<in> reachable_nodes M"
-  and     "snd (t_source t) \<in> reachable_nodes M"
+  and     "fst (t_source t) \<in> nodes M"
+  and     "snd (t_source t) \<in> nodes M"
 shows "(from_FSM (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (fst (t_target t),snd (t_target t))) = (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t))))"
 proof -
   have "((fst (t_source t), snd (t_source t)), t_input t, t_output t, fst (t_target t), snd (t_target t)) = t"
@@ -616,8 +616,8 @@ qed
 
 lemma product_from_reachable_next'_path :
   assumes "t \<in> transitions (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))"
-  and     "fst (t_source t) \<in> reachable_nodes M"
-  and     "snd (t_source t) \<in> reachable_nodes M"
+  and     "fst (t_source t) \<in> nodes M"
+  and     "snd (t_source t) \<in> nodes M"
   shows "path (from_FSM (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (fst (t_target t),snd (t_target t))) (fst (t_target t),snd (t_target t)) p = path (product (from_FSM M (fst (t_target t))) (from_FSM M (snd (t_target t)))) (fst (t_target t),snd (t_target t)) p" 
     (is "path ?P1 ?q p = path ?P2 ?q p")
 proof -
