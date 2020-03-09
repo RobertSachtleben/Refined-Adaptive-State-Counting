@@ -106,7 +106,31 @@ fun initial_singleton :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a,'b,'c) fsm_impl"
                            transitions = {} \<rparr>"
 
 
+subsubsection \<open>Canonical Separator\<close>
 
+
+definition shifted_transitions :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'a)) set" where
+  "shifted_transitions ts = image (\<lambda> t . (Inl (t_source t),t_input t, t_output t, Inl (t_target t))) ts"
+
+definition distinguishing_transitions :: "(('a \<times> 'b) \<Rightarrow> 'c set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> 'b set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'a)) set" where
+  "distinguishing_transitions f q1 q2 nodeSet inputSet = \<Union> (Set.image (\<lambda>((q1',q2'),x) .  image (\<lambda>y . (Inl (q1',q2'),x,y,Inr q1)) (f (q1',x) - f (q2',x))) (nodeSet \<times> inputSet))"
+
+
+fun canonical_separator :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'a),'b,'c) fsm_impl \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm_impl" where
+  "canonical_separator M P q1 q2 = 
+  (let f'  = set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M));
+       f   = (\<lambda>qx . (case f' qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}));
+       shifted_transitions' = shifted_transitions (transitions P);
+       distinguishing_transitions_left = distinguishing_transitions f q1 q2 (nodes P) (inputs P);
+       distinguishing_transitions_right = distinguishing_transitions f q2 q1 (nodes P) (inputs P);
+       ts = shifted_transitions' \<union> distinguishing_transitions_left \<union> distinguishing_transitions_right
+   in 
+
+    \<lparr> initial = Inl (q1,q2)
+    , nodes = insert (Inl (q1,q2)) ((image t_source ts) \<union> (image t_target ts))
+    , inputs = inputs M \<union> inputs P
+    , outputs = outputs M \<union> outputs P
+    , transitions = ts \<rparr>)"
 
 
 
