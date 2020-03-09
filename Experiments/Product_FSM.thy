@@ -650,136 +650,71 @@ lemma reachable_nodes_intro[intro!] :
   using assms unfolding reachable_nodes_def by auto
 
 
-lemma product_from_reachable_transition:
-  assumes "(q1',q2') \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2))" 
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
-  shows "transitions (product (from_FSM M q1') (from_FSM M q2')) = transitions (product (from_FSM M q1) (from_FSM M q2))"
+lemma product_from_transition:
+  assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+shows "transitions (product (from_FSM M q1') (from_FSM M q2')) = transitions (product (from_FSM M q1) (from_FSM M q2))"
 proof -
-  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
-  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
-  obtain pp where "path ?P (q1,q2) pp" and "target (q1,q2) pp = (q1',q2')"
-    using assms(1)  
-    unfolding reachable_nodes_def product_simps
-    unfolding from_FSM_simps[OF reachable_node_is_node[OF assms(2)]]
-    unfolding from_FSM_simps[OF reachable_node_is_node[OF assms(3)]]
-    by auto 
-
-  then show ?thesis 
-  using assms proof (induction pp arbitrary: q1 q2 rule: list.induct)
-    case Nil
-    then show ?case by auto
-  next
-    case (Cons t p)
-
-    let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
-    let ?Pt = "(Product_FSM.product (FSM.from_FSM M (fst (t_target t))) (FSM.from_FSM M (snd (t_target t))))"
-  
-
-    have "t_source t = (q1,q2)" and "t \<in> transitions ?P" 
-      using Cons by auto
-    have "path ?P (fst (t_target t), snd (t_target t)) p"
-      using Cons.prems(1) by auto
-
-    
-
-    have "path ?Pt (fst (t_target t), snd (t_target t)) p"
-      using product_from_reachable_next'_path[of t M]
-      unfolding \<open>t_source t = (q1,q2)\<close> fst_conv snd_conv
-      using \<open>t \<in> transitions ?P\<close> Cons.prems(4,5) \<open>path ?P (fst (t_target t), snd (t_target t)) p\<close>
-      by (meson from_FSM_path_rev_initial)  
-    moreover have "target (fst (t_target t), snd (t_target t)) p = (q1',q2')"
-      using Cons.prems(2) by auto
-    moreover have "initial ?Pt = (fst (t_target t), snd (t_target t))"
-      by (metis (no_types, lifting) Cons.prems(4) Cons.prems(5) \<open>t \<in> FSM.transitions (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))\<close> \<open>t_source t = (q1, q2)\<close> from_FSM_simps(1) fsm_transition_target prod.collapse product_from_reachable_next)
-    ultimately have "(q1',q2') \<in> reachable_nodes ?Pt" 
-      using reachable_nodes_intro by metis
-
-    have "transitions ?Pt = transitions ?P"
-      using \<open>t \<in> transitions ?P\<close>
-      by (metis Cons.prems(4) Cons.prems(5) \<open>t_source t = (q1, q2)\<close> from_FSM_simps(4) fsm_transition_target fst_conv prod.collapse product_from_reachable_next' snd_conv) 
-
-    have "fst (t_target t) \<in> reachable_nodes M" and "snd (t_target t) \<in> reachable_nodes M"
-      using reachable_nodes_next[OF Cons.prems(4), of "(fst (t_source t), t_input t, t_output t, fst (t_target t))"] 
-      using reachable_nodes_next[OF Cons.prems(5), of "(snd (t_source t), t_input t, t_output t, snd (t_target t))"] 
-      using \<open>t \<in> transitions ?P\<close> unfolding product_transitions_def
-      using \<open>t_source t = (q1,q2)\<close> 
-      unfolding from_FSM_simps(4)[OF reachable_node_is_node[OF Cons.prems(4)]]
-      unfolding from_FSM_simps(4)[OF reachable_node_is_node[OF Cons.prems(5)]]
-      by auto
-
-    then show ?case 
-      using Cons.IH[OF \<open>path ?Pt (fst (t_target t), snd (t_target t)) p\<close>
-                       \<open>target (fst (t_target t), snd (t_target t)) p = (q1',q2')\<close>
-                       \<open>(q1',q2') \<in> reachable_nodes ?Pt\<close>]
-      unfolding \<open>transitions ?Pt = transitions ?P\<close> by blast
-  qed
+  have "q1' \<in> nodes M" and "q2' \<in> nodes M"
+    using assms(1) unfolding product_simps from_FSM_simps[OF assms(2)] from_FSM_simps[OF assms(3)] by auto
+  show ?thesis
+    unfolding product_transitions_def from_FSM_simps[OF \<open>q1 \<in> nodes M\<close>] from_FSM_simps[OF \<open>q1' \<in> nodes M\<close>] from_FSM_simps[OF \<open>q2 \<in> nodes M\<close>] from_FSM_simps[OF \<open>q2' \<in> nodes M\<close>] by blast
 qed
 
 
 
-lemma product_from_reachable_path:
+lemma product_from_path:
   assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
       and "path (product (from_FSM M q1') (from_FSM M q2')) (q1',q2') p" 
     shows "path (product (from_FSM M q1) (from_FSM M q2)) (q1',q2') p"
-  by (metis (no_types, lifting) assms(1) assms(2) assms(3) assms(4) from_FSM_path_initial from_FSM_simps(5) from_from mem_Sigma_iff product_path product_simps(2) reachable_node_is_node)
+  by (metis (no_types, lifting) assms(1) assms(2) assms(3) assms(4) from_FSM_path_initial from_FSM_simps(5) from_from mem_Sigma_iff product_path product_simps(2))
 
 
 
-lemma product_from_reachable_path_previous :
+lemma product_from_path_previous :
   assumes "path (product (from_FSM M (fst (t_target t))) 
                          (from_FSM M (snd (t_target t))))
                 (t_target t) p"                                           (is "path ?Pt (t_target t) p")
       and "t \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
     shows "path (product (from_FSM M q1) (from_FSM M q2)) (t_target t) p" (is "path ?P (t_target t) p")
-  by (metis assms(1) assms(2) assms(3) assms(4) fsm_transition_target prod.collapse product_from_reachable_path)
+  by (metis assms(1) assms(2) assms(3) assms(4) fsm_transition_target prod.collapse product_from_path)
 
 
-lemma product_from_reachable_transition_shared_node :
+lemma product_from_transition_shared_node :
   assumes "t \<in> transitions (product (from_FSM M q1') (from_FSM M q2'))"
   and     "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
 shows "t \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-proof -
-  have f1: "t \<in> {((a, aa), b, c, ab, ac) |a aa b c ab ac. (a, b, c, ab) \<in> FSM.transitions (FSM.from_FSM M q1') \<and> (aa, b, c, ac) \<in> FSM.transitions (FSM.from_FSM M q2')}"
-    using assms(1) product_transitions_def by blast
-  have f2: "\<forall>a f. a \<notin> FSM.nodes (f::('a, 'b, 'c) fsm) \<or> FSM.transitions (FSM.from_FSM f a) = FSM.transitions f"
-    by force
-  have f3: "\<forall>a f. a \<notin> reachable_nodes (f::('a, 'b, 'c) fsm) \<or> a \<in> FSM.nodes f"
-    by (meson reachable_node_is_node)
-  then have f4: "FSM.transitions (FSM.from_FSM M q1) = FSM.transitions M"
-    using f2 by (meson assms(3))
-  have f5: "q1' \<in> FSM.nodes M \<and> q2' \<in> FSM.nodes (FSM.from_FSM M q2)"
-    using f3 assms(2) assms(3) by auto
-  then have "q2' \<in> FSM.nodes M"
-    using f3 by (simp add: assms(4))
-  then have "\<exists>a aa b c ab ac. t = ((a, aa), b, c, ab, ac) \<and> (a, b, c, ab) \<in> FSM.transitions (FSM.from_FSM M q1) \<and> (aa, b, c, ac) \<in> FSM.transitions (FSM.from_FSM M q2)"
-    using f5 f4 f3 f2 f1 assms(4) by blast
-  then show ?thesis
-    by (simp add: product_transitions_def)
-qed
+  by (metis assms product_from_transition)
 
     
 
-lemma product_from_reachable_not_completely_specified :
+lemma product_from_not_completely_specified :
   assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1',q2')"
   and     "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
     shows  "\<not> completely_specified_state (product (from_FSM M q1') (from_FSM M q2')) (q1',q2')"
-
+proof -
+  have "q1' \<in> nodes M" and "q2' \<in> nodes M"
+    using assms(2) unfolding product_simps from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] by auto
+  show ?thesis
  
-  using assms(1) assms(2) 
-  using from_FSM_product_inputs[OF reachable_node_is_node[OF assms(3)] reachable_node_is_node[OF assms(4)]] 
-  using from_FSM_product_inputs[of q1' M q2' ] 
-  using product_from_reachable_transition_shared_node[OF _ assms(2,3,4)] 
-  unfolding completely_specified_state.simps
-  by (metis assms(3) assms(4) from_FSM_simps(5) mem_Sigma_iff product_simps(2) reachable_node_is_node) 
+    using from_FSM_product_inputs[OF assms(3) assms(4)] 
+    using from_FSM_product_inputs[OF \<open>q1' \<in> nodes M\<close> \<open>q2' \<in> nodes M\<close> ]
+  proof -
+    have "FSM.transitions (Product_FSM.product (FSM.from_FSM M q1') (FSM.from_FSM M q2')) = FSM.transitions (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))"
+      by (metis (no_types) \<open>(q1', q2') \<in> FSM.nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))\<close> assms(3) assms(4) product_from_transition)
+    then show ?thesis
+      using \<open>FSM.inputs (Product_FSM.product (FSM.from_FSM M q1') (FSM.from_FSM M q2')) = FSM.inputs M\<close> \<open>FSM.inputs (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2)) = FSM.inputs M\<close> \<open>\<not> completely_specified_state (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2)) (q1', q2')\<close> by fastforce
+  qed 
+qed
 
 lemma from_product_initial_paths_ex :
   assumes "q1 \<in> nodes M"
@@ -924,7 +859,7 @@ shows "path (product (from_FSM M q1') (from_FSM M q2')) (q1', q2') p"
     
 
 
-lemma product_from_reachable :
+lemma product_from :
   assumes "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
 shows "product (from_FSM M q1) (from_FSM M q2) = from_FSM (product M M) (q1,q2)" (is "?PF = ?FP")
@@ -947,13 +882,13 @@ proof -
 qed
  
 
-lemma product_from_from_reachable :
-  assumes "(q1',q2') \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2))"
-  and     "q1 \<in> reachable_nodes M"
-  and     "q2 \<in> reachable_nodes M"
+lemma product_from_from :
+  assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
 shows "(product (from_FSM M q1') (from_FSM M q2')) = (from_FSM (product (from_FSM M q1) (from_FSM M q2)) (q1',q2'))" 
-  using product_from_reachable
-  by (metis (no_types, lifting) assms(1) assms(2) assms(3) from_FSM_simps(5) from_from mem_Sigma_iff product_simps(2) reachable_node_is_node)
+  using product_from
+  by (metis (no_types, lifting) assms(1) assms(2) assms(3) from_FSM_simps(5) from_from mem_Sigma_iff product_simps(2))
 
 
 lemma product_undefined_input :
