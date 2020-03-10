@@ -6,8 +6,8 @@ section \<open>State Separators\<close>
 
 subsection \<open>Definitions\<close>
 
-
-lift_definition canonical_separator' :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a),'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm" is FSM_Impl.canonical_separator
+                                                                                                                                  
+lift_definition canonical_separator' :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a),'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm" is FSM_Impl.canonical_separator'
 proof -
   fix A :: "('a,'b,'c) fsm_impl"
   fix B :: "('a \<times> 'a,'b,'c) fsm_impl"
@@ -35,106 +35,259 @@ proof -
                                              t_output t \<in> fsm_impl.outputs B)"
     by simp+
 
-  let ?f = "(\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (fsm_impl.transitions A))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+  let ?P = "FSM_Impl.canonical_separator' A B q1 q2"
 
-  have "\<And> qx . (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (fsm_impl.transitions A))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {})) qx = (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx"
-  proof -
-    fix qx
-    show "\<And> qx . (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (fsm_impl.transitions A))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {})) qx = (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx"
-      unfolding set_as_map_def by (cases "\<exists>z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A"; auto)
-  qed
-  moreover have "\<And> qx . (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> fsm_impl.transitions A}) qx"
-  proof -
-    fix qx 
-    show "(\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> fsm_impl.transitions A}) qx"
-      by force
-  qed
-  ultimately have *:" ?f = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> fsm_impl.transitions A})" 
-    by blast
+  show "well_formed_fsm ?P" proof (cases "fsm_impl.initial B = (q1,q2)")
+    case False
+    then show ?thesis by auto
+  next
+    case True
     
 
-  let ?P = "FSM_Impl.canonical_separator A B q1 q2"
-  let ?shifted_transitions' = "shifted_transitions (fsm_impl.transitions B)"
-  let ?distinguishing_transitions_left = "distinguishing_transitions ?f q1 q2 (fsm_impl.nodes B) (fsm_impl.inputs B)"
-  let ?distinguishing_transitions_right = "distinguishing_transitions ?f q2 q1 (fsm_impl.nodes B) (fsm_impl.inputs B)"
-  let ?ts = "?shifted_transitions' \<union> ?distinguishing_transitions_left \<union> ?distinguishing_transitions_right"
 
-  have "FSM_Impl.nodes ?P = insert (Inl (q1, q2)) ((image t_source ?ts) \<union> (image t_target ?ts))"
-  and  "FSM_Impl.transitions ?P = ?ts"
-    unfolding FSM_Impl.canonical_separator.simps Let_def by simp+
 
+    let ?f = "(\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (fsm_impl.transitions A))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
   
-
-  
-  have "finite (fsm_impl.nodes B \<times> fsm_impl.inputs B)"
-    using p2b p3b by blast
-  moreover have **: "\<And> x q1 . finite ({y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A})"
-  proof - 
-    fix x q1
-    have "{y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A} = {t_output t | t . t \<in> fsm_impl.transitions A \<and> t_source t = q1 \<and> t_input t = x}"
-      by auto
-    then have "{y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A} \<subseteq> image t_output (fsm_impl.transitions A)"
-      unfolding fst_conv snd_conv by blast
-    moreover have "finite (image t_output (fsm_impl.transitions A))"
-      using p5a by auto
-    ultimately show "finite ({y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A})"
-      by (simp add: finite_subset)
-  qed
-  ultimately have "finite ?distinguishing_transitions_left"
-             and  "finite ?distinguishing_transitions_right"
-    unfolding * distinguishing_transitions_def by force+
-  moreover have "finite ?shifted_transitions'"
-    unfolding shifted_transitions_def using p5b by auto
-  ultimately have "finite ?ts" by blast
-  then have p2: "finite (fsm_impl.nodes ?P)"
-    unfolding \<open>FSM_Impl.nodes ?P = insert (Inl (q1, q2)) ((image t_source ?ts) \<union> (image t_target ?ts))\<close> by blast
+    have "\<And> qx . (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (fsm_impl.transitions A))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {})) qx = (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx"
+    proof -
+      fix qx
+      show "\<And> qx . (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (fsm_impl.transitions A))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {})) qx = (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx"
+        unfolding set_as_map_def by (cases "\<exists>z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A"; auto)
+    qed
+    moreover have "\<And> qx . (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> fsm_impl.transitions A}) qx"
+    proof -
+      fix qx 
+      show "(\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` fsm_impl.transitions A}) qx = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> fsm_impl.transitions A}) qx"
+        by force
+    qed
+    ultimately have *:" ?f = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> fsm_impl.transitions A})" 
+      by blast
       
-  have p1: "fsm_impl.initial ?P \<in> fsm_impl.nodes ?P" 
-    using p1a p1b by auto
-  have p3: "finite (fsm_impl.inputs ?P)"
-    using p3a p3b by auto
-  have p4: "finite (fsm_impl.outputs ?P)"
-    using p4a p4b by auto
-  have p5: "finite (fsm_impl.transitions ?P)"
-    using \<open>finite ?ts\<close> by simp
-
   
-  have "fsm_impl.inputs ?P = fsm_impl.inputs A \<union> fsm_impl.inputs B"
-    by auto
-  have "fsm_impl.outputs ?P = fsm_impl.outputs A \<union> fsm_impl.outputs B"
-    by auto
+    
+    let ?shifted_transitions' = "shifted_transitions (fsm_impl.transitions B)"
+    let ?distinguishing_transitions_lr = "distinguishing_transitions ?f q1 q2 (fsm_impl.nodes B) (fsm_impl.inputs B)"
+    let ?ts = "?shifted_transitions' \<union> ?distinguishing_transitions_lr"
+  
+    have "FSM_Impl.nodes ?P = (image Inl (FSM_Impl.nodes B)) \<union> {Inr q1, Inr q2}"
+    and  "FSM_Impl.transitions ?P = ?ts"
+      unfolding FSM_Impl.canonical_separator'.simps Let_def True by simp+
+  
+    
+  
+    
+    have p2: "finite (fsm_impl.nodes ?P)"
+      unfolding \<open>FSM_Impl.nodes ?P = (image Inl (FSM_Impl.nodes B)) \<union> {Inr q1, Inr q2}\<close> using p2b by blast
+  
+    have "fsm_impl.initial ?P = Inl (q1,q2)" by auto
+    then have p1: "fsm_impl.initial ?P \<in> fsm_impl.nodes ?P" 
+      using p1a p1b unfolding canonical_separator'.simps True by auto
+    have p3: "finite (fsm_impl.inputs ?P)"
+      using p3a p3b by auto
+    have p4: "finite (fsm_impl.outputs ?P)"
+      using p4a p4b by auto
 
-  have "\<And> t . t \<in> ?ts \<Longrightarrow> t_source t \<in> fsm_impl.nodes ?P \<and> t_target t \<in> fsm_impl.nodes ?P"
-    unfolding \<open>FSM_Impl.nodes ?P = insert (Inl (q1, q2)) ((image t_source ?ts) \<union> (image t_target ?ts))\<close> by blast
-  moreover have "\<And> t . t \<in> ?shifted_transitions' \<Longrightarrow> t_input t \<in> fsm_impl.inputs ?P \<and> t_output t \<in> fsm_impl.outputs ?P"
-  proof -
-    have "\<And> t . t \<in> ?shifted_transitions' \<Longrightarrow> t_input t \<in> fsm_impl.inputs B \<and> t_output t \<in> fsm_impl.outputs B"
-      unfolding shifted_transitions_def using p6b by auto
-    then show "\<And> t . t \<in> ?shifted_transitions' \<Longrightarrow> t_input t \<in> fsm_impl.inputs ?P \<and> t_output t \<in> fsm_impl.outputs ?P"
-      unfolding \<open>fsm_impl.inputs ?P = fsm_impl.inputs A \<union> fsm_impl.inputs B\<close>
-                \<open>fsm_impl.outputs ?P = fsm_impl.outputs A \<union> fsm_impl.outputs B\<close> by blast
+
+    have "finite (fsm_impl.nodes B \<times> fsm_impl.inputs B)"
+      using p2b p3b by blast
+    moreover have **: "\<And> x q1 . finite ({y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A})"
+    proof - 
+      fix x q1
+      have "{y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A} = {t_output t | t . t \<in> fsm_impl.transitions A \<and> t_source t = q1 \<and> t_input t = x}"
+        by auto
+      then have "{y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A} \<subseteq> image t_output (fsm_impl.transitions A)"
+        unfolding fst_conv snd_conv by blast
+      moreover have "finite (image t_output (fsm_impl.transitions A))"
+        using p5a by auto
+      ultimately show "finite ({y |y. \<exists>q'. (fst (q1, x), snd (q1, x), y, q') \<in> fsm_impl.transitions A})"
+        by (simp add: finite_subset)
+    qed
+    ultimately have "finite ?distinguishing_transitions_lr"
+      unfolding * distinguishing_transitions_def by force
+    moreover have "finite ?shifted_transitions'"
+      unfolding shifted_transitions_def using p5b by auto
+    ultimately have "finite ?ts" by blast
+    then have p5: "finite (fsm_impl.transitions ?P)"
+      by simp
+  
+    
+    have "fsm_impl.inputs ?P = fsm_impl.inputs A \<union> fsm_impl.inputs B"
+      using True by auto
+    have "fsm_impl.outputs ?P = fsm_impl.outputs A \<union> fsm_impl.outputs B"
+      using True by auto
+  
+
+    have "\<And> t . t \<in> ?shifted_transitions' \<Longrightarrow> t_source t \<in> fsm_impl.nodes ?P \<and> t_target t \<in> fsm_impl.nodes ?P"
+      unfolding \<open>FSM_Impl.nodes ?P = (image Inl (FSM_Impl.nodes B)) \<union> {Inr q1, Inr q2}\<close> shifted_transitions_def 
+      using p6b by force
+    moreover have "\<And> t . t \<in> ?distinguishing_transitions_lr \<Longrightarrow> t_source t \<in> fsm_impl.nodes ?P \<and> t_target t \<in> fsm_impl.nodes ?P"
+      unfolding \<open>FSM_Impl.nodes ?P = (image Inl (FSM_Impl.nodes B)) \<union> {Inr q1, Inr q2}\<close> distinguishing_transitions_def * by force
+    ultimately have "\<And> t . t \<in> ?ts \<Longrightarrow> t_source t \<in> fsm_impl.nodes ?P \<and> t_target t \<in> fsm_impl.nodes ?P"
+      by blast
+    moreover have "\<And> t . t \<in> ?shifted_transitions' \<Longrightarrow> t_input t \<in> fsm_impl.inputs ?P \<and> t_output t \<in> fsm_impl.outputs ?P"
+    proof -
+      have "\<And> t . t \<in> ?shifted_transitions' \<Longrightarrow> t_input t \<in> fsm_impl.inputs B \<and> t_output t \<in> fsm_impl.outputs B"
+        unfolding shifted_transitions_def using p6b by auto
+      then show "\<And> t . t \<in> ?shifted_transitions' \<Longrightarrow> t_input t \<in> fsm_impl.inputs ?P \<and> t_output t \<in> fsm_impl.outputs ?P"
+        unfolding \<open>fsm_impl.inputs ?P = fsm_impl.inputs A \<union> fsm_impl.inputs B\<close>
+                  \<open>fsm_impl.outputs ?P = fsm_impl.outputs A \<union> fsm_impl.outputs B\<close> by blast
+    qed
+    moreover have "\<And> t . t \<in> ?distinguishing_transitions_lr \<Longrightarrow> t_input t \<in> fsm_impl.inputs ?P \<and> t_output t \<in> fsm_impl.outputs ?P"
+      unfolding * distinguishing_transitions_def using p6a p6b True by auto
+    ultimately have p6: "(\<forall>t\<in>fsm_impl.transitions ?P.
+              t_source t \<in> fsm_impl.nodes ?P \<and>
+              t_input t \<in> fsm_impl.inputs ?P \<and> t_target t \<in> fsm_impl.nodes ?P \<and>
+                                               t_output t \<in> fsm_impl.outputs ?P)"
+      unfolding \<open>FSM_Impl.transitions ?P = ?ts\<close> by blast
+  
+    show "well_formed_fsm ?P"
+      using p1 p2 p3 p4 p5 p6 by linarith
   qed
-  moreover have "\<And> t . t \<in> ?distinguishing_transitions_left \<Longrightarrow> t_input t \<in> fsm_impl.inputs ?P \<and> t_output t \<in> fsm_impl.outputs ?P"
-    unfolding * distinguishing_transitions_def using p6a by auto
-  moreover have "\<And> t . t \<in> ?distinguishing_transitions_right \<Longrightarrow> t_input t \<in> fsm_impl.inputs ?P \<and> t_output t \<in> fsm_impl.outputs ?P"
-    unfolding * distinguishing_transitions_def using p6a by auto
-  ultimately have p6: "(\<forall>t\<in>fsm_impl.transitions ?P.
-            t_source t \<in> fsm_impl.nodes ?P \<and>
-            t_input t \<in> fsm_impl.inputs ?P \<and> t_target t \<in> fsm_impl.nodes ?P \<and>
-                                             t_output t \<in> fsm_impl.outputs ?P)"
-    unfolding \<open>FSM_Impl.transitions ?P = ?ts\<close> by blast
+qed 
 
-  show "well_formed_fsm ?P"
-    using p1 p2 p3 p4 p5 p6 by linarith
+
+
+(* TODO: move *)
+fun h_out :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'b) \<Rightarrow> 'c set" where
+  "h_out M (q,x) = {y . \<exists> q' . (q,x,y,q') \<in> transitions M}"
+
+lemma h_out_code[code]: 
+  "h_out M = (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+proof -
+  
+
+  let ?f = "(\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+  
+  have "\<And> qx . (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {})) qx = (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` (transitions M)}) qx"
+    unfolding set_as_map_def by auto
+  
+  moreover have "\<And> qx . (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` (transitions M)}) qx = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> (transitions M)}) qx" 
+    by force
+    
+  ultimately have "?f = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> (transitions M)})" 
+    by blast
+  then have "?f = (\<lambda> (q,x) . {y | y . \<exists> q' . (q, x, y, q') \<in> (transitions M)})" by force
+  
+  then show ?thesis by force 
 qed
 
-fun canonical_separator :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm"  where
-  "canonical_separator M q1 q2 = restrict_to_reachable_nodes (canonical_separator' M (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))) q1 q2)"
+lemma h_out_alt_def : 
+  "h_out M (q,x) = {t_output t | t . t \<in> transitions M \<and> t_source t = q \<and> t_input t = x}"
+  unfolding h_out.simps
+  by auto
 
+
+
+
+
+lemma canonical_separator'_simps :
+  assumes "initial P = (q1,q2)"
+  shows "initial (canonical_separator' M P q1 q2) = Inl (q1,q2)"
+        "nodes (canonical_separator' M P q1 q2) = (image Inl (nodes P)) \<union> {Inr q1, Inr q2}"
+        "inputs (canonical_separator' M P q1 q2) = inputs M \<union> inputs P"
+        "outputs (canonical_separator' M P q1 q2) = outputs M \<union> outputs P"
+        "transitions (canonical_separator' M P q1 q2) = shifted_transitions (transitions P) \<union> distinguishing_transitions (h_out M) q1 q2 (nodes P) (inputs P)"
+  using assms unfolding h_out_code by (transfer; auto)+
+
+
+
+
+
+
+
+fun canonical_separator :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm"  where
+  "canonical_separator M q1 q2 = (canonical_separator' M (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))) q1 q2)"
+
+value "m_ex_H"
 value "canonical_separator m_ex_H 1 4"
 
 
-lemma canonical_separator_simps 
+
+lemma canonical_separator_simps :
+  assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  shows "initial (canonical_separator M q1 q2) = Inl (q1,q2)"
+        "nodes (canonical_separator M q1 q2) = (image Inl (reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) \<union> {Inr q1, Inr q2}"
+        "inputs (canonical_separator M q1 q2) = inputs M"
+        "outputs (canonical_separator M q1 q2) = outputs M"
+        "transitions (canonical_separator M q1 q2) = shifted_transitions (transitions (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) \<union> distinguishing_transitions (h_out M) q1 q2 (nodes (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) (inputs (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))))"
+proof -
+  have *: "initial (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))) = (q1,q2)"
+    unfolding restrict_to_reachable_nodes_simps product_simps using assms by auto
+  have **: "(reachable_nodes (product (from_FSM M q1) (from_FSM M q2))) = nodes  (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))"
+    using restrict_to_reachable_nodes_simps(2) by fastforce
+  have ***: "inputs (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))) = inputs M"
+    unfolding restrict_to_reachable_nodes_simps product_simps using assms by auto
+  have ****: "outputs (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))) = outputs M"
+    unfolding restrict_to_reachable_nodes_simps product_simps using assms by auto
+  
+  show "initial (canonical_separator M q1 q2) = Inl (q1,q2)"
+        "nodes (canonical_separator M q1 q2) = (image Inl (reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) \<union> {Inr q1, Inr q2}"
+        "inputs (canonical_separator M q1 q2) = inputs M"
+        "outputs (canonical_separator M q1 q2) = outputs M"
+        "transitions (canonical_separator M q1 q2) = shifted_transitions (transitions (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) \<union> distinguishing_transitions (h_out M) q1 q2 (nodes (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) (inputs (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))))"
+    unfolding canonical_separator.simps canonical_separator'_simps[OF *, of M] ** *** **** by blast+
+qed
+
+
+
+lemma distinguishing_transitions_alt_def :
+  "distinguishing_transitions (h_out M) q1 q2 (nodes P) (inputs M) = 
+    {(Inl (q1',q2'),x,y,Inr q1) | q1' q2' x y . (q1',q2') \<in> nodes P \<and> (\<exists> q' . (q1',x,y,q') \<in> transitions M) \<and> \<not>(\<exists> q' . (q2',x,y,q') \<in> transitions M)}
+    \<union> {(Inl (q1',q2'),x,y,Inr q2) | q1' q2' x y . (q1',q2') \<in> nodes P \<and> \<not>(\<exists> q' . (q1',x,y,q') \<in> transitions M) \<and> (\<exists> q' . (q2',x,y,q') \<in> transitions M)}"
+   (is "?dts = ?dl \<union> ?dr")
+proof -
+  have "\<And> t . t \<in> ?dts \<Longrightarrow> t \<in> ?dl \<or> t \<in> ?dr" unfolding distinguishing_transitions_def h_out.simps by fastforce
+  moreover have "\<And> t . t \<in> ?dl \<or> t \<in> ?dr \<Longrightarrow> t \<in> ?dts"  
+  proof -
+    fix t assume "t \<in> ?dl \<or> t \<in> ?dr"
+    then obtain q1' q2' where "t_source t = Inl (q1',q2')" and "(q1',q2') \<in> nodes P"
+      by auto
+    
+    consider (a) "t \<in> ?dl" |
+             (b) "t \<in> ?dr" 
+      using \<open>t \<in> ?dl \<or> t \<in> ?dr\<close> by blast
+    then show "t \<in> ?dts" proof cases
+      case a
+      then have "t_target t = Inr q1" and "(\<exists> q' . (q1',t_input t,t_output t,q') \<in> transitions M)" and "\<not>(\<exists> q' . (q2',t_input t,t_output t,q') \<in> transitions M)"
+        using \<open>t_source t = Inl (q1',q2')\<close> by force+
+      then have "t_output t \<in> h_out M (q1',t_input t) - h_out M (q2',t_input t)"
+        unfolding h_out.simps by blast
+      then have "t \<in> (\<lambda>y. (Inl (q1', q2'), t_input t, y, Inr q1)) ` (h_out M (q1', t_input t) - h_out M (q2', t_input t))"
+        using \<open>t_source t = Inl (q1',q2')\<close> \<open>t_target t = Inr q1\<close>
+        by (metis (mono_tags, lifting) imageI surjective_pairing) 
+      moreover have "((q1',q2'),t_input t) \<in> nodes P \<times> inputs M"
+        using fsm_transition_input \<open>(\<exists> q' . (q1',t_input t,t_output t,q') \<in> transitions M)\<close> \<open>(q1',q2') \<in> nodes P\<close> by auto 
+      ultimately show ?thesis 
+        unfolding distinguishing_transitions_def by fastforce
+    next
+      case b
+      then have "t_target t = Inr q2" and "\<not>(\<exists> q' . (q1',t_input t,t_output t,q') \<in> transitions M)" and "(\<exists> q' . (q2',t_input t,t_output t,q') \<in> transitions M)"
+        using \<open>t_source t = Inl (q1',q2')\<close> by force+
+      then have "t_output t \<in> h_out M (q2',t_input t) - h_out M (q1',t_input t)"
+        unfolding h_out.simps by blast
+      then have "t \<in> (\<lambda>y. (Inl (q1', q2'), t_input t, y, Inr q2)) ` (h_out M (q2', t_input t) - h_out M (q1', t_input t))"
+        using \<open>t_source t = Inl (q1',q2')\<close> \<open>t_target t = Inr q2\<close>
+        by (metis (mono_tags, lifting) imageI surjective_pairing) 
+      moreover have "((q1',q2'),t_input t) \<in> nodes P \<times> inputs M"
+        using fsm_transition_input \<open>(\<exists> q' . (q2',t_input t,t_output t,q') \<in> transitions M)\<close> \<open>(q1',q2') \<in> nodes P\<close> by auto 
+      ultimately show ?thesis 
+        unfolding distinguishing_transitions_def by fastforce
+    qed
+  qed
+  ultimately show ?thesis by blast
+qed
+
+    
+
+
+end (*
+
+lemma canonical_separator_transitions :
+  assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  shows "transitions (canonical_separator M q1 q2) = shifted_transitions (transitions (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) \<union> distinguishing_transitions (h_out M) q1 q2 (nodes (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) (inputs (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2))))"
+    
+    
+
 
 end (*
 
