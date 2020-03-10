@@ -2823,4 +2823,54 @@ proof -
     using reachable_nodes_next[of _ M] by auto
 qed
 
+
+lemma reachable_nodes_path :
+  assumes "q \<in> reachable_nodes M"
+  and     "path M q p"
+  and     "t \<in> set p"
+shows "t_source t \<in> reachable_nodes M"
+using assms unfolding reachable_nodes_def proof (induction p arbitrary: q)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t' p')
+  then show ?case proof (cases "t = t'")
+    case True
+    then show ?thesis using Cons.prems(1,2) by force
+  next
+    case False then show ?thesis using Cons
+      by (metis (mono_tags, lifting) path_cons_elim reachable_nodes_def reachable_nodes_next set_ConsD) 
+  qed
+qed
+
+
+
+
+
+lemma restrict_to_reachable_nodes_path :
+  assumes "q \<in> reachable_nodes M"
+  shows "path M q p = path (restrict_to_reachable_nodes M) q p"
+proof 
+  show "path M q p \<Longrightarrow> path (restrict_to_reachable_nodes M) q p"
+  proof -
+    assume "path M q p"
+    then show "path (restrict_to_reachable_nodes M) q p" 
+    using assms proof (induction p arbitrary: q rule: list.induct)
+      case Nil
+      then show ?case
+        using restrict_to_reachable_nodes_simps(2) by fastforce 
+    next
+      case (Cons t' p')
+      then have "path M (t_target t') p'" by auto
+      moreover have "t_target t' \<in> reachable_nodes M" using Cons.prems
+        by (metis path_cons_elim reachable_nodes_next) 
+      ultimately show ?case using Cons.IH
+        by (metis (no_types, lifting) Cons.prems(1) Cons.prems(2) mem_Collect_eq path.simps path_cons_elim restrict_to_reachable_nodes_simps(5))        
+    qed
+  qed
+
+  show "path (restrict_to_reachable_nodes M) q p \<Longrightarrow> path M q p"
+    by (metis (no_types, lifting) assms mem_Collect_eq reachable_node_is_node restrict_to_reachable_nodes_simps(5) subsetI transition_subset_path)
+qed
+
 end
