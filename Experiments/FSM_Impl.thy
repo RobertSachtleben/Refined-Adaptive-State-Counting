@@ -121,9 +121,11 @@ fun initial_singleton :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a,'b,'c) fsm_impl"
 
 subsubsection \<open>Canonical Separator\<close>
 
+abbreviation (*shift_Inl :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) \<Rightarrow> (('a \<times> 'a + 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a + 'a))" where*)
+  "shift_Inl t \<equiv> (Inl (t_source t),t_input t, t_output t, Inl (t_target t))"
 
 definition shifted_transitions :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'a)) set" where
-  "shifted_transitions ts = image (\<lambda> t . (Inl (t_source t),t_input t, t_output t, Inl (t_target t))) ts"
+  "shifted_transitions ts = image shift_Inl ts"
 
 definition distinguishing_transitions :: "(('a \<times> 'b) \<Rightarrow> 'c set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> 'b set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'a)) set" where
   "distinguishing_transitions f q1 q2 nodeSet inputSet = \<Union> (Set.image (\<lambda>((q1',q2'),x) .  
