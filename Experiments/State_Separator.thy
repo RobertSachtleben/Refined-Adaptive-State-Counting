@@ -336,6 +336,15 @@ abbreviation(input) distinguishing_transitions_right_alt :: "('a, 'b, 'c) fsm \<
   "distinguishing_transitions_right_alt M q1 q2 \<equiv> { t . \<exists> q1' q2' . t_source t = Inl (q1',q2') \<and> (q1',q2') \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2)) \<and> t_target t = Inr q2 \<and> \<not>(\<exists> t'  \<in> transitions M . t_source t' = q1' \<and> t_input t' = t_input t \<and> t_output t' = t_output t) \<and> (\<exists> t'  \<in> transitions M . t_source t' = q2' \<and> t_input t' = t_input t \<and> t_output t' = t_output t)}"
 
 
+abbreviation(input) "shifted_transitions_alt M q1 q2 \<equiv> {(Inl (t_source t),t_input t, t_output t, Inl (t_target t)) | t . t \<in> transitions (product (from_FSM M q1) (from_FSM M q2)) \<and> t_source t \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2))}"
+
+lemma shifted_transitions_alt_alt_def :
+  "shifted_transitions_alt M q1 q2 = {(Inl (q1',q2'), x, y, (Inl (q1'',q2''))) | q1' q2' x y q1'' q2'' . ((q1',q2'), x, y, (q1'',q2'')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2)) \<and> (q1',q2') \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2))}"
+  by auto
+
+
+
+
 lemma distinguishing_transitions_left_alt_def :
   "distinguishing_transitions_left M q1 q2 = distinguishing_transitions_left_alt M q1 q2" 
 proof -
@@ -409,7 +418,7 @@ lemma canonical_separator_transitions_def :
 lemma canonical_separator_transitions_alt_def :
   assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
   shows "transitions (canonical_separator M q1 q2) = 
-        {(Inl (t_source t),t_input t, t_output t, Inl (t_target t)) | t . t \<in> transitions (product (from_FSM M q1) (from_FSM M q2)) \<and> t_source t \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2))}
+        (shifted_transitions_alt M q1 q2)
         \<union> (distinguishing_transitions_left_alt M q1 q2)
         \<union> (distinguishing_transitions_right_alt M q1 q2)"
 proof -
@@ -786,7 +795,6 @@ and     "(\<exists>t'\<in> transitions M. t_source t' = snd (t_source t) \<and> 
 
 
 
-
 lemma shifted_transitions_underlying_transition :
   assumes "tS \<in> (shifted_transitions (transitions (restrict_to_reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))))"
   and     "q1 \<in> nodes M"
@@ -819,9 +827,9 @@ proof -
     using that by blast 
 qed
      
-
-end (* lemma distinguishing_transitions_left_underlying_data :
-  assumes "tS \<in> set (distinguishing_transitions_left M q1 q2)"
+(*
+lemma distinguishing_transitions_left_underlying_data :
+  assumes "tS \<in> (distinguishing_transitions_left M q1 q2)"
   obtains qqt where "qqt \<in> set (concat
                                 (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
                                   (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
@@ -837,8 +845,8 @@ end (* lemma distinguishing_transitions_left_underlying_data :
     by blast
 
 
-end (* lemma distinguishing_transitions_right_underlying_data :
-  assumes "tS \<in> set (distinguishing_transitions_right M q1 q2)"
+lemma distinguishing_transitions_right_underlying_data :
+  assumes "tS \<in> (distinguishing_transitions_right M q1 q2)"
   obtains qqt where "qqt \<in> set (concat
                                 (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
                                   (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
@@ -852,150 +860,49 @@ end (* lemma distinguishing_transitions_right_underlying_data :
                                 "(\<lambda>qqt. t_source (snd qqt) = snd (fst qqt) \<and> \<not> (\<exists>t'\<in>(transitions M). t_source t' = fst (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))" 
                                 "(concat (map (\<lambda>qq'. map (Pair qq') (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"] 
     by blast
+*)
 
-
-end (* lemma shifted_transitions_observable_against_distinguishing_transitions_left :
-  assumes "t1 \<in> set (shifted_transitions M q1 q2)"
-  and     "t2 \<in> set (distinguishing_transitions_left M q1 q2)"
+lemma shifted_transitions_observable_against_distinguishing_transitions_left :
+  assumes "t1 \<in> (shifted_transitions_alt M q1 q2)"
+  and     "t2 \<in> (distinguishing_transitions_left M q1 q2)"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
 shows "\<not> (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)"
-proof 
-  assume *: "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
+  using assms(1,2)
+  unfolding product_transitions_def from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] by force
 
-  obtain t where "t1 = (Inl (t_source t), t_input t, t_output t, Inl (t_target t))"
-           and   "t \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-           and   "(\<exists>t'\<in>(transitions M).
-                           t_source t' = fst (t_source t) \<and>
-                           t_input t' = t_input t \<and> t_output t' = t_output t)"
-           and   **: "(\<exists>t'\<in>(transitions M).
-                           t_source t' = snd (t_source t) \<and>
-                           t_input t' = t_input t \<and> t_output t' = t_output t)"
-    using shifted_transitions_underlying_transition[OF assms(1,3,4)] by blast
-
-  obtain qqt where "qqt \<in> set (concat
-                                (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                                  (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
-             and   "t2 = (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1)"
-             and   ***: "\<not> (\<exists>t'\<in>(transitions M).
-                            t_source t' = snd (fst qqt) \<and>
-                            t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))"
-    using distinguishing_transitions_left_underlying_data[OF assms(2)] by blast
-
-  have "t_source t = fst qqt" and "t_input t = t_input (snd qqt)" and "t_output t = t_output (snd qqt)"
-    using \<open>t1 = (Inl (t_source t), t_input t, t_output t, Inl (t_target t))\<close>
-          \<open>t2 = (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1)\<close>
-          * 
-    by auto
-  then show "False"
-    using ** *** by auto
-qed
-
-end (* lemma shifted_transitions_observable_against_distinguishing_transitions_right :
-  assumes "t1 \<in> set (shifted_transitions M q1 q2)"
-  and     "t2 \<in> set (distinguishing_transitions_right M q1 q2)"
+lemma shifted_transitions_observable_against_distinguishing_transitions_right :
+  assumes "t1 \<in> (shifted_transitions_alt M q1 q2)"
+  and     "t2 \<in> (distinguishing_transitions_right M q1 q2)"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
 shows "\<not> (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)"
-proof 
-  assume *: "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
+  using assms
+  unfolding product_transitions_def from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] by force
 
-  obtain t where "t1 = (Inl (t_source t), t_input t, t_output t, Inl (t_target t))"
-           and   "t \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-           and   **: "(\<exists>t'\<in>(transitions M).
-                           t_source t' = fst (t_source t) \<and>
-                           t_input t' = t_input t \<and> t_output t' = t_output t)"
-           and   "(\<exists>t'\<in>(transitions M).
-                           t_source t' = snd (t_source t) \<and>
-                           t_input t' = t_input t \<and> t_output t' = t_output t)"
-    using shifted_transitions_underlying_transition[OF assms(1,3,4)] by blast
 
-  obtain qqt where "qqt \<in> set (concat
-                                (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                                  (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
-             and   "t2 = (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2)"
-             and   ***: "\<not> (\<exists>t'\<in>(transitions M).
-                            t_source t' = fst (fst qqt) \<and>
-                            t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))"
-    using distinguishing_transitions_right_underlying_data[OF assms(2)] by blast
-
-  have "t_source t = fst qqt" and "t_input t = t_input (snd qqt)" and "t_output t = t_output (snd qqt)"
-    using \<open>t1 = (Inl (t_source t), t_input t, t_output t, Inl (t_target t))\<close>
-          \<open>t2 = (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2)\<close>
-          * 
-    by auto
-  then show "False"
-    using ** *** by auto
-qed
-
-end (* lemma distinguishing_transitions_left_observable_against_distinguishing_transitions_right :
-  assumes "t1 \<in> set (distinguishing_transitions_left M q1 q2)"
-  and     "t2 \<in> set (distinguishing_transitions_right M q1 q2)"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
+lemma distinguishing_transitions_left_observable_against_distinguishing_transitions_right :
+  assumes "t1 \<in> (distinguishing_transitions_left M q1 q2)"
+  and     "t2 \<in> (distinguishing_transitions_right M q1 q2)"
 shows "\<not> (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)"
-proof 
-  assume *: "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
+  using assms by force
 
-  obtain qqtL where **: "qqtL \<in> set (concat
-                                (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                                  (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
-             and   "t1 = (Inl (fst qqtL), t_input (snd qqtL), t_output (snd qqtL), Inr q1)"
-             and   ***: "t_source (snd qqtL) = fst (fst qqtL)"
-             and   "\<not> (\<exists>t'\<in>(transitions M).
-                            t_source t' = snd (fst qqtL) \<and>
-                            t_input t' = t_input (snd qqtL) \<and> t_output t' = t_output (snd qqtL))"
-    using distinguishing_transitions_left_underlying_data[OF assms(1)] by blast
 
-  have "snd qqtL \<in> transitions M"
-    using ** concat_pair_set by blast
-  then have ****: "snd qqtL \<in> (transitions M) \<and> t_source (snd qqtL) = fst (fst qqtL) \<and> t_input (snd qqtL) = t_input (snd qqtL) \<and> t_output (snd qqtL) = t_output (snd qqtL)"
-    using *** by auto
-  
 
-  obtain qqtR where "qqtR \<in> set (concat
-                                (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                                  (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
-             and   "t2 = (Inl (fst qqtR), t_input (snd qqtR), t_output (snd qqtR), Inr q2)"
-             and   "t_source (snd qqtR) = snd (fst qqtR)"
-             and   *****: "\<not> (\<exists>t'\<in>(transitions M).
-                            t_source t' = fst (fst qqtR) \<and>
-                            t_input t' = t_input (snd qqtR) \<and> t_output t' = t_output (snd qqtR))"
-    using distinguishing_transitions_right_underlying_data[OF assms(2)] by blast
-
-  have "fst qqtL = fst qqtR" and "t_input (snd qqtL) = t_input (snd qqtR)" and "t_output (snd qqtL) = t_output (snd qqtR)"
-    using \<open>t1 = (Inl (fst qqtL), t_input (snd qqtL), t_output (snd qqtL), Inr q1)\<close>
-          \<open>t2 = (Inl (fst qqtR), t_input (snd qqtR), t_output (snd qqtR), Inr q2)\<close>
-          * 
-    by auto
-  then show "False"
-    using **** ***** by auto
-qed
-
-end (* lemma distinguishing_transitions_left_observable_against_distinguishing_transitions_left :
-  assumes "t1 \<in> set (distinguishing_transitions_left M q1 q2)"
-  and     "t2 \<in> set (distinguishing_transitions_left M q1 q2)"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
+lemma distinguishing_transitions_left_observable_against_distinguishing_transitions_left :
+  assumes "t1 \<in> (distinguishing_transitions_left M q1 q2)"
+  and     "t2 \<in> (distinguishing_transitions_left M q1 q2)"
   and     "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
 shows "t1 = t2"
-  using distinguishing_transitions_left_sources_targets(2)[OF assms(1,3,4)]
-        distinguishing_transitions_left_sources_targets(2)[OF assms(2,3,4)]
-        \<open>t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2\<close>
-  by (simp add: prod_eqI) 
+  using assms by force 
 
 
-end (* lemma distinguishing_transitions_right_observable_against_distinguishing_transitions_right :
-  assumes "t1 \<in> set (distinguishing_transitions_right M q1 q2)"
-  and     "t2 \<in> set (distinguishing_transitions_right M q1 q2)"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
+lemma distinguishing_transitions_right_observable_against_distinguishing_transitions_right :
+  assumes "t1 \<in> (distinguishing_transitions_right M q1 q2)"
+  and     "t2 \<in> (distinguishing_transitions_right M q1 q2)"
   and     "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
 shows "t1 = t2"
-  using distinguishing_transitions_right_sources_targets(2)[OF assms(1,3,4)]
-        distinguishing_transitions_right_sources_targets(2)[OF assms(2,3,4)]
-        \<open>t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2\<close>
-  by (simp add: prod_eqI) 
+  using assms by force
 
 
 
@@ -1003,25 +910,23 @@ shows "t1 = t2"
 
 
 
-end (* lemma shifted_transitions_observable_against_shifted_transitions :
-  assumes "t1 \<in> set (shifted_transitions M q1 q2)"
-  and     "t2 \<in> set (shifted_transitions M q1 q2)"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
+lemma shifted_transitions_observable_against_shifted_transitions :
+  assumes "t1 \<in> (shifted_transitions_alt M q1 q2)"
+  and     "t2 \<in> (shifted_transitions_alt M q1 q2)"
   and     "observable M"
   and     "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
-shows "t1 = t2"
+shows "t1 = t2" 
 proof -
   obtain t1' where d1: "t1 = (Inl (t_source t1'), t_input t1', t_output t1', Inl (t_target t1'))"
              and   h1: "t1' \<in> (transitions (product (from_FSM M q1) (from_FSM M q2)))"
-    using shifted_transitions_underlying_transition[OF assms(1,3,4)] by blast
+    using assms(1) by auto
 
   obtain t2' where d2: "t2 = (Inl (t_source t2'), t_input t2', t_output t2', Inl (t_target t2'))"
              and   h2: "t2' \<in> (transitions (product (from_FSM M q1) (from_FSM M q2)))"
-    using shifted_transitions_underlying_transition[OF assms(2,3,4)] by blast
+    using assms(2) by auto
 
   have "observable (product (from_FSM M q1) (from_FSM M q2))"
-    using from_FSM_observable[OF assms(5,3)] from_FSM_observable[OF assms(5,4)] 
+    using from_FSM_observable[OF assms(3)] 
           product_observable 
     by metis
   
@@ -1035,14 +940,12 @@ qed
 
 
 
-end (* lemma canonical_separator_observable :
+lemma canonical_separator_observable :
   assumes "observable M"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
 shows "observable (canonical_separator M q1 q2)" (is "observable ?CSep")
 proof -
-
-  
 
   have  "\<And> t1 t2 . t1 \<in> (transitions ?CSep) \<Longrightarrow> 
                              t2 \<in> (transitions ?CSep) \<Longrightarrow> 
@@ -1050,26 +953,51 @@ proof -
   proof -
     fix t1 t2 assume "t1 \<in> (transitions ?CSep)" 
               and    "t2 \<in> (transitions ?CSep)"
-              and    "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
+              and    *: "t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2"
     
-    moreover have "transitions ?CSep = shifted_transitions M q1 q2 @
-                                       distinguishing_transitions_left M q1 q2 @ 
+    moreover have "transitions ?CSep = shifted_transitions_alt M q1 q2 \<union>
+                                       distinguishing_transitions_left M q1 q2 \<union>
                                        distinguishing_transitions_right M q1 q2"
-      unfolding canonical_separator_def by auto
-    moreover note shifted_transitions_observable_against_distinguishing_transitions_left[OF _ _ assms(2,3)]
-    moreover note shifted_transitions_observable_against_distinguishing_transitions_right[OF _ _ assms(2,3)]
-    moreover note distinguishing_transitions_left_observable_against_distinguishing_transitions_right[OF _ _ assms(2,3)]
-    moreover note shifted_transitions_observable_against_shifted_transitions[OF _ _ assms(2,3)]
-    moreover note distinguishing_transitions_left_observable_against_distinguishing_transitions_left[OF _ _ assms(2,3)]
-    moreover note distinguishing_transitions_right_observable_against_distinguishing_transitions_right[OF _ _ assms(2,3)]
-    ultimately show "t_target t1 = t_target t2"
-    proof -
-      have "\<forall>p. (p \<in> set (distinguishing_transitions_left M q1 q2 @ distinguishing_transitions_right M q1 q2) \<or> p \<in> set (shifted_transitions M q1 q2)) \<or> p \<notin> (transitions (canonical_separator M q1 q2))"
-        by (metis \<open>transitions (canonical_separator M q1 q2) = shifted_transitions M q1 q2 @ distinguishing_transitions_left M q1 q2 @ distinguishing_transitions_right M q1 q2\<close> list_concat_non_elem)
-      then have "t1 = t2"
-        by (metis (no_types) \<open>\<And>t2 t1. \<lbrakk>t1 \<in> set (distinguishing_transitions_left M q1 q2); t2 \<in> set (distinguishing_transitions_left M q1 q2); t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2\<rbrakk> \<Longrightarrow> t1 = t2\<close> \<open>\<And>t2 t1. \<lbrakk>t1 \<in> set (distinguishing_transitions_left M q1 q2); t2 \<in> set (distinguishing_transitions_right M q1 q2)\<rbrakk> \<Longrightarrow> \<not> (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)\<close> \<open>\<And>t2 t1. \<lbrakk>t1 \<in> set (distinguishing_transitions_right M q1 q2); t2 \<in> set (distinguishing_transitions_right M q1 q2); t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2\<rbrakk> \<Longrightarrow> t1 = t2\<close> \<open>\<And>t2 t1. \<lbrakk>t1 \<in> set (shifted_transitions M q1 q2); t2 \<in> set (distinguishing_transitions_left M q1 q2)\<rbrakk> \<Longrightarrow> \<not> (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)\<close> \<open>\<And>t2 t1. \<lbrakk>t1 \<in> set (shifted_transitions M q1 q2); t2 \<in> set (distinguishing_transitions_right M q1 q2)\<rbrakk> \<Longrightarrow> \<not> (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2)\<close> \<open>\<And>t2 t1. \<lbrakk>t1 \<in> set (shifted_transitions M q1 q2); t2 \<in> set (shifted_transitions M q1 q2); observable M; t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2\<rbrakk> \<Longrightarrow> t1 = t2\<close> \<open>t1 \<in> (transitions (canonical_separator M q1 q2))\<close> \<open>t2 \<in> (transitions (canonical_separator M q1 q2))\<close> \<open>t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2\<close> assms(1) list_concat_non_elem)
-      then show ?thesis
-        by meson
+      using canonical_separator_transitions_alt_def[OF assms(2,3)]
+      unfolding distinguishing_transitions_left_alt_def distinguishing_transitions_right_alt_def by assumption
+
+    ultimately consider "t1 \<in> shifted_transitions_alt M q1 q2 \<and> t2 \<in> shifted_transitions_alt M q1 q2"
+                      | "t1 \<in> shifted_transitions_alt M q1 q2 \<and> t2 \<in> distinguishing_transitions_left M q1 q2"
+                      | "t1 \<in> shifted_transitions_alt M q1 q2 \<and> t2 \<in> distinguishing_transitions_right M q1 q2"
+                      | "t1 \<in> distinguishing_transitions_left M q1 q2 \<and> t2 \<in> shifted_transitions_alt M q1 q2"
+                      | "t1 \<in> distinguishing_transitions_left M q1 q2 \<and> t2 \<in> distinguishing_transitions_left M q1 q2"
+                      | "t1 \<in> distinguishing_transitions_left M q1 q2 \<and> t2 \<in> distinguishing_transitions_right M q1 q2"
+                      | "t1 \<in> distinguishing_transitions_right M q1 q2 \<and> t2 \<in> shifted_transitions_alt M q1 q2"
+                      | "t1 \<in> distinguishing_transitions_right M q1 q2 \<and> t2 \<in> distinguishing_transitions_left M q1 q2"
+                      | "t1 \<in> distinguishing_transitions_right M q1 q2 \<and> t2 \<in> distinguishing_transitions_right M q1 q2"
+      by (metis (no_types, lifting) UnE)
+    then show "t_target t1 = t_target t2" proof cases
+      case 1
+      then show ?thesis using shifted_transitions_observable_against_shifted_transitions[of t1 M q1 q2 t2, OF _ _ assms(1) *] by fastforce
+    next
+      case 2
+      then show ?thesis using shifted_transitions_observable_against_distinguishing_transitions_left[OF _ _ assms(2,3), of t1 t2] * by fastforce
+    next
+      case 3
+      then show ?thesis using shifted_transitions_observable_against_distinguishing_transitions_right[OF _ _ assms(2,3), of t1 t2] * by fastforce
+    next
+      case 4
+      then show ?thesis using shifted_transitions_observable_against_distinguishing_transitions_left[OF _ _ assms(2,3), of t2 t1] * by fastforce
+    next
+      case 5
+      then show ?thesis using * by fastforce
+    next
+      case 6
+      then show ?thesis using * by fastforce
+    next
+      case 7
+      then show ?thesis using shifted_transitions_observable_against_distinguishing_transitions_right[OF _ _ assms(2,3), of t2 t1] * by fastforce
+    next
+      case 8
+      then show ?thesis using * by fastforce
+    next
+      case 9
+      then show ?thesis using * by fastforce
     qed 
   qed
   then show ?thesis unfolding observable.simps by blast
@@ -1088,7 +1016,7 @@ end (* lemma distinguishing_transitions_left_empty :
   shows   "distinguishing_transitions_left M q q = []"
 proof (rule ccontr)
   assume "distinguishing_transitions_left M q q \<noteq> []"
-  then obtain t where "t \<in> set (distinguishing_transitions_left M q q)"
+  then obtain t where "t \<in> (distinguishing_transitions_left M q q)"
     using last_in_set by blast
 
 
@@ -1100,7 +1028,7 @@ proof (rule ccontr)
              and   ***: "\<not> (\<exists>t'\<in>(transitions M).
                             t_source t' = snd (fst qqt) \<and>
                             t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))"
-    using distinguishing_transitions_left_underlying_data[OF \<open>t \<in> set (distinguishing_transitions_left M q q)\<close>] by blast
+    using distinguishing_transitions_left_underlying_data[OF \<open>t \<in> (distinguishing_transitions_left M q q)\<close>] by blast
 
   have "fst qqt \<in> nodes (product (from_FSM M q) (from_FSM M q))" and "snd qqt \<in> transitions M"
     using * concat_pair_set[of "wf_transitions M" "nodes_from_distinct_paths (product (from_FSM M q) (from_FSM M q))"] nodes_code[of "product (from_FSM M q) (from_FSM M q)"] by blast+
@@ -1121,7 +1049,7 @@ end (* lemma distinguishing_transitions_right_empty :
   shows   "distinguishing_transitions_right M q q = []"
 proof (rule ccontr)
   assume "distinguishing_transitions_right M q q \<noteq> []"
-  then obtain t where "t \<in> set (distinguishing_transitions_right M q q)"
+  then obtain t where "t \<in> (distinguishing_transitions_right M q q)"
     using last_in_set by blast
 
 
@@ -1133,7 +1061,7 @@ proof (rule ccontr)
              and   ***: "\<not> (\<exists>t'\<in>(transitions M).
                             t_source t' = fst (fst qqt) \<and>
                             t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))"
-    using distinguishing_transitions_right_underlying_data[OF \<open>t \<in> set (distinguishing_transitions_right M q q)\<close>] by blast
+    using distinguishing_transitions_right_underlying_data[OF \<open>t \<in> (distinguishing_transitions_right M q q)\<close>] by blast
 
   have "fst qqt \<in> nodes (product (from_FSM M q) (from_FSM M q))" and "snd qqt \<in> transitions M"
     using * concat_pair_set[of "wf_transitions M" "nodes_from_distinct_paths (product (from_FSM M q) (from_FSM M q))"] nodes_code[of "product (from_FSM M q) (from_FSM M q)"] by blast+
@@ -1153,17 +1081,17 @@ end (* lemma canonical_separator_targets_observable_eq :
   assumes "observable M"
       and "q \<in> nodes M"
       and "t \<in> transitions (canonical_separator M q q)"
-shows "t \<in> set (shifted_transitions M q q)"
+shows "t \<in> (shifted_transitions_alt M q q)"
 and   "isl (t_target t)"    
 proof -
-  show "t \<in> set (shifted_transitions M q q)"
+  show "t \<in> (shifted_transitions_alt M q q)"
   using canonical_separator_simps(4)[of M q q] 
         distinguishing_transitions_left_empty[OF assms(1,2)]
         distinguishing_transitions_right_empty[OF assms(1,2)] 
         assms(3) by auto
   
   show "isl (t_target t)" unfolding shifted_transitions_def
-    by (meson \<open>t \<in> set (shifted_transitions M q q)\<close> shifted_transitions_targets) 
+    by (meson \<open>t \<in> (shifted_transitions_alt M q q)\<close> shifted_transitions_targets) 
 qed
 
 
@@ -1171,29 +1099,29 @@ qed
 end (* lemma canonical_separator_targets_ineq :
   assumes "t \<in> transitions (canonical_separator M q1 q2)" 
       and "q1 \<in> nodes M" and "q2 \<in> nodes M" and "q1 \<noteq> q2"
-  shows "isl (t_target t) \<Longrightarrow> t \<in> set (shifted_transitions M q1 q2)"
-    and "t_target t = Inr q1 \<Longrightarrow> t \<in> set (distinguishing_transitions_left M q1 q2)"
-    and "t_target t = Inr q2 \<Longrightarrow> t \<in> set (distinguishing_transitions_right M q1 q2)"
+  shows "isl (t_target t) \<Longrightarrow> t \<in> (shifted_transitions_alt M q1 q2)"
+    and "t_target t = Inr q1 \<Longrightarrow> t \<in> (distinguishing_transitions_left M q1 q2)"
+    and "t_target t = Inr q2 \<Longrightarrow> t \<in> (distinguishing_transitions_right M q1 q2)"
 proof -
   let ?C = "(canonical_separator M q1 q2)"
-  have *: "(transitions ?C) = (set (shifted_transitions M q1 q2)) \<union> (set (distinguishing_transitions_left M q1 q2)) \<union> (set (distinguishing_transitions_right M q1 q2))"
+  have *: "(transitions ?C) = ((shifted_transitions_alt M q1 q2)) \<union> ((distinguishing_transitions_left M q1 q2)) \<union> ((distinguishing_transitions_right M q1 q2))"
     using canonical_separator_simps(4)[of M q1 q2] by auto
 
   
   
-  show "isl (t_target t) \<Longrightarrow> t \<in> set (shifted_transitions M q1 q2)"
+  show "isl (t_target t) \<Longrightarrow> t \<in> (shifted_transitions_alt M q1 q2)"
     using shifted_transitions_targets[of t M q1 q2] 
           distinguishing_transitions_left_sources_targets(2)[OF _ assms(2,3), of t]
           distinguishing_transitions_right_sources_targets(2)[OF _ assms(2,3), of t]
     using * assms(1) by force
 
-  show "t_target t = Inr q1 \<Longrightarrow> t \<in> set (distinguishing_transitions_left M q1 q2)"
+  show "t_target t = Inr q1 \<Longrightarrow> t \<in> (distinguishing_transitions_left M q1 q2)"
     using shifted_transitions_targets[of t M q1 q2] 
           distinguishing_transitions_left_sources_targets(2)[OF _ assms(2,3), of t]
           distinguishing_transitions_right_sources_targets(2)[OF _ assms(2,3), of t]
     using "*" assms(1) using assms(4) by auto
 
-  show "t_target t = Inr q2 \<Longrightarrow> t \<in> set (distinguishing_transitions_right M q1 q2)"
+  show "t_target t = Inr q2 \<Longrightarrow> t \<in> (distinguishing_transitions_right M q1 q2)"
     using shifted_transitions_targets[of t M q1 q2] 
           distinguishing_transitions_left_sources_targets(2)[OF _ assms(2,3), of t]
           distinguishing_transitions_right_sources_targets(2)[OF _ assms(2,3), of t]
@@ -1205,11 +1133,11 @@ qed
 end (* lemma canonical_separator_targets_observable :
   assumes "t \<in> transitions (canonical_separator M q1 q2)" 
       and "observable M" and "q1 \<in> nodes M" and "q2 \<in> nodes M"
-  shows "isl (t_target t) \<Longrightarrow> t \<in> set (shifted_transitions M q1 q2)"
-    and "t_target t = Inr q1 \<Longrightarrow> t \<in> set (distinguishing_transitions_left M q1 q2)"
-    and "t_target t = Inr q2 \<Longrightarrow> t \<in> set (distinguishing_transitions_right M q1 q2)"
+  shows "isl (t_target t) \<Longrightarrow> t \<in> (shifted_transitions_alt M q1 q2)"
+    and "t_target t = Inr q1 \<Longrightarrow> t \<in> (distinguishing_transitions_left M q1 q2)"
+    and "t_target t = Inr q2 \<Longrightarrow> t \<in> (distinguishing_transitions_right M q1 q2)"
 proof -
-  have "(isl (t_target t) \<longrightarrow> t \<in> set (shifted_transitions M q1 q2)) \<and> (t_target t = Inr q1 \<longrightarrow> t \<in> set (distinguishing_transitions_left M q1 q2)) \<and> (t_target t = Inr q2 \<longrightarrow> t \<in> set (distinguishing_transitions_right M q1 q2))"
+  have "(isl (t_target t) \<longrightarrow> t \<in> (shifted_transitions_alt M q1 q2)) \<and> (t_target t = Inr q1 \<longrightarrow> t \<in> (distinguishing_transitions_left M q1 q2)) \<and> (t_target t = Inr q2 \<longrightarrow> t \<in> (distinguishing_transitions_right M q1 q2))"
   proof (cases "q1 = q2")
     case True
     then have "t \<in> transitions (canonical_separator M q1 q1)"
@@ -1221,9 +1149,9 @@ proof -
     case False
     show ?thesis using canonical_separator_targets_ineq[OF assms(1,3,4) False] by blast
   qed
-  then show "isl (t_target t) \<Longrightarrow> t \<in> set (shifted_transitions M q1 q2)"
-       and  "t_target t = Inr q1 \<Longrightarrow> t \<in> set (distinguishing_transitions_left M q1 q2)"
-       and  "t_target t = Inr q2 \<Longrightarrow> t \<in> set (distinguishing_transitions_right M q1 q2)"
+  then show "isl (t_target t) \<Longrightarrow> t \<in> (shifted_transitions_alt M q1 q2)"
+       and  "t_target t = Inr q1 \<Longrightarrow> t \<in> (distinguishing_transitions_left M q1 q2)"
+       and  "t_target t = Inr q2 \<Longrightarrow> t \<in> (distinguishing_transitions_right M q1 q2)"
     by blast+
 qed
 
@@ -1291,7 +1219,7 @@ next
   
   have "t_target t = Inr q1"
     using \<open>path S (initial S) (p'@[t])\<close> snoc assms(3) by auto
-  then have "t \<in> set (distinguishing_transitions_left M q1 q2)"
+  then have "t \<in> (distinguishing_transitions_left M q1 q2)"
     using canonical_separator_targets_ineq(2)[OF \<open>t \<in> transitions ?C\<close> assms(5,6,7)] by auto
 
   have "t_source t = Inl (q1',q2')"
@@ -1304,7 +1232,7 @@ next
                         and "t_output t' = t_output t"
                         and "t_source t' = q1'"
                         and "\<not> (\<exists>t''\<in> transitions M. t_source t'' = q2' \<and> t_input t'' = t_input t \<and> t_output t'' = t_output t)"
-    using distinguishing_transitions_left_sources_targets(1)[OF \<open>t \<in> set (distinguishing_transitions_left M q1 q2)\<close> assms(5,6)]
+    using distinguishing_transitions_left_sources_targets(1)[OF \<open>t \<in> (distinguishing_transitions_left M q1 q2)\<close> assms(5,6)]
           \<open>t_source t = Inl (q1',q2')\<close>
     by force 
 
@@ -1415,7 +1343,7 @@ next
   
   have "t_target t = Inr q2"
     using \<open>path S (initial S) (p'@[t])\<close> snoc assms(3) by auto
-  then have "t \<in> set (distinguishing_transitions_right M q1 q2)"
+  then have "t \<in> (distinguishing_transitions_right M q1 q2)"
     using canonical_separator_targets_ineq(3)[OF \<open>t \<in> transitions ?C\<close> assms(5,6,7)] by auto
 
   have "t_source t = Inl (q1',q2')"
@@ -1428,7 +1356,7 @@ next
                         and "t_output t' = t_output t"
                         and "t_source t' = q2'"
                         and "\<not> (\<exists>t''\<in> transitions M. t_source t'' = q1' \<and> t_input t'' = t_input t \<and> t_output t'' = t_output t)"
-    using distinguishing_transitions_right_sources_targets(1)[OF \<open>t \<in> set (distinguishing_transitions_right M q1 q2)\<close> assms(5,6)]
+    using distinguishing_transitions_right_sources_targets(1)[OF \<open>t \<in> (distinguishing_transitions_right M q1 q2)\<close> assms(5,6)]
           \<open>t_source t = Inl (q1',q2')\<close>
     by force 
 
@@ -1509,11 +1437,11 @@ end (* lemma canonical_separator_target_possibilities :
   and     "q2 \<in> nodes M"
 shows "isl (t_target t) \<or> t_target t = Inr q1 \<or> t_target t = Inr q2"
 proof -
-  have *: "(transitions ?C) = (set (shifted_transitions M q1 q2)) \<union> (set (distinguishing_transitions_left M q1 q2)) \<union> (set (distinguishing_transitions_right M q1 q2))"
+  have *: "(transitions ?C) = ((shifted_transitions_alt M q1 q2)) \<union> ((distinguishing_transitions_left M q1 q2)) \<union> ((distinguishing_transitions_right M q1 q2))"
     using canonical_separator_simps(4)[of M q1 q2] by auto
-  then consider  (a) "t \<in> set (shifted_transitions M q1 q2)" |
-                 (b) "t \<in> set (distinguishing_transitions_left M q1 q2)" |
-                 (c) "t \<in> set (distinguishing_transitions_right M q1 q2)"
+  then consider  (a) "t \<in> (shifted_transitions_alt M q1 q2)" |
+                 (b) "t \<in> (distinguishing_transitions_left M q1 q2)" |
+                 (c) "t \<in> (distinguishing_transitions_right M q1 q2)"
     using assms(1) by blast
   then show ?thesis proof cases
     case a
@@ -1585,11 +1513,11 @@ proof -
   have "t_source t \<in> nodes ?C"
     using assms(1) by auto
 
-  have *: "(transitions ?C) = (set (shifted_transitions M q1 q2)) \<union> (set (distinguishing_transitions_left M q1 q2)) \<union> (set (distinguishing_transitions_right M q1 q2))"
+  have *: "(transitions ?C) = ((shifted_transitions_alt M q1 q2)) \<union> ((distinguishing_transitions_left M q1 q2)) \<union> ((distinguishing_transitions_right M q1 q2))"
     using canonical_separator_simps(4)[of M q1 q2] by auto
-  then consider  (a) "t \<in> set (shifted_transitions M q1 q2)" |
-                 (b) "t \<in> set (distinguishing_transitions_left M q1 q2)" |
-                 (c) "t \<in> set (distinguishing_transitions_right M q1 q2)"
+  then consider  (a) "t \<in> (shifted_transitions_alt M q1 q2)" |
+                 (b) "t \<in> (distinguishing_transitions_left M q1 q2)" |
+                 (c) "t \<in> (distinguishing_transitions_right M q1 q2)"
     using assms(1) by blast
   then have "?P1 \<and> ?P2 \<and> ?P3" proof cases
     case a
@@ -1734,11 +1662,11 @@ proof -
   have "t_source t \<in> nodes ?C"
     using assms(1) by auto
 
-  have *: "(transitions ?C) = (set (shifted_transitions M q1 q2)) \<union> (set (distinguishing_transitions_left M q1 q2)) \<union> (set (distinguishing_transitions_right M q1 q2))"
+  have *: "(transitions ?C) = ((shifted_transitions_alt M q1 q2)) \<union> ((distinguishing_transitions_left M q1 q2)) \<union> ((distinguishing_transitions_right M q1 q2))"
     using canonical_separator_simps(4)[of M q1 q2] by auto
-  then consider  (a) "t \<in> set (shifted_transitions M q1 q2)" |
-                 (b) "t \<in> set (distinguishing_transitions_left M q1 q2)" |
-                 (c) "t \<in> set (distinguishing_transitions_right M q1 q2)"
+  then consider  (a) "t \<in> (shifted_transitions_alt M q1 q2)" |
+                 (b) "t \<in> (distinguishing_transitions_left M q1 q2)" |
+                 (c) "t \<in> (distinguishing_transitions_right M q1 q2)"
     using assms(1) by blast
   then show ?thesis proof cases
     case a
@@ -2339,7 +2267,7 @@ qed
 
 
 end (* lemma canonical_separator_distinguishing_transitions_left_h :
-  assumes "t \<in> set (distinguishing_transitions_left M q1 q2)"
+  assumes "t \<in> (distinguishing_transitions_left M q1 q2)"
   shows "t \<in> transitions (canonical_separator M q1 q2)" (is "t \<in> transitions ?C")
 proof -
   have x1: "t \<in> (transitions ?C)"
@@ -2383,7 +2311,7 @@ qed
 
 
 end (* lemma canonical_separator_distinguishing_transitions_right_h :
-  assumes "t \<in> set (distinguishing_transitions_right M q1 q2)"
+  assumes "t \<in> (distinguishing_transitions_right M q1 q2)"
   shows "t \<in> transitions (canonical_separator M q1 q2)" (is "t \<in> transitions ?C")
 proof -
   have x1: "t \<in> (transitions ?C)"
@@ -2554,7 +2482,7 @@ proof -
     (*thm canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) ?pCLR\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> \<open>target ?pCLR (initial ?C) = Inl (s1,s2)\<close>]*)
 
     let ?t = "(Inl (s1,s2), t_input tL, t_output tL, Inr q1)"
-    have "?t \<in> set (distinguishing_transitions_left M q1 q2)"
+    have "?t \<in> (distinguishing_transitions_left M q1 q2)"
       using map_set[OF m1, of " (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1))"] 
       unfolding distinguishing_transitions_left_def fst_conv snd_conv by assumption
     then have "?t \<in> transitions ?C" 
@@ -3222,7 +3150,7 @@ proof -
                            (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> choose_state_separator_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
                                    (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
                                                 (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
-       \<subseteq> set (distinguishing_transitions_left M ?q1 ?q2)"
+       \<subseteq> (distinguishing_transitions_left M ?q1 ?q2)"
   proof -
     have *: "\<And> qq t . qq \<in> nodes ?PM \<Longrightarrow> t \<in> transitions M \<Longrightarrow> t_source t = fst qq \<Longrightarrow> choose_state_separator_deadlock_input M S qq = Some (t_input t) 
             \<Longrightarrow> \<not>(\<exists> t' \<in> (transitions M) . t_source t' = snd qq \<and> t_input t' = t_input t \<and> t_output t' = t_output t)"
@@ -3312,7 +3240,7 @@ proof -
                            (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> choose_state_separator_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
                                    (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
                                                 (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
-       \<subseteq> set (distinguishing_transitions_right M ?q1 ?q2)"
+       \<subseteq> (distinguishing_transitions_right M ?q1 ?q2)"
   proof -
     have *: "\<And> qq t . qq \<in> nodes ?PM \<Longrightarrow> t \<in> transitions M \<Longrightarrow> t_source t = snd qq \<Longrightarrow> choose_state_separator_deadlock_input M S qq = Some (t_input t) 
             \<Longrightarrow> \<not>(\<exists> t' \<in> (transitions M) . t_source t' = fst qq \<and> t_input t' = t_input t \<and> t_output t' = t_output t)"
@@ -3441,17 +3369,17 @@ proof -
                            (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> choose_state_separator_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
                                    (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
                                                 (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))))))
-        \<subseteq> set (shifted_transitions M ?q1 ?q2
+        \<subseteq> (shifted_transitions_alt M ?q1 ?q2
                 @ distinguishing_transitions_left M ?q1 ?q2
                 @ distinguishing_transitions_right M ?q1 ?q2)"
     using subset_shift subset_right subset_left
   proof -
-    have "set (map (\<lambda>p. (Inl (t_source p), t_input p, t_output p, Inl (t_target p))) (wf_transitions S)) \<subseteq> set (shifted_transitions M (fst (initial S)) (snd (initial S)))"
+    have "set (map (\<lambda>p. (Inl (t_source p), t_input p, t_output p, Inl (t_target p))) (wf_transitions S)) \<subseteq> (shifted_transitions_alt M (fst (initial S)) (snd (initial S)))"
       by (metis (no_types) \<open>set (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (wf_transitions S)) \<subseteq> set (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (wf_transitions (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))))\<close> shifted_transitions_def)
     then show ?thesis
       using list_append_subset3 subset_left subset_right by blast
   qed 
-  then have "set (d_old @ d_left @ d_right) \<subseteq> set (shifted_transitions M ?q1 ?q2
+  then have "set (d_old @ d_left @ d_right) \<subseteq> (shifted_transitions_alt M ?q1 ?q2
                 @ distinguishing_transitions_left M ?q1 ?q2
                 @ distinguishing_transitions_right M ?q1 ?q2)"
     using d_old_var d_left_var d_right_var by blast
@@ -4600,16 +4528,16 @@ proof -
         using \<open>t' \<in> transitions CSep\<close> by auto
 
       
-      have "t' \<notin> (set (shifted_transitions M ?q1 ?q2))"
+      have "t' \<notin> ((shifted_transitions_alt M ?q1 ?q2))"
         using False by (meson shifted_transitions_targets) 
 
       
       
       
       
-      have *: "(transitions ?CSep) = (set (shifted_transitions M ?q1 ?q2)) \<union> (set (distinguishing_transitions_left M ?q1 ?q2)) \<union> (set (distinguishing_transitions_right M ?q1 ?q2))"
+      have *: "(transitions ?CSep) = ((shifted_transitions_alt M ?q1 ?q2)) \<union> ((distinguishing_transitions_left M ?q1 ?q2)) \<union> ((distinguishing_transitions_right M ?q1 ?q2))"
         using canonical_separator_simps(4)[of M ?q1 ?q2] by auto
-      then have t'_cases : "t' \<in> set (distinguishing_transitions_left M ?q1 ?q2) \<or> t' \<in> set (distinguishing_transitions_right M ?q1 ?q2)"
+      then have t'_cases : "t' \<in> (distinguishing_transitions_left M ?q1 ?q2) \<or> t' \<in> (distinguishing_transitions_right M ?q1 ?q2)"
         using \<open>CSep = ?CSep\<close> \<open>t' \<in> transitions CSep\<close> 
         using canonical_separator_targets_ineq(1)[OF \<open>t' \<in> transitions ?CSep\<close> assms(2,3,4)] False
         by (metis UnE shifted_transitions_targets wf_transition_simp)
@@ -4655,8 +4583,8 @@ proof -
           unfolding choose_state_separator_deadlock_input_def by auto
 
         from t'_cases consider
-          (t'_left)  "t' \<in> set (distinguishing_transitions_left M ?q1 ?q2)" | 
-          (t'_right) "t' \<in> set (distinguishing_transitions_right M ?q1 ?q2)" by blast
+          (t'_left)  "t' \<in> (distinguishing_transitions_left M ?q1 ?q2)" | 
+          (t'_right) "t' \<in> (distinguishing_transitions_right M ?q1 ?q2)" by blast
         then show ?thesis proof cases
           case t'_left
 
@@ -7936,7 +7864,7 @@ proof -
         have scheme: "\<And> f xs x . x \<in> set xs \<Longrightarrow> f x \<in> set (map f xs)"
           by auto
 
-        have "?tA \<in> set (distinguishing_transitions_left M q1 q2)"
+        have "?tA \<in> (distinguishing_transitions_left M q1 q2)"
           unfolding distinguishing_transitions_left_def 
           using scheme[of _ _ "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1))", OF *]
           unfolding fst_conv snd_conv \<open>t_input t1 = x\<close> \<open>t_output t1 = yq\<close> by assumption
@@ -8106,7 +8034,7 @@ proof -
         have scheme: "\<And> f xs x . x \<in> set xs \<Longrightarrow> f x \<in> set (map f xs)"
           by auto
 
-        have "?tA \<in> set (distinguishing_transitions_right M q1 q2)"
+        have "?tA \<in> (distinguishing_transitions_right M q1 q2)"
           unfolding distinguishing_transitions_right_def 
           using scheme[of _ _ "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2))", OF *]
           unfolding fst_conv snd_conv \<open>t_input t2 = x\<close> \<open>t_output t2 = yq\<close> by assumption
