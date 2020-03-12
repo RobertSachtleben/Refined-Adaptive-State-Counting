@@ -1903,7 +1903,7 @@ qed
 
 
 (* does not assume observability of M (in contrast to the much stronger canonical_separator_path_initial) *)
-end (* lemma canonical_separator_path_initial_ex :
+lemma canonical_separator_path_initial_ex :
   assumes "path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2)) p" (is "path ?C (initial ?C) p")
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
@@ -1924,21 +1924,21 @@ proof -
     
     obtain p' where "path ?P (initial ?P) p'"
               and   *:"p = map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) p'"
-      using canonical_separator_path_from_shift[OF \<open>path ?C (initial ?C) p\<close> canonical_separator_path_split_target_isl[OF snoc.prems(1)]]
+      using canonical_separator_path_from_shift[OF \<open>path ?C (initial ?C) p\<close> canonical_separator_path_split_target_isl[OF snoc.prems(1) assms(2,3)] assms(2,3)]
       by blast
   
     let ?pL = "(map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p')"
     let ?pR = "(map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p')"
   
     have "path ?P (q1,q2) p'"
-      using \<open>path ?P (initial ?P) p'\<close> unfolding product_simps(1) from_FSM_simps(1) by assumption
+      using \<open>path ?P (initial ?P) p'\<close> assms(2,3) by simp
   
     then have pL: "path (from_FSM M q1) q1 ?pL"
          and  pR: "path (from_FSM M q2) q2 ?pR"
-         and  pN: "(\<exists>p1 p2.
+         (*and  pN: "(\<exists>p1 p2.
                      path (from_FSM M q1) (initial (from_FSM M q1)) p1 \<and>
                      path (from_FSM M q2) (initial (from_FSM M q2)) p2 \<and>
-                     target (initial (from_FSM M q1)) p1 = q1 \<and> target (initial (from_FSM M q2)) p2 = q2 \<and> p_io p1 = p_io p2)"
+                     target (initial (from_FSM M q1)) p1 = q1 \<and> target (initial (from_FSM M q2)) p2 = q2 \<and> p_io p1 = p_io p2)"*)
       using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 p'] by auto
 
     have "p_io ?pL = butlast (p_io (p@[t]))" and "p_io ?pR = butlast (p_io (p@[t]))"
@@ -1949,13 +1949,13 @@ proof -
       by blast
     
     obtain s1 s2 where "t_source t = Inl (s1,s2)"
-      using canonical_separator_path_split_target_isl[OF snoc.prems(1)] 
+      using canonical_separator_path_split_target_isl[OF snoc.prems(1) assms(2,3)] 
       by (metis \<open>t_source t = target (initial (canonical_separator M q1 q2)) p\<close> isl_def old.prod.exhaust)
   
     have "map t_target p = map (Inl o t_target) p'"
       using * by auto
     then have "target (initial ?C) p = Inl (target (q1,q2) p')"
-      unfolding target.simps visited_states.simps canonical_separator_simps(1) product_simps(1) from_FSM_simps(1)
+      unfolding target.simps visited_nodes.simps canonical_separator_simps(1)[OF assms(2,3)] 
       by (simp add: last_map) 
     then have "target (q1,q2) p'= (s1,s2)"
       using \<open>t_source t = target (initial ?C) p\<close> \<open>t_source t = Inl (s1,s2)\<close>
@@ -1976,7 +1976,7 @@ proof -
         using \<open>target q1 ?pL = s1\<close> \<open>t_source t1 = s1\<close> by auto
       then have "path M q1 (?pL@[t1])"
         using pL \<open>t1 \<in> transitions M\<close>
-        by (meson from_FSM_path path_append_last snoc.prems(2))
+        by (meson from_FSM_path path_append_transition snoc.prems(2))
       moreover have "p_io (?pL@[t1]) = p_io (p@[t])"
         using * \<open>t_input t1 = t_input t\<close> \<open>t_output t1 = t_output t\<close> by auto
       ultimately show ?thesis
@@ -1991,7 +1991,7 @@ proof -
         using \<open>target q2 ?pR = s2\<close> \<open>t_source t2 = s2\<close> by auto
       then have "path M q2 (?pR@[t2])"
         using pR \<open>t2 \<in> transitions M\<close>
-        by (meson from_FSM_path path_append_last snoc.prems(3))
+        by (meson from_FSM_path path_append_transition snoc.prems(3))
       moreover have "p_io (?pR@[t2]) = p_io (p@[t])"
         using * \<open>t_input t2 = t_input t\<close> \<open>t_output t2 = t_output t\<close> by auto
       ultimately show ?thesis
@@ -2006,7 +2006,7 @@ qed
 
 
 
-end (* lemma canonical_separator_language :
+lemma canonical_separator_language :
   assumes "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
 shows "L (canonical_separator M q1 q2) \<subseteq> L (from_FSM M q1) \<union> L (from_FSM M q2)" (is "L ?C \<subseteq> L ?M1 \<union> L ?M2")
@@ -2023,7 +2023,7 @@ qed
 
 
 
-end (* lemma canonical_separator_language_prefix :
+lemma canonical_separator_language_prefix :
   assumes "io@[xy] \<in> L (canonical_separator M q1 q2)"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
@@ -2035,7 +2035,6 @@ proof -
   obtain p where "path ?C (initial ?C) p" and "p_io p = io@[xy]"
     using assms(1) by auto
 
-  (* TODO: find out how to write case own case rules *)
   consider (a) "(\<exists>s1' s2'. target (initial (canonical_separator M q1 q2)) p = Inl (s1', s2'))" |
            (b) "target (initial (canonical_separator M q1 q2)) p = Inr q1" | 
            (c) "target (initial (canonical_separator M q1 q2)) p = Inr q2"
@@ -2066,97 +2065,42 @@ qed
 
 
 
-end (* lemma canonical_separator_distinguishing_transitions_left_h :
+lemma canonical_separator_distinguishing_transitions_left_containment :
   assumes "t \<in> (distinguishing_transitions_left M q1 q2)"
-  shows "t \<in> transitions (canonical_separator M q1 q2)" (is "t \<in> transitions ?C")
-proof -
-  have x1: "t \<in> (transitions ?C)"
-    unfolding canonical_separator_simps using assms by auto
-
-  obtain qqt where *: "qqt \<in> set (concat
-                                (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                                  (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
-             and   **: "t = (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1)"
-             and   ***: "t_source (snd qqt) = fst (fst qqt)"
-             and   ****: "\<not> (\<exists>t'\<in>(transitions M).
-                            t_source t' = snd (fst qqt) \<and>
-                            t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))"
-    using distinguishing_transitions_left_underlying_data[OF assms] by blast
-
-  let ?qq = "fst qqt"
-  let ?t  = "snd qqt"
-  let ?P  = "(product (from_FSM M q1) (from_FSM M q2))"
-
-  have "?t \<in> transitions M" and "?qq \<in> nodes ?P"
-    using * unfolding concat_pair_set nodes_code by blast+
-
-  then have x2: "t_input t \<in> (inputs ?C)" and x3: "t_output t \<in> (outputs ?C)"
-    unfolding canonical_separator_simps ** by auto
-
-  obtain pp where "path ?P (initial ?P) pp" and "target pp (initial ?P) = ?qq"
-    using path_to_node[OF \<open>?qq \<in> nodes ?P\<close>] by auto
-
-  let ?pc = "map shift_Inl pp"
-  have pt1: "path ?C (initial ?C) ?pc"
-    using \<open>path ?P (initial ?P) pp\<close> unfolding canonical_separator_path_shift by assumption
-  have pt2: "target ?pc (initial ?C) = Inl ?qq"
-    using \<open>target pp (initial ?P) = ?qq\<close> unfolding canonical_separator_simps product_simps from_FSM_simps by (induction pp; auto)
-  
-  have "t_source t \<in> nodes ?C"
-    unfolding ** fst_conv snd_conv using path_target_is_node[OF pt1] unfolding pt2 by assumption
-
-  then show ?thesis
-    using x1 x2 x3 by auto
-qed
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M"
+    shows "t \<in> transitions (canonical_separator M q1 q2)" 
+  using assms(1) unfolding canonical_separator_transitions_def[OF assms(2,3)] by blast
 
 
-end (* lemma canonical_separator_distinguishing_transitions_right_h :
+
+lemma canonical_separator_distinguishing_transitions_right_containment :
   assumes "t \<in> (distinguishing_transitions_right M q1 q2)"
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M"
   shows "t \<in> transitions (canonical_separator M q1 q2)" (is "t \<in> transitions ?C")
-proof -
-  have x1: "t \<in> (transitions ?C)"
-    unfolding canonical_separator_simps using assms by auto
+   using assms(1) unfolding canonical_separator_transitions_def[OF assms(2,3)] by blast
 
-  obtain qqt where *: "qqt \<in> set (concat
-                                (map (\<lambda>qq'. map (Pair qq') (wf_transitions M))
-                                  (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
-             and   **: "t = (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2)"
-             and   ***: "t_source (snd qqt) = snd (fst qqt)"
-             and   ****: "\<not> (\<exists>t'\<in>(transitions M).
-                            t_source t' = fst (fst qqt) \<and>
-                            t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))"
-    using distinguishing_transitions_right_underlying_data[OF assms] by blast
 
-  let ?qq = "fst qqt"
-  let ?t  = "snd qqt"
-  let ?P  = "(product (from_FSM M q1) (from_FSM M q2))"
+lemma distinguishing_transitions_left_alt_intro :
+  assumes "(s1,s2) \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))"
+  and "(\<exists>t \<in> transitions M. t_source t = s1 \<and> t_input t = x \<and> t_output t = y)" 
+  and "\<not>(\<exists>t \<in> transitions M. t_source t = s2 \<and> t_input t = x \<and> t_output t = y)" 
+shows "(Inl (s1,s2), x, y, Inr q1) \<in> distinguishing_transitions_left_alt M q1 q2"
+  using assms unfolding distinguishing_transitions_left_alt_def
+  by auto 
 
-  have "?t \<in> transitions M" and "?qq \<in> nodes ?P"
-    using * unfolding concat_pair_set nodes_code by blast+
-
-  then have x2: "t_input t \<in> (inputs ?C)" and x3: "t_output t \<in> (outputs ?C)"
-    unfolding canonical_separator_simps ** by auto
-
-  obtain pp where "path ?P (initial ?P) pp" and "target pp (initial ?P) = ?qq"
-    using path_to_node[OF \<open>?qq \<in> nodes ?P\<close>] by auto
-
-  let ?pc = "map shift_Inl pp"
-  have pt1: "path ?C (initial ?C) ?pc"
-    using \<open>path ?P (initial ?P) pp\<close> unfolding canonical_separator_path_shift by assumption
-  have pt2: "target ?pc (initial ?C) = Inl ?qq"
-    using \<open>target pp (initial ?P) = ?qq\<close> unfolding canonical_separator_simps product_simps from_FSM_simps by (induction pp; auto)
-  
-  have "t_source t \<in> nodes ?C"
-    unfolding ** fst_conv snd_conv using path_target_is_node[OF pt1] unfolding pt2 by assumption
-
-  then show ?thesis
-    using x1 x2 x3 by auto
-qed
+lemma distinguishing_transitions_left_right_intro :
+  assumes "(s1,s2) \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))"
+  and "\<not>(\<exists>t \<in> transitions M. t_source t = s1 \<and> t_input t = x \<and> t_output t = y)" 
+  and "(\<exists>t \<in> transitions M. t_source t = s2 \<and> t_input t = x \<and> t_output t = y)" 
+shows "(Inl (s1,s2), x, y, Inr q2) \<in> distinguishing_transitions_right_alt M q1 q2"
+  using assms unfolding distinguishing_transitions_right_alt_def
+  by auto 
 
 
 
-(*TODO: add _right version *)
-end (* lemma canonical_separator_io_from_prefix_left :
+
+(*TODO: add _right version \<longrightarrow> still necessary?*)
+lemma canonical_separator_io_from_prefix_left :
   assumes "io @ [io1] \<in> LS M q1"
   and     "io \<in> LS M q2"
   and     "q1 \<in> nodes M"
@@ -2190,46 +2134,46 @@ proof -
   let ?P = "product (from_FSM M q1) (from_FSM M q2)"
 
   have "path ?P (initial ?P) ?pLR"
-  and  "target ?pLR (initial ?P) = (target pL q1, target pR q2)"
+  and  "target (initial ?P) ?pLR = (target q1 pL, target q2 pR)"
     using product_path_from_paths[OF pLf pRf \<open>p_io pL = p_io pR\<close>]
-    unfolding from_FSM_simps(1) by linarith+
+    unfolding from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] by linarith+
 
   have "path ?C (initial ?C) ?pCLR"
-    using canonical_separator_path_shift[of M q1 q2 ?pLR] \<open>path ?P (initial ?P) ?pLR\<close> by simp 
+    using canonical_separator_path_shift[OF assms(3,4)] \<open>path ?P (initial ?P) ?pLR\<close> by simp 
   
 
-  have "isl (target ?pCLR (initial ?C))" 
-    unfolding canonical_separator_simps(1) product_simps(1) from_FSM_simps target.simps visited_states.simps by (cases ?pLR rule: rev_cases; auto)
-  then obtain s1 s2 where "target ?pCLR (initial ?C) = Inl (s1,s2)"
+  have "isl (target (initial ?C) ?pCLR)" 
+    unfolding canonical_separator_simps(1)[OF assms(3,4)] by (cases ?pLR rule: rev_cases; auto)
+  then obtain s1 s2 where "target (initial ?C) ?pCLR = Inl (s1,s2)"
     by (metis (no_types, lifting) \<open>path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2)) (map (\<lambda>t. (Inl (t_source t), t_input t, t_output t, Inl (t_target t))) (map (\<lambda>t. ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), t_target (fst t), t_target (snd t))) (zip pL pR)))\<close> assms(3) assms(4) assms(5) canonical_separator_path_initial(4) sum.discI(2))
   then have "Inl (s1,s2) \<in> nodes ?C"
     using path_target_is_node[OF \<open>path ?C (initial ?C) ?pCLR\<close>] by simp
   then have "(s1,s2) \<in> nodes ?P"
-    using canonical_separator_nodes by force
+    using canonical_separator_nodes[OF _ assms(3,4)] by force
 
-  have "target ?pLR (initial ?P) = (s1,s2)"
-    using \<open>target ?pCLR (initial ?C) = Inl (s1,s2)\<close> unfolding canonical_separator_simps(1) product_simps(1) from_FSM_simps target.simps visited_states.simps by (cases ?pLR rule: rev_cases; auto)
-  then have "target pL q1 = s1" and "target pR q2 = s2"
-    using \<open>target ?pLR (initial ?P) = (target pL q1, target pR q2)\<close> by auto
+  have "target (initial ?P) ?pLR = (s1,s2)"
+    using \<open>target (initial ?C) ?pCLR = Inl (s1,s2)\<close> assms(3,4) unfolding canonical_separator_simps(1)[OF assms(3,4)] product_simps(1) from_FSM_simps target.simps visited_nodes.simps by (cases ?pLR rule: rev_cases; auto)
+  then have "target q1 pL = s1" and "target q2 pR = s2"
+    using \<open>target (initial ?P) ?pLR = (target q1 pL, target q2 pR)\<close> by auto
   then have "t_source tL = s1"
     using \<open>path M q1 (pL@[tL])\<close> by auto
 
 
 
-  show ?thesis proof (cases "\<exists> tR \<in> (transitions M) . t_source tR = target pR q2 \<and> t_input tR = t_input tL \<and> t_output tR = t_output tL")
+  show ?thesis proof (cases "\<exists> tR \<in> (transitions M) . t_source tR = target q2 pR \<and> t_input tR = t_input tL \<and> t_output tR = t_output tL")
     case True
-    then obtain tR where "tR \<in> (transitions M)" and "t_source tR = target pR q2" and "t_input tR = t_input tL" and "t_output tR = t_output tL"
+    then obtain tR where "tR \<in> (transitions M)" and "t_source tR = target q2 pR" and "t_input tR = t_input tL" and "t_output tR = t_output tL"
       by blast
     
     have "t_source tR \<in> nodes M"
-      unfolding \<open>t_source tR = target pR q2\<close> \<open>target pR q2 = s2\<close> 
-      using \<open>(s1,s2) \<in> nodes ?P\<close> product_nodes from_FSM_nodes[OF \<open>q2 \<in> nodes M\<close>] by blast
+      unfolding \<open>t_source tR = target q2 pR\<close> \<open>target q2 pR = s2\<close> 
+      using \<open>(s1,s2) \<in> nodes ?P\<close> product_simps(2) from_FSM_simps(2) assms(3,4) by simp
 
     then have "tR \<in> transitions M"
       using \<open>tR \<in> (transitions M)\<close> \<open>t_input tR = t_input tL\<close> \<open>t_output tR = t_output tL\<close> \<open>tL \<in> transitions M\<close> by auto
 
     then have "path M q2 (pR@[tR])" 
-      using \<open>path M q2 pR\<close> \<open>t_source tR = target pR q2\<close> path_append_last by metis
+      using \<open>path M q2 pR\<close> \<open>t_source tR = target q2 pR\<close> path_append_transition by metis
     then have pRf': "path (from_FSM M q2) (initial (from_FSM M q2)) (pR@[tR])"
       using from_FSM_path_initial[OF \<open>q2 \<in> nodes M\<close>] by auto
 
@@ -2252,7 +2196,7 @@ proof -
       using product_path_from_paths(1)[OF pLf' pRf' \<open>p_io (pL@[tL]) = p_io (pR@[tR])\<close>] by assumption
 
     then have "path ?C (initial ?C) ?PC"
-      using canonical_separator_path_shift[of M q1 q2 ?PP] by simp
+      using canonical_separator_path_shift[OF assms(3,4)] by simp
     
     moreover have "p_io ?PC = io@[io1]"
       using \<open>p_io (pL@[tL]) = io@[io1]\<close>  \<open>p_io ?PP = p_io (pL@[tL])\<close>  \<open>p_io ?PC = p_io ?PP\<close> by simp
@@ -2262,34 +2206,27 @@ proof -
   next
     case False
 
-    have f1: "((s1,s2),tL) \<in> set (concat (map (\<lambda>qq'. map (Pair qq') (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2)))))"
-      using \<open>(s1,s2) \<in> nodes ?P\<close> \<open>tL \<in> transitions M\<close> concat_pair_set[of "wf_transitions M" "nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))"] unfolding nodes_code 
-      by (metis (no_types, lifting) fst_conv mem_Collect_eq snd_conv)
-    have f2: "(\<lambda> qqt. t_source (snd qqt) = fst (fst qqt) \<and> \<not> (\<exists>t'\<in>(transitions M). t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt))) ((s1,s2),tL)"
-    proof 
-      show "t_source (snd ((s1, s2), tL)) = fst (fst ((s1, s2), tL))"
-        using \<open>t_source tL = s1\<close> by auto 
-      show "\<not> (\<exists>t'\<in>(transitions M). t_source t' = snd (fst ((s1, s2), tL)) \<and> t_input t' = t_input (snd ((s1, s2), tL)) \<and> t_output t' = t_output (snd ((s1, s2), tL)))"
-        using False unfolding fst_conv snd_conv \<open>target pR q2 = s2\<close> by assumption
-    qed
-    
-    have m1: "((s1,s2),tL) \<in> set (filter (\<lambda> qqt. t_source (snd qqt) = fst (fst qqt) \<and> \<not> (\<exists>t'\<in>(transitions M). t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))
-                                                (concat (map (\<lambda>qq'. map (Pair qq') (wf_transitions M)) (nodes_from_distinct_paths (product (from_FSM M q1) (from_FSM M q2))))))"
-      using filter_list_set[OF f1, of "(\<lambda> qqt. t_source (snd qqt) = fst (fst qqt) \<and> \<not> (\<exists>t'\<in>(transitions M). t_source t' = snd (fst qqt) \<and> t_input t' = t_input (snd qqt) \<and> t_output t' = t_output (snd qqt)))", OF f2]
-      by assumption
-
-
-    (*thm canonical_separator_path_initial(1)[OF \<open>path ?C (initial ?C) ?pCLR\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> \<open>target ?pCLR (initial ?C) = Inl (s1,s2)\<close>]*)
-
     let ?t = "(Inl (s1,s2), t_input tL, t_output tL, Inr q1)"
-    have "?t \<in> (distinguishing_transitions_left M q1 q2)"
-      using map_set[OF m1, of " (\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1))"] 
-      unfolding distinguishing_transitions_left_def fst_conv snd_conv by assumption
+
+    have "(s1,s2) \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))"
+      by (metis (no_types, lifting) \<open>path (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2)) (FSM.initial (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))) (zip_path pL pR)\<close> \<open>target (FSM.initial (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))) (zip_path pL pR) = (s1, s2)\<close> reachable_nodes_intro)
+    moreover have "(\<exists>tR\<in>FSM.transitions M.
+           t_source tR = target q1 pL \<and> t_input tR = t_input tL \<and> t_output tR = t_output tL)"
+      using \<open>tL \<in> transitions M\<close> \<open>path M q1 (pL@[tL])\<close>
+      by auto 
+
+    
+
+
+    ultimately have "?t \<in> (distinguishing_transitions_left_alt M q1 q2)"
+      using distinguishing_transitions_left_alt_intro[OF _ _ False] 
+      unfolding \<open>target q1 pL = s1\<close> \<open>target q2 pR = s2\<close>
+      by blast 
     then have "?t \<in> transitions ?C" 
-      using canonical_separator_distinguishing_transitions_left_h by metis
+      using canonical_separator_distinguishing_transitions_left_containment[OF _ assms(3,4)] unfolding distinguishing_transitions_left_alt_alt_def by blast 
     then have "path ?C (initial ?C) (?pCLR@[?t])"
-      using \<open>path ?C (initial ?C) ?pCLR\<close> \<open>target ?pCLR (initial ?C) = Inl (s1,s2)\<close> 
-      by (simp add: path_append_last)
+      using \<open>path ?C (initial ?C) ?pCLR\<close> \<open>target (initial ?C) ?pCLR = Inl (s1,s2)\<close> 
+      by (simp add: path_append_transition)
 
     have "length pL = length pR"
       using \<open>p_io pL = p_io pR\<close> 
@@ -2308,7 +2245,9 @@ proof -
 qed
 
 
-end (* lemma state_separator_language_intersections_nonempty :
+
+
+lemma state_separator_language_intersections_nonempty :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
   and     "observable M"
   and     "q1 \<in> nodes M"
@@ -2316,20 +2255,20 @@ end (* lemma state_separator_language_intersections_nonempty :
   and     "q1 \<noteq> q2"
 shows "\<exists> io . io \<in> (L A \<inter> LS M q1) - LS M q2" and "\<exists> io . io \<in> (L A \<inter> LS M q2) - LS M q1"
 proof -
-  have "Inr q1 \<in> nodes A"
+  have "Inr q1 \<in> reachable_nodes A"
     using is_state_separator_from_canonical_separator_simps(6)[OF assms(1)] by assumption
-  then obtain p where "path A (initial A) p" and "target p (initial A) = Inr q1"
-    using path_to_node by metis
+  then obtain p where "path A (initial A) p" and "target (initial A) p = Inr q1"
+    unfolding reachable_nodes_def by auto 
   then have "p_io p \<in> LS M q1 - LS M q2"
     using canonical_separator_maximal_path_distinguishes_left[OF assms(1) _ _ assms(2,3,4,5)] by blast
   moreover have "p_io p \<in> L A"
     using \<open>path A (initial A) p\<close> by auto
   ultimately show "\<exists> io . io \<in> (L A \<inter> LS M q1) - LS M q2" by blast
 
-  have "Inr q2 \<in> nodes A"
+  have "Inr q2 \<in> reachable_nodes A"
     using is_state_separator_from_canonical_separator_simps(7)[OF assms(1)] by assumption
-  then obtain p' where "path A (initial A) p'" and "target p' (initial A) = Inr q2"
-    using path_to_node by metis
+  then obtain p' where "path A (initial A) p'" and "target (initial A) p' = Inr q2"
+    unfolding reachable_nodes_def by auto 
   then have "p_io p' \<in> LS M q2 - LS M q1"
     using canonical_separator_maximal_path_distinguishes_right[OF assms(1) _ _ assms(2,3,4,5)] by blast
   moreover have "p_io p' \<in> L A"
@@ -2341,7 +2280,7 @@ qed
 
 
 
-end (* lemma state_separator_language_inclusion :
+lemma state_separator_language_inclusion :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
   and     "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
@@ -2351,7 +2290,7 @@ shows "L A \<subseteq> LS M q1 \<union> LS M q2"
   unfolding from_FSM_language[OF assms(2)] from_FSM_language[OF assms(3)] by blast
 
 
-end (* lemma state_separator_from_canonical_separator_targets_left_inclusion :
+lemma state_separator_from_canonical_separator_targets_left_inclusion :
   assumes "observable T" 
   and     "observable M"
   and     "t1 \<in> nodes T"
@@ -2361,8 +2300,8 @@ end (* lemma state_separator_from_canonical_separator_targets_left_inclusion :
   and     "(inputs T) = (inputs M)"
   and     "path A (initial A) p"
   and     "p_io p \<in> LS M q1"
-shows "target p (initial A) \<noteq> Inr q2"
-and   "target p (initial A) = Inr q1 \<or> isl (target p (initial A))"
+shows "target (initial A) p \<noteq> Inr q2"
+and   "target (initial A) p = Inr q1 \<or> isl (target (initial A) p)"
 proof -
 
   let ?C = "canonical_separator M q1 q2"
@@ -2371,9 +2310,9 @@ proof -
   have "path ?C (initial ?C) p"
     using assms(8) c_path by auto
 
-  show "target p (initial A) \<noteq> Inr q2"
+  show "target (initial A) p \<noteq> Inr q2"
   proof 
-    assume "target p (initial A) = Inr q2"
+    assume "target (initial A) p = Inr q2"
     then have "target (initial ?C) p = Inr q2"
       using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)] by auto
 
@@ -2390,18 +2329,18 @@ proof -
   then have "target (initial ?C) p = Inr q1 \<or> isl (target (initial ?C) p)"
   proof (cases p rule: rev_cases)
     case Nil
-    then show ?thesis unfolding canonical_separator_simps target.simps visited_states.simps by simp
+    then show ?thesis unfolding canonical_separator_simps[OF assms(4,5)] by simp
   next
     case (snoc ys y)
     then show ?thesis using canonical_separator_target_possibilities[OF _ assms(4,5)] 
       by (metis \<open>path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2)) p\<close> \<open>target (initial (canonical_separator M q1 q2)) p \<noteq> Inr q2\<close> assms(2) assms(4) assms(5) canonical_separator_path_initial(4) isl_def)
   qed
-  then show "target p (initial A) = Inr q1 \<or> isl (target p (initial A))"
+  then show "target (initial A) p = Inr q1 \<or> isl (target (initial A) p)"
     using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)] unfolding is_submachine.simps by simp
 qed
 
 
-end (* lemma state_separator_from_canonical_separator_targets_right_inclusion :
+lemma state_separator_from_canonical_separator_targets_right_inclusion :
   assumes "observable T" 
   and     "observable M"
   and     "t1 \<in> nodes T"
@@ -2411,8 +2350,8 @@ end (* lemma state_separator_from_canonical_separator_targets_right_inclusion :
   and     "(inputs T) = (inputs M)"
   and     "path A (initial A) p"
   and     "p_io p \<in> LS M q2"
-shows "target p (initial A) \<noteq> Inr q1"
-and   "target p (initial A) = Inr q2 \<or> isl (target p (initial A))"
+shows "target (initial A) p \<noteq> Inr q1"
+and   "target (initial A) p = Inr q2 \<or> isl (target (initial A) p)"
 proof -
 
   let ?C = "canonical_separator M q1 q2"
@@ -2421,9 +2360,9 @@ proof -
   have "path ?C (initial ?C) p"
     using assms(8) c_path by auto
 
-  show "target p (initial A) \<noteq> Inr q1"
+  show "target (initial A) p \<noteq> Inr q1"
   proof 
-    assume "target p (initial A) = Inr q1"
+    assume "target (initial A) p = Inr q1"
     then have "target (initial ?C) p = Inr q1"
       using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)] by auto
 
@@ -2440,13 +2379,13 @@ proof -
   then have "target (initial ?C) p = Inr q2 \<or> isl (target (initial ?C) p)"
   proof (cases p rule: rev_cases)
     case Nil
-    then show ?thesis unfolding canonical_separator_simps target.simps visited_states.simps by simp
+    then show ?thesis unfolding canonical_separator_simps[OF assms(4,5)] by simp
   next
     case (snoc ys y)
     then show ?thesis using canonical_separator_target_possibilities[OF _ assms(4,5)] 
       by (metis \<open>path (canonical_separator M q1 q2) (initial (canonical_separator M q1 q2)) p\<close> \<open>target (initial (canonical_separator M q1 q2)) p \<noteq> Inr q1\<close> assms(2) assms(4) assms(5) canonical_separator_path_initial(4) isl_def)
   qed
-  then show "target p (initial A) = Inr q2 \<or> isl (target p (initial A))"
+  then show "target (initial A) p = Inr q2 \<or> isl (target (initial A) p)"
     using is_state_separator_from_canonical_separator_simps(1)[OF assms(6)] unfolding is_submachine.simps by simp
 qed
 
@@ -7053,9 +6992,9 @@ definition is_separator :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<R
      \<and> (\<forall> t \<in> nodes A . (t \<noteq> t1 \<and> t \<noteq> t2) \<longrightarrow> \<not> deadlock_state A t)
      \<and> (\<forall> io \<in> L A . (\<forall> x yq yt . (io@[(x,yq)] \<in> LS M q1 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq)] \<in> L A))
                    \<and> (\<forall> x yq2 yt . (io@[(x,yq2)] \<in> LS M q2 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq2)] \<in> L A)))
-     \<and> (\<forall> p . (path A (initial A) p \<and> target p (initial A) = t1) \<longrightarrow> p_io p \<in> LS M q1 - LS M q2)
-     \<and> (\<forall> p . (path A (initial A) p \<and> target p (initial A) = t2) \<longrightarrow> p_io p \<in> LS M q2 - LS M q1)
-     \<and> (\<forall> p . (path A (initial A) p \<and> target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2) \<longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2)
+     \<and> (\<forall> p . (path A (initial A) p \<and> target (initial A) p = t1) \<longrightarrow> p_io p \<in> LS M q1 - LS M q2)
+     \<and> (\<forall> p . (path A (initial A) p \<and> target (initial A) p = t2) \<longrightarrow> p_io p \<in> LS M q2 - LS M q1)
+     \<and> (\<forall> p . (path A (initial A) p \<and> target (initial A) p \<noteq> t1 \<and> target (initial A) p \<noteq> t2) \<longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2)
      \<and> q1 \<noteq> q2
      \<and> t1 \<noteq> t2
      \<and> (inputs A) \<subseteq> (inputs M))"
@@ -7073,9 +7012,9 @@ shows "single_input A"
   and "\<And> t . t \<in> nodes A \<Longrightarrow> t \<noteq> t1 \<Longrightarrow> t \<noteq> t2 \<Longrightarrow> \<not> deadlock_state A t"
   and "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q1 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
   and "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q2 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)"
-  and "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2"
-  and "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1"
-  and "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
+  and "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2"
+  and "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1"
+  and "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p \<noteq> t1 \<Longrightarrow> target (initial A) p \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
   and "q1 \<noteq> q2"
   and "t1 \<noteq> t2"
   and "(inputs A) \<subseteq> (inputs M)"
@@ -7090,9 +7029,9 @@ proof -
   and  p08: "(\<forall> t \<in> nodes A . (t \<noteq> t1 \<and> t \<noteq> t2) \<longrightarrow> \<not> deadlock_state A t)"
   and  p09: "(\<forall> io \<in> L A . (\<forall> x yq yt . (io@[(x,yq)] \<in> LS M q1 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq)] \<in> L A))
                          \<and> (\<forall> x yq2 yt . (io@[(x,yq2)] \<in> LS M q2 \<and> io@[(x,yt)] \<in> L A) \<longrightarrow> (io@[(x,yq2)] \<in> L A)))"
-  and  p10: "(\<forall> p . (path A (initial A) p \<and> target p (initial A) = t1) \<longrightarrow> p_io p \<in> LS M q1 - LS M q2)"
-  and  p11: "(\<forall> p . (path A (initial A) p \<and> target p (initial A) = t2) \<longrightarrow> p_io p \<in> LS M q2 - LS M q1)"
-  and  p12: "(\<forall> p . (path A (initial A) p \<and> target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2) \<longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2)"
+  and  p10: "(\<forall> p . (path A (initial A) p \<and> target (initial A) p = t1) \<longrightarrow> p_io p \<in> LS M q1 - LS M q2)"
+  and  p11: "(\<forall> p . (path A (initial A) p \<and> target (initial A) p = t2) \<longrightarrow> p_io p \<in> LS M q2 - LS M q1)"
+  and  p12: "(\<forall> p . (path A (initial A) p \<and> target (initial A) p \<noteq> t1 \<and> target (initial A) p \<noteq> t2) \<longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2)"
   and  p13: "q1 \<noteq> q2"
   and  p14: "t1 \<noteq> t2"
   and  p15: "(inputs A) \<subseteq> (inputs M)"
@@ -7108,9 +7047,9 @@ proof -
   show "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q1 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)" using p09 language_prefix[of _ _ A "initial A"] by blast
   show "\<And> io x yq yt . io@[(x,yq)] \<in> LS M q2 \<Longrightarrow> io@[(x,yt)] \<in> L A \<Longrightarrow> (io@[(x,yq)] \<in> L A)" using p09 language_prefix[of _ _ A "initial A"] by blast
   show "\<And> t . t \<in> nodes A \<Longrightarrow> t \<noteq> t1 \<Longrightarrow> t \<noteq> t2 \<Longrightarrow> \<not> deadlock_state A t" using p08 by blast
-  show "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" using p10 by blast
-  show "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" using p11 by blast
-  show "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" using p12 by blast
+  show "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" using p10 by blast
+  show "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" using p11 by blast
+  show "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p \<noteq> t1 \<Longrightarrow> target (initial A) p \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" using p12 by blast
   show "q1 \<noteq> q2" using p13 by assumption
   show "t1 \<noteq> t2" using p14 by assumption
   show "(inputs A) \<subseteq> (inputs M)" using p15 by assumption
@@ -7120,23 +7059,23 @@ qed
 end (* lemma separator_path_targets :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "path A (initial A) p"
-shows "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target p (initial A) = t1"
-and   "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target p (initial A) = t2"
-and   "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> (target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2)"
+shows "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target (initial A) p = t1"
+and   "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target (initial A) p = t2"
+and   "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> (target (initial A) p \<noteq> t1 \<and> target (initial A) p \<noteq> t2)"
 and   "p_io p \<in> LS M q1 \<union> LS M q2"
 proof -
-  have pt1: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" 
-  and  pt2: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" 
-  and  pt3: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" 
+  have pt1: "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" 
+  and  pt2: "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" 
+  and  pt3: "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p \<noteq> t1 \<Longrightarrow> target (initial A) p \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" 
   and  "t1 \<noteq> t2"
   and  "observable A"
     using is_separator_simps[OF assms(1)] by blast+
 
-  show "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target p (initial A) = t1"
+  show "p_io p \<in> LS M q1 - LS M q2 \<Longrightarrow> target (initial A) p = t1"
     using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
-  show "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target p (initial A) = t2"
+  show "p_io p \<in> LS M q2 - LS M q1 \<Longrightarrow> target (initial A) p = t2"
     using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
-  show "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> (target p (initial A) \<noteq> t1 \<and> target p (initial A) \<noteq> t2)"
+  show "p_io p \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> (target (initial A) p \<noteq> t1 \<and> target (initial A) p \<noteq> t2)"
     using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
   show "p_io p \<in> LS M q1 \<union> LS M q2"
     using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close> by blast
@@ -7155,9 +7094,9 @@ proof -
   obtain p where "path A (initial A) p" and "p_io p = io"
     using \<open>io \<in> L A\<close>  by auto
 
-  have pt1: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" 
-  and  pt2: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" 
-  and  pt3: "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> t1 \<Longrightarrow> target p (initial A) \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" 
+  have pt1: "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2" 
+  and  pt2: "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1" 
+  and  pt3: "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p \<noteq> t1 \<Longrightarrow> target (initial A) p \<noteq> t2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2" 
   and  "t1 \<noteq> t2"
   and  "observable A"
     using is_separator_simps[OF assms(1)] by blast+
@@ -7170,7 +7109,7 @@ proof -
     
     then have "p_io p \<in> LS M q1 - LS M q2"
       using \<open>p_io p = io\<close> by auto
-    then have "target p (initial A) = t1"
+    then have "target (initial A) p = t1"
       using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close>
       by blast 
     then have "t1 \<in> io_targets A io (initial A)"
@@ -7186,7 +7125,7 @@ proof -
     
     then have "p_io p \<in> LS M q2 - LS M q1"
       using \<open>p_io p = io\<close> by auto
-    then have "target p (initial A) = t2"
+    then have "target (initial A) p = t2"
       using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close>
       by blast 
     then have "t2 \<in> io_targets A io (initial A)"
@@ -7202,10 +7141,10 @@ proof -
     
     then have "p_io p \<in> LS M q1 \<inter> LS M q2"
       using \<open>p_io p = io\<close> by auto
-    then have "target p (initial A) \<noteq> t1" and "target p (initial A) \<noteq> t2"
+    then have "target (initial A) p \<noteq> t1" and "target (initial A) p \<noteq> t2"
       using pt1[OF \<open>path A (initial A) p\<close>] pt2[OF \<open>path A (initial A) p\<close>] pt3[OF \<open>path A (initial A) p\<close>] \<open>t1 \<noteq> t2\<close>
       by blast+ 
-    moreover have "target p (initial A) \<in> io_targets A io (initial A)"
+    moreover have "target (initial A) p \<in> io_targets A io (initial A)"
       using \<open>path A (initial A) p\<close> \<open>p_io p = io\<close> unfolding io_targets.simps by force
     ultimately show "io_targets A io (initial A) \<inter> {t1,t2} = {}"
       using observable_io_targets[OF \<open>observable A\<close> \<open>io \<in> L A\<close>]
@@ -7406,7 +7345,7 @@ proof -
   proof -
     assume "io \<in> LS M q1 - LS M q2"
 
-    have "target p (initial A) = Inr q1"
+    have "target (initial A) p = Inr q1"
     using submachine_path_initial[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)] \<open>path A (initial A) p\<close>] 
           canonical_separator_language_target(1)[OF \<open>io \<in> L ?C\<close> assms(3,4,5) \<open>io \<in> LS M q1 - LS M q2\<close>] 
           \<open>p_io p = io\<close>
@@ -7423,7 +7362,7 @@ proof -
   proof -
     assume "io \<in> LS M q2 - LS M q1"
 
-    have "target p (initial A) = Inr q2"
+    have "target (initial A) p = Inr q2"
     using submachine_path_initial[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)] \<open>path A (initial A) p\<close>] 
           canonical_separator_language_target(2)[OF \<open>io \<in> L ?C\<close> assms(3,4,5) \<open>io \<in> LS M q2 - LS M q1\<close>] 
           \<open>p_io p = io\<close>
@@ -7446,7 +7385,7 @@ proof -
     have"\<And> q . q \<in> io_targets A io (initial A) \<Longrightarrow> q \<notin> {Inr q1, Inr q2}"
     proof -
       fix q assume "q \<in> io_targets A io (initial A)"
-      then obtain p where "q = target p (initial A)" and "path A (initial A) p" and "p_io p = io"
+      then obtain p where "q = target (initial A) p" and "path A (initial A) p" and "p_io p = io"
         by auto
       then have "path ?C (initial ?C) p"
         using submachine_path_initial[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)]] by auto
@@ -7454,7 +7393,7 @@ proof -
         using canonical_separator_path_targets_language(4)[OF _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> ]
         using \<open>p_io p = io\<close> \<open>io \<in> LS M q1 \<inter> LS M q2\<close> by auto
       then show "q \<notin> {Inr q1, Inr q2}"
-        using \<open>q = target p (initial A)\<close> 
+        using \<open>q = target (initial A) p\<close> 
         unfolding state_separator_from_canonical_separator_initial[OF assms(1)]
         unfolding canonical_separator_simps product_simps from_FSM_simps by auto
     qed
@@ -7669,7 +7608,7 @@ proof -
           using scheme[of _ _ "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q1))", OF *]
           unfolding fst_conv snd_conv \<open>t_input t1 = x\<close> \<open>t_output t1 = yq\<close> by assumption
         then have "(Inl (target q1 p1, target q2 p2), x, yq, Inr q1) \<in> transitions ?C"
-          using canonical_separator_distinguishing_transitions_left_h by metis
+          using canonical_separator_distinguishing_transitions_left_containment by metis
 
         let ?pP = "zip_path p1 p2"
         let ?pC = "map shift_Inl ?pP"
@@ -7839,7 +7778,7 @@ proof -
           using scheme[of _ _ "(\<lambda>qqt. (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr q2))", OF *]
           unfolding fst_conv snd_conv \<open>t_input t2 = x\<close> \<open>t_output t2 = yq\<close> by assumption
         then have "?tA \<in> transitions ?C"
-          using canonical_separator_distinguishing_transitions_right_h by metis
+          using canonical_separator_distinguishing_transitions_right_containment by metis
 
         let ?pP = "zip_path p1 p2"
         let ?pC = "map shift_Inl ?pP"
@@ -7902,19 +7841,19 @@ proof -
       by blast 
   qed
 
-  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = Inr q1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2"
+  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = Inr q1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2"
     using canonical_separator_maximal_path_distinguishes_left[OF assms(1) _ _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>q1 \<noteq> q2\<close>] by blast
-  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) = Inr q2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1"
+  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p = Inr q2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1"
     using canonical_separator_maximal_path_distinguishes_right[OF assms(1) _ _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>q1 \<noteq> q2\<close>] by blast
-  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target p (initial A) \<noteq> Inr q1 \<Longrightarrow> target p (initial A) \<noteq> Inr q2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
+  moreover have "\<And> p . path A (initial A) p \<Longrightarrow> target (initial A) p \<noteq> Inr q1 \<Longrightarrow> target (initial A) p \<noteq> Inr q2 \<Longrightarrow> p_io p \<in> LS M q1 \<inter> LS M q2"
   proof -
-    fix p assume "path A (initial A) p" and "target p (initial A) \<noteq> Inr q1" and "target p (initial A) \<noteq> Inr q2"
+    fix p assume "path A (initial A) p" and "target (initial A) p \<noteq> Inr q1" and "target (initial A) p \<noteq> Inr q2"
 
     have "path ?C (initial ?C) p"
       using submachine_path_initial[OF is_state_separator_from_canonical_separator_simps(1)[OF assms(1)] \<open>path A (initial A) p\<close>] by assumption
 
     have "target (initial ?C) p \<noteq> Inr q1" and "target (initial ?C) p \<noteq> Inr q2"
-      using \<open>target p (initial A) \<noteq> Inr q1\<close> \<open>target p (initial A) \<noteq> Inr q2\<close>
+      using \<open>target (initial A) p \<noteq> Inr q1\<close> \<open>target (initial A) p \<noteq> Inr q2\<close>
       unfolding is_state_separator_from_canonical_separator_initial[OF assms(1)] canonical_separator_initial by blast+
 
     then have "isl (target (initial ?C) p)"
