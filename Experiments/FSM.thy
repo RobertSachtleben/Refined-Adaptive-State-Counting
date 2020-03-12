@@ -2873,4 +2873,34 @@ proof
     by (metis (no_types, lifting) assms mem_Collect_eq reachable_node_is_node restrict_to_reachable_nodes_simps(5) subsetI transition_subset_path)
 qed
 
+
+
+
+subsection \<open>Adding Transitions\<close>
+
+lift_definition create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Rightarrow> 'c set \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.create_unconnected_fsm by (transfer; simp)
+
+lemma create_unconnected_fsm_simps :
+  assumes "finite ns" and "finite ins" and "finite outs" and "q \<in> ns"
+  shows "initial (create_unconnected_fsm q ns ins outs) = q"
+        "nodes (create_unconnected_fsm q ns ins outs)   = ns"
+        "inputs (create_unconnected_fsm q ns ins outs)  = ins"
+        "outputs (create_unconnected_fsm q ns ins outs) = outs"
+        "transitions (create_unconnected_fsm q ns ins outs) = {}"
+  using assms by (transfer; auto)+
+
+
+lift_definition add_transitions :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.add_transitions by (transfer; auto)
+
+lemma add_transitions_simps :
+  assumes "finite ts" and "\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M"
+  shows "initial (add_transitions M ts) = initial M"
+        "nodes (add_transitions M ts)   = nodes M"
+        "inputs (add_transitions M ts)  = inputs M"
+        "outputs (add_transitions M ts) = outputs M"
+        "transitions (add_transitions M ts) = transitions M \<union> ts"
+  using assms by (transfer; auto)+
+
+
+
 end

@@ -154,5 +154,19 @@ fun canonical_separator' :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'a)
   else \<lparr> initial = Inl (q1,q2), nodes = {Inl (q1,q2)}, inputs = {}, outputs = {}, transitions = {}\<rparr>)"
 
 
+subsection \<open>Adding Transitions\<close>
+
+fun create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Rightarrow> 'c set \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "create_unconnected_fsm q ns ins outs = (if (finite ns \<and> finite ins \<and> finite outs)
+    then \<lparr> initial = q, nodes = insert q ns, inputs = ins, outputs = outs, transitions = {} \<rparr>
+    else \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>)"
+
+fun add_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "add_transitions M ts = (if finite ts \<and> (\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M)
+    then  M\<lparr> transitions := transitions M \<union> ts\<rparr>
+    else M)"
+
+
+
 
 end

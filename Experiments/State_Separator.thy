@@ -2393,14 +2393,10 @@ qed
 
 subsection \<open>Calculating State Separators\<close>
 
-
-
-
-
 subsection \<open>Sufficient Condition to Induce a State Separator\<close>
 
 
-definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> bool" where
+definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> bool" where
   "induces_state_separator M S = (
     
     is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
@@ -2411,7 +2407,7 @@ definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times>
 )"
 
 (* restriction to a given product machine *)
-definition induces_state_separator_for_prod :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> bool" where
+definition induces_state_separator_for_prod :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> bool" where
   "induces_state_separator_for_prod M q1 q2 S = (
     is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
     \<and> single_input S
@@ -2420,7 +2416,7 @@ definition induces_state_separator_for_prod :: "('a,'b,'c) fsm \<Rightarrow> 'a 
     \<and> retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) S
 )"
 
-definition choose_state_separator_deadlock_input :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> ('a \<times> 'a) \<Rightarrow> Input option" where
+definition choose_state_separator_deadlock_input :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> ('a \<times> 'a) \<Rightarrow> 'b option" where
   "choose_state_separator_deadlock_input M S qq = (if (qq \<in> nodes S \<and> deadlock_state S qq) 
     then (find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M))
     else None)"
@@ -2428,7 +2424,7 @@ definition choose_state_separator_deadlock_input :: "('a,'b,'c) fsm \<Rightarrow
 
 
 
-definition state_separator_from_product_submachine :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a) FSM \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
+definition state_separator_from_product_submachine :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
   "state_separator_from_product_submachine M S =
     \<lparr> initial = Inl (initial S),
       inputs = inputs M,
@@ -4169,7 +4165,7 @@ subsection \<open>Calculating a State Separator by Reachability Analysis\<close>
 *)
   
  
-fun s_states :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a \<times> Input) list" where
+fun s_states :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list" where
   "s_states C 0 = []" |
   "s_states C (Suc k) =  
     (if length (s_states C k) < k 
@@ -4180,7 +4176,7 @@ fun s_states :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a \<times> Inp
             of Some qx \<Rightarrow> (s_states C k)@[qx] | 
                None \<Rightarrow> (s_states C k)))"
 
-fun s_states' :: "('a \<times> Input) list \<Rightarrow> 'a Transition set \<Rightarrow> nat \<Rightarrow> ('a \<times> Input) list" where
+fun s_states' :: "('a \<times> 'b) list \<Rightarrow> 'a Transition set \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list" where
   "s_states' QX H 0 = []" |
   "s_states' QX H (Suc k) = (let Q = s_states' QX H k in 
     (if length Q < k 
@@ -4190,7 +4186,7 @@ fun s_states' :: "('a \<times> Input) list \<Rightarrow> 'a Transition set \<Rig
                None \<Rightarrow> Q)))"
 
 (* Slightly more efficient formulation of s_states, avoids some repeated calculations *)
-fun s_states_opt :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a \<times> Input) list" where
+fun s_states_opt :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a \<times> 'b) list" where
   "s_states_opt C k = s_states' (concat (map (\<lambda> q . map (\<lambda> x . (q,x)) (inputs C)) (nodes_from_distinct_paths C))) (h C) k"
 
 
@@ -5840,9 +5836,9 @@ next
     proof -
       have f1: "\<forall>n. n \<le> Suc n"
         using Suc_leD by blast
-      then have f2: "\<forall>f. s_states (f::('a \<times> 'a) FSM) (Suc (Suc (FSM.size f))) = s_states f (FSM.size f)"
+      then have f2: "\<forall>f. s_states (f::('a \<times> 'a, 'b, 'c) fsm) (Suc (Suc (FSM.size f))) = s_states f (FSM.size f)"
         by (meson Suc_leD s_states_max_iterations)
-      have "\<forall>f. length (s_states (f::('a \<times> 'a) FSM) (FSM.size f)) \<le> Suc (FSM.size f)"
+      have "\<forall>f. length (s_states (f::('a \<times> 'a, 'b, 'c) fsm) (FSM.size f)) \<le> Suc (FSM.size f)"
         using f1 by (metis (no_types) s_states_length s_states_max_iterations)
       then show ?thesis
         using f2 f1 by (metis (no_types) Suc_le_mono \<open>s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t))))) = s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (length (s_states (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))) (FSM.size (product (from_FSM M (fst (t_source t))) (from_FSM M (snd (t_source t)))))))\<close> s_states_prefix take_all)
