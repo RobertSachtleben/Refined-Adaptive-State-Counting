@@ -2890,17 +2890,35 @@ lemma create_unconnected_fsm_simps :
   using assms by (transfer; auto)+
 
 
-lift_definition add_transitions :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.add_transitions by (transfer; auto)
+lift_definition add_transitions :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.add_transitions 
+proof -
+  fix M  :: "('a,'b,'c) fsm_impl"
+  fix ts :: "('a \<times> 'b \<times> 'c \<times> 'a) set"
+  assume *: "well_formed_fsm M"
+
+  then show "well_formed_fsm (FSM_Impl.add_transitions M ts)" 
+  proof (cases "\<forall> t \<in> ts . t_source t \<in> FSM_Impl.nodes M \<and> t_input t \<in> FSM_Impl.inputs M \<and> t_output t \<in> FSM_Impl.outputs M \<and> t_target t \<in> FSM_Impl.nodes M")
+    case True
+    then have "ts \<subseteq> FSM_Impl.nodes M \<times> FSM_Impl.inputs M \<times> FSM_Impl.outputs M \<times> FSM_Impl.nodes M" by fastforce
+    moreover have "finite (FSM_Impl.nodes M \<times> FSM_Impl.inputs M \<times> FSM_Impl.outputs M \<times> FSM_Impl.nodes M)" using * by blast
+    ultimately have "finite ts"
+      using rev_finite_subset by auto 
+    then show ?thesis using * by auto
+  next
+    case False
+    then show ?thesis using * by auto
+  qed
+qed
+
 
 lemma add_transitions_simps :
-  assumes "finite ts" and "\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M"
+  assumes "\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M"
   shows "initial (add_transitions M ts) = initial M"
         "nodes (add_transitions M ts)   = nodes M"
         "inputs (add_transitions M ts)  = inputs M"
         "outputs (add_transitions M ts) = outputs M"
         "transitions (add_transitions M ts) = transitions M \<union> ts"
   using assms by (transfer; auto)+
-
 
 
 end

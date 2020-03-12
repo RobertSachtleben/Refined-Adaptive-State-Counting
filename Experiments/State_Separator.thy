@@ -2396,6 +2396,39 @@ subsection \<open>Calculating State Separators\<close>
 subsection \<open>Sufficient Condition to Induce a State Separator\<close>
 
 
+definition state_separator_from_input_choices :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm \<Rightarrow>  (('a \<times> 'a) \<times> 'b) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
+  "state_separator_from_input_choices M CSep cs = 
+    (let css  = set cs;
+         cssL = image (\<lambda> qqx . (Inl (fst qqx), snd qqx)) css;
+         S0   = filter_transitions CSep (\<lambda> t . (t_source t, t_input t) \<in> cssL);
+         S    = add_transitions S0 (\<Union> (image (\<lambda>((q1,q2),x) . (image (\<lambda> y . (Inl (q1,q2),x,y,Inr q1)) (h_out M (q1,x) - h_out M (q2,x)))
+                                                               \<union>(image (\<lambda> y . (Inl (q1,q2),x,y,Inr q2)) (h_out M (q2,x) - h_out M (q1,x)))) css)) 
+    in S)"
+
+
+
+value "canonical_separator m_ex_H 1 3"
+value "state_separator_from_input_choices m_ex_H (canonical_separator m_ex_H 1 3) [((1,1),0)]"
+
+(*
+definition state_separator_from_product_input_choices :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow>  (('a \<times> 'a) \<times> 'b) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
+  "state_separator_from_product_input_choices M P cs = 
+    (let css = set cs;
+         S0  = create_unconnected_fsm (Inl (initial P)) (image Inl (nodes P) \<union> {Inr (fst (initial P)), Inr (snd (initial P))}) (inputs M) (outputs M);
+         S   = add_transitions S0 ((image shift_Inl (Set.filter (\<lambda> t . (t_source t, t_input t) \<in> css) (transitions P)))
+                                   \<union> (\<Union> (image (\<lambda>((q1,q2),x) . (image (\<lambda> y . (Inl (q1,q2),x,y,Inr q1)) (h_out M (q1,x) - h_out M (q2,x)))
+                                                                \<union>(image (\<lambda> y . (Inl (q1,q2),x,y,Inr q2)) (h_out M (q2,x) - h_out M (q1,x)))) css)))
+    in S)" 
+*)
+
+end (*
+
+(* a list of input choices for state-pairs can induce a state_separator *)
+definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a) \<times> 'b) list \<Rightarrow> bool" where
+  
+
+end (*
+
 definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> bool" where
   "induces_state_separator M S = (
     

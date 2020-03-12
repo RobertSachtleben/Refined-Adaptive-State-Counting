@@ -162,7 +162,7 @@ fun create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Ri
     else \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>)"
 
 fun add_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm_impl" where
-  "add_transitions M ts = (if finite ts \<and> (\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M)
+  "add_transitions M ts = (if (\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M)
     then  M\<lparr> transitions := transitions M \<union> ts\<rparr>
     else M)"
 
