@@ -2396,19 +2396,99 @@ subsection \<open>Calculating State Separators\<close>
 subsection \<open>Sufficient Condition to Induce a State Separator\<close>
 
 
-definition state_separator_from_input_choices :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm \<Rightarrow>  (('a \<times> 'a) \<times> 'b) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
-  "state_separator_from_input_choices M CSep cs = 
+definition state_separator_from_input_choices :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a) + 'a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) \<times> 'b) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
+  "state_separator_from_input_choices M CSep q1 q2 cs = 
     (let css  = set cs;
          cssL = image (\<lambda> qqx . (Inl (fst qqx), snd qqx)) css;
          S0   = filter_transitions CSep (\<lambda> t . (t_source t, t_input t) \<in> cssL);
-         S    = add_transitions S0 (\<Union> (image (\<lambda>((q1,q2),x) . (image (\<lambda> y . (Inl (q1,q2),x,y,Inr q1)) (h_out M (q1,x) - h_out M (q2,x)))
-                                                               \<union>(image (\<lambda> y . (Inl (q1,q2),x,y,Inr q2)) (h_out M (q2,x) - h_out M (q1,x)))) css)) 
+         S    = add_transitions S0 (\<Union> (image (\<lambda>((q1',q2'),x) . (image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q1)) (h_out M (q1',x) - h_out M (q2',x)))
+                                                               \<union>(image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q2)) (h_out M (q2',x) - h_out M (q1',x)))) css)) 
     in S)"
 
 
 
 value "canonical_separator m_ex_H 1 3"
-value "state_separator_from_input_choices m_ex_H (canonical_separator m_ex_H 1 3) [((1,1),0)]"
+value "state_separator_from_input_choices m_ex_H (canonical_separator m_ex_H 1 3) 1 3 [((1,3),0)]"
+
+
+lemma state_separator_from_input_choices_simps :      
+  assumes "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+shows
+  "initial (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = Inl (q1,q2)"
+  "nodes (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = (image Inl (reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) \<union> {Inr q1, Inr q2}"
+  "inputs (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = inputs M"
+  "outputs (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = outputs M"
+  "transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = 
+    {t \<in> (transitions (canonical_separator M q1 q2)) . \<exists> ((q1',q2'),x) \<in> set cs . t_source t = Inl (q1',q2') \<and> t_input t = x}
+    \<union> {(Inl (q1',q2'),x,y,Inr q1) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q1',x) - h_out M (q2',x)) }
+    \<union> {(Inl (q1',q2'),x,y,Inr q2) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q2',x) - h_out M (q1',x)) }"
+proof -
+  let ?SS = "(state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+  let ?ts = "(\<Union> (image (\<lambda>((q1',q2'),x) . (image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q1)) (h_out M (q1',x) - h_out M (q2',x)))
+                                                               \<union>(image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q2)) (h_out M (q2',x) - h_out M (q1',x)))) (set cs)))"
+
+  let ?S0 = "filter_transitions (canonical_separator M q1 q2) (\<lambda> t . (t_source t, t_input t) \<in> (image (\<lambda> qqx . (Inl (fst qqx), snd qqx)) (set cs)))"
+
+
+  have "\<forall> t \<in> ?ts . t_source t \<in> nodes ?S0"
+    using assms(3) unfolding filter_transitions_simps canonical_separator_simps[OF assms(1,2)] by fastforce
+  moreover have "\<forall> t \<in> ?ts . t_input t \<in> inputs ?S0"
+    using assms(3) unfolding filter_transitions_simps canonical_separator_simps[OF assms(1,2)] by fastforce
+  moreover have "\<forall> t \<in> ?ts . t_output t \<in> outputs ?S0"
+    using assms(3) unfolding filter_transitions_simps canonical_separator_simps[OF assms(1,2)] unfolding h_out.simps using fsm_transition_output by fastforce
+  moreover have "\<forall> t \<in> ?ts . t_target t \<in> nodes ?S0"
+    using assms(3) unfolding filter_transitions_simps canonical_separator_simps[OF assms(1,2)] by fastforce
+  ultimately have *: "\<forall> t \<in> ?ts . t_source t \<in> nodes ?S0 \<and> t_input t \<in> inputs ?S0\<and> t_output t \<in> outputs ?S0 \<and> t_target t \<in> nodes ?S0"
+    by blast
+    
+
+
+  show "initial (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = Inl (q1,q2)"
+       "nodes (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = (image Inl (reachable_nodes (product (from_FSM M q1) (from_FSM M q2)))) \<union> {Inr q1, Inr q2}"
+       "inputs (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = inputs M"
+       "outputs (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = outputs M"
+    unfolding canonical_separator_simps[OF assms(1,2)] filter_transitions_simps state_separator_from_input_choices_def Let_def add_transitions_simps[OF *] by simp+
+
+  have scheme: "\<And> f1 f2 xs . (\<Union> (image (\<lambda> ((q1,q2),x) . (f1 q1 q2 x) \<union> (f2 q1 q2 x)) xs)) = ((\<Union> (image (\<lambda> ((q1,q2),x) . (f1 q1 q2 x)) xs)) \<union> (\<Union> (image (\<lambda> ((q1,q2),x) . (f2 q1 q2 x)) xs)))"
+    by fastforce
+  have **: "?ts = (\<Union> (image (\<lambda>((q1',q2'),x) . (image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q1)) (h_out M (q1',x) - h_out M (q2',x)))) (set cs)))
+                    \<union> (\<Union> (image (\<lambda>((q1',q2'),x) . (image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q2)) (h_out M (q2',x) - h_out M (q1',x)))) (set cs)))"
+    unfolding scheme by simp
+
+  have ***: "{t \<in> FSM.transitions (canonical_separator M q1 q2). (t_source t, t_input t) \<in> (\<lambda>qqx. (Inl (fst qqx), snd qqx)) ` set cs}
+        = {t \<in> (transitions (canonical_separator M q1 q2)) . \<exists> ((q1',q2'),x) \<in> set cs . t_source t = Inl (q1',q2') \<and> t_input t = x}"
+    by force
+
+  have ****: "(\<Union> (image (\<lambda>((q1',q2'),x) . (image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q1)) (h_out M (q1',x) - h_out M (q2',x)))) (set cs)))
+              = {(Inl (q1',q2'),x,y,Inr q1) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q1',x) - h_out M (q2',x)) }"
+    by force
+  have *****: "(\<Union> (image (\<lambda>((q1',q2'),x) . (image (\<lambda> y . (Inl (q1',q2'),x,y,Inr q2)) (h_out M (q2',x) - h_out M (q1',x)))) (set cs)))
+              = {(Inl (q1',q2'),x,y,Inr q2) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q2',x) - h_out M (q1',x)) }"
+    by force
+  
+
+  show "transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) = 
+          {t \<in> (transitions (canonical_separator M q1 q2)) . \<exists> ((q1',q2'),x) \<in> set cs . t_source t = Inl (q1',q2') \<and> t_input t = x}
+          \<union> {(Inl (q1',q2'),x,y,Inr q1) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q1',x) - h_out M (q2',x)) }
+          \<union> {(Inl (q1',q2'),x,y,Inr q2) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q2',x) - h_out M (q1',x)) }"
+    unfolding canonical_separator_simps(1,2,3,4)[OF assms(1,2)] filter_transitions_simps state_separator_from_input_choices_def Let_def add_transitions_simps[OF *] 
+    unfolding ** *** **** ***** by blast
+qed
+
+
+end (*
+
+lemma filter_transitions_submachine :
+  "is_submachine (filter_transitions M P) M" 
+  unfolding filter_transitions_simps by fastforce
+
+lemma single_input_from_input_choices :
+  assumes "distinct (map fst cs)"
+  shows "single_input (state_separator_from_input_choices M CSep cs)"
+  
+
 
 (*
 definition state_separator_from_product_input_choices :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow>  (('a \<times> 'a) \<times> 'b) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
@@ -2425,7 +2505,14 @@ end (*
 
 (* a list of input choices for state-pairs can induce a state_separator *)
 definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a) \<times> 'b) list \<Rightarrow> bool" where
-  
+   "induces_state_separator M cs = (
+    
+    (* submachine is trivial *)
+    \<and> single_input S
+    \<and> acyclic S
+    \<and> (\<forall> qq \<in> nodes S . deadlock_state S qq \<longrightarrow> (\<exists> x \<in> (inputs M) . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) )
+    \<and> retains_outputs_for_states_and_inputs (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))) S
+)" 
 
 end (*
 

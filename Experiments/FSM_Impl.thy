@@ -161,10 +161,16 @@ fun create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Ri
     then \<lparr> initial = q, nodes = insert q ns, inputs = ins, outputs = outs, transitions = {} \<rparr>
     else \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>)"
 
+
 fun add_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm_impl" where
   "add_transitions M ts = (if (\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M)
     then  M\<lparr> transitions := transitions M \<union> ts\<rparr>
     else M)"
+
+(*
+fun add_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "add_transitions M ts = M\<lparr> transitions := transitions M \<union> (Set.filter (\<lambda> t . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M) ts)\<rparr>"
+  *)  
 
 
 
