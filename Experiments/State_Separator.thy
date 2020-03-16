@@ -2734,29 +2734,6 @@ qed
 
 
 lemma from_input_choices_acyclic_paths :
-  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
-  assumes "path (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M k q))) q' p"
-          (is "path ?FM q' p")
-shows "distinct (visited_nodes q' p)"
-proof (rule ccontr)
-  assume "\<not> distinct (visited_nodes q' p)"
-  
-  obtain i j where p1:"take j (drop i p) \<noteq> []"
-               and p2:"target (target q' (take i p)) (take j (drop i p)) = (target q' (take i p))"
-               and p3:"path ?FM (target q' (take i p)) (take j (drop i p))"
-    using cycle_from_cyclic_path[OF assms \<open>\<not> distinct (visited_nodes q' p)\<close>] by blast
-  
-  show "False"
-    using d_states_acyclic_paths'[OF p3 p2 p1] by assumption
-qed
-
-
-
-end (*
-  
-
-
-lemma from_input_choices_distinct_path :
   assumes "distinct (map fst cs)"
       and "q1 \<in> nodes M" 
       and "q2 \<in> nodes M"
@@ -2766,43 +2743,19 @@ lemma from_input_choices_distinct_path :
                     \<Longrightarrow> t_source t = Inl (fst (cs ! i))
                     \<Longrightarrow> t_input  t = snd (cs ! i)
                     \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
-      and "path (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) q p"
-    shows "distinct (visited_nodes q p)"
-proof -
+      and "path (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) q' p"
+shows "distinct (visited_nodes q' p)"
+proof (rule ccontr)
+  assume "\<not> distinct (visited_nodes q' p)"
   
-  have "\<And> i . i < length p \<Longrightarrow> t_target (p ! i) \<notin> set (map t_target (drop (Suc i) p))"
-
-proof (cases p)
-
-
-    case Nil
-    then show ?thesis by auto
-  next
-    case (Cons t p')
-    then have *: "\<And> i . (Suc i) < length (t#p') \<Longrightarrow> t_source ((t#p') ! (Suc i)) = t_target ((t#p') ! i)"
-      using assms(6) by (simp add: path_source_target_index) 
-    
-    have "set (t#p') \<subseteq> (transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs))"
-      using Cons assms(6)
-      by (meson path_transitions)
-    then have **: "set (t#p') \<subseteq> set (filter 
-                             (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
-                        (wf_transitions (product (from_FSM M q1) (from_FSM M q2))))"
-      by simp
+  obtain i j where p1:"take j (drop i p) \<noteq> []"
+               and p2:"target (target q' (take i p)) (take j (drop i p)) = (target q' (take i p))"
+               and p3:"path (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) (target q' (take i p)) (take j (drop i p))"
+    using cycle_from_cyclic_path[OF assms(6) \<open>\<not> distinct (visited_nodes q' p)\<close>] by blast
   
-    have "distinct (t_source t # map t_target (t # p'))"
-      using s_states_induces_state_separator_helper_distinct_pathlikes[OF * **]
-      by auto
-    moreover have "visited_states q p = (t_source t # map t_target (t # p'))"
-      using Cons assms(1) unfolding visited_states.simps target.simps
-      by blast 
-    ultimately show "distinct (visited_states q p)"
-      by auto
-    qed
-
-
-end (*
-
+  show "False"
+    using from_input_choices_acyclic_paths'[OF assms(1,2,3,4,5) p3 p2 p1] by blast
+qed
 
 
 lemma acyclic_from_input_choices :
@@ -2816,8 +2769,9 @@ lemma acyclic_from_input_choices :
                     \<Longrightarrow> t_input  t = snd (cs ! i)
                     \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
     shows "acyclic (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+  unfolding acyclic.simps using from_input_choices_acyclic_paths[OF assms] by blast
 
-  
+
 
 
 (*
