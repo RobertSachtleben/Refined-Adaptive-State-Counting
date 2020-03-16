@@ -2068,6 +2068,43 @@ next
 qed
 
 
+
+
+subsection \<open>Assorted Other Lemmata\<close>
+
+(* TODO: rename, move *)
+lemma list_index_fun_gt : "\<And> xs (f::'a \<Rightarrow> nat) i j . (\<And> i . Suc i < length xs \<Longrightarrow> f (xs ! i) > f (xs ! (Suc i))) \<Longrightarrow> j < i \<Longrightarrow> i < length xs \<Longrightarrow> f (xs ! j) > f (xs ! i)"
+proof -
+  fix xs::"'a list" 
+  fix f::"'a \<Rightarrow> nat" 
+  fix i j 
+  assume "(\<And> i . Suc i < length xs \<Longrightarrow> f (xs ! i) > f (xs ! (Suc i)))"
+     and "j < i"
+     and "i < length xs"
+  then show "f (xs ! j) > f (xs ! i)"
+  proof (induction "i - j" arbitrary: i j)
+    case 0
+    then show ?case by auto
+  next
+    case (Suc x)
+    then show ?case
+    proof -
+      have f1: "\<forall>n. \<not> Suc n < length xs \<or> f (xs ! Suc n) < f (xs ! n)"
+        using Suc.prems(1) by presburger
+      have f2: "\<forall>n na. \<not> n < na \<or> Suc n \<le> na"
+        using Suc_leI by satx
+      have "x = i - Suc j"
+        by (metis Suc.hyps(2) Suc.prems(2) Suc_diff_Suc nat.simps(1))
+      then have "\<not> Suc j < i \<or> f (xs ! i) < f (xs ! Suc j)"
+        using f1 Suc.hyps(1) Suc.prems(3) by blast
+      then show ?thesis
+        using f2 f1 by (metis Suc.prems(2) Suc.prems(3) leI le_less_trans not_less_iff_gr_or_eq)
+    qed 
+  qed
+qed
+
+
+
 (* TODO: continue if necessary *)
 (*
 subsection \<open>Transitive Closure\<close>
@@ -2106,7 +2143,13 @@ fun reachable_nodes_dfs :: "nat \<Rightarrow> ('a::linorder) set \<Rightarrow> (
              in reachable_nodes_dfs k nodesToHandle' f visitedNodes'))"
 
 value "reachable_nodes_dfs 10 {1::nat} ((\<lambda>x . {})(1:={2,3},2:={1,4},3:={2,4},4:={1,2})) {1}"
-                       
+
+
+
+
+
+
+
   
 
 end

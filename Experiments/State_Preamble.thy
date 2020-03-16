@@ -1130,36 +1130,7 @@ lemma d_states_q_noncontainment :
 
 
 
-(* TODO: rename, move *)
-lemma list_index_fun_gt : "\<And> xs (f::'a \<Rightarrow> nat) i j . (\<And> i . Suc i < length xs \<Longrightarrow> f (xs ! i) > f (xs ! (Suc i))) \<Longrightarrow> j < i \<Longrightarrow> i < length xs \<Longrightarrow> f (xs ! j) > f (xs ! i)"
-proof -
-  fix xs::"'a list" 
-  fix f::"'a \<Rightarrow> nat" 
-  fix i j 
-  assume "(\<And> i . Suc i < length xs \<Longrightarrow> f (xs ! i) > f (xs ! (Suc i)))"
-     and "j < i"
-     and "i < length xs"
-  then show "f (xs ! j) > f (xs ! i)"
-  proof (induction "i - j" arbitrary: i j)
-    case 0
-    then show ?case by auto
-  next
-    case (Suc x)
-    then show ?case
-    proof -
-      have f1: "\<forall>n. \<not> Suc n < length xs \<or> f (xs ! Suc n) < f (xs ! n)"
-        using Suc.prems(1) by presburger
-      have f2: "\<forall>n na. \<not> n < na \<or> Suc n \<le> na"
-        using Suc_leI by satx
-      have "x = i - Suc j"
-        by (metis Suc.hyps(2) Suc.prems(2) Suc_diff_Suc nat.simps(1))
-      then have "\<not> Suc j < i \<or> f (xs ! i) < f (xs ! Suc j)"
-        using f1 Suc.hyps(1) Suc.prems(3) by blast
-      then show ?thesis
-        using f2 f1 by (metis Suc.prems(2) Suc.prems(3) leI le_less_trans not_less_iff_gr_or_eq)
-    qed 
-  qed
-qed
+
 
 
 lemma d_states_acyclic_paths' :
@@ -1264,40 +1235,7 @@ qed
 
 
 
-(* TODO: move *)
-lemma cycle_from_cyclic_path :
-  assumes "path M q p"
-  and     "\<not> distinct (visited_nodes q p)"
-obtains i j where
-  "take j (drop i p) \<noteq> []"
-  "target (target q (take i p)) (take j (drop i p)) = (target q (take i p))"
-  "path M (target q (take i p)) (take j (drop i p))"
-proof -
-  obtain i j where "i < j" and "j < length (visited_nodes q p)" and "(visited_nodes q p) ! i = (visited_nodes q p) ! j"
-    using assms(2) non_distinct_repetition_indices by blast 
 
-  have "(target q (take i p)) = (visited_nodes q p) ! i"
-    using \<open>i < j\<close> \<open>j < length (visited_nodes q p)\<close>
-    by (metis less_trans take_last_index target.simps visited_nodes_take)
-
-  then have "(target q (take i p)) = (visited_nodes q p) ! j"
-    using \<open>(visited_nodes q p) ! i = (visited_nodes q p) ! j\<close> by auto
-
-  have p1: "take (j-i) (drop i p) \<noteq> []"
-    using \<open>i < j\<close> \<open>j < length (visited_nodes q p)\<close> by auto 
-
-  have "target (target q (take i p)) (take (j-i) (drop i p)) = (target q (take j p))"
-    using \<open>i < j\<close> by (metis add_diff_inverse_nat less_asym' path_append_target take_add)
-  then have p2: "target (target q (take i p)) (take (j-i) (drop i p)) = (target q (take i p))"
-    using \<open>(target q (take i p)) = (visited_nodes q p) ! i\<close>
-    using \<open>(target q (take i p)) = (visited_nodes q p) ! j\<close>
-    by (metis \<open>j < length (visited_nodes q p)\<close> take_last_index target.simps visited_nodes_take)
-
-  have p3: "path M (target q (take i p)) (take (j-i) (drop i p))"
-    by (metis append_take_drop_id assms(1) path_append_elim)
-
-  show ?thesis using p1 p2 p3 that by blast
-qed
   
 
 

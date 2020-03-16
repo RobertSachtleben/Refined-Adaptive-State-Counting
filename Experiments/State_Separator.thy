@@ -2478,7 +2478,7 @@ proof -
 qed
 
 
-end (*
+
 
 lemma filter_transitions_submachine :
   "is_submachine (filter_transitions M P) M" 
@@ -2486,7 +2486,337 @@ lemma filter_transitions_submachine :
 
 lemma single_input_from_input_choices :
   assumes "distinct (map fst cs)"
-  shows "single_input (state_separator_from_input_choices M CSep cs)"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+    shows "single_input (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+proof -
+  have "\<And> t1 t2 . t1 \<in> FSM.transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) \<Longrightarrow>
+          t2 \<in> FSM.transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) \<Longrightarrow>
+             t_source t1 = t_source t2 \<Longrightarrow> t_input t1 = t_input t2"
+  proof -
+    fix t1 t2
+    assume "t1 \<in> FSM.transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+       and "t2 \<in> FSM.transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+       and "t_source t1 = t_source t2"
+
+    obtain q1' q2' where "((q1',q2'),t_input t1) \<in> set cs"
+                     and "t_source t1 = Inl (q1',q2')"
+      using \<open>t1 \<in> FSM.transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)\<close>
+      using state_separator_from_input_choices_simps(5)[OF assms(2,3,4)] by fastforce
+
+    obtain q1'' q2'' where "((q1'',q2''),t_input t2) \<in> set cs"
+                     and "t_source t2 = Inl (q1'',q2'')"
+      using \<open>t2 \<in> FSM.transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)\<close>
+      using state_separator_from_input_choices_simps(5)[OF assms(2,3,4)] by fastforce
+
+    have "((q1',q2'),t_input t2) \<in> set cs"
+      using \<open>((q1'',q2''),t_input t2) \<in> set cs\<close> \<open>t_source t1 = Inl (q1',q2')\<close> \<open>t_source t2 = Inl (q1'',q2'')\<close> \<open>t_source t1 = t_source t2\<close> 
+      by simp
+    then show "t_input t1 = t_input t2"
+      using \<open>((q1',q2'),t_input t1) \<in> set cs\<close> \<open>distinct (map fst cs)\<close>
+      by (meson eq_key_imp_eq_value) 
+  qed
+  then show ?thesis
+    by fastforce
+qed
+
+
+
+lemma from_input_choices_no_self_loops :
+  assumes "distinct (map fst cs)"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+      and "\<And> i t . i < length cs 
+                    \<Longrightarrow> t \<in> transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) 
+                    \<Longrightarrow> t_source t = Inl (fst (cs ! i))
+                    \<Longrightarrow> t_input  t = snd (cs ! i)
+                    \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
+      and "t \<in> transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+  shows "t_source t \<noteq> t_target t"
+proof -
+  
+  consider (a) "t \<in> FSM.transitions (canonical_separator M q1 q2) \<and> (\<exists>((q1', q2'), x)\<in>set cs. t_source t = Inl (q1', q2') \<and> t_input t = x)" |
+           (b) "t \<in> {(Inl (q1', q2'), x, y, Inr q1) |q1' q2' x y. ((q1', q2'), x) \<in> set cs \<and> y \<in> h_out M (q1', x) - h_out M (q2', x)} \<union>
+                    {(Inl (q1', q2'), x, y, Inr q2) |q1' q2' x y. ((q1', q2'), x) \<in> set cs \<and> y \<in> h_out M (q2', x) - h_out M (q1', x)}"
+    using state_separator_from_input_choices_simps(5)[OF assms(2,3,4), of cs] assms(6) by blast
+  then show "t_source t \<noteq> t_target t" proof cases
+    case a
+    then obtain q1' q2' where "((q1',q2'),t_input t) \<in> set cs" and "t_source t = Inl (q1',q2')" by auto
+    then obtain i where "i < length cs"
+                    and "cs ! i = ((q1',q2'),t_input t)"
+      by (meson in_set_conv_nth) 
+    then have "t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
+      using assms(5) \<open>((q1',q2'),t_input t) \<in> set cs\<close> \<open>t_source t = Inl (q1', q2')\<close> assms(6) by auto 
+    then consider (a1) "t_target t \<in> (image Inl (set (map fst (take i cs))))" |
+                  (a2) "t_target t \<in> {Inr q1, Inr q2}"
+      by blast
+    then show ?thesis proof cases
+      case a1  
+
+      have "distinct (map Inl (map fst (take (Suc i) cs)))"
+        using assms(1) non_distinct_repetition_indices nth_eq_iff_index_eq by fastforce 
+      then have "distinct (map Inl (map fst ((take i cs)@[cs ! i])))"
+        by (simp add: \<open>i < length cs\<close> take_Suc_conv_app_nth) 
+      then have "fst (cs ! i) \<notin> set (map fst (take i cs))"
+        by auto
+      then show ?thesis using a1 \<open>t_source t = Inl (q1',q2')\<close> unfolding \<open>cs ! i = ((q1',q2'),t_input t)\<close>
+        by fastforce
+    next
+      case a2
+      then show ?thesis using \<open>t_source t = Inl (q1',q2')\<close>  by auto
+    qed 
+  next
+    case b
+    then show ?thesis by fastforce 
+  qed
+qed
+
+
+
+
+lemma from_input_choices_transition_list : 
+  assumes "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+      and "t \<in> transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+    shows "(t_source t, t_input t) \<in> set (map (\<lambda>(q,x) . (Inl q, x)) cs)"
+proof -
+  consider (a) "t \<in> FSM.transitions (canonical_separator M q1 q2) \<and> (\<exists>((q1', q2'), x)\<in>set cs. t_source t = Inl (q1', q2') \<and> t_input t = x)" |
+           (b) "t \<in> {(Inl (q1', q2'), x, y, Inr q1) |q1' q2' x y. ((q1', q2'), x) \<in> set cs \<and> y \<in> h_out M (q1', x) - h_out M (q2', x)}" |
+           (c) "t \<in> {(Inl (q1', q2'), x, y, Inr q2) |q1' q2' x y. ((q1', q2'), x) \<in> set cs \<and> y \<in> h_out M (q2', x) - h_out M (q1', x)}"
+    using state_separator_from_input_choices_simps(5)[OF assms(1,2,3), of cs] assms(4) by blast
+  then show ?thesis by (cases; auto)
+qed
+
+
+
+
+
+
+lemma from_input_choices_acyclic_paths' :
+  assumes "distinct (map fst cs)"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+      and "\<And> i t . i < length cs 
+                    \<Longrightarrow> t \<in> transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) 
+                    \<Longrightarrow> t_source t = Inl (fst (cs ! i))
+                    \<Longrightarrow> t_input  t = snd (cs ! i)
+                    \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
+      and "path (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) q' p"
+      and "target q' p = q'"
+      and "p \<noteq> []"
+shows "False"
+proof -
+
+  let ?S = "(state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+
+  from \<open>p \<noteq> []\<close> obtain p' t' where "p = t'#p'"
+    using list.exhaust by blast
+  then have "path ?S q' (p@[t'])" 
+    using assms(6,7) by fastforce
+
+
+  define f :: "(('a \<times> 'a + 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a + 'a)) \<Rightarrow> nat"
+    where f_def: "f = (\<lambda> t . the (find_index (\<lambda> qx . Inl (fst qx) = t_source t \<and> snd qx = t_input t) cs))"
+  
+
+  have f_prop: "\<And> t . t \<in> set (p@[t']) \<Longrightarrow> (f t < length cs) 
+                                      \<and> (\<lambda>(q, x). (Inl q, x)) (cs ! (f t)) = (t_source t,t_input t)
+                                      \<and> (\<forall> j < f t . Inl (fst (cs ! j)) \<noteq> t_source t)"
+  proof -
+    fix t assume "t \<in> set (p@[t'])"
+    then have "t \<in> set p" using \<open>p = t'#p'\<close> by auto
+    then have "t \<in> transitions ?S" 
+      using assms(6)
+      by (meson path_transitions subsetD) 
+    then have "(t_source t, t_input t) \<in> set (map (\<lambda>(q, x). (Inl q, x)) cs)"
+      using from_input_choices_transition_list[OF assms(2,3,4)]
+      by blast 
+    then have "\<exists> qx \<in> set cs . (\<lambda> qx . Inl (fst qx) = t_source t \<and> snd qx = t_input t) qx"
+      by (metis (no_types, lifting) case_prod_beta' list_map_source_elem old.prod.inject)
+    then have "find_index (\<lambda> qx . Inl (fst qx) = t_source t \<and> snd qx = t_input t) cs \<noteq> None"
+      by (simp add: find_index_exhaustive) 
+    then obtain i where *: "find_index (\<lambda> qx . Inl (fst qx) = t_source t \<and> snd qx = t_input t) cs = Some i"
+      by auto
+
+
+    have **: "\<And> j . j < i \<Longrightarrow> Inl (fst (cs ! j)) = t_source t \<Longrightarrow> cs ! i = cs ! j"
+      using assms(1)
+      using nth_eq_iff_index_eq  find_index_index[OF *]
+      by (metis (mono_tags, lifting) Inl_inject Suc_lessD length_map less_trans_Suc nth_map)
+
+    have "f t < length cs"
+      unfolding f_def using find_index_index(1)[OF *] unfolding * by simp
+    moreover have "(\<lambda>(q, x). (Inl q, x)) (cs ! (f t)) = (t_source t, t_input t)"
+      unfolding f_def using find_index_index(2)[OF *]
+      by (simp add: "*" case_prod_beta')
+
+    
+      
+    moreover have "\<forall> j < f t . Inl (fst (cs ! j)) \<noteq> t_source t"
+      unfolding f_def using find_index_index(3)[OF *] unfolding *  
+      using assms(1) **
+      by (metis (no_types, lifting) "*" Inl_inject \<open>\<exists>qx\<in>set cs. Inl (fst qx) = t_source t \<and> snd qx = t_input t\<close> eq_key_imp_eq_value find_index_index(1) nth_mem option.sel prod.collapse) 
+
+
+    ultimately show "(f t < length cs) 
+                      \<and> (\<lambda>(q, x). (Inl q, x)) (cs ! (f t)) = (t_source t,t_input t)
+                      \<and> (\<forall> j < f t . Inl (fst (cs ! j)) \<noteq> t_source t)" by simp
+  qed
+
+
+  have *: "\<And> i . Suc i < length (p@[t']) \<Longrightarrow> f ((p@[t']) ! i) > f ((p@[t']) ! (Suc i))"
+  proof -
+    fix i assume "Suc i < length (p@[t'])"
+    then have "(p@[t']) ! i \<in> set (p@[t'])" and "(p@[t']) ! (Suc i) \<in> set (p@[t'])"
+      using Suc_lessD nth_mem by blast+
+    then have "(p@[t']) ! i \<in> transitions ?S" and "(p@[t']) ! Suc i \<in> transitions ?S" 
+      using \<open>path ?S q' (p@[t'])\<close>
+      by (meson path_transitions subsetD)+
+    
+    have "f ((p@[t']) ! i) < length cs"
+    and  "(\<lambda>(q, x). (Inl q, x)) (cs ! (f ((p@[t']) ! i))) = (t_source ((p@[t']) ! i), t_input ((p@[t']) ! i))"
+    and  "(\<forall>j<f ((p@[t']) ! i). Inl (fst (cs ! j)) \<noteq> t_source ((p@[t']) ! i))"
+      using f_prop[OF \<open>(p@[t']) ! i \<in> set (p@[t'])\<close>] by auto
+
+    have "f ((p@[t']) ! Suc i) < length cs"
+    and  "(\<lambda>(q, x). (Inl q, x)) (cs ! (f ((p@[t']) ! Suc i))) = (t_source ((p@[t']) ! Suc i), t_input ((p@[t']) ! Suc i))"
+    and  "(\<forall>j<f ((p@[t']) ! Suc i). Inl (fst (cs ! j)) \<noteq> t_source ((p@[t']) ! Suc i))"
+      using f_prop[OF \<open>(p@[t']) ! Suc i \<in> set (p@[t'])\<close>] by auto
+
+
+    have "t_source ((p @ [t']) ! i) = Inl (fst (cs ! f ((p @ [t']) ! i)))" and "t_input ((p @ [t']) ! i) = snd (cs ! f ((p @ [t']) ! i))"
+       using f_prop[OF \<open>(p@[t']) ! i \<in> set (p@[t'])\<close>]
+       by (simp add: prod.case_eq_if)+ 
+
+
+    have "t_target ((p@[t']) ! i) = t_source ((p@[t']) ! Suc i)"
+      using \<open>Suc i < length (p@[t'])\<close> \<open>path ?S q' (p@[t'])\<close>
+      by (simp add: path_source_target_index) 
+    then have "t_target ((p@[t']) ! i) \<notin> {Inr q1, Inr q2}"
+      using from_input_choices_transition_list[OF assms(2,3,4) \<open>(p@[t']) ! Suc i \<in> transitions ?S\<close>]
+      by auto 
+    then have "t_target ((p @ [t']) ! i) \<in> Inl ` set (map fst (take (f ((p @ [t']) ! i)) cs))"
+      using assms(5)[OF \<open>f ((p@[t']) ! i) < length cs\<close> \<open>(p@[t']) ! i \<in> transitions ?S\<close> \<open>t_source ((p @ [t']) ! i) = Inl (fst (cs ! f ((p @ [t']) ! i)))\<close> \<open>t_input ((p @ [t']) ! i) = snd (cs ! f ((p @ [t']) ! i))\<close>] by blast
+    then have "(\<exists>qx'\<in>set (take (f ((p@[t']) ! i)) cs). Inl (fst qx') = t_target ((p@[t']) ! i))" 
+      by force 
+
+
+    then obtain j where "Inl (fst (cs ! j)) = t_source ((p@[t']) ! Suc i)" and "j < f ((p@[t']) ! i)" 
+      unfolding \<open>t_target ((p@[t']) ! i) = t_source ((p@[t']) ! Suc i)\<close>
+      by (metis (no_types, lifting) \<open>f ((p@[t']) ! i) < length cs\<close> in_set_conv_nth leD length_take min_def_raw nth_take)
+      
+    then show "f ((p@[t']) ! i) > f ((p@[t']) ! (Suc i))"
+      using \<open>(\<forall>j<f ((p@[t']) ! Suc i). Inl (fst (cs ! j)) \<noteq> t_source ((p@[t']) ! Suc i))\<close>
+      using leI le_less_trans by blast 
+  qed
+  
+  
+  
+
+  have "\<And> i j . j < i \<Longrightarrow> i < length (p@[t']) \<Longrightarrow> f ((p@[t']) ! j) > f ((p@[t']) ! i)"
+    using list_index_fun_gt[of "p@[t']" f] * by blast
+  then have "f t' < f t'"
+    unfolding \<open>p = t'#p'\<close> by fastforce 
+  then show "False"
+    by auto
+qed
+
+
+
+
+
+  
+
+
+
+lemma from_input_choices_acyclic_paths :
+  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
+  assumes "path (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M k q))) q' p"
+          (is "path ?FM q' p")
+shows "distinct (visited_nodes q' p)"
+proof (rule ccontr)
+  assume "\<not> distinct (visited_nodes q' p)"
+  
+  obtain i j where p1:"take j (drop i p) \<noteq> []"
+               and p2:"target (target q' (take i p)) (take j (drop i p)) = (target q' (take i p))"
+               and p3:"path ?FM (target q' (take i p)) (take j (drop i p))"
+    using cycle_from_cyclic_path[OF assms \<open>\<not> distinct (visited_nodes q' p)\<close>] by blast
+  
+  show "False"
+    using d_states_acyclic_paths'[OF p3 p2 p1] by assumption
+qed
+
+
+
+end (*
+  
+
+
+lemma from_input_choices_distinct_path :
+  assumes "distinct (map fst cs)"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+      and "\<And> i t . i < length cs 
+                    \<Longrightarrow> t \<in> transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) 
+                    \<Longrightarrow> t_source t = Inl (fst (cs ! i))
+                    \<Longrightarrow> t_input  t = snd (cs ! i)
+                    \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
+      and "path (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) q p"
+    shows "distinct (visited_nodes q p)"
+proof -
+  
+  have "\<And> i . i < length p \<Longrightarrow> t_target (p ! i) \<notin> set (map t_target (drop (Suc i) p))"
+
+proof (cases p)
+
+
+    case Nil
+    then show ?thesis by auto
+  next
+    case (Cons t p')
+    then have *: "\<And> i . (Suc i) < length (t#p') \<Longrightarrow> t_source ((t#p') ! (Suc i)) = t_target ((t#p') ! i)"
+      using assms(6) by (simp add: path_source_target_index) 
+    
+    have "set (t#p') \<subseteq> (transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs))"
+      using Cons assms(6)
+      by (meson path_transitions)
+    then have **: "set (t#p') \<subseteq> set (filter 
+                             (\<lambda>t . \<exists> qqx \<in> set (s_states (product (from_FSM M q1) (from_FSM M q2)) k) . t_source t = fst qqx \<and> t_input t = snd qqx) 
+                        (wf_transitions (product (from_FSM M q1) (from_FSM M q2))))"
+      by simp
+  
+    have "distinct (t_source t # map t_target (t # p'))"
+      using s_states_induces_state_separator_helper_distinct_pathlikes[OF * **]
+      by auto
+    moreover have "visited_states q p = (t_source t # map t_target (t # p'))"
+      using Cons assms(1) unfolding visited_states.simps target.simps
+      by blast 
+    ultimately show "distinct (visited_states q p)"
+      by auto
+    qed
+
+
+end (*
+
+
+
+lemma acyclic_from_input_choices :
+  assumes "distinct (map fst cs)"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+      and "\<And> i t . i < length cs 
+                    \<Longrightarrow> t \<in> transitions (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) 
+                    \<Longrightarrow> t_source t = Inl (fst (cs ! i))
+                    \<Longrightarrow> t_input  t = snd (cs ! i)
+                    \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
+    shows "acyclic (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+
   
 
 
@@ -2503,7 +2833,7 @@ definition state_separator_from_product_input_choices :: "('a,'b,'c) fsm \<Right
 
 end (*
 
-(* a list of input choices for state-pairs can induce a state_separator *)
+(* TODO: two step process: first show required props for cs to induces_state_separator, then reuse lemmata for induces_state_separator *)
 definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a) \<times> 'b) list \<Rightarrow> bool" where
    "induces_state_separator M cs = (
     

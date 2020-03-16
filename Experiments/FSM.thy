@@ -2723,9 +2723,43 @@ lemma maximal_acyclic_paths_deadlock_targets :
   by (metis (no_types, lifting) acyclic.elims(2) assms)
 
 
+lemma cycle_from_cyclic_path :
+  assumes "path M q p"
+  and     "\<not> distinct (visited_nodes q p)"
+obtains i j where
+  "take j (drop i p) \<noteq> []"
+  "target (target q (take i p)) (take j (drop i p)) = (target q (take i p))"
+  "path M (target q (take i p)) (take j (drop i p))"
+proof -
+  obtain i j where "i < j" and "j < length (visited_nodes q p)" and "(visited_nodes q p) ! i = (visited_nodes q p) ! j"
+    using assms(2) non_distinct_repetition_indices by blast 
+
+  have "(target q (take i p)) = (visited_nodes q p) ! i"
+    using \<open>i < j\<close> \<open>j < length (visited_nodes q p)\<close>
+    by (metis less_trans take_last_index target.simps visited_nodes_take)
+
+  then have "(target q (take i p)) = (visited_nodes q p) ! j"
+    using \<open>(visited_nodes q p) ! i = (visited_nodes q p) ! j\<close> by auto
+
+  have p1: "take (j-i) (drop i p) \<noteq> []"
+    using \<open>i < j\<close> \<open>j < length (visited_nodes q p)\<close> by auto 
+
+  have "target (target q (take i p)) (take (j-i) (drop i p)) = (target q (take j p))"
+    using \<open>i < j\<close> by (metis add_diff_inverse_nat less_asym' path_append_target take_add)
+  then have p2: "target (target q (take i p)) (take (j-i) (drop i p)) = (target q (take i p))"
+    using \<open>(target q (take i p)) = (visited_nodes q p) ! i\<close>
+    using \<open>(target q (take i p)) = (visited_nodes q p) ! j\<close>
+    by (metis \<open>j < length (visited_nodes q p)\<close> take_last_index target.simps visited_nodes_take)
+
+  have p3: "path M (target q (take i p)) (take (j-i) (drop i p))"
+    by (metis append_take_drop_id assms(1) path_append_elim)
+
+  show ?thesis using p1 p2 p3 that by blast
+qed
 
 
-subsubsection \<open>Nodes and Inputs as List\<close>
+
+subsection \<open>Nodes and Inputs as List\<close>
 
 (* Idea: To be used in functions like d_states which require finding (in an executable way) some element of the nodes or inputs satisfying a property *)
 
@@ -2755,7 +2789,7 @@ lemma inputs_as_list_distinct : "distinct (inputs_as_list M)" by auto
 
 
 
-subsubsection \<open>Filtering Transitions\<close>
+subsection \<open>Filtering Transitions\<close>
 
 lift_definition filter_transitions :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.filter_transitions 
 proof -
