@@ -3067,6 +3067,12 @@ lemma state_separator_from_induces_state_separator :
                     \<Longrightarrow> t_source t = Inl (fst (cs ! i))
                     \<Longrightarrow> t_input  t = snd (cs ! i)
                     \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
+      and "\<And> i . i < length cs 
+                  \<Longrightarrow> \<not> (\<exists> t \<in> transitions (canonical_separator M q1 q2) . 
+                              t_source t = Inl (fst (cs ! i)) 
+                              \<and> t_input  t = snd (cs ! i) 
+                              \<and> isl (t_target t)) 
+                  \<Longrightarrow> h_out M (fst (fst (cs ! i)), snd (cs ! i)) \<inter> h_out M (snd (fst (cs ! i)), snd (cs ! i)) = {}"
       and "q1 \<noteq> q2"
       and "completely_specified M"
   shows "is_state_separator_from_canonical_separator
@@ -3163,7 +3169,148 @@ proof -
   qed
 
     
-      
+  
+
+  (* Idea for reachable-deadlock proofs:
+      - get longest path from initial to some non-deadlock state
+      - that state can only target deadlock states
+      - by assm, both Inr q1 and Inr q2 must be reached from that state
+  *)
+  define ndlps where ndlps_def: "ndlps = {p . path ?S (initial ?S) p \<and> isl (target (initial ?S) p)}"
+  
+
+  obtain qdl where "qdl \<in> reachable_nodes ?S" and "deadlock_state ?S qdl"
+    using acyclic_deadlock_reachable[OF \<open>acyclic ?S\<close>] by blast
+  
+  have "qdl = Inr q1 \<or> qdl = Inr q2"
+    using non_deadlock_prop[OF reachable_node_is_node[OF \<open>qdl \<in> reachable_nodes ?S\<close>]] \<open>deadlock_state ?S qdl\<close> by fastforce
+  then have "Inr q1 \<in> reachable_nodes ?S \<or> Inr q2 \<in> reachable_nodes ?S"
+    using \<open>qdl \<in> reachable_nodes ?S\<close> by blast
+
+  have "isl (target (initial ?S) [])"
+    using state_separator_from_input_choices_simps(1)[OF assms(2,3,4,5)] by auto
+  then have "[] \<in> ndlps"
+    unfolding ndlps_def by auto
+  then have "ndlps \<noteq> {}"
+    by blast
+  moreover have "finite ndlps"
+    using acyclic_finite_paths_from_reachable_node[OF \<open>acyclic ?S\<close>, of "[]"] unfolding ndlps_def by fastforce
+  ultimately have "\<exists> p \<in> ndlps . \<forall> p' \<in> ndlps . length p' \<le> length p"
+    by (meson max_length_elem not_le_imp_less) 
+  then obtain mndlp where "path ?S (initial ?S) mndlp"
+                     and "isl (target (initial ?S) mndlp)"
+                     and "\<And> p . path ?S (initial ?S) p \<Longrightarrow> isl (target (initial ?S) p) \<Longrightarrow> length p \<le> length mndlp"
+    unfolding ndlps_def by blast
+  then have "(target (initial ?S) mndlp) \<in> reachable_nodes ?S"
+    unfolding reachable_nodes_def by auto
+  then have "(target (initial ?S) mndlp) \<in> nodes ?S"
+    using reachable_node_is_node by auto
+  then have "(target (initial ?S) mndlp) \<in> image Inl (set (map fst cs))"
+    using \<open>isl (target (initial ?S) mndlp)\<close> state_separator_from_input_choices_simps(2)[OF assms(2,3,4,5)] by auto
+  then obtain q1' q2' x where "((q1',q2'),x) \<in> set cs"
+                          and "target (initial ?S) mndlp = Inl (q1',q2')"
+    by auto
+  then obtain i where "i < length cs" and "(cs ! i) = ((q1',q2'),x)"
+    by (metis in_set_conv_nth)
+
+  have "Inl (q1', q2') \<in> FSM.nodes (canonical_separator M q1 q2)" and "x \<in> FSM.inputs M"
+    using assms(4)[OF \<open>((q1',q2'),x) \<in> set cs\<close>] by blast+
+
+  have "q1' \<in> nodes M" and "q2' \<in> nodes M"
+    using canonical_separator_nodes[OF \<open>Inl (q1', q2') \<in> FSM.nodes (canonical_separator M q1 q2)\<close> assms(2,3)]
+    unfolding product_simps using assms(2,3) by simp+
+
+  have "\<not>(\<exists>t'\<in>FSM.transitions (canonical_separator M q1 q2). t_source t' = target (initial ?S) mndlp \<and> t_input t' = x \<and> isl (t_target t'))"
+  proof 
+    assume "\<exists>t'\<in>FSM.transitions (canonical_separator M q1 q2). t_source t' = target (initial ?S) mndlp \<and> t_input t' = x \<and> isl (t_target t')"
+    then obtain t' where "t'\<in>FSM.transitions (canonical_separator M q1 q2)"
+                     and "t_source t' = target (initial ?S) mndlp"
+                     and "t_input t' = x"
+                     and "isl (t_target t')" 
+      by blast
+    then have "\<exists>((q1', q2'), x)\<in>set cs. t_source t' = Inl (q1', q2') \<and> t_input t' = x"
+      using \<open>((q1',q2'),x) \<in> set cs\<close> unfolding \<open>target (initial ?S) mndlp = Inl (q1',q2')\<close> by fast
+    then have "t' \<in> transitions ?S"
+      using \<open>t'\<in>FSM.transitions (canonical_separator M q1 q2)\<close> \<open>((q1',q2'),x) \<in> set cs\<close>
+      using from_input_choices_transitions_alt_def[OF assms(2,3,4,5,6)] by blast
+
+    then have "path ?S (initial ?S) (mndlp @ [t'])"
+      using \<open>path ?S (initial ?S) mndlp\<close> \<open>t_source t' = target (initial ?S) mndlp\<close> by (metis path_append_transition)
+    moreover have "isl (target (initial ?S) (mndlp @[t']))"
+      using \<open>isl (t_target t')\<close> by auto
+    ultimately show "False"
+      using \<open>\<And> p . path ?S (initial ?S) p \<Longrightarrow> isl (target (initial ?S) p) \<Longrightarrow> length p \<le> length mndlp\<close>[of "mndlp@[t']"] by auto
+  qed
+  then have "h_out M (q1', x) \<inter> h_out M (q2', x) = {}"
+    using assms(7)[OF \<open>i < length cs\<close>] unfolding \<open>target (initial ?S) mndlp = Inl (q1',q2')\<close> \<open>(cs ! i) = ((q1',q2'),x)\<close> fst_conv snd_conv
+    by blast
+  moreover have "h_out M (q1',x) \<noteq> {}"
+    using \<open>completely_specified M\<close> unfolding completely_specified.simps 
+    using \<open>q1' \<in> nodes M\<close> \<open>x \<in> inputs M\<close> by fastforce
+  moreover have "h_out M (q2',x) \<noteq> {}"
+    using \<open>completely_specified M\<close> unfolding completely_specified.simps 
+    using \<open>q2' \<in> nodes M\<close> \<open>x \<in> inputs M\<close> by fastforce
+  ultimately obtain y1 y2 where "y1 \<in> h_out M (q1',x) - h_out M (q2',x)"
+                            and "y2 \<in> h_out M (q2',x) - h_out M (q1',x)" by blast
+
+end (*
+
+  then have "t \<in> FSM.transitions (canonical_separator M q1 q2)" and "\<exists>((q1', q2'), x)\<in>set cs. t_source t = Inl (q1', q2') \<and> t_input t = x"
+    using from_input_choices_transitions_alt_def[OF assms(2,3,4,5,6)] by blast+
+  then obtain q1' q2' where "((q1', q2'), t_input t) \<in> set cs" and "t_source t = Inl (q1', q2')"
+    by blast
+
+  thm assms(7)
+          
+end (*
+
+
+  
+  have "\<not> deadlock_state ?S (t_source t)" 
+    using \<open>path ?S (initial ?S) (p@[t])\<close> by auto
+  moreover have "(t_source t) \<in> reachable_nodes ?S" 
+    using reachable_nodes_path[OF reachable_nodes_initial \<open>path ?S (initial ?S) (p@[t])\<close>] by simp
+  ultimately have "isl (t_source t)"
+    using non_deadlock_prop deadlock_prop_1 deadlock_prop_2
+    by (metis  reachable_node_is_node) 
+  then have "t_source t \<in> image Inl (set (map fst cs))"
+    using reachable_node_is_node[OF \<open>(t_source t) \<in> reachable_nodes ?S\<close>]
+          state_separator_from_input_choices_simps(2)[OF assms(2,3,4,5)] by fastforce
+  then obtain q1' q2' where "((q1',q2'),t_input t) \<in> set cs"
+                        and "
+    
+
+end (*
+  moreover have "\<And> p' . p' \<in> ?ndlps \<Longrightarrow> length p' \<le> length ?mndlp" by auto 
+  moreover have "initial ?S \<noteq> Inr q1" and "initial ?S \<noteq> Inr q2"
+    using state_separator_from_input_choices_simps(1)[OF assms(2,3,4,5)] by simp+
+  ultimately obtain p t where "?mndlp = p@[t]"
+
+  
+
+
+  thm maximal_acyclic_paths_deadlock_targets[OF \<open>acyclic ?S\<close>]
+
+
+
+
+  (* Idea for reachable-deadlock proofs:
+      - at least one deadlock state must exist (by acyclicity)
+      - must be reached from the first element ((q,q'),x) in cs, which can reach no states other than q1 q2
+      - no shared outputs from q and q' for x are possible, as the target would be neither Inr q1 nor Inr q2
+  *)
+
+  
+
+  have "0 < length cs"
+    using assms(5) by auto
+  then have "Inl (fst (cs ! 0)) \<in> nodes ?S"
+    using state_separator_from_input_choices_simps(2)[OF assms(2,3,4,5)] by fastforce
+  then have "\<not> deadlock_state ?S (Inl (fst (cs ! 0)))"
+    using non_deadlock_prop by fast
+  
+  then have "True"
+    using assms(6)
   
     
     
