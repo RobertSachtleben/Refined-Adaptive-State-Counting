@@ -3055,7 +3055,7 @@ lemma submachine_deadlock :
 
 
 
-(* Rework in progress: omit induces_state_separator *)
+
 lemma state_separator_from_induces_state_separator :
   assumes "distinct (map fst cs)"
       and "q1 \<in> nodes M" 
@@ -3343,98 +3343,15 @@ qed
     
     
 
-(*is_state_separator_from_canonical_separator CSep q1 q2 S = (
-    is_submachine S CSep 
-    \<and> single_input S
-    \<and> acyclic S
-    \<and> deadlock_state S (Inr q1)
-    \<and> deadlock_state S (Inr q2)
-    \<and> ((Inr q1) \<in> reachable_nodes S)
-    \<and> ((Inr q2) \<in> reachable_nodes S)
-    \<and> (\<forall> q \<in> reachable_nodes S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (isl q \<and> \<not> deadlock_state S q))
-    \<and> (\<forall> q \<in> reachable_nodes S . \<forall> x \<in> (inputs CSep) . (\<exists> t \<in> transitions S . t_source t = q \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> transitions CSep . t_source t' = q \<and> t_input t' = x \<longrightarrow> t' \<in> transitions S))
-*)
-
-
 
 end (*
-
-(* TODO: two step process: first show required props for cs to induces_state_separator, then reuse lemmata for induces_state_separator *)
-definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'a) \<times> 'b) list \<Rightarrow> bool" where
-   "induces_state_separator M cs = (
-    
-    (* submachine is trivial *)
-    \<and> single_input S
-    \<and> acyclic S
-    \<and> (\<forall> qq \<in> nodes S . deadlock_state S qq \<longrightarrow> (\<exists> x \<in> (inputs M) . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) )
-    \<and> retains_outputs_for_states_and_inputs (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))) S
-)" 
-
-end (*
-
-definition induces_state_separator :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> bool" where
-  "induces_state_separator M S = (
-    
-    is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
-    \<and> single_input S
-    \<and> acyclic S
-    \<and> (\<forall> qq \<in> nodes S . deadlock_state S qq \<longrightarrow> (\<exists> x \<in> (inputs M) . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) )
-    \<and> retains_outputs_for_states_and_inputs (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))) S
-)"
-
-(* restriction to a given product machine *)
-definition induces_state_separator_for_prod :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> bool" where
-  "induces_state_separator_for_prod M q1 q2 S = (
-    is_submachine S (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S))))
-    \<and> single_input S
-    \<and> acyclic S
-    \<and> (\<forall> qq \<in> nodes S . deadlock_state S qq \<longrightarrow> (\<exists> x \<in> (inputs M) . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) )
-    \<and> retains_outputs_for_states_and_inputs (product (from_FSM M q1) (from_FSM M q2)) S
-)"
-
-definition choose_state_separator_deadlock_input :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> ('a \<times> 'a) \<Rightarrow> 'b option" where
-  "choose_state_separator_deadlock_input M S qq = (if (qq \<in> nodes S \<and> deadlock_state S qq) 
-    then (find (\<lambda> x . \<not> (\<exists> t1 \<in> transitions M . \<exists> t2 \<in> transitions M . t_source t1 = fst qq \<and> t_source t2 = snd qq \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)) (inputs M))
-    else None)"
-
-
-
-
-definition state_separator_from_product_submachine :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
-  "state_separator_from_product_submachine M S =
-    \<lparr> initial = Inl (initial S),
-      inputs = inputs M,
-      outputs = outputs M,
-      transitions = (let
-                        t_old = (map shift_Inl (wf_transitions S));
-                    t_left = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (fst (initial S))))
-                                   (filter (\<lambda> qqt . t_source (snd qqt) = fst (fst qqt) \<and> choose_state_separator_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                           (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                        (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))));
-                    t_right = (map (\<lambda> qqt . (Inl (fst qqt), t_input (snd qqt), t_output (snd qqt), Inr (snd (initial S))))
-                                     (filter (\<lambda> qqt . t_source (snd qqt) = snd (fst qqt) \<and> choose_state_separator_deadlock_input M S (fst qqt) = Some (t_input (snd qqt))) 
-                                             (concat (map (\<lambda> qq' . map (\<lambda> t . (qq',t)) (wf_transitions M)) 
-                                                          (nodes_from_distinct_paths (product (from_FSM M (fst (initial S))) (from_FSM M (snd (initial S)))))))))
-        in (t_old 
-            @ t_left 
-            @ t_right 
-            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
-                              (\<exists> t' \<in> set t_old . t_source t = t_source t' \<and> t_input t = t_input t'))
-                       (distinguishing_transitions_left M (fst (initial S)) (snd (initial S))))     
-            @ (filter (\<lambda>t . t \<notin> set t_old \<union> set t_left \<union> set t_right \<and>
-                              (\<exists> t' \<in> set t_old . t_source t = t_source t' \<and> t_input t = t_input t'))
-                       (distinguishing_transitions_right M (fst (initial S)) (snd (initial S)))))), 
-                                        
-      \<dots> = more M \<rparr>"
-
-
 (* TODO: check *)
 declare from_FSM.simps[simp del]
 declare product.simps[simp del]
 declare from_FSM_simps[simp del]
 declare product_simps[simp del]
 
-end (* lemma state_separator_from_induces_state_separator :
+lemma state_separator_from_induces_state_separator :
   fixes M :: "('a,'b,'c) fsm"
   assumes "induces_state_separator M S"
   and "fst (initial S) \<in> nodes M"
