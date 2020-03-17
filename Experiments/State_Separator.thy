@@ -3114,7 +3114,7 @@ proof -
   have deadlock_prop_2: "deadlock_state ?S (Inr q2)"
     using submachine_deadlock[OF \<open>is_submachine ?S ?C\<close> canonical_separator_deadlock(2)[OF assms(2,3)]] by assumption
 
-  have non_deadlock_prop: "\<And> qq . qq \<in> nodes ?S \<Longrightarrow> qq \<noteq> Inr q1 \<Longrightarrow> qq \<noteq> Inr q2 \<Longrightarrow> (isl qq \<and> \<not> deadlock_state ?S qq)"
+  have non_deadlock_prop': "\<And> qq . qq \<in> nodes ?S \<Longrightarrow> qq \<noteq> Inr q1 \<Longrightarrow> qq \<noteq> Inr q2 \<Longrightarrow> (isl qq \<and> \<not> deadlock_state ?S qq)"
   proof -
     fix qq assume "qq \<in> nodes ?S" and "qq \<noteq> Inr q1" and "qq \<noteq> Inr q2"
     then have "qq \<in> Inl ` set (map fst cs)"
@@ -3167,6 +3167,8 @@ proof -
     then show "(isl qq \<and> \<not> deadlock_state ?S qq)"
       unfolding \<open>qq = Inl (q1',q2')\<close> by simp
   qed
+  then have non_deadlock_prop: "(\<forall> q \<in> reachable_nodes ?S . (q \<noteq> Inr q1 \<and> q \<noteq> Inr q2) \<longrightarrow> (isl q \<and> \<not> deadlock_state ?S q))"
+    using reachable_node_is_node by force
 
     
   
@@ -3183,7 +3185,7 @@ proof -
     using acyclic_deadlock_reachable[OF \<open>acyclic ?S\<close>] by blast
   
   have "qdl = Inr q1 \<or> qdl = Inr q2"
-    using non_deadlock_prop[OF reachable_node_is_node[OF \<open>qdl \<in> reachable_nodes ?S\<close>]] \<open>deadlock_state ?S qdl\<close> by fastforce
+    using non_deadlock_prop'[OF reachable_node_is_node[OF \<open>qdl \<in> reachable_nodes ?S\<close>]] \<open>deadlock_state ?S qdl\<close> by fastforce
   then have "Inr q1 \<in> reachable_nodes ?S \<or> Inr q2 \<in> reachable_nodes ?S"
     using \<open>qdl \<in> reachable_nodes ?S\<close> by blast
 
@@ -3297,6 +3299,35 @@ proof -
               
 
 
+  have retainment_prop : "\<And> q x t' . q \<in> reachable_nodes ?S
+        \<Longrightarrow> x \<in> FSM.inputs ?C 
+        \<Longrightarrow> (\<exists>t\<in>FSM.transitions ?S. t_source t = q \<and> t_input t = x) 
+        \<Longrightarrow> t' \<in> FSM.transitions ?C
+        \<Longrightarrow> t_source t' = q 
+        \<Longrightarrow> t_input t' = x 
+        \<Longrightarrow> t' \<in> FSM.transitions ?S"
+  proof -
+    fix q x t' assume "q \<in> reachable_nodes ?S"
+                  and "x \<in> FSM.inputs ?C"
+                  and "(\<exists>t\<in>FSM.transitions ?S. t_source t = q \<and> t_input t = x)"
+                  and "t' \<in> FSM.transitions ?C"
+                  and "t_source t' = q" 
+                  and "t_input t' = x" 
+
+    obtain t where "t \<in> FSM.transitions ?S" and "t_source t = q" and "t_input t = x"
+      using \<open>(\<exists>t\<in>FSM.transitions ?S. t_source t = q \<and> t_input t = x)\<close> by blast
+    then have "t_source t = t_source t' \<and> t_input t = t_input t'"
+      using \<open>t_source t' = q\<close> \<open>t_input t' = x\<close> by auto
+
+    
+    show "t' \<in> FSM.transitions ?S"
+      using i4 unfolding retains_outputs_for_states_and_inputs_def
+      using \<open>t \<in> FSM.transitions ?S\<close> \<open>t' \<in> FSM.transitions ?C\<close> \<open>t_source t = t_source t' \<and> t_input t = t_input t'\<close> 
+      by blast
+  qed
+    
+
+
 
   show ?thesis unfolding is_state_separator_from_canonical_separator_def
     using submachine_prop
@@ -3307,7 +3338,8 @@ proof -
           reachable_prop_1
           reachable_prop_2
           non_deadlock_prop
-          
+          retainment_prop by blast 
+qed
     
     
 
