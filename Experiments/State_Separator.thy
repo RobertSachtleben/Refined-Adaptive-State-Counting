@@ -2961,41 +2961,126 @@ proof -
   qed
 qed
 
-end (*
 
-      then show ?thesis
+
+lemma from_input_choices_retains_io :
+  assumes "distinct (map fst cs)"
+      and "q1 \<in> nodes M" 
+      and "q2 \<in> nodes M"
+      and "\<And> q1' q2' x . ((q1',q2'),x) \<in> set cs \<Longrightarrow> (Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+      and "(q1,q2) \<in> set (map fst cs)"      
+      and "\<And> i t . i < length cs
+                    \<Longrightarrow> t \<in> transitions (canonical_separator M q1 q2) 
+                    \<Longrightarrow> t_source t = Inl (fst (cs ! i))
+                    \<Longrightarrow> t_input  t = snd (cs ! i)
+                    \<Longrightarrow> t_target t \<in> ((image Inl (set (map fst (take i cs)))) \<union> {Inr q1, Inr q2})"
+    shows "retains_outputs_for_states_and_inputs (canonical_separator M q1 q2) (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+proof -
+  let ?S = "(state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)"
+  let ?C = "(canonical_separator M q1 q2)"
+
+  have "\<And> tS tM . tS \<in> transitions ?S \<Longrightarrow> tM \<in> transitions ?C \<Longrightarrow> t_source tS = t_source tM \<Longrightarrow> t_input tS = t_input tM \<Longrightarrow>
+          tM \<in> transitions  ?S"
+  proof -
+    fix tS tM assume "tS \<in> transitions ?S" and "tM \<in> transitions ?C" and "t_source tS = t_source tM" and "t_input tS = t_input tM"
+
+    
+
+
+    consider (a) "tS \<in> {t \<in> (transitions (canonical_separator M q1 q2)) . \<exists> ((q1',q2'),x) \<in> set cs . t_source t = Inl (q1',q2') \<and> t_input t = x \<and> t_target t \<in> image Inl (set (map fst cs)) \<union> {Inr q1, Inr q2}}"
+           | (b) "tS \<in> {(Inl (q1',q2'),x,y,Inr q1) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q1',x) - h_out M (q2',x)) }"
+           | (c) "tS \<in> {(Inl (q1',q2'),x,y,Inr q2) | q1' q2' x y . ((q1',q2'),x) \<in> set cs \<and> y \<in> (h_out M (q2',x) - h_out M (q1',x)) }"
+      using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)] \<open>tS \<in> transitions ?S\<close> by blast
+    then show "tM \<in> transitions  ?S" proof cases
+      case a
+      then have "\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x"
+        using \<open>t_source tS = t_source tM\<close> \<open>t_input tS = t_input tM\<close> by force
       
-        sorry
+      then have "tM \<in> {t \<in> (transitions (canonical_separator M q1 q2)) . \<exists> ((q1',q2'),x) \<in> set cs . t_source t = Inl (q1',q2') \<and> t_input t = x \<and> t_target t \<in> image Inl (set (map fst cs)) \<union> {Inr q1, Inr q2}}"
+        using from_input_choices_target[OF assms(6) \<open>tM \<in> transitions ?C\<close> \<open>\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x\<close>] \<open>tM \<in> transitions ?C\<close> by force
+      
+      then show ?thesis using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)] by fastforce
     next
-      case b
-      then show ?thesis by simp
+      case b 
+      then obtain q1' q2' where "tS = (Inl (q1', q2'), t_input tS, t_output tS, Inr q1)" and "((q1', q2'), t_input tS) \<in> set cs" and "t_output tS \<in> h_out M (q1', t_input tS) - h_out M (q2', t_input tS)"
+        by fastforce
+
+      then have "\<exists> ((q1',q2'),x) \<in> set cs . t_source tM = Inl (q1',q2') \<and> t_input tM = x"
+        by (metis (mono_tags, lifting) \<open>t_input tS = t_input tM\<close> \<open>t_source tS = t_source tM\<close> case_prod_conv fst_conv)
+          
+
+      have "(Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2)" and "t_input tS \<in> inputs M" 
+        using \<open>((q1', q2'), t_input tS) \<in> set cs\<close> assms(4) by auto
+
+      consider (b1) "tM \<in> {(Inl (q1',q2'), x, y, (Inl (q1'',q2''))) | q1' q2' x y q1'' q2'' . ((q1',q2'), x, y, (q1'',q2'')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2)) \<and> (q1',q2') \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2))}"
+        | (b2) "tM \<in> (distinguishing_transitions_left M q1 q2)"       
+        | (b3) "tM \<in> (distinguishing_transitions_right M q1 q2)"
+        using canonical_separator_transitions_def[OF assms(2,3)] using \<open>tM \<in> transitions ?C\<close> by blast
+
+      then show ?thesis proof cases
+        case b1
+        then have "tM \<in> {t \<in> (transitions (canonical_separator M q1 q2)) . \<exists> ((q1',q2'),x) \<in> set cs . t_source t = Inl (q1',q2') \<and> t_input t = x \<and> t_target t \<in> image Inl (set (map fst cs)) \<union> {Inr q1, Inr q2}}"
+          using \<open>\<exists> ((q1',q2'),x) \<in> set cs . t_source tM = Inl (q1',q2') \<and> t_input tM = x\<close> 
+                from_input_choices_target[OF assms(6) \<open>tM \<in> transitions ?C\<close> \<open>\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x\<close>] \<open>tM \<in> transitions ?C\<close> by force
+        
+        then show ?thesis using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)] by fastforce
+      next
+        case b2
+        then show ?thesis 
+          unfolding distinguishing_transitions_left_def 
+          using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)]
+          using \<open>\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x\<close> by auto 
+      next
+        case b3
+        then show ?thesis 
+          unfolding distinguishing_transitions_right_def 
+          using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)]
+          using \<open>\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x\<close> by auto
+      qed 
+    next
+      case c
+      then obtain q1' q2' where "tS = (Inl (q1', q2'), t_input tS, t_output tS, Inr q2)" and "((q1', q2'), t_input tS) \<in> set cs" and "t_output tS \<in> h_out M (q2', t_input tS) - h_out M (q1', t_input tS)"
+        by fastforce
+
+      then have "\<exists> ((q1',q2'),x) \<in> set cs . t_source tM = Inl (q1',q2') \<and> t_input tM = x"
+        by (metis (mono_tags, lifting) \<open>t_input tS = t_input tM\<close> \<open>t_source tS = t_source tM\<close> case_prod_conv fst_conv)
+          
+
+      have "(Inl (q1',q2')) \<in> nodes (canonical_separator M q1 q2)" and "t_input tS \<in> inputs M" 
+        using \<open>((q1', q2'), t_input tS) \<in> set cs\<close> assms(4) by auto
+
+      consider (b1) "tM \<in> {(Inl (q1',q2'), x, y, (Inl (q1'',q2''))) | q1' q2' x y q1'' q2'' . ((q1',q2'), x, y, (q1'',q2'')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2)) \<and> (q1',q2') \<in> reachable_nodes (product (from_FSM M q1) (from_FSM M q2))}"
+        | (b2) "tM \<in> (distinguishing_transitions_left M q1 q2)"       
+        | (b3) "tM \<in> (distinguishing_transitions_right M q1 q2)"
+        using canonical_separator_transitions_def[OF assms(2,3)] using \<open>tM \<in> transitions ?C\<close> by blast
+
+      then show ?thesis proof cases
+        case b1
+        then have "tM \<in> {t \<in> (transitions (canonical_separator M q1 q2)) . \<exists> ((q1',q2'),x) \<in> set cs . t_source t = Inl (q1',q2') \<and> t_input t = x \<and> t_target t \<in> image Inl (set (map fst cs)) \<union> {Inr q1, Inr q2}}"
+          using \<open>\<exists> ((q1',q2'),x) \<in> set cs . t_source tM = Inl (q1',q2') \<and> t_input tM = x\<close> 
+                from_input_choices_target[OF assms(6) \<open>tM \<in> transitions ?C\<close> \<open>\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x\<close>] \<open>tM \<in> transitions ?C\<close> by force
+        
+        then show ?thesis using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)] by fastforce
+      next
+        case b2
+        then show ?thesis 
+          unfolding distinguishing_transitions_left_def 
+          using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)]
+          using \<open>\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x\<close> by auto 
+      next
+        case b3
+        then show ?thesis 
+          unfolding distinguishing_transitions_right_def 
+          using state_separator_from_input_choices_simps(5)[OF assms(2,3,4,5)]
+          using \<open>\<exists>((q1', q2'), x)\<in>set cs. t_source tM = Inl (q1', q2') \<and> t_input tM = x\<close> by auto
+      qed 
     qed
+  qed
 
-    have "qq \<notin> Inl ` (set (map fst cs))"
-    proof  
-      assume "qq \<in> Inl ` set (map fst cs)"
-      then obtain q1' q2' x where "((q1',q2'),x) \<in> set cs" and  "qq = Inl (q1',q2')" by auto
+  then show ?thesis 
+    unfolding retains_outputs_for_states_and_inputs_def by blast
+qed
 
-      thm canonical_separator_transition_ex
-
-
-end (*
-    consider (a) "qq \<in> Inl ` reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))" |
-             (b) "qq \<in> {Inr q1, Inr q2}"
-      using state_separator_from_input_choices_simps(2)[OF assms(2,3,4)] \<open>qq \<in> nodes ?S\<close> by blast
-    then show 
-
-
-(*
-definition state_separator_from_product_input_choices :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'a, 'b, 'c) fsm \<Rightarrow>  (('a \<times> 'a) \<times> 'b) list \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm" where
-  "state_separator_from_product_input_choices M P cs = 
-    (let css = set cs;
-         S0  = create_unconnected_fsm (Inl (initial P)) (image Inl (nodes P) \<union> {Inr (fst (initial P)), Inr (snd (initial P))}) (inputs M) (outputs M);
-         S   = add_transitions S0 ((image shift_Inl (Set.filter (\<lambda> t . (t_source t, t_input t) \<in> css) (transitions P)))
-                                   \<union> (\<Union> (image (\<lambda>((q1,q2),x) . (image (\<lambda> y . (Inl (q1,q2),x,y,Inr q1)) (h_out M (q1,x) - h_out M (q2,x)))
-                                                                \<union>(image (\<lambda> y . (Inl (q1,q2),x,y,Inr q2)) (h_out M (q2,x) - h_out M (q1,x)))) css)))
-    in S)" 
-*)
 
 end (*
 
