@@ -3409,7 +3409,11 @@ subsection \<open>Calculating a State Separator by Reachability Analysis\<close>
 
 (* TODO: improvement idea: do not calculate the full canonical separator first *)
 
-(* TODO: rework underlying algorithm and use it for both d_states and s_states *)
+(* TODO: rework underlying algorithm and use it for both d_states and s_states 
+    \<rightarrow> create new theory Backwards_Reachability_Analysis
+    \<rightarrow> extract d_states' as "collect_reaching_input_choices" (or comparable)
+    \<rightarrow> extract d_states' props from State_Preamble 
+*)
 
 
 value "let P = restrict_to_reachable_nodes (product (from_FSM m_ex_H 1) (from_FSM m_ex_H 3))
