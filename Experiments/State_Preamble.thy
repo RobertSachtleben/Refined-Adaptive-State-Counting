@@ -240,7 +240,7 @@ definition m_ex_DR :: "(integer,integer,integer) fsm" where
 fun d_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b) list" where
   "d_states M k q = (if q = initial M 
                       then [] 
-                      else select_inputs (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k [])"
+                      else select_inputs (h M) (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k [])"
 
 value "d_states m_ex_H 5 1"
 value "d_states m_ex_H 5 2"
@@ -266,9 +266,9 @@ lemma d_states_length :
 proof -
   have f1: "\<forall>n. length ([]::('a \<times> 'b) list) \<le> n"
     by auto
-  have "length (select_inputs (h M) q (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {q} k []) \<le> Suc k"
+  have "length (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {q} k []) \<le> Suc k"
     by (metis add.commute select_inputs_length gen_length_code(1) gen_length_def)
-  then show "length (if q = FSM.initial M then [] else select_inputs (h M) q (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {q} k []) \<le> Suc k"
+  then show "length (if q = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {q} k []) \<le> Suc k"
     using f1 by presburger
 qed 
 
@@ -300,7 +300,7 @@ proof -
     then show ?thesis by simp
   next
     case False
-    then have *: "d_states M k q = select_inputs (h M) q (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []" by auto
+    then have *: "d_states M k q = select_inputs (h M) (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} k []" by auto
 
     have "initial M \<in> reachable_nodes M" unfolding reachable_nodes_def by auto
     then have "insert (FSM.initial M) (set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))) = reachable_nodes M - {q}"
@@ -308,21 +308,20 @@ proof -
 
 
 
-    have "i < length (select_inputs (h M) q (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {q} k [])"
+    have "i < length (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {q} k [])"
       using assms * by simp
     moreover have "length [] \<le> i" by auto
-    moreover have "initial M \<noteq> q" using False by auto
     moreover have "distinct (map fst [])" by auto
-    moreover have "set (map fst []) \<subseteq> {q}" by auto
+    moreover have "{q} = {q} \<union> set (map fst [])" by auto
     moreover have "initial M \<notin> {q}" using False by auto
-    moreover have "{q} = insert q (set (map fst []))" by auto
     moreover have "distinct (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))" using nodes_as_list_distinct
       by (simp add: distinct_removeAll) 
     moreover have "FSM.initial M \<notin> set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))" by auto
     moreover have "set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) \<inter> {q} = {}" by auto
 
     moreover show ?thesis 
-      using select_inputs_index_properties[OF calculation] unfolding *[symmetric] inputs_as_list_set \<open>insert (FSM.initial M) (set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))) = reachable_nodes M - {q}\<close> by blast
+      using select_inputs_index_properties[OF calculation] 
+      unfolding *[symmetric] inputs_as_list_set \<open>insert (FSM.initial M) (set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))) = reachable_nodes M - {q}\<close> by blast
   qed
 
   then show "fst (d_states M k q ! i) \<in> (reachable_nodes M - {q})" 
@@ -435,7 +434,7 @@ lemma d_states_initial :
   assumes "qx \<in> set (d_states M k q)" 
   and     "fst qx = initial M"
 shows "(last (d_states M k q)) = qx"
-  using assms(1) select_inputs_initial[of qx "h M" q "initial M" _ _ _ k "[]", OF _ assms(2)]
+  using assms(1) select_inputs_initial[of qx "h M" "initial M" _ _ _ k "[]", OF _ assms(2)]
   by (cases "q = initial M"; auto)
 
 

@@ -286,6 +286,7 @@ proof -
   have combined_props : 
     "fst (select_inputs (h M) q0 iL nL nS k m ! i) \<in> (insert q0 (set nL))
       \<and> snd (select_inputs (h M) q0 iL nL nS k m ! i) \<in> set iL
+      \<and> fst (select_inputs (h M) q0 iL nL nS k m ! i) \<notin> nS0
       \<and> (\<exists> t \<in> transitions M . t_source t = fst (select_inputs (h M) q0 iL nL nS k m ! i) \<and> t_input t = snd (select_inputs (h M) q0 iL nL nS k m ! i))
       \<and> (\<forall> t \<in> transitions M . (t_source t = fst (select_inputs (h M) q0 iL nL nS k m ! i) \<and> t_input t = snd (select_inputs (h M) q0 iL nL nS k m ! i)) \<longrightarrow> (t_target t \<in> nS0 \<or> (\<exists> qx' \<in> set (take i (select_inputs (h M) q0 iL nL nS k m)) . fst qx' = (t_target t))))"    
   using assms proof (induction k arbitrary: nL nS m)
@@ -303,6 +304,8 @@ proof -
   
       have "fst (q0, x) \<in> insert q0 (set nL)" by auto
       moreover have "snd (q0, x) \<in> set iL" using find_set[OF Some] by auto
+      moreover have "fst (select_inputs (h M) q0 iL nL nS 0 m ! i) \<notin> nS0"
+        using \<open>select_inputs (h M) q0 iL nL nS 0 m ! i = (q0, x)\<close> assms(4) assms(5) by auto
        
       moreover have "(\<exists>t\<in>FSM.transitions M. t_source t = fst (q0, x) \<and> t_input t = snd (q0, x))"
         using find_condition[OF Some] unfolding fst_conv snd_conv h.simps
@@ -325,8 +328,6 @@ proof -
     qed
   next
     case (Suc k)
-
-
     show ?case proof (cases "find (\<lambda> x . (h M) (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q0,x) . (q'' \<in> nS))) iL")
       case None
       show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS))) nL iL")
@@ -396,6 +397,8 @@ proof -
             by (simp add: \<open>q' \<in> set nL\<close>) 
           moreover have "x \<in> set iL"
             using find_remove_2_set(3)[OF ** ] by auto
+          moreover have "q' \<notin> nS0"
+            using Suc.prems(4) Suc.prems(8) \<open>q' \<in> set nL\<close> by blast
           moreover have "(\<exists>t\<in>FSM.transitions M. t_source t = q' \<and> t_input t = x) "
             using find_remove_2_set(1)[OF ** ] unfolding h.simps by force
           moreover have "(\<forall>t\<in>FSM.transitions M. t_source t = q' \<and> t_input t = x \<longrightarrow> t_target t \<in> nS0 \<or> (\<exists>qx'\<in>set (take i (select_inputs (h M) q0 iL nL nS (Suc k) m)). fst qx' = t_target t))"
@@ -413,6 +416,8 @@ proof -
   
       have "fst (q0, x) \<in> insert q0 (set nL)" by auto
       moreover have "snd (q0, x) \<in> set iL" using find_set[OF Some] by auto
+      moreover have "fst (q0, x) \<notin> nS0"
+        using assms(4) assms(5) by auto 
       moreover have "\<And> qx' . qx' \<in> set (take i (select_inputs (h M) q0 iL nL nS (Suc k) m)) - set (take (length m) (select_inputs (h M) q0 iL nL nS (Suc k) m)) \<Longrightarrow> fst (q0, x) \<noteq> fst qx'"
         using Suc.prems(1,2) \<open>select_inputs (h M) q0 iL nL nS (Suc k) m = m @ [(q0, x)]\<close> by auto
       moreover have "(\<exists>t\<in>FSM.transitions M. t_source t = fst (q0, x) \<and> t_input t = snd (q0, x))"
@@ -438,6 +443,7 @@ proof -
 
   then show "fst (select_inputs (h M) q0 iL nL nS k m ! i) \<in> (insert q0 (set nL))"
             "snd (select_inputs (h M) q0 iL nL nS k m ! i) \<in> set iL"
+            "fst (select_inputs (h M) q0 iL nL nS k m ! i) \<notin> nS0"
             "(\<exists> t \<in> transitions M . t_source t = fst (select_inputs (h M) q0 iL nL nS k m ! i) \<and> t_input t = snd (select_inputs (h M) q0 iL nL nS k m ! i))"
             "(\<forall> t \<in> transitions M . (t_source t = fst (select_inputs (h M) q0 iL nL nS k m ! i) \<and> t_input t = snd (select_inputs (h M) q0 iL nL nS k m ! i)) \<longrightarrow> (t_target t \<in> nS0 \<or> (\<exists> qx' \<in> set (take i (select_inputs (h M) q0 iL nL nS k m)) . fst qx' = (t_target t))))"
     by blast+
