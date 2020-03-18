@@ -2132,6 +2132,11 @@ end
 
 subsection \<open>Assorted Other Lemmata\<close>
 
+lemma distinct_not_in_prefix :
+  assumes "\<And> i . (\<And> x . x \<in> set (take i xs) \<Longrightarrow> xs ! i \<noteq> x)"
+  shows "distinct xs"
+  using assms list_distinct_prefix by blast 
+
 (* TODO: rename, move *)
 lemma list_index_fun_gt : "\<And> xs (f::'a \<Rightarrow> nat) i j . (\<And> i . Suc i < length xs \<Longrightarrow> f (xs ! i) > f (xs ! (Suc i))) \<Longrightarrow> j < i \<Longrightarrow> i < length xs \<Longrightarrow> f (xs ! j) > f (xs ! i)"
 proof -

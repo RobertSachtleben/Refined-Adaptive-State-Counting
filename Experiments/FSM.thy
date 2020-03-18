@@ -812,6 +812,8 @@ proof -
 qed
 
 
+abbreviation "size_r M \<equiv> card (reachable_nodes M)"
+
 
 subsection \<open>Language\<close>
 
@@ -2755,6 +2757,38 @@ proof -
     by (metis append_take_drop_id assms(1) path_append_elim)
 
   show ?thesis using p1 p2 p3 that by blast
+qed
+
+
+
+lemma acyclic_single_deadlock_reachable :
+  assumes "acyclic M"
+  and     "\<And> q' . q' \<in> reachable_nodes M \<Longrightarrow> q' = qd \<or> \<not> deadlock_state M q'"
+shows "qd \<in> reachable_nodes M"
+  using acyclic_deadlock_reachable[OF assms(1)]
+  using assms(2) by auto 
+
+lemma acyclic_paths_to_single_deadlock :
+  assumes "acyclic M"
+  and     "\<And> q' . q' \<in> reachable_nodes M \<Longrightarrow> q' = qd \<or> \<not> deadlock_state M q'"
+  and     "q \<in> reachable_nodes M"
+obtains p where "path M q p" and "target q p = qd"
+proof -
+  have "q \<in> nodes M" using assms(3) reachable_node_is_node by metis
+  have "acyclic (from_FSM M q)"
+    using from_FSM_acyclic[OF assms(3,1)] by assumption
+
+  have *: "(\<And>q'. q' \<in> reachable_nodes (FSM.from_FSM M q) \<Longrightarrow> q' = qd \<or> \<not> deadlock_state (FSM.from_FSM M q) q')"
+    using assms(2) from_FSM_reachable_nodes[OF assms(3)] 
+    unfolding deadlock_state.simps from_FSM_simps[OF \<open>q \<in> nodes M\<close>] by blast
+
+  obtain p where "path (from_FSM M q) q p" and "target q p = qd"
+    using acyclic_single_deadlock_reachable[OF \<open>acyclic (from_FSM M q)\<close> *]
+    unfolding reachable_nodes_def from_FSM_simps[OF \<open>q \<in> nodes M\<close>]
+    by blast 
+
+  then show ?thesis
+    using that by (metis \<open>q \<in> FSM.nodes M\<close> from_FSM_path) 
 qed
 
 
