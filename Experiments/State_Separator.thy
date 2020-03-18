@@ -3415,6 +3415,17 @@ subsection \<open>Calculating a State Separator by Reachability Analysis\<close>
     \<rightarrow> extract d_states' props from State_Preamble 
 *)
 
+(* TODO: add CSep as param to avoid recalc? *)
+fun s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b) list" where
+  "s_states M q1 q2 k = (let C = canonical_separator M q1 q2
+   in select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (reachable_nodes_as_list C)))) {Inl (q1,q2), Inr q1, Inr q2} k [])"
+
+value "s_states m_ex_H 1 3 0"
+value "s_states m_ex_H 1 3 1"
+value "s_states m_ex_H 1 3 2"
+
+value "state_separator_from_input_choices m_ex_H (canonical_separator m_ex_H 1 3) 1 3 (s_states m_ex_H 1 3 2)"
+
 
 value "let P = restrict_to_reachable_nodes (product (from_FSM m_ex_H 1) (from_FSM m_ex_H 3))
         in d_states' (h P) (1,3) (1,3) (inputs_as_list P) (removeAll (1,3) (nodes_as_list P))"
