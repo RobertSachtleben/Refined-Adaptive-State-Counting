@@ -2068,6 +2068,66 @@ next
 qed
 
 
+subsection \<open>Linear Order on Sum\<close>
+(* TODO: check if required *)
+
+instantiation sum :: (ord,ord) ord
+begin
+
+fun less_eq_sum ::  "'a + 'b \<Rightarrow> 'a + 'b \<Rightarrow> bool" where
+  "less_eq_sum (Inl a) (Inl b) = (a \<le> b)" |
+  "less_eq_sum (Inl a) (Inr b) = True" |
+  "less_eq_sum (Inr a) (Inl b) = False" |
+  "less_eq_sum (Inr a) (Inr b) = (a \<le> b)"
+
+fun less_sum ::  "'a + 'b \<Rightarrow> 'a + 'b \<Rightarrow> bool" where
+  "less_sum a b = (a \<le> b \<and> a \<noteq> b)"
+
+instance by (intro_classes)
+end
+
+
+instantiation sum :: (linorder,linorder) linorder
+begin
+
+
+
+lemma less_le_not_le_sum :
+  fixes x :: "'a + 'b"
+  and   y :: "'a + 'b"
+shows "(x < y) = (x \<le> y \<and> \<not> y \<le> x)"  
+  by (cases x; cases y; auto)
+    
+lemma order_refl_sum :
+  fixes x :: "'a + 'b"
+  shows "x \<le> x" 
+  by (cases x; auto)
+
+lemma order_trans_sum :
+  fixes x :: "'a + 'b"
+  fixes y :: "'a + 'b"
+  fixes z :: "'a + 'b"
+  shows "x \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z"
+  by (cases x; cases y; cases z; auto)  
+
+lemma antisym_sum :
+  fixes x :: "'a + 'b"
+  fixes y :: "'a + 'b"
+  shows "x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y"
+  by (cases x; cases y; auto)
+
+lemma linear_sum :
+  fixes x :: "'a + 'b"
+  fixes y :: "'a + 'b"
+  shows "x \<le> y \<or> y \<le> x"
+  by (cases x; cases y; auto) 
+
+
+instance 
+  using less_le_not_le_sum order_refl_sum order_trans_sum antisym_sum linear_sum
+  by (intro_classes; metis+)
+end
+
 
 
 subsection \<open>Assorted Other Lemmata\<close>
