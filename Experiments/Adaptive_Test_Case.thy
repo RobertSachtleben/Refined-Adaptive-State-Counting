@@ -76,15 +76,45 @@ proof -
       then have "fst ioA \<in> (inputs A)"
         using fsm_transition_input by fastforce
 
+      have "(t_output tA,t_target tA) \<in> h A (initial A,t_input tA)"
+        using \<open>tA \<in> transitions A\<close> \<open>t_source tA = initial A\<close> unfolding h.simps
+        by (metis (no_types, lifting) case_prodI mem_Collect_eq prod.collapse) 
+      then have *: "\<And> yM qM . (yM,qM) \<in> h M (initial M,t_input tA) \<Longrightarrow> yM \<in> h_out A (initial A,t_input tA) \<and> pass_ATC' (from_FSM M qM) (from_FSM A (t_target tA)) FS k"
+        using Suc.prems(1) pass_ATC'_initial[OF Suc.prems(1)] unfolding pass_ATC'.simps
+        by (metis (no_types, lifting) \<open>fst ioA \<in> FSM.inputs A\<close> \<open>t_input tA = fst ioA\<close> case_prodD)
+
+      obtain tM where "tM \<in> transitions M"
+                  and "t_source tM = initial M"
+                  and "t_input tM = fst ioA"
+                  and "t_output tM = snd ioM"
+        using Nil \<open>io@[ioM] \<in> L M\<close> \<open>fst ioA = fst ioM\<close> by auto
+      have "(t_output tM,t_target tM) \<in> h M (initial M,t_input tA)"
+        using \<open>tM \<in> transitions M\<close> \<open>t_source tM = initial M\<close> \<open>t_input tM = fst ioA\<close> \<open>t_input tM = fst ioA\<close> unfolding h.simps
+        by (metis (mono_tags, lifting) \<open>t_input tA = fst ioA\<close> case_prodI mem_Collect_eq prod.collapse)
+      then have "t_output tM \<in> h_out A (initial A,t_input tA)" 
+            and "pass_ATC' (from_FSM M (t_target tM)) (from_FSM A (t_target tA)) FS k"
+        using * by blast+
+        
+         
+
+      then obtain tA' where "tA' \<in> transitions A"
+                       and "t_input tA' = fst ioM"
+                       and "t_source tA' = initial A" 
+                       and "t_output tA' = snd ioM" 
+                       and "pass_ATC' (from_FSM M (t_target tM)) (from_FSM A (t_target tA')) FS k"
+        using Suc.prems(1)
+      
+end (*      
       have *: "\<And> x . x \<in> (inputs A) \<Longrightarrow> \<exists> t' \<in> transitions A . t_input t' = x \<and> t_source t' = initial A \<Longrightarrow> x = fst ioA"
         using \<open>is_ATC A\<close> \<open>tA \<in> transitions A\<close> unfolding is_ATC_def single_input.simps
         using \<open>t_source tA = initial A\<close> \<open>t_input tA = fst ioA\<close>
         by metis 
 
+
       have find_scheme : "\<And> P xs x. x \<in> set xs \<Longrightarrow> P x \<Longrightarrow> (\<And> x' . x' \<in> set xs \<Longrightarrow> P x' \<Longrightarrow> x' = x) \<Longrightarrow> find P xs = Some x"
         by (metis find_None_iff find_condition find_set option.exhaust)
 
-end (*
+
 
       have "find (\<lambda> x . \<exists> t \<in> transitions A . t_input t = x \<and> t_source t = initial A) (inputs A) = Some (fst ioA)"
         using find_scheme[OF \<open>fst ioA \<in> (inputs A)\<close>, of "\<lambda>x . \<exists> t' \<in> transitions A . t_input t' = x \<and> t_source t' = initial A"]
