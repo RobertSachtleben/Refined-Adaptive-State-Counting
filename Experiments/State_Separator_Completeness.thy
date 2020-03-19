@@ -410,4 +410,47 @@ qed
 *)
 
 
+
+
+
+
+
+(* lemma r_distinguishability_implies_state_separator :
+  assumes "r_distinguishable M q1 q2"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "q1 \<noteq> q2"
+  and     "completely_specified M"
+shows "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+proof -
+
+  let ?PM = "product (from_FSM M q1) (from_FSM M q2)"
+  let ?SS = "s_states_opt ?PM (FSM.size ?PM)"
+
+  obtain k where "r_distinguishable_k M q1 q2 k"
+    by (meson assms r_distinguishable_alt_def) 
+
+  then obtain S where "calculate_state_separator_from_s_states M q1 q2 = Some S"
+    using calculate_state_separator_from_s_states_exhaustiveness[OF _ assms(2,3)] by blast
+
+  show ?thesis
+    using calculate_state_separator_from_s_states_soundness
+            [OF \<open>calculate_state_separator_from_s_states M q1 q2 = Some S\<close> assms(2,3,4,5)] by blast
+qed
+
+
+
+lemma r_distinguishable_iff_state_separator_exists :
+  assumes "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+  and     "q1 \<noteq> q2"
+  and     "completely_specified M"
+shows "r_distinguishable M q1 q2 \<longleftrightarrow> (\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S)"
+  using r_distinguishability_implies_state_separator[OF _ assms] state_separator_r_distinguishes_k r_distinguishable_alt_def[OF assms(1,2)]  
+  by metis
+
+*)
+
+
+
 end

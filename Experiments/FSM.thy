@@ -2989,4 +2989,47 @@ lemma add_transitions_simps :
   using assms by (transfer; auto)+
 
 
+
+
+
+
+subsection \<open>Assorted Lemmata\<close>
+
+
+lemma language_initial_path_append_transition :
+  assumes "ios @ [io] \<in> L M"
+  obtains p t where "path M (initial M) (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+proof -
+  obtain pt where "path M (initial M) pt" and "p_io pt = ios @ [io]"
+    using assms unfolding LS.simps by auto
+  then have "pt \<noteq> []"
+    by auto
+  then obtain p t where "pt = p @ [t]"
+    using rev_exhaust by blast  
+  then have "path M (initial M) (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+    using \<open>path M (initial M) pt\<close> \<open>p_io pt = ios @ [io]\<close> by auto
+  then show ?thesis using that by simp
+qed
+
+lemma language_path_append_transition :
+  assumes "ios @ [io] \<in> LS M q"
+  obtains p t where "path M q (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+proof -
+  obtain pt where "path M q pt" and "p_io pt = ios @ [io]"
+    using assms unfolding LS.simps by auto
+  then have "pt \<noteq> []"
+    by auto
+  then obtain p t where "pt = p @ [t]"
+    using rev_exhaust by blast  
+  then have "path M q (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+    using \<open>path M q pt\<close> \<open>p_io pt = ios @ [io]\<close> by auto
+  then show ?thesis using that by simp
+qed
+
+
+
+lemma path_map_target : "target (f4 q) (map (\<lambda> t . (f1 (t_source t), f2 (t_input t), f3 (t_output t), f4 (t_target t))) p) = f4 (target q p)" 
+  by (induction p; auto)
+
+
 end
