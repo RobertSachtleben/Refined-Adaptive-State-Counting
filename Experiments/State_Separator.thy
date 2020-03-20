@@ -4043,6 +4043,35 @@ proof -
 qed
 
 
+lemma separator_initial :
+  assumes "is_separator M q1 q2 A t1 t2"
+shows "initial A \<noteq> t1"
+and   "initial A \<noteq> t2"
+proof -
+  show "initial A \<noteq> t1"
+  proof 
+    assume "initial A = t1"
+    then have "deadlock_state A (initial A)"
+      using is_separator_simps(4)[OF assms] by auto
+    then have "reachable_nodes A = {initial A}" 
+      using nodes_initial_deadlock by blast
+    then show "False"
+      using is_separator_simps(7,15)[OF assms] \<open>initial A = t1\<close> by auto
+  qed
+
+  show "initial A \<noteq> t2"
+  proof 
+    assume "initial A = t2"
+    then have "deadlock_state A (initial A)"
+      using is_separator_simps(5)[OF assms] by auto
+    then have "reachable_nodes A = {initial A}" 
+      using nodes_initial_deadlock by blast
+    then show "False"
+      using is_separator_simps(6,15)[OF assms] \<open>initial A = t2\<close> by auto
+  qed
+qed
+
+
 lemma separator_path_targets :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "path A (initial A) p"

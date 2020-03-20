@@ -3032,4 +3032,129 @@ lemma path_map_target : "target (f4 q) (map (\<lambda> t . (f1 (t_source t), f2 
   by (induction p; auto)
 
 
+lemma reachable_nodes_initial_or_target :
+  assumes "q \<in> reachable_nodes M"
+  shows "q = initial M \<or> (\<exists> t \<in> transitions M . t_source t \<in> reachable_nodes M \<and> t_target t = q)"
+proof -
+  obtain p where "path M (initial M) p" and "target (initial M) p = q"
+    using assms unfolding reachable_nodes_def by auto 
+  
+  show ?thesis proof (cases p rule: rev_cases)
+    case Nil
+    then show ?thesis using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q\<close> by auto
+  next
+    case (snoc p' t)
+    
+    have "t \<in> transitions M"
+      using \<open>path M (initial M) p\<close> unfolding snoc by auto
+    moreover have "t_target t = q"
+      using \<open>target (initial M) p = q\<close> unfolding snoc by auto
+    moreover have "t_source t \<in> reachable_nodes M"
+      using \<open>path M (initial M) p\<close> unfolding snoc
+      by (metis append_is_Nil_conv last_in_set last_snoc not_Cons_self2 reachable_nodes_initial reachable_nodes_path) 
+
+    ultimately show ?thesis
+      by blast 
+  qed 
+qed
+
+
+
+lemma nodes_initial_deadlock :
+  assumes "deadlock_state M (initial M)"
+  shows "reachable_nodes M = {initial M}"
+  
+proof -
+  have "\<And> q . q \<in> reachable_nodes M \<Longrightarrow> q = initial M"
+  proof -
+    fix q assume "q \<in> reachable_nodes M"
+    then obtain p where "path M (initial M) p" and "target (initial M) p = q"
+      unfolding reachable_nodes_def by auto
+    
+    show "q = initial M" proof (cases p)
+      case Nil
+      then show ?thesis using \<open>target (initial M) p = q\<close> by auto
+    next
+      case (Cons t p')
+      then have "False" using assms \<open>path M (initial M) p\<close> unfolding deadlock_state.simps
+        by auto 
+      then show ?thesis by simp
+    qed
+  qed
+  then show ?thesis
+    using reachable_nodes_initial[of M] by blast
+qed
+      
+      
+lemma completely_specified_path_extension : 
+  assumes "completely_specified M"
+  and     "q \<in> nodes M"
+  and     "path M q p"
+  and     "x \<in> (inputs M)"
+obtains t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
+proof -
+  have "target q p \<in> nodes M"
+    using path_target_is_node \<open>path M q p\<close> by metis
+  then obtain t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
+    using \<open>completely_specified M\<close> \<open>x \<in> (inputs M)\<close> 
+    unfolding completely_specified.simps by blast
+  then show ?thesis using that by blast
+qed
+
+lemma completely_specified_language_extension :
+  assumes "completely_specified M"
+  and     "q \<in> nodes M"
+  and     "io \<in> LS M q"
+  and     "x \<in> (inputs M)"
+obtains y where "io@[(x,y)] \<in> LS M q"
+proof -
+  obtain p where "path M q p" and "p_io p = io"
+    using \<open>io \<in> LS M q\<close> by auto
+  
+  moreover obtain t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
+    using completely_specified_path_extension[OF assms(1,2) \<open>path M q p\<close> assms(4)] by blast
+
+  ultimately have "path M q (p@[t])" and "p_io (p@[t]) = io@[(x,t_output t)]"
+    by (simp add: path_append_transition)+
+    
+  then have "io@[(x,t_output t)] \<in> LS M q"
+    using language_state_containment[of M q "p@[t]" "io@[(x,t_output t)]"] by auto
+  then show ?thesis using that by blast
+qed
+  
+  
+lemma language_path_append_transition_observable :
+  assumes "(p_io p) @ [(x,y)] \<in> LS M q"
+  and     "path M q p"
+  and     "observable M"
+  obtains t where "path M q (p@[t])" and "t_input t = x" and "t_output t = y"
+proof -
+  obtain p' t where "path M q (p'@[t])" and "p_io (p'@[t]) = (p_io p) @ [(x,y)]"
+    using language_path_append_transition[OF assms(1)] by blast
+  then have "path M q p'" and "p_io p' = p_io p" and "t_input t = x" and "t_output t = y"
+    by auto
+
+  have "p' = p"
+    using observable_path_unique[OF assms(3) \<open>path M q p'\<close> \<open>path M q p\<close> \<open>p_io p' = p_io p\<close>] by assumption
+  then have "path M q (p@[t])"
+    using \<open>path M q (p'@[t])\<close> by auto
+  then show ?thesis using that \<open>t_input t = x\<close> \<open>t_output t = y\<close> by metis
+qed
+
+lemma acyclic_paths_finite :
+  "finite {p . path M q p \<and> distinct (visited_nodes q p) }"
+proof -
+  have "\<And> p . path M q p \<Longrightarrow> distinct (visited_nodes q p) \<Longrightarrow> distinct p"
+  proof -
+    fix p assume "path M q p" and "distinct (visited_nodes q p)"
+    then have "distinct (map t_target p)" by auto
+    then show "distinct p" by (simp add: distinct_map) 
+  qed
+  
+  then show ?thesis
+    using distinct_lists_finite[OF fsm_transitions_finite, of M]  path_transitions[of M q]
+    by (metis (no_types, lifting) infinite_super mem_Collect_eq path_transitions subsetI)
+qed
+
+
 end
