@@ -301,7 +301,7 @@ qed
 
 
 
-end (* lemma pass_ATC_io :
+lemma pass_ATC_io :
   assumes "pass_ATC M A FS"
   and     "is_ATC A"
   and     "observable M"
@@ -316,9 +316,9 @@ proof -
   have "acyclic A"
     using \<open>is_ATC A\<close> is_ATC_def by blast 
 
-  have "length (io @ [ioA]) \<le> (size A)"
-    using \<open>io@[ioA] \<in> L A\<close> unfolding LS.simps using acyclic_path_length[OF \<open>acyclic A\<close>]
-    by force 
+  then have "length (io @ [ioA]) \<le> (size A)"
+    using \<open>io@[ioA] \<in> L A\<close> unfolding LS.simps 
+    using acyclic_path_length_limit unfolding acyclic.simps by fastforce
   
   show "io@[ioM] \<in> L A"
   and  "io_targets A (io@[ioM]) (initial A) \<inter> FS = {}"
@@ -327,7 +327,7 @@ proof -
 qed
 
 
-end (* lemma pass_ATC_io_explicit_io_tuple :
+lemma pass_ATC_io_explicit_io_tuple :
   assumes "pass_ATC M A FS"
   and     "is_ATC A"
   and     "observable M"
@@ -341,7 +341,7 @@ and   "io_targets A (io@[(x,y')]) (initial A) \<inter> FS = {}"
 
 
 
-end (* lemma pass_ATC_io_fail_fixed_io :
+lemma pass_ATC_io_fail_fixed_io :
   assumes "is_ATC A"
   and     "observable M"
   and     "(inputs A) \<subseteq> (inputs M)"
@@ -366,7 +366,7 @@ qed
 
 
 
-end (* lemma pass_ATC'_io_fail :
+lemma pass_ATC'_io_fail :
   assumes "\<not>pass_ATC' M A FS k "
   and     "is_ATC A"
   and     "observable M"
@@ -384,116 +384,77 @@ next
     case True
     then show ?thesis by auto
   next
-    case False
-    then obtain x where "find (\<lambda> x . \<exists> t \<in> transitions A . t_input t = x \<and> t_source t = initial A) (inputs A) = Some x"
+    case False 
+    then obtain x where "x \<in> inputs A"
+                    and "h A (FSM.initial A, x) \<noteq> {}"
+                    and "\<not>(\<forall>(yM, qM)\<in>h M (initial M, x). \<exists>(yA, qA)\<in>h A (FSM.initial A, x). yM = yA \<and> pass_ATC' (FSM.from_FSM M qM) (FSM.from_FSM A qA) FS k)"
       using Suc.prems(1) unfolding pass_ATC'.simps
       by fastforce 
-    then have "pass_ATC' M A FS (Suc k) = (\<forall>t\<in>set (wf_transitions M).
-                                            t_input t = x \<and> t_source t = initial M \<longrightarrow>
-                                            (\<exists>t'\<in>set (wf_transitions A).
-                                                t_input t' = x \<and>
-                                                t_source t' = initial A \<and>
-                                                t_output t' = t_output t \<and>
-                                                pass_ATC' (from_FSM M (t_target t)) (from_FSM A (t_target t')) FS k))"
-      using False unfolding pass_ATC'.simps by fastforce
-    then obtain tM where "tM \<in> transitions M" 
-                   and   "t_input tM = x" 
-                   and   "t_source tM = initial M"
-                   and *:"\<not>(\<exists>t'\<in>set (wf_transitions A).
-                            t_input t' = x \<and>
-                            t_source t' = initial A \<and>
-                            t_output t' = t_output tM \<and>
-                            pass_ATC' (from_FSM M (t_target tM)) (from_FSM A (t_target t')) FS k)" 
-      using Suc.prems(1) by blast
 
-    obtain tA where "tA \<in> transitions A" and "t_input tA = x" and "t_source tA = initial A"
-      using find_condition[OF \<open>find (\<lambda> x . \<exists> t \<in> transitions A . t_input t = x \<and> t_source t = initial A) (inputs A) = Some x\<close>] by blast
+    obtain tM where "tM \<in> transitions M"
+                and "t_source tM = initial M"
+                and "t_input tM = x"
+                and "\<not>(\<exists>(yA, qA)\<in>h A (FSM.initial A, x). t_output tM = yA \<and> pass_ATC' (FSM.from_FSM M (t_target tM)) (FSM.from_FSM A qA) FS k)"
+(*and "\<not> (\<exists> tA . tA \<in> transitions A \<and> t_input tA = x \<and> t_output tA = t_output tM \<and> pass_ATC' (FSM.from_FSM M (t_target tM)) (FSM.from_FSM A (t_target tA)) FS k)"*)
+      using \<open>\<not>(\<forall>(yM, qM)\<in>h M (initial M, x). \<exists>(yA, qA)\<in>h A (FSM.initial A, x). yM = yA \<and> pass_ATC' (FSM.from_FSM M qM) (FSM.from_FSM A qA) FS k)\<close>  unfolding h.simps
+      by auto  
 
-    let ?ioA = "(x, t_output tA)"
-    let ?ioM = "(x, t_output tM)"
-
-    have "[?ioA] \<in> L A"
-      using \<open>tA \<in> transitions A\<close> \<open>t_input tA = x\<close> \<open>t_source tA = initial A\<close> unfolding LS.simps
-    proof -
-      have "[(x, t_output tA)] = p_io [tA]"
-        by (simp add: \<open>t_input tA = x\<close>)
-      then have "\<exists>ps. [(x, t_output tA)] = p_io ps \<and> path A (initial A) ps"
-        by (metis (no_types) \<open>tA \<in> set (wf_transitions A)\<close> \<open>t_source tA = initial A\<close> single_transition_path)
-      then show "[(x, t_output tA)] \<in> {p_io ps |ps. path A (initial A) ps}"
-        by blast
-    qed
-
-    (* TODO: extract *)
-    have "[?ioM] \<in> L M"
-      using \<open>tM \<in> transitions M\<close> \<open>t_input tM = x\<close> \<open>t_source tM = initial M\<close> unfolding LS.simps
-    proof -
-      have "[(x, t_output tM)] = p_io [tM]"
-        by (simp add: \<open>t_input tM = x\<close>)
-      then have "\<exists>ps. [(x, t_output tM)] = p_io ps \<and> path M (initial M) ps"
-        by (metis (no_types) \<open>tM \<in> set (wf_transitions M)\<close> \<open>t_source tM = initial M\<close> single_transition_path)
-      then show "[(x, t_output tM)] \<in> {p_io ps |ps. path M (initial M) ps}"
-        by blast
-    qed
-
-    have "fst ?ioA = fst ?ioM"
-      by auto
-
-    consider (a) "\<not>(\<exists>t'\<in>set (wf_transitions A).
-                            t_input t' = x \<and>
-                            t_source t' = initial A \<and>
-                            t_output t' = t_output tM)" |
-             (b) "\<exists>t'\<in>set (wf_transitions A).
-                            t_input t' = x \<and>
-                            t_source t' = initial A \<and>
-                            t_output t' = t_output tM \<and>
-                            \<not>(pass_ATC' (from_FSM M (t_target tM)) (from_FSM A (t_target t')) FS k)"
-      using * by blast
-       
+    have "\<not> (\<exists> tA . tA \<in> transitions A \<and> t_source tA = initial A \<and> t_input tA = x \<and> t_output tA = t_output tM \<and> pass_ATC' (FSM.from_FSM M (t_target tM)) (FSM.from_FSM A (t_target tA)) FS k)"
+      using \<open>\<not>(\<exists>(yA, qA)\<in>h A (FSM.initial A, x). t_output tM = yA \<and> pass_ATC' (FSM.from_FSM M (t_target tM)) (FSM.from_FSM A qA) FS k)\<close>
+      unfolding h.simps by force
+    moreover have "\<exists> tA . tA \<in> transitions A \<and> t_source tA = initial A \<and> t_input tA = x"
+      using \<open>h A (FSM.initial A, x) \<noteq> {}\<close> unfolding h.simps by force
+    ultimately consider 
+      (a) "\<And> tA . tA \<in> transitions A \<Longrightarrow> t_source tA = initial A \<Longrightarrow> t_input tA = x \<Longrightarrow> t_output tM \<noteq> t_output tA" |
+      (b) "\<exists> tA . tA \<in> transitions A \<and> t_source tA = initial A \<and> t_input tA = x \<and> t_output tA = t_output tM \<and> \<not>pass_ATC' (FSM.from_FSM M (t_target tM)) (FSM.from_FSM A (t_target tA)) FS k"
+      by force
     then show ?thesis proof cases
       case a
-
-      have "[?ioM] \<notin> L A"
-      proof 
-        assume "[?ioM] \<in> L A"
-        then obtain p where "path A (initial A) p" and "p_io p = [?ioM]" (* TODO: extract *)
-          unfolding LS.simps
-        proof -
-          assume a1: "[(x, t_output tM)] \<in> {p_io p |p. path A (initial A) p}"
-          assume a2: "\<And>p. \<lbrakk>path A (initial A) p; p_io p = [(x, t_output tM)]\<rbrakk> \<Longrightarrow> thesis"
-          have "\<exists>ps. [(x, t_output tM)] = p_io ps \<and> path A (initial A) ps"
-            using a1 by force
-          then show ?thesis
-            using a2 by (metis (lifting))
-        qed 
-        then obtain t where "p = [t]" and "t \<in> transitions A" and "t_source t = initial A" and "t_input t = x" and "t_output t = t_output tM"
-          by auto
-        then show "False" 
-          using a by blast
-      qed
-
-      then have "\<exists> io ioA ioM . io@[ioA] \<in> L A
-                          \<and> io@[ioM] \<in> L M
-                          \<and> fst ioA = fst ioM
-                          \<and> io@[ioM] \<notin> L A"
-        using \<open>[?ioA] \<in> L A\<close> \<open>[?ioM] \<in> L M\<close> \<open>fst ?ioA = fst ?ioM\<close>
-        by (metis append_Nil)
-      thus ?thesis by blast
-        
+      then have "[(x,t_output tM)] \<notin> L A" 
+        unfolding LS.simps by fastforce 
+      moreover have "\<exists> y . [(x,y)] \<in> L A"
+        using \<open>h A (FSM.initial A, x) \<noteq> {}\<close> unfolding h.simps LS.simps 
+      proof -
+        obtain pp :: "'d \<times> 'b \<times> 'c \<times> 'd" where
+          f1: "pp \<in> FSM.transitions A \<and> t_source pp = FSM.initial A \<and> t_input pp = x"
+          using \<open>\<exists>tA. tA \<in> FSM.transitions A \<and> t_source tA = FSM.initial A \<and> t_input tA = x\<close> by blast
+        then have "path A (FSM.initial A) [pp]"
+          by (metis single_transition_path)
+        then have "(t_input pp, t_output pp) # p_io ([]::('d \<times> 'b \<times> 'c \<times> _) list) \<in> {p_io ps |ps. path A (FSM.initial A) ps}"
+          by force
+        then show "\<exists>c. [(x, c)] \<in> {p_io ps |ps. path A (FSM.initial A) ps}"
+          using f1 by force
+      qed 
+      moreover have "[(x,t_output tM)] \<in> L M"
+        unfolding LS.simps using \<open>tM \<in> transitions M\<close> \<open>t_input tM = x\<close> \<open>t_source tM = initial M\<close>
+      proof -
+        have "\<exists>ps. p_io [tM] = p_io ps \<and> path M (FSM.initial M) ps"
+          by (metis (no_types) \<open>tM \<in> FSM.transitions M\<close> \<open>t_source tM = FSM.initial M\<close> single_transition_path)
+        then show "[(x, t_output tM)] \<in> {p_io ps |ps. path M (FSM.initial M) ps}"
+          by (simp add: \<open>t_input tM = x\<close>)
+      qed 
+      ultimately have "(\<exists>io ioA ioM. io @ [ioA] \<in> L A \<and> io @ [ioM] \<in> L M \<and> fst ioA = fst ioM \<and> (io @ [ioM] \<notin> L A))"
+        by (metis append_self_conv2 fst_conv)
+      then show ?thesis by blast 
     next
       case b
-      then obtain t' where "t' \<in> transitions A"
-                       and "t_input t' = x"
-                       and "t_source t' = initial A"
-                       and "t_output t' = t_output tM"
-                       and "\<not>(pass_ATC' (from_FSM M (t_target tM)) (from_FSM A (t_target t')) FS k)"
+      then obtain t' where "t' \<in> transitions A" 
+                       and "t_source t' = initial A" 
+                       and "t_input t' = x" 
+                       and "t_output t' = t_output tM" 
+                       and "\<not>pass_ATC' (FSM.from_FSM M (t_target tM)) (FSM.from_FSM A (t_target t')) FS k"
         by blast
 
-      have "(inputs (from_FSM A (t_target t'))) \<subseteq> (inputs (from_FSM M (t_target tM)))"
-        using \<open>(inputs A) \<subseteq> (inputs M)\<close> 
-        by (simp add: from_FSM_simps(2)) 
+      have "is_ATC (FSM.from_FSM A (t_target t'))"
+        using is_ATC_from[OF \<open>t' \<in> transitions A\<close> _ \<open>is_ATC A\<close>] reachable_nodes_initial
+        unfolding \<open>t_source t' = initial A\<close> by blast
 
-      have "observable A"
-        using \<open>is_ATC A\<close> unfolding is_ATC_def by auto
+      have "(inputs (from_FSM A (t_target t'))) \<subseteq> (inputs (from_FSM M (t_target tM)))"
+        by (simp add: Suc.prems(4) \<open>t' \<in> FSM.transitions A\<close> \<open>tM \<in> FSM.transitions M\<close> fsm_transition_target)
+
+      let ?ioM = "(x,t_output tM)"
+      let ?ioA = "(x,t_output t')"
+
 
       consider (b1) "initial (from_FSM A (t_target t')) \<in> FS" |
                (b2) "(\<exists>io ioA ioM.
@@ -502,25 +463,47 @@ next
                         fst ioA = fst ioM \<and>
                         (io @ [ioM] \<notin> LS (from_FSM A (t_target t')) (initial (from_FSM A (t_target t'))) \<or>
                         io_targets (from_FSM A (t_target t')) (io @ [ioM]) (initial (from_FSM A (t_target t'))) \<inter> FS \<noteq> {}))"
-        using Suc.IH[OF \<open>\<not>(pass_ATC' (from_FSM M (t_target tM)) (from_FSM A (t_target t')) FS k)\<close>
-                        is_ATC_from[OF \<open>t' \<in> transitions A\<close> \<open>is_ATC A\<close>]
-                        from_FSM_observable[OF \<open>observable M\<close> wf_transition_target[OF \<open>tM \<in> transitions M\<close>]]
-                        \<open>(inputs (from_FSM A (t_target t'))) \<subseteq> (inputs (from_FSM M (t_target tM)))\<close> ] 
+        using Suc.IH[OF \<open>\<not>pass_ATC' (FSM.from_FSM M (t_target tM)) (FSM.from_FSM A (t_target t')) FS k\<close>
+                        \<open>is_ATC (FSM.from_FSM A (t_target t'))\<close>
+                        from_FSM_observable[OF \<open>observable M\<close>]
+                        \<open>(inputs (from_FSM A (t_target t'))) \<subseteq> (inputs (from_FSM M (t_target tM)))\<close>]
         by blast              
       then show ?thesis proof cases
         case b1 (* analogous to case a *)
 
+        
+
+        have "[?ioA] \<in> L A"
+          unfolding LS.simps
+        proof -
+          have "\<exists>ps. [(x, t_output t')] = p_io ps \<and> path A (t_source t') ps"
+            using \<open>t' \<in> FSM.transitions A\<close> \<open>t_input t' = x\<close> by force
+          then show "[(x, t_output t')] \<in> {p_io ps |ps. path A (FSM.initial A) ps}"
+            by (simp add: \<open>t_source t' = FSM.initial A\<close>)
+        qed 
+
+        have "[?ioM] \<in> L M" 
+          unfolding LS.simps
+        proof -
+          have "path M (FSM.initial M) [tM]"
+            by (metis \<open>tM \<in> FSM.transitions M\<close> \<open>t_source tM = FSM.initial M\<close> single_transition_path)
+          then have "\<exists>ps. [(x, t_output tM)] = p_io ps \<and> path M (FSM.initial M) ps"
+            using \<open>t_input tM = x\<close> by force
+          then show "[(x, t_output tM)] \<in> {p_io ps |ps. path M (FSM.initial M) ps}"
+            by simp
+        qed
+
         have "p_io [t'] = [(x, t_output tM)]"
           using \<open>t_input t' = x\<close> \<open>t_output t' = t_output tM\<close>
           by auto
-        moreover have "target [t'] (initial A) = t_target t'"
+        moreover have "target (initial A) [t'] = t_target t'"
           using \<open>t_source t' = initial A\<close> by auto
-        ultimately have "t_target t' \<in> io_targets A [?ioM] (initial A)"
+        ultimately have "t_target t' \<in> io_targets A [(x,t_output tM)] (initial A)"
           unfolding io_targets.simps
           using single_transition_path[OF \<open>t' \<in> transitions A\<close>]
           by (metis (mono_tags, lifting) \<open>t_source t' = initial A\<close> mem_Collect_eq)
-        then have "initial (from_FSM A (t_target t')) \<in> io_targets A [?ioM] (initial A)"
-          by (simp add: from_FSM_simps(1))
+        then have "initial (from_FSM A (t_target t')) \<in> io_targets A [(x,t_output tM)] (initial A)"
+          unfolding io_targets.simps from_FSM_simps[OF fsm_transition_target[OF \<open>t' \<in> transitions A\<close>]] by simp
         then have "io_targets A ([] @ [?ioM]) (initial A) \<inter> FS \<noteq> {}"
           using b1 by (metis IntI append_Nil empty_iff) 
 
@@ -528,8 +511,8 @@ next
                           \<and> io@[ioM] \<in> L M
                           \<and> fst ioA = fst ioM
                           \<and> io_targets A (io @ [ioM]) (initial A) \<inter> FS \<noteq> {}"
-          using \<open>[?ioA] \<in> L A\<close> \<open>[?ioM] \<in> L M\<close> \<open>fst ?ioA = fst ?ioM\<close> 
-          using append_Nil by metis
+          using \<open>[?ioA] \<in> L A\<close> \<open>[?ioM] \<in> L M\<close>
+          by (metis \<open>t_output t' = t_output tM\<close> append.left_neutral) 
         
         then show ?thesis by blast
 
@@ -542,6 +525,9 @@ next
           and "fst ioA = fst ioM"
           and "(io @ [ioM] \<notin> LS (from_FSM A (t_target t')) (initial (from_FSM A (t_target t'))) \<or> io_targets (from_FSM A (t_target t')) (io @ [ioM]) (initial (from_FSM A (t_target t'))) \<inter> FS \<noteq> {})"
           by blast
+
+        have "observable A"
+              using Suc.prems(2) is_ATC_def by blast
 
         have "(?ioM # io) @ [ioA] \<in> L A"
           using language_state_prepend_transition[OF \<open>io @ [ioA] \<in> LS (from_FSM A (t_target t')) (initial (from_FSM A (t_target t')))\<close> \<open>t' \<in> transitions A\<close>]
@@ -565,19 +551,20 @@ next
             have "p_io [t'] = [(x, t_output tM)]"
               using \<open>t_input t' = x\<close> \<open>t_output t' = t_output tM\<close>
               by auto
-            moreover have "target [t'] (initial A) = t_target t'"
+            moreover have "target (initial A) [t'] = t_target t'"
               using \<open>t_source t' = initial A\<close> by auto
             ultimately have "t_target t' \<in> io_targets A [?ioM] (initial A)"
               unfolding io_targets.simps
               using single_transition_path[OF \<open>t' \<in> transitions A\<close>]
               by (metis (mono_tags, lifting) \<open>t_source t' = initial A\<close> mem_Collect_eq)
-              
+
+             
             
             show ?thesis 
               using observable_io_targets_language[of "[(x, t_output tM)]" "io@[ioM]" A "initial A" "t_target t'", OF _ \<open>observable A\<close> \<open>t_target t' \<in> io_targets A [?ioM] (initial A)\<close>]
-              using f1
-              by (metis \<open>observable A\<close> \<open>t' \<in> set (wf_transitions A)\<close> \<open>t_input t' = x\<close> \<open>t_output t' = t_output tM\<close> \<open>t_source t' = initial A\<close> append_Cons fst_conv observable_language_next snd_conv) 
-              
+                    f1
+              by (metis \<open>observable A\<close> \<open>t' \<in> FSM.transitions A\<close> \<open>t_input t' = x\<close> \<open>t_output t' = t_output tM\<close> \<open>t_source t' = FSM.initial A\<close> append_Cons fst_conv observable_language_next snd_conv)
+
           next
             case f2
 
@@ -586,7 +573,7 @@ next
               using \<open>t_input t' = x\<close> \<open>t_output t' = t_output tM\<close> by auto 
             moreover have "io_targets A (io @ [ioM]) (t_target t') = io_targets (from_FSM A (t_target t')) (io @ [ioM]) (initial (from_FSM A (t_target t')))"
               unfolding io_targets.simps
-              using from_FSM_path_initial[OF wf_transition_target[OF \<open>t' \<in> transitions A\<close>]] by auto
+              using from_FSM_path_initial[OF fsm_transition_target[OF \<open>t' \<in> transitions A\<close>]] by auto
             ultimately have "io_targets A ([?ioM] @ io @ [ioM]) (t_source t') = io_targets (from_FSM A (t_target t')) (io @ [ioM]) (initial (from_FSM A (t_target t')))"
               using observable_io_targets_next[OF \<open>observable A\<close> \<open>t' \<in> transitions A\<close>, of "io @ [ioM]"] by auto
 
@@ -603,7 +590,6 @@ next
     qed
   qed
 qed
-
 
 
 
