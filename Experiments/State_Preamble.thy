@@ -679,8 +679,7 @@ next
   then have "acyclic S"
         and "single_input S" 
         and "is_submachine S M"
-        and "q \<in> reachable_nodes S" 
-        and "deadlock_state S q" 
+        and "q \<in> reachable_nodes S"
         and "\<And> q' . q' \<in> reachable_nodes S \<Longrightarrow> (q = q' \<or> \<not> deadlock_state S q')" 
         and *: "\<And> q' x . q' \<in> reachable_nodes S \<Longrightarrow> x \<in> inputs M \<Longrightarrow> (\<exists> t \<in> transitions S . t_source t = q' \<and> t_input t = x) \<Longrightarrow> (\<forall> t' \<in> transitions M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> transitions S)"
     unfolding is_preamble_def by blast+
@@ -724,13 +723,14 @@ next
     by auto 
 
 
-  have *  : "(q = FSM.initial M) = False" using False by simp
-  obtain k where **: "length (d_states M q) = Suc k" using \<open>length (d_states M q) > 0\<close>
-    using gr0_conv_Suc by blast 
-  have ***: "(fst (last (d_states M q)) = FSM.initial M) = True" using \<open>fst (last (d_states M q)) = FSM.initial M\<close> by simp
+  
+  obtain k where "length (d_states M q) = Suc k" 
+    using \<open>length (d_states M q) > 0\<close> gr0_conv_Suc by blast 
+  have "(fst (last (d_states M q)) = FSM.initial M) = True" using \<open>fst (last (d_states M q)) = FSM.initial M\<close> by simp
 
   show ?thesis
-    unfolding calculate_state_preamble_from_input_choices.simps Let_def * ** *** by auto
+    unfolding calculate_state_preamble_from_input_choices.simps Let_def \<open>length (d_states M q) = Suc k\<close> \<open>(fst (last (d_states M q)) = FSM.initial M) = True\<close> 
+    by auto
 qed
 
 

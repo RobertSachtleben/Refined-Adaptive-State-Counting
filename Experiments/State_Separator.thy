@@ -1,5 +1,5 @@
 theory State_Separator
-imports R_Distinguishability IO_Sequence_Set State_Preamble "HOL-Library.Product_Lexorder"
+imports R_Distinguishability IO_Sequence_Set Backwards_Reachability_Analysis"HOL-Library.Product_Lexorder"
 begin
 
 section \<open>State Separators\<close>
@@ -2636,6 +2636,46 @@ qed
 
 
 
+lemma canonical_separator_observable_reachable_nodes :
+  assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+  and     "q1 \<in> nodes M" and "q2 \<in> nodes M"
+  and     "observable M"
+  shows "reachable_nodes (canonical_separator M q1 q2) = nodes (canonical_separator M q1 q2)"
+proof -
+  let ?CSep = "(canonical_separator M q1 q2)"
+  have "is_submachine S ?CSep" 
+  and  "((Inr q1) \<in> reachable_nodes S)"
+  and  "((Inr q2) \<in> reachable_nodes S)"
+    using assms unfolding is_state_separator_from_canonical_separator_def by blast+
+
+  then have "((Inr q1) \<in> reachable_nodes ?CSep)" and "((Inr q2) \<in> reachable_nodes ?CSep)"
+    using submachine_reachable_subset by blast+
+
+  moreover have "\<And> qq. qq \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2)) \<Longrightarrow> Inl qq \<in> reachable_nodes ?CSep"
+  proof - 
+    let ?P = "(Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))"
+    fix qq assume "qq \<in> reachable_nodes ?P"
+    then obtain p where "path ?P (q1,q2) p" and "target (q1,q2) p = qq"
+      unfolding reachable_nodes_def product_simps from_FSM_simps[OF assms(2)] from_FSM_simps[OF assms(3)] by auto
+    then have "path ?CSep (Inl (q1,q2)) (map shift_Inl p)"
+      using canonical_separator_path_shift[OF assms(2,3)]
+      unfolding canonical_separator_simps[OF assms(2,3)] reachable_nodes_def product_simps from_FSM_simps[OF assms(2)] from_FSM_simps[OF assms(3)]
+      by simp
+    moreover have "target (Inl (q1,q2)) (map shift_Inl p) = Inl qq"
+      using \<open>target (q1,q2) p = qq\<close> by (cases p rule: rev_cases; auto)
+    ultimately show "Inl qq \<in> reachable_nodes ?CSep"
+      using reachable_nodes_intro[of ?CSep "(map shift_Inl p)"]
+      unfolding canonical_separator_simps[OF assms(2,3)] by metis
+  qed
+
+  moreover have "reachable_nodes ?CSep \<subseteq> nodes ?CSep"
+    using reachable_node_is_node[of _ ?CSep] by blast
+
+  ultimately show ?thesis unfolding canonical_separator_simps(2)[OF assms(2,3)] by blast
+qed
+
+
+
 subsection \<open>Calculating State Separators\<close>
 
 subsubsection \<open>Sufficient Condition to Induce a State Separator\<close>
@@ -3609,17 +3649,21 @@ value "s_states m_ex_H 1 3"
 definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm option" where
   "state_separator_from_s_states M q1 q2 = 
     (let cs = s_states M q1 q2 
-      in (case find (\<lambda>qx . fst qx = (Inl (q1,q2))) cs of
-            Some _ \<Rightarrow> Some (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) |
-            None   \<Rightarrow>  None))"
+      in (case length cs of
+            0 \<Rightarrow> None |
+            _ \<Rightarrow> if fst (last cs) = Inl (q1,q2)
+                  then Some (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)
+                  else None))"
 
 lemma state_separator_from_s_states_code[code] :
   "state_separator_from_s_states M q1 q2 =
     (let C = canonical_separator M q1 q2;
          cs = select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list C)))) {Inr q1, Inr q2} []
-      in  (case find (\<lambda>qx . fst qx = (Inl (q1,q2))) cs of
-            Some _ \<Rightarrow> Some (state_separator_from_input_choices M C q1 q2 cs) |
-            None   \<Rightarrow>  None))"
+      in (case length cs of
+            0 \<Rightarrow> None |
+            _ \<Rightarrow> if fst (last cs) = Inl (q1,q2)
+                  then Some (state_separator_from_input_choices M C q1 q2 cs) 
+                  else None))"
   unfolding s_states_def state_separator_from_s_states_def Let_def by simp
 
 
@@ -3732,15 +3776,13 @@ lemma state_separator_from_s_states_soundness :
 proof -
   let ?cs = "s_states M q1 q2"
 
-  have "find (\<lambda>qx. fst qx = Inl (q1, q2)) ?cs \<noteq> None" 
-    using assms unfolding state_separator_from_s_states_def Let_def
-    by (metis option.case_eq_if option.distinct(1))
+  have "length (s_states M q1 q2) \<noteq> 0 \<and> fst (last (s_states M q1 q2)) = Inl (q1,q2)"
+  and  "A = state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 ?cs"
+    using assms(1) unfolding state_separator_from_s_states_def Let_def
+    by (cases "length (s_states M q1 q2)"; cases "fst (last (s_states M q1 q2)) = Inl (q1,q2)"; auto)+
   then have "Inl (q1,q2) \<in> set (map fst ?cs)"
-    unfolding find_None_iff by (metis (full_types) map_set)
-
-  have "A = state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 ?cs"
-    using assms unfolding state_separator_from_s_states_def Let_def
-    using \<open>find (\<lambda>qx. fst qx = Inl (q1, q2)) ?cs \<noteq> None\<close> by fastforce 
+    by (metis last_in_set length_0_conv map_set)
+     
 
   show ?thesis 
     using state_separator_from_input_choices_is_state_separator[
@@ -3750,6 +3792,89 @@ proof -
 qed
   
 
+
+(* TODO: assumptions on complete-specifiedness and observability are likely too strong *)
+(* TODO: convert lemmate concerning the relation between r-distinguishability and state separators *)
+lemma state_separator_from_s_states_exhaustiveness :
+  assumes "\<exists> S . is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M" and "completely_specified M" and "observable M"
+  shows "state_separator_from_s_states M q1 q2 \<noteq> None"
+proof -
+  let ?CSep = "(canonical_separator M q1 q2)"
+
+  obtain S where S_def: "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
+    using assms(1) by blast
+
+  then have "is_submachine S ?CSep" 
+       and  "single_input S"
+       and  "acyclic S"
+        and  *:"\<And> q . q \<in> reachable_nodes S \<Longrightarrow> q \<noteq> Inr q1 \<Longrightarrow> q \<noteq> Inr q2 \<Longrightarrow> (isl q \<and> \<not> deadlock_state S q)"
+       and  **:"\<And> q x t . q \<in> reachable_nodes S \<Longrightarrow> x \<in> (inputs ?CSep) \<Longrightarrow> (\<exists> t \<in> transitions S . t_source t = q \<and> t_input t = x) \<Longrightarrow> t \<in> transitions ?CSep \<Longrightarrow> t_source t = q \<Longrightarrow> t_input t = x \<Longrightarrow> t \<in> transitions S"
+    using assms unfolding is_state_separator_from_canonical_separator_def by blast+
+
+ 
+  have p1: "(\<And>q x. q \<in> reachable_nodes S \<Longrightarrow> h S (q, x) \<noteq> {} \<Longrightarrow> h S (q, x) = h ?CSep (q, x))"
+  proof - 
+    fix q x assume "q \<in> reachable_nodes S" and "h S (q, x) \<noteq> {}"
+
+    then have "x \<in> inputs ?CSep"
+      using \<open>is_submachine S ?CSep\<close> fsm_transition_input by force
+    have "(\<exists> t \<in> transitions S . t_source t = q \<and> t_input t = x)"
+      using \<open>h S (q, x) \<noteq> {}\<close> by fastforce
+
+
+    have "\<And> y q'' . (y,q'') \<in> h S (q,x) \<Longrightarrow> (y,q'') \<in> h ?CSep (q,x)" 
+      using \<open>is_submachine S ?CSep\<close> by force 
+    moreover have "\<And> y q'' . (y,q'') \<in> h ?CSep (q,x) \<Longrightarrow> (y,q'') \<in> h S (q,x)" 
+      using **[OF \<open>q \<in> reachable_nodes S\<close> \<open>x \<in> inputs ?CSep\<close> \<open>(\<exists> t \<in> transitions S . t_source t = q \<and> t_input t = x)\<close>]
+      unfolding h.simps by force
+    ultimately show "h S (q, x) = h ?CSep (q, x)" 
+      by force
+  qed 
+
+  have p2: "\<And>q'. q' \<in> reachable_nodes S \<Longrightarrow> deadlock_state S q' \<Longrightarrow> q' \<in> {Inr q1, Inr q2} \<union> set (map fst [])"
+    using * by fast
+
+  have "initial S = Inl (q1,q2)"
+    using state_separator_from_canonical_separator_initial[OF assms(2,3) S_def] by assumption
+  
+  
+
+  have ***: "(set (remove1 (Inl (q1, q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list ?CSep)))) \<union> {Inr q1, Inr q2} \<union> set (map fst [])) = (nodes ?CSep - {Inl (q1,q2)})"
+    using nodes_as_list_set[of ?CSep] nodes_as_list_distinct[of ?CSep]
+    unfolding canonical_separator_observable_reachable_nodes[OF S_def assms(2,3,5)]
+              \<open>initial S = Inl (q1,q2)\<close> 
+              canonical_separator_simps(2)[OF assms(2,3)]
+    by auto 
+
+  have "Inl (q1,q2) \<in> reachable_nodes ?CSep"
+    using reachable_nodes_initial[of S] unfolding \<open>initial S = Inl (q1,q2)\<close>
+    using  submachine_reachable_subset[OF \<open>is_submachine S ?CSep\<close>] by blast
+  then have p3: "reachable_nodes ?CSep = insert (FSM.initial S) (set (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list ?CSep)))) \<union> {Inr q1, Inr q2} \<union> set (map fst []))"
+    unfolding *** \<open>initial S = Inl (q1,q2)\<close>
+    by (metis S_def assms(2) assms(3) assms(5) canonical_separator_observable_reachable_nodes insert_Diff_single insert_absorb) 
+    
+    
+   
+
+  have p4: "initial S \<notin> (set (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list ?CSep)))) \<union> {Inr q1, Inr q2} \<union> set (map fst []))"
+    using \<open>FSM.initial S = Inl (q1, q2)\<close> by auto 
+
+  have "fst (last (s_states M q1 q2)) = Inl (q1,q2)" and "length (s_states M q1 q2) > 0"
+    using select_inputs_from_submachine[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S ?CSep\<close> p1 p2 p3 p4]
+    unfolding s_states_def submachine_simps[OF \<open>is_submachine S ?CSep\<close>] Let_def canonical_separator_simps(1)[OF assms(2,3)]
+    by auto 
+
+
+  obtain k where"length (s_states M q1 q2) = Suc k" 
+    using \<open>length (s_states M q1 q2) > 0\<close> gr0_conv_Suc by blast 
+  have "(fst (last (s_states M q1 q2)) = Inl (q1,q2)) = True"
+    using \<open>fst (last (s_states M q1 q2)) = Inl (q1,q2)\<close> by simp
+
+  show ?thesis                            
+    unfolding state_separator_from_s_states_def Let_def \<open>length (s_states M q1 q2) = Suc k\<close> \<open>fst (last (s_states M q1 q2)) = Inl (q1,q2)\<close>
+    by auto
+qed
 
 
 

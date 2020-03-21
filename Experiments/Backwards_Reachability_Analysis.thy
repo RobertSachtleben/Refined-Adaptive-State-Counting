@@ -591,29 +591,6 @@ proof -
 qed
 
 
-(* TODO: move *)
-lemma acyclic_no_self_loop :
-  assumes "acyclic M"
-  and     "q \<in> reachable_nodes M"
-shows "\<not> (\<exists> x y . (q,x,y,q) \<in> transitions M)" 
-proof 
-  assume "\<exists>x y. (q, x, y, q) \<in> FSM.transitions M"
-  then obtain x y where "(q, x, y, q) \<in> FSM.transitions M" by blast
-  moreover obtain p where "path M (initial M) p" and "target (initial M) p = q"
-    using assms(2) unfolding reachable_nodes_def by blast
-  ultimately have "path M (initial M) (p@[(q,x,y,q)])" 
-    by (simp add: path_append_transition) 
-  moreover have "\<not> (distinct (visited_nodes (initial M) (p@[(q,x,y,q)])))"
-    using \<open>target (initial M) p = q\<close> unfolding visited_nodes.simps target.simps by (cases p rule: rev_cases; auto)
-  ultimately show "False"
-    using assms(1) unfolding acyclic.simps
-    by meson 
-qed
-
-
-
-
-
     
 
 (* note: currently requires that initial state of S must have some defined input *)
