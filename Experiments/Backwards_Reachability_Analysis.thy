@@ -665,7 +665,9 @@ next
 
 
   have "\<exists> q x . q \<in> nodes S - (nS0 \<union> set (map fst m)) \<and> h M (q,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
-    sorry
+
+
+end (*
   then obtain q x where "q \<in> nodes S" and "q \<notin> (nS0 \<union> set (map fst m))" and "h M (q,x) \<noteq> {}" and "(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
     by blast
   then have "x \<in> set (inputs_as_list M)"
