@@ -1224,14 +1224,16 @@ proof -
 qed
 
 
-end (* lemma atc_to_io_set_code : 
+
+lemma atc_to_io_set_code :
   assumes "acyclic A"
-  shows "atc_to_io_set M A = set (atc_to_io_list M A)"
+  shows "atc_to_io_set M A = atc_to_io_list M A"
 proof -
 
-  have "set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1))) = L A"
-    using acyclic_language_alt_def[OF assms]  by assumption
-  have "set (map p_io (paths_up_to_length M (initial M) (size A -1))) = {io \<in> L M . length io \<le> size A - 1}"
+  have "image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1)) = L A"
+    using acyclic_language_alt_def[OF assms] by assumption
+  have "image p_io (paths_up_to_length M (initial M) (size A -1)) = {io \<in> L M . length io \<le> size A - 1}"
+end (*
     using paths_up_to_length_path_set[OF nodes.initial, of M "size A - 1"] unfolding LS.simps by auto
    
   

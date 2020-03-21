@@ -1740,6 +1740,12 @@ shows "xs' = removeAll x xs"
   using find_remove_2_set(6)[OF assms(1)]
   by (simp add: assms(2) distinct_remove1_removeAll) 
 
+lemma find_remove_2_length :
+  assumes "find_remove_2 P xs ys = Some (x,y,xs')"
+  shows "length xs' = length xs - 1"
+  using find_remove_2_set(2,6)[OF assms]
+  by (simp add: length_remove1) 
+
 
 subsection \<open>Other Lemmata\<close>
 
