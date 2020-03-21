@@ -665,9 +665,51 @@ next
 
 
   have "\<exists> q x . q \<in> nodes S - (nS0 \<union> set (map fst m)) \<and> h M (q,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
+  proof -
+    define ndlps where ndlps_def: "ndlps = {p . path S (initial S) p \<and> target (initial S) p \<notin> (nS0 \<union> set (map fst m))}"
 
+    have "path S (initial S) [] \<and> target (initial S) [] \<notin> (nS0 \<union> set (map fst m))"
+      using Suc.prems(3) by auto
+    then have "[] \<in> ndlps"
+      unfolding ndlps_def by blast
+    then have "ndlps \<noteq> {}" by auto
+    moreover have "finite ndlps"
+      using acyclic_finite_paths_from_reachable_node[OF \<open>acyclic S\<close>, of "[]"] unfolding ndlps_def by fastforce
+    ultimately have "\<exists> p \<in> ndlps . \<forall> p' \<in> ndlps . length p' \<le> length p"
+      by (meson max_length_elem not_le_imp_less) 
+    then obtain p where "path S (initial S) p"
+                        and "target (initial S) p \<notin> (nS0 \<union> set (map fst m))"
+                        and "\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p"
+      unfolding ndlps_def by blast
 
-end (*
+    let ?q = "target (initial S) p"
+    have "\<not> deadlock_state S ?q"
+      using Suc.prems(1) using \<open>?q \<notin> (nS0 \<union> set (map fst m))\<close> by blast
+    then obtain x where "h S (?q,x) \<noteq> {}"
+      unfolding deadlock_state.simps h.simps by fastforce
+    then have "h M (?q,x) \<noteq> {}"
+      using assms(4)[of ?q _] by blast      
+
+    moreover have "\<And> y q'' . (y,q'') \<in> h M (?q,x) \<Longrightarrow> q'' \<in> (nS0 \<union> set (map fst m))"
+    proof (rule ccontr)
+      fix y q'' assume "(y,q'') \<in> h M (?q,x)" and "q'' \<notin> nS0 \<union> set (map fst m)"
+      then have "(?q,x,y,q'') \<in> transitions S"
+        using assms(4)[OF \<open>h S (?q,x) \<noteq> {}\<close>] unfolding h.simps
+        by blast 
+      then have "path S (initial S) (p@[(?q,x,y,q'')])"
+        using \<open>path S (initial S) p\<close> by (simp add: path_append_transition)
+      moreover have "target (initial S) (p@[(?q,x,y,q'')]) \<notin> (nS0 \<union> set (map fst m))"
+        using \<open>q'' \<notin> nS0 \<union> set (map fst m)\<close> by auto
+      ultimately show "False"
+        using \<open>\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p\<close>[of "(p@[(?q,x,y,q'')])"] by simp
+    qed
+
+    moreover have "?q \<in> FSM.nodes S - (nS0 \<union> set (map fst m))"
+      using  \<open>?q \<notin> (nS0 \<union> set (map fst m))\<close> path_target_is_node[OF \<open>path S (initial S) p\<close>] by blast
+    
+    ultimately show ?thesis by blast
+  qed
+  
   then obtain q x where "q \<in> nodes S" and "q \<notin> (nS0 \<union> set (map fst m))" and "h M (q,x) \<noteq> {}" and "(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
     by blast
   then have "x \<in> set (inputs_as_list M)"
@@ -724,10 +766,6 @@ end (*
     qed
   qed
 qed
-
-
-end (*
-unfolding \<open>nL = n # nL''\<close> select_inputs.simps h.simps
 
 
 end
