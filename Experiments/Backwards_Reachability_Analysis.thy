@@ -611,160 +611,177 @@ proof
 qed
 
 
+
+
+
     
 
-
+(* note: currently requires that initial state of S must have some defined input *)
 lemma select_inputs_from_submachine :
   assumes "single_input S"
   and     "acyclic S"
   and     "is_submachine S M"
-  and     "\<And> q x . h S (q,x) \<noteq> {} \<Longrightarrow> h S (q,x) = h M (q,x)"
-  and     "\<And> q . deadlock_state S q \<Longrightarrow> q \<in> nS0 \<union> set (map fst m)" (* initial state must have some defined input *)
-  and     "nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))"
+  and     "\<And> q x . q \<in> reachable_nodes S \<Longrightarrow> h S (q,x) \<noteq> {} \<Longrightarrow> h S (q,x) = h M (q,x)"
+  and     "\<And> q . q \<in> reachable_nodes S \<Longrightarrow> deadlock_state S q \<Longrightarrow> q \<in> nS0 \<union> set (map fst m)" 
+  and     "reachable_nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))"
   and     "(initial S) \<notin> (set nL \<union> nS0 \<union> set (map fst m))"
-shows "(initial S) \<in> set (map fst (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m))"
-using assms(5,6,7) proof (induction "length nL" arbitrary: nL m)
-  case 0
-  then have "nL = []" by auto
-
-  have "\<not> (deadlock_state S (initial S))"
-    using assms(5,6,3,7) by blast 
-  then obtain x where "x \<in> set (inputs_as_list M)" and "h S ((initial S),x) \<noteq> {}"
-    using assms(3) unfolding deadlock_state.simps h.simps inputs_as_list_set 
-    by fastforce 
+shows "fst (last (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m)) = (initial S)"
+and   "length (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m) > 0"
+proof -
+  have "fst (last (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m)) = (initial S) \<and> length (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m) > 0"
+  using assms(5,6,7) proof (induction "length nL" arbitrary: nL m)
+    case 0
+    then have "nL = []" by auto
   
-  then have "h M ((initial S),x) \<noteq> {}"
-    using assms(4)  by fastforce 
-  
-
-  have "(initial S) \<in> nodes M"
-    using \<open>nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))\<close> by blast
-  
-
-  have "\<And> y q'' . (y,q'') \<in> h M ((initial S),x) \<Longrightarrow> q'' \<in> (nS0 \<union> set (map fst m))"
-  proof -
-    fix y q'' assume "(y,q'') \<in> h M ((initial S),x)"
-    then have "q'' \<in> nodes M" using fsm_transition_target unfolding h.simps by fastforce 
-    then have "q'' \<in> insert (initial S) (nS0 \<union> set (map fst m))" using "0.prems"(2) \<open>nL = []\<close> by auto
-    moreover have "q'' \<noteq> (initial S)"
-      using acyclic_no_self_loop[OF \<open>acyclic S\<close> reachable_nodes_initial]
-      using \<open>(y,q'') \<in> h M ((initial S),x)\<close> assms(4)[OF \<open>h S ((initial S),x) \<noteq> {}\<close>] unfolding h.simps
-      by blast 
-    ultimately show "q'' \<in> (nS0 \<union> set (map fst m))" by blast
-  qed
-  then have "x \<in> set (inputs_as_list M) \<and> h M ((initial S), x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M ((initial S), x). q'' \<in> nS0 \<union> set (map fst m))"
-    using \<open>x \<in> set (inputs_as_list M) \<close> \<open>h M ((initial S), x) \<noteq> {}\<close> by blast
-  then have "find (\<lambda> x . (h M) ((initial S),x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) ((initial S),x) . (q'' \<in> (nS0 \<union> set (map fst m))))) (inputs_as_list M) \<noteq> None"
-    unfolding find_None_iff by blast
-  then show ?case
-    unfolding \<open>nL = []\<close> select_inputs.simps by auto
-next
-  case (Suc k)
-  then obtain n nL'' where "nL = n # nL''"
-    by (meson Suc_length_conv) 
-
-
-  have "\<exists> q x . q \<in> nodes S - (nS0 \<union> set (map fst m)) \<and> h M (q,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
-  proof -
-    define ndlps where ndlps_def: "ndlps = {p . path S (initial S) p \<and> target (initial S) p \<notin> (nS0 \<union> set (map fst m))}"
-
-    have "path S (initial S) [] \<and> target (initial S) [] \<notin> (nS0 \<union> set (map fst m))"
-      using Suc.prems(3) by auto
-    then have "[] \<in> ndlps"
-      unfolding ndlps_def by blast
-    then have "ndlps \<noteq> {}" by auto
-    moreover have "finite ndlps"
-      using acyclic_finite_paths_from_reachable_node[OF \<open>acyclic S\<close>, of "[]"] unfolding ndlps_def by fastforce
-    ultimately have "\<exists> p \<in> ndlps . \<forall> p' \<in> ndlps . length p' \<le> length p"
-      by (meson max_length_elem not_le_imp_less) 
-    then obtain p where "path S (initial S) p"
-                        and "target (initial S) p \<notin> (nS0 \<union> set (map fst m))"
-                        and "\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p"
-      unfolding ndlps_def by blast
-
-    let ?q = "target (initial S) p"
-    have "\<not> deadlock_state S ?q"
-      using Suc.prems(1) using \<open>?q \<notin> (nS0 \<union> set (map fst m))\<close> by blast
-    then obtain x where "h S (?q,x) \<noteq> {}"
-      unfolding deadlock_state.simps h.simps by fastforce
-    then have "h M (?q,x) \<noteq> {}"
-      using assms(4)[of ?q _] by blast      
-
-    moreover have "\<And> y q'' . (y,q'') \<in> h M (?q,x) \<Longrightarrow> q'' \<in> (nS0 \<union> set (map fst m))"
-    proof (rule ccontr)
-      fix y q'' assume "(y,q'') \<in> h M (?q,x)" and "q'' \<notin> nS0 \<union> set (map fst m)"
-      then have "(?q,x,y,q'') \<in> transitions S"
-        using assms(4)[OF \<open>h S (?q,x) \<noteq> {}\<close>] unfolding h.simps
-        by blast 
-      then have "path S (initial S) (p@[(?q,x,y,q'')])"
-        using \<open>path S (initial S) p\<close> by (simp add: path_append_transition)
-      moreover have "target (initial S) (p@[(?q,x,y,q'')]) \<notin> (nS0 \<union> set (map fst m))"
-        using \<open>q'' \<notin> nS0 \<union> set (map fst m)\<close> by auto
-      ultimately show "False"
-        using \<open>\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p\<close>[of "(p@[(?q,x,y,q'')])"] by simp
-    qed
-
-    moreover have "?q \<in> FSM.nodes S - (nS0 \<union> set (map fst m))"
-      using  \<open>?q \<notin> (nS0 \<union> set (map fst m))\<close> path_target_is_node[OF \<open>path S (initial S) p\<close>] by blast
+    have "\<not> (deadlock_state S (initial S))"
+      using assms(5,6,3,7) reachable_nodes_initial by blast 
+    then obtain x where "x \<in> set (inputs_as_list M)" and "h S ((initial S),x) \<noteq> {}"
+      using assms(3) unfolding deadlock_state.simps h.simps inputs_as_list_set 
+      by fastforce 
     
-    ultimately show ?thesis by blast
-  qed
+    then have "h M ((initial S),x) \<noteq> {}"
+      using assms(4)[OF reachable_nodes_initial]  by fastforce 
+    
   
-  then obtain q x where "q \<in> nodes S" and "q \<notin> (nS0 \<union> set (map fst m))" and "h M (q,x) \<noteq> {}" and "(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
-    by blast
-  then have "x \<in> set (inputs_as_list M)"
-    unfolding h.simps using fsm_transition_input inputs_as_list_set by fastforce 
-
+    have "(initial S) \<in> reachable_nodes M"
+      using \<open>reachable_nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))\<close> by blast
+    then have "(initial S) \<in> nodes M"
+      using reachable_node_is_node by force
+    
   
-
-  show ?case proof (cases "q = initial S")
-    case True
-    have "find (\<lambda>x. h M (FSM.initial S, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (FSM.initial S, x). q'' \<in> nS0 \<union> set (map fst m))) (inputs_as_list M) \<noteq> None"
-      using \<open>h M (q,x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))\<close> \<open>x \<in> set (inputs_as_list M)\<close>
-      unfolding True find_None_iff by blast
-    then show ?thesis unfolding \<open>nL = n # nL''\<close> by auto
+    have "\<And> y q'' . (y,q'') \<in> h M ((initial S),x) \<Longrightarrow> q'' \<in> (nS0 \<union> set (map fst m))"
+    proof -
+      fix y q'' assume "(y,q'') \<in> h M ((initial S),x)"
+      then have "q'' \<in> reachable_nodes M" using fsm_transition_target unfolding h.simps
+        using \<open>FSM.initial S \<in> reachable_nodes M\<close> reachable_nodes_next by fastforce    
+      then have "q'' \<in> insert (initial S) (nS0 \<union> set (map fst m))" using "0.prems"(2) \<open>nL = []\<close> by auto
+      moreover have "q'' \<noteq> (initial S)"
+        using acyclic_no_self_loop[OF \<open>acyclic S\<close> reachable_nodes_initial]
+        using \<open>(y,q'') \<in> h M ((initial S),x)\<close> assms(4)[OF reachable_nodes_initial \<open>h S ((initial S),x) \<noteq> {}\<close>] unfolding h.simps
+        by blast 
+      ultimately show "q'' \<in> (nS0 \<union> set (map fst m))" by blast
+    qed
+    then have "x \<in> set (inputs_as_list M) \<and> h M ((initial S), x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M ((initial S), x). q'' \<in> nS0 \<union> set (map fst m))"
+      using \<open>x \<in> set (inputs_as_list M) \<close> \<open>h M ((initial S), x) \<noteq> {}\<close> by blast
+    then have "find (\<lambda> x . (h M) ((initial S),x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) ((initial S),x) . (q'' \<in> (nS0 \<union> set (map fst m))))) (inputs_as_list M) \<noteq> None"
+      unfolding find_None_iff by blast
+    then show ?case
+      unfolding \<open>nL = []\<close> select_inputs.simps by auto
   next
-    case False
-    then have "q \<in> set nL" 
-      using \<open>is_submachine S M\<close> unfolding is_submachine.simps \<open>nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))\<close>
-      using \<open>q \<in> nodes S\<close>  \<open>q \<notin> (nS0 \<union> set (map fst m))\<close> by blast
-
-    
-    show ?thesis proof (cases "find (\<lambda>x. h M (FSM.initial S, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (FSM.initial S, x). q'' \<in> nS0 \<union> set (map fst m))) (inputs_as_list M)")
-      case None
+    case (Suc k)
+    then obtain n nL'' where "nL = n # nL''"
+      by (meson Suc_length_conv) 
+  
+  
+    have "\<exists> q x . q \<in> reachable_nodes S - (nS0 \<union> set (map fst m)) \<and> h M (q,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
+    proof -
+      define ndlps where ndlps_def: "ndlps = {p . path S (initial S) p \<and> target (initial S) p \<notin> (nS0 \<union> set (map fst m))}"
+  
+      have "path S (initial S) [] \<and> target (initial S) [] \<notin> (nS0 \<union> set (map fst m))"
+        using Suc.prems(3) by auto
+      then have "[] \<in> ndlps"
+        unfolding ndlps_def by blast
+      then have "ndlps \<noteq> {}" by auto
+      moreover have "finite ndlps"
+        using acyclic_finite_paths_from_reachable_node[OF \<open>acyclic S\<close>, of "[]"] unfolding ndlps_def by fastforce
+      ultimately have "\<exists> p \<in> ndlps . \<forall> p' \<in> ndlps . length p' \<le> length p"
+        by (meson max_length_elem not_le_imp_less) 
+      then obtain p where "path S (initial S) p"
+                          and "target (initial S) p \<notin> (nS0 \<union> set (map fst m))"
+                          and "\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p"
+        unfolding ndlps_def by blast
       
-
-      have "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS0 \<union> set (map fst m)))) (nL) (inputs_as_list M) \<noteq> None"
-        using \<open>q \<in> set nL\<close> \<open>h M (q,x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))\<close> \<open>x \<in> set (inputs_as_list M)\<close>
-        unfolding find_remove_2_None_iff \<open>nL = n # nL''\<close>
-        by blast 
-      then obtain q' x' nL' where *: "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS0 \<union> set (map fst m)))) (n#nL'') (inputs_as_list M) = Some (q',x',nL')"
-        unfolding \<open>nL = n # nL''\<close> by auto
-      have "k = length nL'"
-        using find_remove_2_length[OF *] \<open>Suc k = length nL\<close>  \<open>nL = n # nL''\<close> by simp
-
-      have **: "select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m
-                = select_inputs (h M) (initial S) (inputs_as_list M) nL' (nS0 \<union> set (map fst (m@[(q',x')]))) (m@[(q',x')])"
-        unfolding \<open>nL = n # nL''\<close> select_inputs.simps None * by auto
-
-      have p1: "(\<And>q. deadlock_state S q \<Longrightarrow> q \<in> nS0 \<union> set (map fst (m@[(q',x')])))"
-        using Suc.prems(1) by fastforce
-
-      have "set nL = insert q' (set nL')" using find_remove_2_set(2,6)[OF *] unfolding \<open>nL = n # nL''\<close> by auto
-      then have "(set nL \<union> set (map fst m)) = (set nL' \<union> set (map fst (m @ [(q', x')])))" by auto
-      then have p2: "nodes M = insert (initial S) (set nL' \<union> nS0 \<union> set (map fst (m @ [(q', x')])))" 
-        using Suc.prems(2) by auto
-
-      have p3: "initial S \<notin> set nL' \<union> nS0 \<union> set (map fst (m @ [(q', x')]))"
-        using Suc.prems(3) False \<open>set nL = insert q' (set nL')\<close> by auto
-
-      show ?thesis unfolding **
-        using Suc.hyps(1)[OF \<open>k = length nL'\<close> p1 p2 p3] by blast
-    next
-      case (Some a)
+  
+      let ?q = "target (initial S) p"
+      have "\<not> deadlock_state S ?q"
+        using Suc.prems(1) reachable_nodes_intro[OF \<open>path S (initial S) p\<close>] using \<open>?q \<notin> (nS0 \<union> set (map fst m))\<close> by blast
+      then obtain x where "h S (?q,x) \<noteq> {}"
+        unfolding deadlock_state.simps h.simps by fastforce
+      then have "h M (?q,x) \<noteq> {}"
+        using assms(4)[of ?q _] reachable_nodes_intro[OF \<open>path S (initial S) p\<close>]
+        by blast      
+  
+      moreover have "\<And> y q'' . (y,q'') \<in> h M (?q,x) \<Longrightarrow> q'' \<in> (nS0 \<union> set (map fst m))"
+      proof (rule ccontr)
+        fix y q'' assume "(y,q'') \<in> h M (?q,x)" and "q'' \<notin> nS0 \<union> set (map fst m)"
+        then have "(?q,x,y,q'') \<in> transitions S"
+          using assms(4)[OF reachable_nodes_intro[OF \<open>path S (initial S) p\<close>] \<open>h S (?q,x) \<noteq> {}\<close>] unfolding h.simps
+          by blast 
+        then have "path S (initial S) (p@[(?q,x,y,q'')])"
+          using \<open>path S (initial S) p\<close> by (simp add: path_append_transition)
+        moreover have "target (initial S) (p@[(?q,x,y,q'')]) \<notin> (nS0 \<union> set (map fst m))"
+          using \<open>q'' \<notin> nS0 \<union> set (map fst m)\<close> by auto
+        ultimately show "False"
+          using \<open>\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p\<close>[of "(p@[(?q,x,y,q'')])"] by simp
+      qed
+  
+      moreover have "?q \<in> reachable_nodes S - (nS0 \<union> set (map fst m))"
+        using  \<open>?q \<notin> (nS0 \<union> set (map fst m))\<close> \<open>path S (initial S) p\<close>  by blast
+      
+      ultimately show ?thesis by blast
+    qed
+    
+    then obtain q x where "q \<in> reachable_nodes S" and "q \<notin> (nS0 \<union> set (map fst m))" and "h M (q,x) \<noteq> {}" and "(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
+      by blast
+    then have "x \<in> set (inputs_as_list M)"
+      unfolding h.simps using fsm_transition_input inputs_as_list_set by fastforce 
+  
+    
+  
+    show ?case proof (cases "q = initial S")
+      case True
+      have "find (\<lambda>x. h M (FSM.initial S, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (FSM.initial S, x). q'' \<in> nS0 \<union> set (map fst m))) (inputs_as_list M) \<noteq> None"
+        using \<open>h M (q,x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))\<close> \<open>x \<in> set (inputs_as_list M)\<close>
+        unfolding True find_None_iff by blast
       then show ?thesis unfolding \<open>nL = n # nL''\<close> by auto
+    next
+      case False
+      then have "q \<in> set nL" 
+        using submachine_reachable_subset[OF \<open>is_submachine S M\<close>]
+        unfolding is_submachine.simps \<open>reachable_nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))\<close>
+        using \<open>q \<in> reachable_nodes S\<close>  \<open>q \<notin> (nS0 \<union> set (map fst m))\<close> 
+        by blast
+  
+      
+      show ?thesis proof (cases "find (\<lambda>x. h M (FSM.initial S, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (FSM.initial S, x). q'' \<in> nS0 \<union> set (map fst m))) (inputs_as_list M)")
+        case None
+        
+  
+        have "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS0 \<union> set (map fst m)))) (nL) (inputs_as_list M) \<noteq> None"
+          using \<open>q \<in> set nL\<close> \<open>h M (q,x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))\<close> \<open>x \<in> set (inputs_as_list M)\<close>
+          unfolding find_remove_2_None_iff \<open>nL = n # nL''\<close>
+          by blast 
+        then obtain q' x' nL' where *: "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS0 \<union> set (map fst m)))) (n#nL'') (inputs_as_list M) = Some (q',x',nL')"
+          unfolding \<open>nL = n # nL''\<close> by auto
+        have "k = length nL'"
+          using find_remove_2_length[OF *] \<open>Suc k = length nL\<close>  \<open>nL = n # nL''\<close> by simp
+  
+        have **: "select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m
+                  = select_inputs (h M) (initial S) (inputs_as_list M) nL' (nS0 \<union> set (map fst (m@[(q',x')]))) (m@[(q',x')])"
+          unfolding \<open>nL = n # nL''\<close> select_inputs.simps None * by auto
+  
+        have p1: "(\<And>q. q \<in> reachable_nodes S \<Longrightarrow> deadlock_state S q \<Longrightarrow> q \<in> nS0 \<union> set (map fst (m@[(q',x')])))"
+          using Suc.prems(1) by fastforce
+  
+        have "set nL = insert q' (set nL')" using find_remove_2_set(2,6)[OF *] unfolding \<open>nL = n # nL''\<close> by auto
+        then have "(set nL \<union> set (map fst m)) = (set nL' \<union> set (map fst (m @ [(q', x')])))" by auto
+        then have p2: "reachable_nodes M = insert (initial S) (set nL' \<union> nS0 \<union> set (map fst (m @ [(q', x')])))" 
+          using Suc.prems(2) by auto
+  
+        have p3: "initial S \<notin> set nL' \<union> nS0 \<union> set (map fst (m @ [(q', x')]))"
+          using Suc.prems(3) False \<open>set nL = insert q' (set nL')\<close> by auto
+  
+        show ?thesis unfolding **
+          using Suc.hyps(1)[OF \<open>k = length nL'\<close> p1 p2 p3] by blast
+      next
+        case (Some a)
+        then show ?thesis unfolding \<open>nL = n # nL''\<close> by auto
+      qed
     qed
   qed
+  then show "fst (last (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m)) = (initial S)"
+       and  "length (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m) > 0"
+    by blast+
 qed
 
 

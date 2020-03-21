@@ -2075,7 +2075,20 @@ next
 qed 
 
 
-
+lemma submachine_reachable_subset :
+  assumes "is_submachine A B"
+shows "reachable_nodes A \<subseteq> reachable_nodes B" 
+  using assms submachine_path_initial[OF assms] 
+  unfolding is_submachine.simps reachable_nodes_def by force
+ 
+lemma submachine_simps :
+  assumes "is_submachine A B"
+shows "initial A = initial B"
+and   "nodes A \<subseteq> nodes B"
+and   "inputs A = inputs B"
+and   "outputs A = outputs B"
+and   "transitions A \<subseteq> transitions B"
+  using assms unfolding is_submachine.simps by blast+
 
 
 
@@ -2994,6 +3007,11 @@ lemma add_transitions_simps :
 
 
 subsection \<open>Assorted Lemmata\<close>
+
+lemma reachable_nodes_intro[intro!] :
+  assumes "path M (initial M) p"
+  shows "target (initial M) p \<in> reachable_nodes M"
+  using assms unfolding reachable_nodes_def by auto
 
 
 lemma language_initial_path_append_transition :

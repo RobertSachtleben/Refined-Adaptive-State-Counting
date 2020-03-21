@@ -3725,7 +3725,7 @@ qed
       
 
 
-lemma state_separator_from_s_states_is_state_separator :
+lemma state_separator_from_s_states_soundness :
   assumes "state_separator_from_s_states M q1 q2 = Some A"
       and "q1 \<in> nodes M" and "q2 \<in> nodes M" and "completely_specified M"
   shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"

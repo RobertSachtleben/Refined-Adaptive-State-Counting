@@ -664,6 +664,76 @@ qed
 
 
 
+lemma calculate_state_preamble_from_input_choices_exhaustiveness :
+  assumes "\<exists> S . is_preamble S M q"
+  shows "calculate_state_preamble_from_input_choices M q \<noteq> None"
+proof (cases "q = initial M")
+  case True
+  then show ?thesis by auto
+next
+  case False
+  
+  obtain S where "is_preamble S M q"
+    using assms by blast
+
+  then have "acyclic S"
+        and "single_input S" 
+        and "is_submachine S M"
+        and "q \<in> reachable_nodes S" 
+        and "deadlock_state S q" 
+        and "\<And> q' . q' \<in> reachable_nodes S \<Longrightarrow> (q = q' \<or> \<not> deadlock_state S q')" 
+        and *: "\<And> q' x . q' \<in> reachable_nodes S \<Longrightarrow> x \<in> inputs M \<Longrightarrow> (\<exists> t \<in> transitions S . t_source t = q' \<and> t_input t = x) \<Longrightarrow> (\<forall> t' \<in> transitions M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> transitions S)"
+    unfolding is_preamble_def by blast+
+
+ 
+  have p1: "(\<And>q x. q \<in> reachable_nodes S \<Longrightarrow> h S (q, x) \<noteq> {} \<Longrightarrow> h S (q, x) = h M (q, x))"
+  proof - 
+    fix q x assume "q \<in> reachable_nodes S" and "h S (q, x) \<noteq> {}"
+
+    then have "x \<in> inputs M"
+      using \<open>is_submachine S M\<close> fsm_transition_input by force
+    have "(\<exists> t \<in> transitions S . t_source t = q \<and> t_input t = x)"
+      using \<open>h S (q, x) \<noteq> {}\<close> by fastforce
+
+
+    have "\<And> y q'' . (y,q'') \<in> h S (q,x) \<Longrightarrow> (y,q'') \<in> h M (q,x)" 
+      using \<open>is_submachine S M\<close> by force 
+    moreover have "\<And> y q'' . (y,q'') \<in> h M (q,x) \<Longrightarrow> (y,q'') \<in> h S (q,x)" 
+      using *[OF \<open>q \<in> reachable_nodes S\<close> \<open>x \<in> inputs M\<close> \<open>(\<exists> t \<in> transitions S . t_source t = q \<and> t_input t = x)\<close>]
+      unfolding h.simps by force
+    ultimately show "h S (q, x) = h M (q, x)" 
+      by force
+  qed 
+
+  have p2: "\<And>q'. q' \<in> reachable_nodes S \<Longrightarrow> deadlock_state S q' \<Longrightarrow> q' \<in> {q} \<union> set (map fst [])"
+    using \<open>\<And> q' . q' \<in> reachable_nodes S \<Longrightarrow> (q = q' \<or> \<not> deadlock_state S q')\<close> by fast
+
+  have "q \<in> reachable_nodes M"
+    using \<open>q \<in> reachable_nodes S\<close> submachine_reachable_subset[OF \<open>is_submachine S M\<close>] by blast
+  then have p3: "reachable_nodes M = insert (FSM.initial S) (set (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) \<union> {q} \<union> set (map fst []))"
+    using reachable_nodes_as_list_set[of M] reachable_nodes_initial[of M]
+    unfolding submachine_simps[OF \<open>is_submachine S M\<close>] by auto
+
+  have p4: "initial S \<notin> set (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) \<union> {q} \<union> set (map fst [])"
+    using False
+    unfolding submachine_simps[OF \<open>is_submachine S M\<close>] by force
+
+  have "fst (last (d_states M q)) = FSM.initial M" and "length (d_states M q) > 0"
+    using False select_inputs_from_submachine[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S M\<close> p1 p2 p3 p4]
+    unfolding d_states.simps submachine_simps[OF \<open>is_submachine S M\<close>]
+    by auto 
+
+
+  have *  : "(q = FSM.initial M) = False" using False by simp
+  obtain k where **: "length (d_states M q) = Suc k" using \<open>length (d_states M q) > 0\<close>
+    using gr0_conv_Suc by blast 
+  have ***: "(fst (last (d_states M q)) = FSM.initial M) = True" using \<open>fst (last (d_states M q)) = FSM.initial M\<close> by simp
+
+  show ?thesis
+    unfolding calculate_state_preamble_from_input_choices.simps Let_def * ** *** by auto
+qed
+
+
 
 
 

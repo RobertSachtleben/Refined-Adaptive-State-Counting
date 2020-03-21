@@ -644,11 +644,6 @@ proof -
   qed 
 qed
 
-lemma reachable_nodes_intro[intro!] :
-  assumes "path M (initial M) p"
-  shows "target (initial M) p \<in> reachable_nodes M"
-  using assms unfolding reachable_nodes_def by auto
-
 
 lemma product_from_transition:
   assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
