@@ -3599,18 +3599,16 @@ subsubsection \<open>Calculating a State Separator by Backwards Reachability Ana
 
 (* TODO: improvement idea: do not calculate the full canonical separator first *)
 
-definition s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b) list" where
-  "s_states M q1 q2 k = (let C = canonical_separator M q1 q2
-   in select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list C)))) {Inr q1, Inr q2} k [])"
+definition s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b) list" where
+  "s_states M q1 q2 = (let C = canonical_separator M q1 q2
+   in select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list C)))) {Inr q1, Inr q2} [])"
 
-value "s_states m_ex_H 1 3 0"
-value "s_states m_ex_H 1 3 1"
-value "s_states m_ex_H 1 3 2"
+value "s_states m_ex_H 1 3"
 
 
 definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm option" where
   "state_separator_from_s_states M q1 q2 = 
-    (let cs = s_states M q1 q2 (size (canonical_separator M q1 q2))
+    (let cs = s_states M q1 q2 
       in (case find (\<lambda>qx . fst qx = (Inl (q1,q2))) cs of
             Some _ \<Rightarrow> Some (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs) |
             None   \<Rightarrow>  None))"
@@ -3618,7 +3616,7 @@ definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c) fsm 
 lemma state_separator_from_s_states_code[code] :
   "state_separator_from_s_states M q1 q2 =
     (let C = canonical_separator M q1 q2;
-         cs = select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list C)))) {Inr q1, Inr q2} (size C) []
+         cs = select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list C)))) {Inr q1, Inr q2} []
       in  (case find (\<lambda>qx . fst qx = (Inl (q1,q2))) cs of
             Some _ \<Rightarrow> Some (state_separator_from_input_choices M C q1 q2 cs) |
             None   \<Rightarrow>  None))"
@@ -3634,14 +3632,14 @@ value "state_separator_from_s_states m_ex_H 2 4"
 
 lemma s_states_properties : 
   assumes "q1 \<in> nodes M" and "q2 \<in> nodes M" 
-  shows "distinct (map fst (s_states M q1 q2 k))"
-    and "\<And> qq x . (qq,x) \<in> set (s_states M q1 q2 k) \<Longrightarrow> qq \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
-    and "\<And> qq . qq \<in> set (map fst (s_states M q1 q2 k)) \<Longrightarrow> \<exists> q1' q2' . qq = Inl (q1',q2')"
-    and "\<And> i t . i < length (s_states M q1 q2 k)
+  shows "distinct (map fst (s_states M q1 q2))"
+    and "\<And> qq x . (qq,x) \<in> set (s_states M q1 q2) \<Longrightarrow> qq \<in> nodes (canonical_separator M q1 q2) \<and> x \<in> inputs M"
+    and "\<And> qq . qq \<in> set (map fst (s_states M q1 q2)) \<Longrightarrow> \<exists> q1' q2' . qq = Inl (q1',q2')"
+    and "\<And> i t . i < length (s_states M q1 q2)
                   \<Longrightarrow> t \<in> transitions (canonical_separator M q1 q2) 
-                  \<Longrightarrow> t_source t = (fst ((s_states M q1 q2 k) ! i))
-                  \<Longrightarrow> t_input  t = snd ((s_states M q1 q2 k) ! i)
-                  \<Longrightarrow> t_target t \<in> ((set (map fst (take i (s_states M q1 q2 k)))) \<union> {Inr q1, Inr q2})"
+                  \<Longrightarrow> t_source t = (fst ((s_states M q1 q2) ! i))
+                  \<Longrightarrow> t_input  t = snd ((s_states M q1 q2) ! i)
+                  \<Longrightarrow> t_target t \<in> ((set (map fst (take i (s_states M q1 q2)))) \<union> {Inr q1, Inr q2})"
 proof -
   let ?C = "canonical_separator M q1 q2"
   let ?nS = "{Inr q1, Inr q2}"
@@ -3651,7 +3649,7 @@ proof -
   let ?f  = "(h ?C)"
   let ?k  = "(size (canonical_separator M q1 q2))"
 
-  let ?cs = "(s_states M q1 q2 k)"
+  let ?cs = "(s_states M q1 q2)"
   
   (* parameter properties required by lemmata for select_inputs *)
   have pp1: "distinct (map fst [])" by auto
@@ -3732,7 +3730,7 @@ lemma state_separator_from_s_states_is_state_separator :
       and "q1 \<in> nodes M" and "q2 \<in> nodes M" and "completely_specified M"
   shows "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A"
 proof -
-  let ?cs = "s_states M q1 q2 (size (canonical_separator M q1 q2))"
+  let ?cs = "s_states M q1 q2"
 
   have "find (\<lambda>qx. fst qx = Inl (q1, q2)) ?cs \<noteq> None" 
     using assms unfolding state_separator_from_s_states_def Let_def
@@ -3742,12 +3740,12 @@ proof -
 
   have "A = state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 ?cs"
     using assms unfolding state_separator_from_s_states_def Let_def
-    using \<open>find (\<lambda>qx. fst qx = Inl (q1, q2)) (s_states M q1 q2 (FSM.size (canonical_separator M q1 q2))) \<noteq> None\<close> by fastforce 
+    using \<open>find (\<lambda>qx. fst qx = Inl (q1, q2)) ?cs \<noteq> None\<close> by fastforce 
 
   show ?thesis 
     using state_separator_from_input_choices_is_state_separator[
         OF _ assms(2,3) _ \<open>Inl (q1,q2) \<in> set (map fst ?cs)\<close>,
-        OF s_states_properties[OF assms(2,3), where k = "(size (canonical_separator M q1 q2))"] \<open>completely_specified M\<close>] 
+        OF s_states_properties[OF assms(2,3)] assms(4)] 
     unfolding \<open>A = state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 ?cs\<close>[symmetric] by blast
 qed
   
