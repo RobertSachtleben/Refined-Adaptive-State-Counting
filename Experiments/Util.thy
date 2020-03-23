@@ -1397,7 +1397,81 @@ qed
 
 
 
-subsection \<open>Filter And Remove\<close>
+subsection \<open>Find And Remove\<close>
+
+fun find_remove' :: "('a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> ('a \<times> 'a list) option" where
+  "find_remove' P [] _ = None" |
+  "find_remove' P (x#xs) prev = (if P x
+      then Some (x,prev@xs) 
+      else find_remove' P xs (prev@[x]))"
+
+fun find_remove :: "('a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> ('a \<times> 'a list) option" where
+  "find_remove P xs = find_remove' P xs []"
+
+lemma find_remove'_set : 
+  assumes "find_remove' P xs prev = Some (x,xs')"
+shows "P x"
+and   "x \<in> set xs"
+and   "xs' = prev@(remove1 x xs)"
+proof -
+  have "P x \<and> x \<in> set xs \<and> xs' = prev@(remove1 x xs)"
+    using assms proof (induction xs arbitrary: prev xs')
+    case Nil
+    then show ?case by auto
+  next
+    case (Cons x xs)
+    show ?case proof (cases "P x")
+      case True
+      then show ?thesis using Cons by auto
+    next
+      case False
+      then show ?thesis using Cons by fastforce 
+    qed
+  qed
+  then show "P x"
+      and   "x \<in> set xs"
+      and   "xs' = prev@(remove1 x xs)"
+    by blast+
+qed
+
+lemma find_remove'_set_rev :
+  assumes "x \<in> set xs"
+  and     "P x"
+shows "find_remove' P xs prev \<noteq> None" 
+using assms(1) proof(induction xs arbitrary: prev)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x' xs)
+  show ?case proof (cases "P x")
+    case True
+    then show ?thesis using Cons by auto
+  next
+    case False
+    then show ?thesis using Cons
+      using assms(2) by auto 
+  qed
+qed
+
+
+lemma find_remove_None_iff :
+  "find_remove P xs = None \<longleftrightarrow> \<not> (\<exists>x . x \<in> set xs \<and> P x)"
+  unfolding find_remove.simps 
+  using find_remove'_set(1,2) 
+        find_remove'_set_rev
+  by (metis old.prod.exhaust option.exhaust)
+
+lemma find_remove_set : 
+  assumes "find_remove P xs = Some (x,xs')"
+shows "P x"
+and   "x \<in> set xs"
+and   "xs' = (remove1 x xs)"
+  using assms find_remove'_set[of P xs "[]" x xs'] by auto
+
+
+
+
+
 
 (* note: does only remove from the first list *)
 fun find_remove_2' :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> ('a \<times> 'b \<times> 'a list) option" where
