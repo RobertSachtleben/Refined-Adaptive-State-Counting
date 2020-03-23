@@ -140,7 +140,7 @@ lemma defined_inputs_set : "defined_inputs M q = {x \<in> inputs M . h M (q,x) \
 
 (* TODO: is defined_inputs' necessary? *)
 fun transitions_from' :: "(('a \<times>'b) \<Rightarrow> ('c\<times>'a) set) \<Rightarrow> 'b set \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) transition set" where
-  "transitions_from' hM iM q = \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . (q,x,y,q')) (hM (q,x))) (defined_inputs' hM iM q))"
+  "transitions_from' hM iM q = \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . (q,x,y,q')) (hM (q,x))) iM)"
 
 fun transitions_from :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) transition set" where
   "transitions_from M q = transitions_from' (h M) (inputs M) q"
@@ -171,7 +171,7 @@ proof -
        
       unfolding transitions_from.simps transitions_from'.simps 
       using \<open>t_input t \<in> defined_inputs' (h M) (inputs M) q\<close>
-      by blast 
+      using \<open>t_input t \<in> FSM.inputs M\<close> by blast
   qed
   ultimately show ?thesis by blast
 qed
@@ -365,7 +365,107 @@ value "paths_up_to_length m_ex_H 1 0"
 value "paths_up_to_length m_ex_H 1 1"
 value "paths_up_to_length m_ex_H 1 2"
 
-(* TODO: correctness / completeness properties *)
+lemma paths_up_to_length'_set :
+  assumes "q \<in> nodes M"
+  and     "path M q prev"
+  shows "paths_up_to_length' prev (target q prev) (h M) (inputs M) k = {(prev@p) | p . path M (target q prev) p \<and> length p \<le> k}"
+using assms(2) proof (induction k arbitrary: prev)
+  case 0
+  show ?case unfolding paths_up_to_length'.simps using path_target_is_node[OF "0.prems"(1)] by auto
+next
+  case (Suc k)
+  
+
+  have "\<And> p . p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k) \<Longrightarrow> p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}"
+  proof -
+    fix p assume "p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
+    then show "p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}" proof (cases "p = prev")
+      case True
+      show ?thesis using path_target_is_node[OF Suc.prems(1)] unfolding True by (simp add: nil) 
+    next
+      case False
+      then have "p \<in> (\<Union> (image (\<lambda> t . paths_up_to_length' (prev@[t]) (t_target t) (h M) (inputs M) k) (transitions_from' (h M) (inputs M) (target q prev))))"
+        using \<open>p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)\<close>
+        unfolding paths_up_to_length'.simps Let_def by blast
+      then obtain t where "t \<in> \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . ((target q prev),x,y,q')) (h M ((target q prev),x))) (inputs M))"
+                    and   "p \<in> paths_up_to_length' (prev@[t]) (t_target t) (h M) (inputs M) k"
+        unfolding transitions_from'.simps by blast
+
+      have "t \<in> transitions M" and "t_source t = (target q prev)"
+        using \<open>t \<in> \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . ((target q prev),x,y,q')) (h M ((target q prev),x))) (inputs M))\<close> by auto
+      then have "path M q (prev@[t])"
+        using Suc.prems(1) using path_append_transition by simp
+
+      have "(target q (prev @ [t])) = t_target t" by auto
+      
+
+      show ?thesis 
+        using \<open>p \<in> paths_up_to_length' (prev@[t]) (t_target t) (h M) (inputs M) k\<close>
+        using Suc.IH[OF \<open>path M q (prev@[t])\<close>] 
+        unfolding \<open>(target q (prev @ [t])) = t_target t\<close>
+        using \<open>path M q (prev @ [t])\<close> by auto 
+    qed
+  qed
+
+  moreover have "\<And> p . p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k} \<Longrightarrow> p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
+  proof -
+    fix p assume "p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}"
+    then obtain p' where "p = prev@p'"
+                   and   "path M (target q prev) p'" 
+                   and   "length p' \<le> Suc k"
+      by blast
+
+    have "prev@p' \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
+    proof (cases p')
+      case Nil
+      then show ?thesis by auto
+    next
+      case (Cons t p'')
+
+      then have "t \<in> transitions M" and "t_source t = (target q prev)"
+        using \<open>path M (target q prev) p'\<close> by auto
+      then have "path M q (prev@[t])"
+        using Suc.prems(1) using path_append_transition by simp
+      
+      have "(target q (prev @ [t])) = t_target t" by auto
+
+      have "length p'' \<le> k" using \<open>length p' \<le> Suc k\<close> Cons by auto
+      moreover have "path M (target q (prev@[t])) p''"
+        using \<open>path M (target q prev) p'\<close> unfolding Cons
+        by auto
+      ultimately have "p \<in> paths_up_to_length' (prev @ [t]) (t_target t) (h M) (FSM.inputs M) k"
+        using Suc.IH[OF \<open>path M q (prev@[t])\<close>] 
+        unfolding \<open>(target q (prev @ [t])) = t_target t\<close> \<open>p = prev@p'\<close> Cons by simp
+      then have "prev @ t # p'' \<in> paths_up_to_length' (prev @ [t]) (t_target t) (h M) (FSM.inputs M) k"
+        unfolding \<open>p = prev@p'\<close> Cons by auto
+
+      have "t \<in> (\<lambda>(y, q'). (t_source t, t_input t, y, q')) ` {(y, q'). (t_source t, t_input t, y, q') \<in> FSM.transitions M}"
+        using \<open>t \<in> transitions M\<close>
+        by (metis (no_types, lifting) case_prodI mem_Collect_eq pair_imageI surjective_pairing)  
+      then have "t \<in> transitions_from' (h M) (inputs M) (target q prev)"
+        unfolding transitions_from'.simps 
+        using fsm_transition_input[OF \<open>t \<in> transitions M\<close>] unfolding \<open>t_source t = (target q prev)\<close>[symmetric] h.simps by blast
+
+      then show ?thesis 
+        using \<open>prev @ t # p'' \<in> paths_up_to_length' (prev @ [t]) (t_target t) (h M) (FSM.inputs M) k\<close> 
+        unfolding \<open>p = prev@p'\<close> Cons paths_up_to_length'.simps Let_def by blast
+    qed
+    then show "p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
+      unfolding \<open>p = prev@p'\<close> by assumption
+  qed
+
+  ultimately show ?case by blast
+qed
+
+
+lemma paths_up_to_length_set :
+  assumes "q \<in> nodes M"
+shows "paths_up_to_length M q k = {p . path M q p \<and> length p \<le> k}" 
+  unfolding paths_up_to_length.simps 
+  using paths_up_to_length'_set[OF assms nil[OF assms], of k]  by auto
+
+
+
 
 subsubsection \<open>Calculating Acyclic Paths\<close>
 
@@ -3191,6 +3291,50 @@ proof
   ultimately show "False"
     using assms(1) unfolding acyclic.simps
     by meson 
+qed
+
+
+lemma language_split :
+  assumes "io1@io2 \<in> L M"
+  obtains p1 p2 where "path M (initial M) (p1@p2)" and "p_io p1 = io1" and "p_io p2 = io2"
+proof -
+  from assms obtain p where "path M (initial M) p" and "p_io p = io1 @ io2"
+    by auto
+
+  let ?p1 = "take (length io1) p"
+  let ?p2 = "drop (length io1) p"
+
+  have "path M (initial M) (?p1@?p2)"
+    using \<open>path M (initial M) p\<close> by simp 
+  moreover have "p_io ?p1 = io1" 
+    using \<open>p_io p = io1 @ io2\<close>
+    by (metis append_eq_conv_conj take_map) 
+  moreover have "p_io ?p2 = io2" 
+    using \<open>p_io p = io1 @ io2\<close>
+    by (metis append_eq_conv_conj drop_map)
+  ultimately show ?thesis using that by blast
+qed
+
+lemma language_io : 
+  assumes "io \<in> L M"
+  and     "(x,y) \<in> set io"
+shows "x \<in> (inputs M)"
+and   "y \<in> outputs M"
+proof -
+  obtain p where "path M (initial M) p" and "p_io p = io"
+    using \<open>io \<in> L M\<close> by auto
+  then obtain t where "t \<in> set p" and "t_input t = x" and "t_output t = y"
+    using \<open>(x,y) \<in> set io\<close> by auto
+  
+  have "t \<in> transitions M"
+    using \<open>path M (initial M) p\<close> \<open>t \<in> set p\<close>
+    by (induction p; auto)
+
+  show "x \<in> (inputs M)"
+    using \<open>t \<in> transitions M\<close> \<open>t_input t = x\<close> by auto
+
+  show "y \<in> outputs M"
+    using \<open>t \<in> transitions M\<close> \<open>t_output t = y\<close> by auto
 qed
 
 

@@ -1200,14 +1200,14 @@ fun atc_to_io_set :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> 
 
 
 (* very inefficient calculation *)
-fun atc_to_io_list :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
-  "atc_to_io_list M A = (let LA = image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1));
+fun atc_to_io_set' :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
+  "atc_to_io_set' M A = (let LA = image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1));
                              LM = image p_io (paths_up_to_length M (initial M) (size A -1))
                           in Set.filter (\<lambda>io . io \<in> LM) LA)"
 
 value "the (state_separator_from_s_states m_ex_9 0 3)"
-value "atc_to_io_list (from_FSM m_ex_9 0) (the (state_separator_from_s_states m_ex_9 0 3))"
-value "atc_to_io_list (from_FSM m_ex_9 3) (the (state_separator_from_s_states m_ex_9 0 3))"
+value "atc_to_io_set' (from_FSM m_ex_9 0) (the (state_separator_from_s_states m_ex_9 0 3))"
+value "atc_to_io_set' (from_FSM m_ex_9 3) (the (state_separator_from_s_states m_ex_9 0 3))"
 
 
 lemma acyclic_language_alt_def :
@@ -1227,28 +1227,26 @@ qed
 
 lemma atc_to_io_set_code :
   assumes "acyclic A"
-  shows "atc_to_io_set M A = atc_to_io_list M A"
+  shows "atc_to_io_set M A = atc_to_io_set' M A"
 proof -
 
   have "image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1)) = L A"
     using acyclic_language_alt_def[OF assms] by assumption
   have "image p_io (paths_up_to_length M (initial M) (size A -1)) = {io \<in> L M . length io \<le> size A - 1}"
-end (*
-    using paths_up_to_length_path_set[OF nodes.initial, of M "size A - 1"] unfolding LS.simps by auto
-   
+    using paths_up_to_length_set[OF fsm_initial, of M "size A - 1"] unfolding LS.simps by auto  
   
-  have "set (atc_to_io_list M A) = Set.filter (\<lambda>io. io \<in> L A)  {io \<in> L M. length io \<le> FSM.size A - 1}"
-    unfolding atc_to_io_list.simps Let_def 
-    using filter_set[of "(\<lambda>io . io \<in> set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1))))" "map p_io (paths_up_to_length M (initial M) (size A -1))"] 
-    unfolding \<open>set (map p_io (distinct_paths_up_to_length_from_initial A (size A -1))) = L A\<close>
-    unfolding \<open>set (map p_io (paths_up_to_length M (initial M) (size A -1))) = {io \<in> L M . length io \<le> size A - 1}\<close> by blast
-  then have *: "set (atc_to_io_list M A) = {io \<in> L M . io \<in> L A \<and> length io \<le> FSM.size A - 1}"
-    by force
-  
-  
+  have "(atc_to_io_set' M A) = Set.filter (\<lambda>io. io \<in> L A)  {io \<in> L M. length io \<le> FSM.size A - 1}"
+    unfolding atc_to_io_set'.simps Let_def 
+     
+    unfolding \<open>image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1)) = L A\<close>
+    unfolding \<open>image p_io (paths_up_to_length M (initial M) (size A -1)) = {io \<in> L M . length io \<le> size A - 1}\<close>
+    by auto 
+  then have *: "(atc_to_io_set' M A) = {io \<in> L M . io \<in> L A \<and> length io \<le> FSM.size A - 1}"
+    unfolding Set.filter_def by blast
+ 
   moreover have "\<And> io . io \<in> L A \<Longrightarrow> length io \<le> FSM.size A - 1"
-    using acyclic_path_length'[OF assms] by auto
-  ultimately show ?thesis by force
+    using acyclic_path_length_limit[of A "initial A"] assms unfolding acyclic.simps LS.simps by force
+  ultimately show ?thesis by fastforce
 qed
 
 
@@ -1262,7 +1260,7 @@ definition pass_io_set_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c)
   "pass_io_set_maximal M ios = (\<forall> io x y io' . io@[(x,y)]@io' \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> (\<exists> io''. io@[(x,y')]@io'' \<in> ios)))"
 
 
-end (* lemma pass_io_set_from_pass_io_set_maximal :
+lemma pass_io_set_from_pass_io_set_maximal :
   "pass_io_set_maximal M ios = pass_io_set M {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
 proof -
   have "\<And> io x y io' . io@[(x,y)]@io' \<in> ios \<Longrightarrow> io@[(x,y)] \<in> {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
@@ -1276,49 +1274,7 @@ qed
 
 
 
-(* TODO: move *)
-end (* lemma finite_set_elem_maximal_extension_ex :
-  assumes "xs \<in> S"
-  and     "finite S"
-shows "\<exists> ys . xs@ys \<in> S \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> S)"
-using \<open>finite S\<close> \<open>xs \<in> S\<close> proof (induction S arbitrary: xs)
-  case empty
-  then show ?case by auto
-next
-  case (insert x S)
-
-  consider (a) "\<exists> ys . x = xs@ys \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> (insert x S))" |
-           (b) "\<not>(\<exists> ys . x = xs@ys \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> (insert x S)))"
-    by blast
-  then show ?case proof cases
-    case a
-    then show ?thesis by auto
-  next
-    case b
-    then show ?thesis proof (cases "\<exists> vs . vs \<noteq> [] \<and> xs@vs \<in> S")
-      case True
-      then obtain vs where "vs \<noteq> []" and "xs@vs \<in> S"
-        by blast
-      
-      have "\<exists>ys. xs @ (vs @ ys) \<in> S \<and> (\<nexists>zs. zs \<noteq> [] \<and> xs @ (vs @ ys) @ zs \<in> S)"
-        using insert.IH[OF \<open>xs@vs \<in> S\<close>] by auto
-      then have "\<exists>ys. xs @ (vs @ ys) \<in> S \<and> (\<nexists>zs. zs \<noteq> [] \<and> xs @ (vs @ ys) @ zs \<in> (insert x S))"
-        using b 
-        unfolding append.assoc append_is_Nil_conv append_self_conv insert_iff
-        by (metis append.assoc append_Nil2 append_is_Nil_conv same_append_eq) 
-      then show ?thesis by blast
-    next
-      case False
-      then show ?thesis using insert.prems
-        by (metis append_is_Nil_conv append_self_conv insertE same_append_eq) 
-    qed
-  qed
-qed
-
-
-
-
-end (* lemma pass_io_set_maximal_from_pass_io_set :
+lemma pass_io_set_maximal_from_pass_io_set :
   assumes "finite ios"
   and     "\<And> io' io'' . io'@io'' \<in> ios \<Longrightarrow> io' \<in> ios"
 shows "pass_io_set M ios = pass_io_set_maximal M {io' \<in> ios . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> ios)}"
@@ -1336,30 +1292,20 @@ proof -
     by meson 
 qed
 
-(* TODO: move *)
-end (* lemma language_split :
-  assumes "io1@io2 \<in> L M"
-  obtains p1 p2 where "path M (initial M) (p1@p2)" and "p_io p1 = io1" and "p_io p2 = io2"
-proof -
-  from assms obtain p where "path M (initial M) p" and "p_io p = io1 @ io2"
-    by auto
 
-  let ?p1 = "take (length io1) p"
-  let ?p2 = "drop (length io1) p"
 
-  have "path M (initial M) (?p1@?p2)"
-    using \<open>path M (initial M) p\<close> by simp 
-  moreover have "p_io ?p1 = io1" 
-    using \<open>p_io p = io1 @ io2\<close>
-    by (metis append_eq_conv_conj take_map) 
-  moreover have "p_io ?p2 = io2" 
-    using \<open>p_io p = io1 @ io2\<close>
-    by (metis append_eq_conv_conj drop_map)
-  ultimately show ?thesis using that by blast
-qed
+
+
+
+
+
+
+
+(* Attempt to calc atc_to_io_set'_maximal for ATCs, probably unnecessary *)
+(* 
 
 (* TODO: move *)
-end (* lemma acyclic_observable_maximal_io_sequences :
+ lemma acyclic_observable_maximal_io_sequences :
   assumes "acyclic M"
   and     "observable M"
   shows "set (map p_io (maximal_acyclic_paths M)) = {io' \<in> L M . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> L M)}"
@@ -1440,20 +1386,17 @@ proof -
 qed
 
 
-(* Attempt to calc atc_to_io_list_maximal for ATCs, probably unnecessary *)
-(* 
-
 definition atc_to_io_set_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
   "atc_to_io_set_maximal M A = {io' \<in> atc_to_io_set M A. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> atc_to_io_set M A}"
 
-fun atc_to_io_list_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list list" where
-  "atc_to_io_list_maximal M A = (let LA = set (map p_io (maximal_acyclic_paths A));
+fun atc_to_io_set'_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list list" where
+  "atc_to_io_set'_maximal M A = (let LA = set (map p_io (maximal_acyclic_paths A));
                                      LM = map p_io (paths_up_to_length M (initial M) (size A -1))
                                   in filter (\<lambda>io . io \<in> LA) LM)"
 
-end (* lemma atc_to_io_list_maximal_code :
+lemma atc_to_io_set'_maximal_code :
   assumes "is_ATC A"
-  shows "atc_to_io_set_maximal M A = set (atc_to_io_list_maximal M A)"
+  shows "atc_to_io_set_maximal M A = set (atc_to_io_set'_maximal M A)"
 proof -
 
   have "acyclic A" and "observable A"
@@ -1466,16 +1409,16 @@ proof -
    
   have scheme: "\<And> S2 S1 . Set.filter (\<lambda>x . x \<in> S2) S1 = S1 \<inter> S2" by auto
 
-  have "set (atc_to_io_list_maximal M A) = Set.filter (\<lambda>io. io \<in> {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)})  {io \<in> L M. length io \<le> FSM.size A - 1}"
-    unfolding atc_to_io_list_maximal.simps Let_def 
+  have "set (atc_to_io_set'_maximal M A) = Set.filter (\<lambda>io. io \<in> {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)})  {io \<in> L M. length io \<le> FSM.size A - 1}"
+    unfolding atc_to_io_set'_maximal.simps Let_def 
     using filter_set[of "(\<lambda>io. io \<in> {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)})" "map p_io (paths_up_to_length M (initial M) (size A -1))"] 
     unfolding \<open>set (map p_io (maximal_acyclic_paths A)) = {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)}\<close>
     unfolding \<open>set (map p_io (paths_up_to_length M (initial M) (size A -1))) = {io \<in> L M . length io \<le> size A - 1}\<close> by force
-  then have "set (atc_to_io_list_maximal M A) = {io \<in> LS M (initial M). length io \<le> FSM.size A - 1} \<inter> {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)}"
+  then have "set (atc_to_io_set'_maximal M A) = {io \<in> LS M (initial M). length io \<le> FSM.size A - 1} \<inter> {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)}"
     unfolding scheme by assumption
   moreover have "\<And> io . io \<in> L A \<Longrightarrow> length io \<le> FSM.size A - 1"
     using acyclic_path_length'[OF \<open>acyclic A\<close>] by auto
-  ultimately have *: "set (atc_to_io_list_maximal M A) = L M \<inter> {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)}"
+  ultimately have *: "set (atc_to_io_set'_maximal M A) = L M \<inter> {io \<in> LS A (initial A). \<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> LS A (initial A)}"
     by blast
   
   show ?thesis
@@ -1489,7 +1432,7 @@ qed
 
 
 
-end (* lemma pass_io_set_from_pass_separator :
+lemma pass_io_set_from_pass_separator :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "pass_separator_ATC S A s1 t2"
   and     "observable M"
@@ -1509,9 +1452,9 @@ proof (rule ccontr)
   then have "acyclic A" 
     unfolding is_ATC_def by auto
   have "observable (from_FSM S s1)"
-    using from_FSM_observable[OF \<open>observable S\<close> \<open>s1 \<in> nodes S\<close>] by assumption
+    using from_FSM_observable[OF \<open>observable S\<close>] by assumption
   have "(inputs A) \<subseteq> (inputs (from_FSM S s1))"
-    using assms(1) unfolding is_separator_def from_FSM_simps \<open>(inputs S) = (inputs M)\<close> by auto
+    by (metis (no_types) assms(1) assms(7) assms(8) from_FSM_simps(2) is_separator_simps(16))
 
   obtain y'' where "io @ [(x, y'')] \<in> LS A (initial A)"
     using \<open>io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)\<close> unfolding atc_to_io_set.simps by blast
@@ -1541,31 +1484,9 @@ proof (rule ccontr)
     by blast
 qed
 
-(* TODO: move *)
-end (* lemma language_io : 
-  assumes "io \<in> L M"
-  and     "(x,y) \<in> set io"
-shows "x \<in> (inputs M)"
-and   "y \<in> set (outputs M)"
-proof -
-  obtain p where "path M (initial M) p" and "p_io p = io"
-    using \<open>io \<in> L M\<close> by auto
-  then obtain t where "t \<in> set p" and "t_input t = x" and "t_output t = y"
-    using \<open>(x,y) \<in> set io\<close> by auto
-  
-  have "t \<in> transitions M"
-    using \<open>path M (initial M) p\<close> \<open>t \<in> set p\<close>
-    by (induction p; auto)
-
-  show "x \<in> (inputs M)"
-    using \<open>t \<in> transitions M\<close> \<open>t_input t = x\<close> by auto
-
-  show "y \<in> set (outputs M)"
-    using \<open>t \<in> transitions M\<close> \<open>t_output t = y\<close> by auto
-qed
 
 
-end (* lemma separator_language_last_left :
+lemma separator_language_last_left :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "completely_specified M"
   and     "q1 \<in> nodes M"
@@ -1601,7 +1522,7 @@ proof -
 qed
 
 
-end (* lemma separator_language_last_right :
+lemma separator_language_last_right :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "completely_specified M"
   and     "q2 \<in> nodes M"
@@ -1612,7 +1533,7 @@ obtains y'' where "io@[(x,y'')] \<in> L A \<inter> LS M q2"
 
 
 
-end (* lemma pass_separator_from_pass_io_set :
+lemma pass_separator_from_pass_io_set :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)"
   and     "observable M"
@@ -1632,9 +1553,9 @@ proof (rule ccontr)
   then have "acyclic A" 
     unfolding is_ATC_def by auto
   have "observable (from_FSM S s1)"
-    using from_FSM_observable[OF \<open>observable S\<close> \<open>s1 \<in> nodes S\<close>] by assumption
+    using from_FSM_observable[OF \<open>observable S\<close>] by assumption
   have "(inputs A) \<subseteq> (inputs (from_FSM S s1))"
-    using assms(1) unfolding is_separator_def from_FSM_simps \<open>(inputs S) = (inputs M)\<close> by auto
+    using assms(1) assms(7) assms(8) is_separator_simps(16) by fastforce
 
   obtain io x y y' where "io @ [(x,y)] \<in> L A"
                          "io @ [(x,y')] \<in> L (from_FSM S s1)"
@@ -1690,7 +1611,7 @@ qed
 
 
 
-end (* lemma pass_separator_pass_io_set_iff:
+lemma pass_separator_pass_io_set_iff:
   assumes "is_separator M q1 q2 A t1 t2"
   and     "observable M"
   and     "observable S"
@@ -1719,7 +1640,7 @@ definition maximal_contained_lists' :: "'a list list \<Rightarrow> 'a list list"
   "maximal_contained_lists' xs = filter (\<lambda>x . (\<forall> y \<in> set xs . is_prefix x y \<longrightarrow> x = y)) xs"
 
 
-end (* lemma maximal_contained_lists_code[code] :
+lemma maximal_contained_lists_code[code] :
   "maximal_contained_lists (set xs) = set (maximal_contained_lists' xs)"
 proof -
   
@@ -1735,7 +1656,7 @@ proof -
 qed
 
 
-end (* lemma pass_separator_pass_io_set_maximal_iff:
+lemma pass_separator_pass_io_set_maximal_iff:
   assumes "is_separator M q1 q2 A t1 t2"
   and     "observable M"
   and     "observable S"

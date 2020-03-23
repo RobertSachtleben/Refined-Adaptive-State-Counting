@@ -2193,6 +2193,45 @@ proof -
 qed
 
 
+lemma finite_set_elem_maximal_extension_ex :
+  assumes "xs \<in> S"
+  and     "finite S"
+shows "\<exists> ys . xs@ys \<in> S \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> S)"
+using \<open>finite S\<close> \<open>xs \<in> S\<close> proof (induction S arbitrary: xs)
+  case empty
+  then show ?case by auto
+next
+  case (insert x S)
+
+  consider (a) "\<exists> ys . x = xs@ys \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> (insert x S))" |
+           (b) "\<not>(\<exists> ys . x = xs@ys \<and> \<not> (\<exists> zs . zs \<noteq> [] \<and> xs@ys@zs \<in> (insert x S)))"
+    by blast
+  then show ?case proof cases
+    case a
+    then show ?thesis by auto
+  next
+    case b
+    then show ?thesis proof (cases "\<exists> vs . vs \<noteq> [] \<and> xs@vs \<in> S")
+      case True
+      then obtain vs where "vs \<noteq> []" and "xs@vs \<in> S"
+        by blast
+      
+      have "\<exists>ys. xs @ (vs @ ys) \<in> S \<and> (\<nexists>zs. zs \<noteq> [] \<and> xs @ (vs @ ys) @ zs \<in> S)"
+        using insert.IH[OF \<open>xs@vs \<in> S\<close>] by auto
+      then have "\<exists>ys. xs @ (vs @ ys) \<in> S \<and> (\<nexists>zs. zs \<noteq> [] \<and> xs @ (vs @ ys) @ zs \<in> (insert x S))"
+        using b 
+        unfolding append.assoc append_is_Nil_conv append_self_conv insert_iff
+        by (metis append.assoc append_Nil2 append_is_Nil_conv same_append_eq) 
+      then show ?thesis by blast
+    next
+      case False
+      then show ?thesis using insert.prems
+        by (metis append_is_Nil_conv append_self_conv insertE same_append_eq) 
+    qed
+  qed
+qed
+
+
 (* TODO: continue if necessary *)
 (*
 subsection \<open>Transitive Closure\<close>
