@@ -498,6 +498,34 @@ next
                                                          \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
           using pi1 by auto
 
+        have pih: "set (paths (IO_Tree.insert xs (snd ((xt # xts) ! i)))) =  
+                      Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs})"
+          using Cons.IH[OF \<open>io_trie_invar (snd ((xt # xts) ! i))\<close>] False by auto
+
+        have "((#) x ` Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs}))  
+              = Set.insert (x # xs) ((#) x ` set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})" 
+        proof -
+          have "\<And> a . a \<in> ((#) x ` Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs})) \<Longrightarrow>
+                       a \<in> Set.insert (x # xs) ((#) x ` set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})"
+            by fastforce
+          moreover have "\<And> a . a \<in> Set.insert (x # xs) ((#) x ` set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs}) \<Longrightarrow>
+                                a \<in> ((#) x ` Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs}))"
+          proof -
+            fix a assume "a \<in> Set.insert (x # xs) ((#) x ` set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})"
+            then consider (a) "a = (x#xs)" |
+                          (b) "a \<in> ((#) x ` set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})" by blast
+            then show "a \<in> ((#) x ` Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs}))" 
+            proof cases
+              case a
+              then show ?thesis by blast
+            next
+              case b
+              then show ?thesis by force
+            qed 
+          qed
+          ultimately show ?thesis by blast
+        qed
+
         have "set (paths (IO_Tree.insert (x # xs) t)) = Set.insert (x # xs) (set (paths t) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})"
           unfolding pi1' pi2 
 end (*
