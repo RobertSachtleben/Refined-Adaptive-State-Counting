@@ -629,6 +629,211 @@ qed
 
 
 
+
+
+fun insert_all :: "'a list list \<Rightarrow> 'a io_trie" where
+  "insert_all seqs = foldr insert seqs empty"
+
+value "insert_all [[1::nat],[1,2,3],[2,3,5],[1,3,60],[1,2,4]]"
+
+lemma insert_all_invar : "io_trie_invar (insert_all xs)"
+  using empty_invar insert_invar by (induction xs; auto)
+
+lemma insert_all_paths :
+  "set (paths (insert_all (x#xs))) = {y. y \<in> set (x#xs) \<and> \<not>(\<exists> y' . y' \<noteq> [] \<and> y@y' \<in> set (x#xs))}"
+proof (induction xs arbitrary: x)
+  case Nil
+  have *: "paths (insert_all [x]) = paths (insert x empty)" by auto
+  
+  show ?case 
+    unfolding *
+    unfolding paths_insert_maximal[OF empty_invar, of "x"]
+    unfolding empty_def  
+    by (cases x ; auto)
+next
+  case (Cons x' xs)
+
+  have "insert_all (x#x'#xs) = insert x (insert x' (insert_all xs))" by auto
+  have "insert_all (x#x'#xs) = insert x (insert_all (x'#xs))" by auto
+
+  have "io_trie_invar (insert x' (insert_all xs))"
+    using insert_all_invar insert_invar by metis
+  have "(insert x' (insert_all xs)) = insert_all (x'#xs)" by auto
+
+
+  thm paths_insert_maximal[OF \<open>io_trie_invar (insert x' (insert_all xs))\<close>, of x]
+
+  show ?case proof (cases "\<exists>xs'. x @ xs' \<in> set (paths (IO_Tree.insert x' (insert_all xs)))")
+    case True
+    then have "set (paths (IO_Tree.insert x (IO_Tree.insert x' (insert_all xs)))) = set (paths (IO_Tree.insert x' (insert_all xs)))"
+      using paths_insert_maximal[OF \<open>io_trie_invar (insert x' (insert_all xs))\<close>, of x] by simp
+    then have "set (paths (IO_Tree.insert x (insert_all (x' # xs)))) = set (paths (insert_all (x' # xs)))"
+      unfolding \<open>(insert x' (insert_all xs)) = insert_all (x'#xs)\<close> 
+      by assumption
+    then have "set (paths (insert_all (x#x'#xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
+      unfolding Cons \<open>insert_all (x#x'#xs) = insert x (insert_all (x'#xs))\<close>
+      by assumption
+
+    show ?thesis proof (cases "x \<in> set (paths (IO_Tree.insert x' (insert_all xs)))")
+      case True
+      then have "x \<in> set (x'#xs)"
+        using \<open>set (paths (IO_Tree.insert x (IO_Tree.insert x' (insert_all xs)))) = set (paths (IO_Tree.insert x' (insert_all xs)))\<close> \<open>set (paths (insert_all (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto
+      then show ?thesis 
+        unfolding \<open>set (paths (insert_all (x#x'#xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto
+    next
+      case False
+      
+      have "{y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)} = {y \<in> set (x # x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)}" 
+      proof -
+        obtain xs' where "xs' \<noteq> []" and "x @ xs' \<in>  {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
+          using True False
+          by (metis \<open>insert_all (x # x' # xs) = IO_Tree.insert x (IO_Tree.insert x' (insert_all xs))\<close> \<open>set (paths (IO_Tree.insert x (IO_Tree.insert x' (insert_all xs)))) = set (paths (IO_Tree.insert x' (insert_all xs)))\<close> \<open>set (paths (insert_all (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> append_Nil2) 
+        then have s1: "{y \<in> set (x # x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)} = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)}"
+          by auto 
+            
+        have "\<And> y . (\<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)) \<Longrightarrow> (\<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs))"
+        proof -
+          fix y assume "(\<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs))"
+          
+          show "(\<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs))"
+          proof 
+            assume "\<exists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)"
+            then have "\<exists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs) - set (x' # xs)"
+              using \<open>(\<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs))\<close> by auto
+            then have "\<exists>y' . y' \<noteq> [] \<and> y @ y' = x"
+              by auto
+            then show "False"
+              by (metis (no_types, lifting) Nil_is_append_conv \<open>\<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)\<close> \<open>x @ xs' \<in> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> append.assoc mem_Collect_eq) using \<open>x \<notin> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close>
+          qed
+        qed
+        then have s2: "{y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)} = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)}"
+          by auto
+
+        show ?thesis 
+          unfolding s1 s2 by simp
+      qed
+      then show ?thesis
+        using \<open>set (paths (insert_all (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto 
+    qed
+      
+  next
+    case False
+    
+
+    then have *: "set (paths (IO_Tree.insert x (IO_Tree.insert x' (insert_all xs)))) 
+                = Set.insert x (set (paths (IO_Tree.insert x' (insert_all xs))) - {xs'. \<exists>xs''. xs' @ xs'' = x})"
+      using paths_insert_maximal[OF \<open>io_trie_invar (insert x' (insert_all xs))\<close>, of x] by simp
+
+    have f: "\<nexists>xs'. x @ xs' \<in> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
+      using False
+      unfolding \<open>(insert x' (insert_all xs)) = insert_all (x'#xs)\<close> Cons
+      by assumption
+    then have "x \<notin> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
+      by (metis (no_types, lifting) append_Nil2)
+    have "x \<notin> set (x' # xs)"
+    proof
+      assume "x \<in> set (x' # xs)"
+      then have "\<exists>y'. y' \<noteq> [] \<and> x @ y' \<in> set (x' # xs)"
+        using \<open>x \<notin> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto
+
+      let ?xms = "{xs' . xs' \<noteq> [] \<and> x @ xs' \<in> set (x' # xs)}"
+      have "?xms \<noteq> {}"
+        using \<open>\<exists>y'. y' \<noteq> [] \<and> x @ y' \<in> set (x' # xs)\<close>
+        by simp 
+      moreover have "finite ?xms"
+      proof -
+        have "?xms \<subseteq> image (drop (length x)) (set (x'#xs))" by force
+        then show ?thesis by (meson List.finite_set finite_surj) 
+      qed
+      ultimately have "\<exists> xs' \<in> ?xms . \<forall> xs'' \<in> ?xms . length xs'' \<le> length xs'"
+        by (meson max_length_elem not_le_imp_less) 
+      then obtain xs' where "xs' \<noteq> []"
+                      and   "x@xs' \<in> set (x'#xs)"
+                      and   "\<And> xs'' . xs'' \<noteq> [] \<Longrightarrow> x@xs'' \<in> set (x'#xs) \<Longrightarrow> length xs'' \<le> length xs'"
+        by blast
+      
+      have "\<nexists>y'. y' \<noteq> [] \<and> (x@xs') @ y' \<in> set (x' # xs)"
+      proof 
+        assume "\<exists>y'. y' \<noteq> [] \<and> (x @ xs') @ y' \<in> set (x' # xs)"
+        then obtain xs'' where "xs'' \<noteq> []" and "(x @ xs') @ xs'' \<in> set (x' # xs)"
+          by blast
+        then have "xs'@xs'' \<noteq> []" and "x @ (xs' @ xs'') \<in> set (x' # xs)"
+          by auto
+        then have "length (xs'@xs'') \<le> length xs'"
+          using \<open>\<And> xs'' . xs'' \<noteq> [] \<Longrightarrow> x@xs'' \<in> set (x'#xs) \<Longrightarrow> length xs'' \<le> length xs'\<close> by blast
+        then show "False"
+          using \<open>xs'' \<noteq> []\<close> by auto
+      qed
+        
+      then have "x @ xs' \<in> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}" 
+        using \<open>x@xs' \<in> set (x'#xs)\<close> by blast
+      then show "False" using \<open>\<nexists>xs'. x @ xs' \<in> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close>
+        by blast
+    qed
+        
+
+          
+
+      
+        
+
+
+
+end (*
+
+    
+      
+
+
+    have **: "Set.insert x ({y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)} - {xs'. \<exists>xs''. xs' @ xs'' = x})
+              = {y \<in> set (x # x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)}" 
+    proof -
+      have "\<And> y . y \<in> Set.insert x ({y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)} - {xs'. \<exists>xs''. xs' @ xs'' = x}) \<Longrightarrow> y \<in> {y \<in> set (x # x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)}"
+      proof -
+        fix y assume "y \<in> Set.insert x ({y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)} - {xs'. \<exists>xs''. xs' @ xs'' = x})"
+        then consider (a) "y = x" |
+                      (b) "y \<in> ({y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)} - {xs'. \<exists>xs''. xs' @ xs'' = x})"
+          by blast
+        then show "y \<in> {y \<in> set (x # x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)}"
+        proof cases
+          case a
+          show ?thesis proof (cases "x \<in> set (x'#xs)")
+            case True
+            then have "\<exists>y'. y' \<noteq> [] \<and> x @ y' \<in> set (x' # xs)"
+              using \<open>x \<notin> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by blast
+            
+            then show ?thesis unfolding a  sorry
+          next
+            case False
+            then show ?thesis sorry
+          qed
+      
+            
+            
+            using \<open>x \<notin> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> f unfolding a
+        next
+          case b
+          then show ?thesis sorry
+        qed 
+
+end (*
+
+    show ?thesis
+      unfolding \<open>insert_all (x#x'#xs) = insert x (insert x' (insert_all xs))\<close>
+      unfolding *
+      unfolding \<open>(insert x' (insert_all xs)) = insert_all (x'#xs)\<close>
+      unfolding Cons 
+      
+      
+
+unfolding Cons[of x'] 
+
+end (*
+    then show ?thesis   sorry
+  qed
+qed
+
+
 end (*
 
 fold-insert over list/set of sequences \<rightarrow> show that all maximal sequences are contained
