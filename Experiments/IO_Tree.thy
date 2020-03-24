@@ -153,7 +153,7 @@ shows "P t"
 
 fun insert :: "'a list \<Rightarrow> 'a io_trie \<Rightarrow> 'a io_trie" where
   "insert [] t = t" |
-  "insert (x#xs) (IO_Trie ts) = (IO_Trie (update_assoc_list_with_default x (\<lambda> t . insert xs t) (IO_Trie []) ts))"
+  "insert (x#xs) (IO_Trie ts) = (IO_Trie (update_assoc_list_with_default x (\<lambda> t . insert xs t) empty ts))"
 
 
 lemma insert_invar : "io_trie_invar t \<Longrightarrow> io_trie_invar (insert xs t)" 
@@ -176,7 +176,7 @@ next
     then obtain i where "i < length ts" and "fst (ts ! i) = x"
       by (metis in_set_conv_nth length_map nth_map) 
     have "insert (x#xs) (IO_Trie ts) = (IO_Trie (take i ts @ [(x, insert xs (snd (ts ! i)))] @ drop (Suc i) ts))"
-      unfolding insert.simps
+      unfolding insert.simps empty_def
       unfolding update_assoc_list_with_default_key_found[OF \<open>distinct (map fst ts)\<close> \<open>i < length ts\<close> \<open>fst (ts ! i) = x\<close>, of "(\<lambda> t . insert xs t)" "(IO_Trie [])"] 
       by simp
     
@@ -209,8 +209,8 @@ next
   next
     case False
 
-    have "io_trie_invar (IO_Tree.insert xs (IO_Trie []))"
-      by (induction xs; auto)
+    have "io_trie_invar (IO_Tree.insert xs empty)"
+      by (simp add: empty_invar Cons.IH) 
 
     then show ?thesis
       using Cons.prems update_assoc_list_with_default_key_distinct[OF \<open>distinct (map fst ts)\<close>, of x "(IO_Tree.insert xs)" "(IO_Trie [])"]
@@ -325,8 +325,232 @@ qed
             
 
 
+lemma paths_insert_empty : 
+  "paths (insert xs empty) = [xs]"
+proof (induction xs)
+  case Nil
+  then show ?case unfolding empty_def by auto
+next
+  case (Cons x xs)
+  then show ?case unfolding empty_def insert.simps by auto
+qed
+
+lemma paths_order :
+  assumes "set ts = set ts'"
+  and     "length ts = length ts'" (* length requirement not actually necessary *)
+shows "set (paths (IO_Trie ts)) = set (paths (IO_Trie ts'))"
+  using assms(2,1) proof (induction ts ts' rule: list_induct2)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs y ys)
+
+  have scheme: "\<And> f xs ys . set xs = set ys \<Longrightarrow> set (concat (map f xs)) = set (concat (map f ys))"
+    by auto
+
+  show ?case 
+    using scheme[OF Cons.prems(1), of "(\<lambda>(x, t). map ((#) x) (paths t))"] by simp
+qed
 
 
+(* TODO: move *)
+lemma list_index_split_set: 
+  assumes "i < length xs"
+shows "set xs = set ((xs ! i) # ((take i xs) @ (drop (Suc i) xs)))"  
+using assms proof (induction xs arbitrary: i)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then show ?case proof (cases i)
+    case 0
+    then show ?thesis by auto
+  next
+    case (Suc j)
+    then have "j < length xs" using Cons.prems by auto
+    then have "set xs = set ((xs ! j) # ((take j xs) @ (drop (Suc j) xs)))" using Cons.IH[of j] by blast
+    
+    have *: "take (Suc j) (x#xs) = x#(take j xs)" by auto
+    have **: "drop (Suc (Suc j)) (x#xs) = (drop (Suc j) xs)" by auto
+    have ***: "(x # xs) ! Suc j = xs ! j" by auto
+    
+    show ?thesis
+      using \<open>set xs = set ((xs ! j) # ((take j xs) @ (drop (Suc j) xs)))\<close>
+      unfolding Suc * ** *** by auto
+  qed
+qed
+  
+
+
+
+
+
+lemma paths_insert_maximal :
+  assumes "io_trie_invar t" 
+  shows "set (paths (insert xs t)) = (if (\<exists> xs' . xs@xs' \<in> set (paths t))
+                                         then set (paths t)
+                                         else Set.insert xs (set (paths t) - {xs' . \<exists> xs'' . xs'@xs'' = xs}))" 
+using assms proof (induction xs arbitrary: t)
+  case Nil
+  then show ?case
+    using paths_nonempty by force    
+next
+  case (Cons x xs)
+  show ?case proof (cases "t = empty")
+    case True
+    show ?thesis 
+      unfolding True
+      unfolding paths_insert_empty  
+      unfolding empty_def paths.simps by auto
+  next
+    case False
+    
+    then obtain xt xts where "t = IO_Trie (xt#xts)"
+      by (metis IO_Tree.empty_def height.cases)
+    then have "t = IO_Trie ((fst xt, snd xt)#xts)" 
+      by auto
+
+    have "distinct (map fst (xt#xts))"
+      using Cons.prems \<open>t = IO_Trie (xt#xts)\<close> by auto
+
+     have "(paths t) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))"
+      unfolding \<open>t = IO_Trie ((fst xt, snd xt)#xts)\<close> by simp
+    then have "set (paths t) = {x#xs | x xs t . (x,t) \<in> set (xt#xts) \<and> xs \<in> set (paths t)}"
+      by auto
+    then have "Set.insert (x#xs) (set (paths t)) = Set.insert (x#xs) {x#xs | x xs t . (x,t) \<in> set (xt#xts) \<and> xs \<in> set (paths t)}"
+      by blast
+
+    show ?thesis proof (cases "x \<in> set (map fst (xt#xts))")
+      case True
+      case True
+      then obtain i where "i < length (xt#xts)" and "fst ((xt#xts) ! i) = x"
+        by (metis in_set_conv_nth list_map_source_elem)
+      then have "((xt#xts) ! i) = (x,snd ((xt#xts) ! i))" by auto
+
+      have "io_trie_invar (snd ((xt # xts) ! i))"
+        using Cons.prems \<open>i < length (xt#xts)\<close> unfolding \<open>t = IO_Trie (xt#xts)\<close>
+        by (metis \<open>(xt # xts) ! i = (x, snd ((xt # xts) ! i))\<close> in_set_zipE io_trie_invar.simps nth_mem zip_map_fst_snd) 
+
+
+      have "insert (x#xs) t = IO_Trie (take i (xt # xts) @ [(x, IO_Tree.insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))"
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> insert.simps
+        unfolding update_assoc_list_with_default_key_found[OF \<open>distinct (map fst (xt#xts))\<close> \<open>i < length (xt#xts)\<close> \<open>fst ((xt#xts) ! i) = x\<close>]
+        by simp
+      
+      then have "set (paths (insert (x#xs) t)) = set (paths (IO_Trie (take i (xt # xts) @ [(x, IO_Tree.insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))))"
+        by simp
+      also have "... = set (paths (IO_Trie ((x, IO_Tree.insert xs (snd ((xt # xts) ! i))) # (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
+        using paths_order[of "(take i (xt # xts) @ [(x, IO_Tree.insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))" "((x, IO_Tree.insert xs (snd ((xt # xts) ! i))) # (take i (xt # xts) @ drop (Suc i) (xt # xts)))"]
+        by force
+      also have "... = set ((map ((#) x) (paths (IO_Tree.insert xs (snd ((xt # xts) ! i))))) @ (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
+        unfolding paths.simps by force
+      finally have "set (paths (insert (x#xs) t)) = 
+                      set (map ((#) x) (paths (IO_Tree.insert xs (snd ((xt # xts) ! i))))) 
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by force
+      also have "\<dots> = (image ((#) x) (set (paths (IO_Tree.insert xs (snd ((xt # xts) ! i))))))
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by auto
+      finally have pi1: "set (paths (insert (x#xs) t)) = 
+                      image ((#) x) (if \<exists>xs'. xs @ xs' \<in> set (paths (snd ((xt # xts) ! i))) then set (paths (snd ((xt # xts) ! i)))
+                                                                                           else Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs}))
+                       \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        unfolding Cons.IH[OF \<open>io_trie_invar (snd ((xt # xts) ! i))\<close>] by blast
+
+
+
+      have po1: "set (xt#xts) = set ((x,snd ((xt#xts) ! i)) # ((take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        using list_index_split_set[OF \<open>i < length (xt#xts)\<close>] 
+        unfolding \<open>((xt#xts) ! i) = (x,snd ((xt#xts) ! i))\<close>[symmetric] by assumption
+      have po2: "length (xt#xts) = length ((x,snd ((xt#xts) ! i)) # ((take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        using \<open>i < length (xt#xts)\<close> by auto
+
+
+      have "set (paths t) = set (paths (IO_Trie ((x,snd ((xt#xts) ! i)) # ((take i (xt # xts) @ drop (Suc i) (xt # xts))))))"
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> 
+        using paths_order[OF po1 po2] by assumption
+      also have "\<dots> = set ((map ((#) x) (paths (snd ((xt # xts) ! i)))) @ (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
+        unfolding paths.simps by auto
+      finally have "set (paths t) = 
+                      set (map ((#) x) (paths (snd ((xt # xts) ! i)))) 
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by force
+
+      then have pi2: "set (paths t) = (image ((#) x) (set (paths (snd ((xt # xts) ! i))))) 
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by auto
+
+
+      show ?thesis proof (cases "\<exists>xs'. xs @ xs' \<in> set (paths (snd ((xt # xts) ! i)))")
+        case True
+        then have pi1': "set (paths (insert (x#xs) t)) = image ((#) x) (set (paths (snd ((xt # xts) ! i))))
+                                                         \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+          using pi1 by auto
+
+        have "set (paths (IO_Tree.insert (x # xs) t)) = set (paths t)"
+          unfolding pi1' pi2 by simp
+        moreover have "\<exists>xs'. (x # xs) @ xs' \<in> set (paths t)"
+          using True unfolding pi2 by force
+        ultimately show ?thesis by simp
+      next
+        case False
+        then have pi1': "set (paths (insert (x#xs) t)) = image ((#) x) (Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs}))
+                                                         \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+          using pi1 by auto
+
+        have "set (paths (IO_Tree.insert (x # xs) t)) = Set.insert (x # xs) (set (paths t) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})"
+          unfolding pi1' pi2 
+end (*
+      
+        
+        
+        
+        
+        moreover have "\<not>(\<exists>xs'. (x # xs) @ xs' \<in> set (paths t))"
+          using False unfolding pi2 
+end (*
+        ultimately show ?thesis by simp
+      qed
+
+
+end (*
+      show ?thesis 
+    next
+      case False
+      have "insert (x#xs) t = IO_Trie (xt # (xts @ [(x, IO_Tree.insert xs empty)]))"
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> insert.simps
+        unfolding update_assoc_list_with_default_key_not_found[OF \<open>distinct (map fst (xt#xts))\<close> False]
+        by simp
+      
+      have "(paths (IO_Trie (xt # (xts @ [(x, IO_Tree.insert xs empty)])))) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts @ [(x, IO_Tree.insert xs empty)]))"
+        unfolding paths.simps empty_def by simp
+      also have "... = (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))) @ (map ((#) x) (paths (insert xs empty))) "
+        by auto
+      finally have "paths (insert (x#xs) t) = (paths t) @ [x#xs]"
+        unfolding \<open>insert (x#xs) t = IO_Trie (xt # (xts @ [(x, IO_Tree.insert xs empty)]))\<close>
+                  \<open>(paths t) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))\<close>[symmetric]
+                  paths_insert_empty 
+        by auto
+      then have "set (paths (insert (x#xs) t)) = Set.insert (x#xs) (set (paths t))"
+        by force
+        
+        
+      have "\<And> p . p \<in> set (paths t) \<Longrightarrow> p \<noteq> [] \<and> hd p \<noteq> x"
+        using False
+        unfolding \<open>(paths t) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))\<close> by force
+      then have "\<And> xs' . xs' \<in> set (paths t) \<Longrightarrow> \<not>(\<exists> xs'' . xs'@xs'' = x#xs)"
+        by (metis hd_append2 list.sel(1))
+      then have "set (paths t) = (set (paths t) - {xs' . \<exists> xs'' . xs'@xs'' = x#xs})"
+        by blast
+      then show ?thesis 
+        unfolding \<open>set (paths (insert (x#xs) t)) = Set.insert (x#xs) (set (paths t))\<close>
+        using \<open>\<And>p. p \<in> set (paths t) \<Longrightarrow> p \<noteq> [] \<and> hd p \<noteq> x\<close> by force
+    qed
+  qed
+qed
+
+
+end (*
 
 lemma "io_trie_invar t \<Longrightarrow> set (paths (insert xs t)) = {xs' . xs' \<in> Set.insert xs (set (paths t)) \<and> \<not> (\<exists> xs'' . xs'' \<noteq> [] \<and> xs'@xs'' \<in> Set.insert xs (set (paths t)))}"
 proof (induction xs arbitrary: t)
@@ -350,7 +574,184 @@ proof (induction xs arbitrary: t)
   qed
 next
   case (Cons x xs)
-  then show ?case sorry
+
+  show ?case proof (cases "t = empty")
+    case True
+    show ?thesis 
+      unfolding True
+      unfolding paths_insert_empty  
+      unfolding empty_def paths.simps by auto
+  next
+    case False
+    
+    then obtain xt xts where "t = IO_Trie (xt#xts)"
+      by (metis IO_Tree.empty_def height.cases)
+    then have "t = IO_Trie ((fst xt, snd xt)#xts)" 
+      by auto
+
+    have "distinct (map fst (xt#xts))"
+      using Cons.prems \<open>t = IO_Trie (xt#xts)\<close> by auto
+
+    have "(paths t) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))"
+      unfolding \<open>t = IO_Trie ((fst xt, snd xt)#xts)\<close> by simp
+    then have "set (paths t) = {x#xs | x xs t . (x,t) \<in> set (xt#xts) \<and> xs \<in> set (paths t)}"
+      by auto
+    then have "Set.insert (x#xs) (set (paths t)) = Set.insert (x#xs) {x#xs | x xs t . (x,t) \<in> set (xt#xts) \<and> xs \<in> set (paths t)}"
+      by blast
+
+    show ?thesis proof (cases "x \<in> set (map fst (xt#xts))")
+      case True
+      then obtain i where "i < length (xt#xts)" and "fst ((xt#xts) ! i) = x"
+        by (metis in_set_conv_nth list_map_source_elem)
+      then have "((xt#xts) ! i) = (x,snd ((xt#xts) ! i))" by auto
+
+      have "io_trie_invar (snd ((xt # xts) ! i))"
+        using Cons.prems \<open>i < length (xt#xts)\<close> unfolding \<open>t = IO_Trie (xt#xts)\<close>
+        by (metis \<open>(xt # xts) ! i = (x, snd ((xt # xts) ! i))\<close> in_set_zipE io_trie_invar.simps nth_mem zip_map_fst_snd) 
+
+
+      have "insert (x#xs) t = IO_Trie (take i (xt # xts) @ [(x, IO_Tree.insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))"
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> insert.simps
+        unfolding update_assoc_list_with_default_key_found[OF \<open>distinct (map fst (xt#xts))\<close> \<open>i < length (xt#xts)\<close> \<open>fst ((xt#xts) ! i) = x\<close>]
+        by simp
+      
+      then have "set (paths (insert (x#xs) t)) = set (paths (IO_Trie (take i (xt # xts) @ [(x, IO_Tree.insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))))"
+        by simp
+      also have "... = set (paths (IO_Trie ((x, IO_Tree.insert xs (snd ((xt # xts) ! i))) # (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
+        using paths_order[of "(take i (xt # xts) @ [(x, IO_Tree.insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))" "((x, IO_Tree.insert xs (snd ((xt # xts) ! i))) # (take i (xt # xts) @ drop (Suc i) (xt # xts)))"]
+        by force
+      also have "... = set ((map ((#) x) (paths (IO_Tree.insert xs (snd ((xt # xts) ! i))))) @ (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
+        unfolding paths.simps by force
+      finally have "set (paths (insert (x#xs) t)) = 
+                      set (map ((#) x) (paths (IO_Tree.insert xs (snd ((xt # xts) ! i))))) 
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by force
+      also have "\<dots> = (image ((#) x) (set (paths (IO_Tree.insert xs (snd ((xt # xts) ! i))))))
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by auto
+      finally have pi1: "set (paths (insert (x#xs) t)) = 
+                      (image ((#) x) {xs' \<in> Set.insert xs (set (paths (snd ((xt # xts) ! i)))). \<nexists>xs''. xs'' \<noteq> [] \<and> xs' @ xs'' \<in> Set.insert xs (set (paths (snd ((xt # xts) ! i))))})
+                       \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        unfolding Cons.IH[OF \<open>io_trie_invar (snd ((xt # xts) ! i))\<close>] by blast
+
+
+      have po1: "set (xt#xts) = set ((x,snd ((xt#xts) ! i)) # ((take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        using list_index_split_set[OF \<open>i < length (xt#xts)\<close>] 
+        unfolding \<open>((xt#xts) ! i) = (x,snd ((xt#xts) ! i))\<close>[symmetric] by assumption
+      have po2: "length (xt#xts) = length ((x,snd ((xt#xts) ! i)) # ((take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        using \<open>i < length (xt#xts)\<close> by auto
+
+
+      have "set (paths t) = set (paths (IO_Trie ((x,snd ((xt#xts) ! i)) # ((take i (xt # xts) @ drop (Suc i) (xt # xts))))))"
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> 
+        using paths_order[OF po1 po2] by assumption
+      also have "\<dots> = set ((map ((#) x) (paths (snd ((xt # xts) ! i)))) @ (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
+        unfolding paths.simps by auto
+      finally have "set (paths t) = 
+                      set (map ((#) x) (paths (snd ((xt # xts) ! i)))) 
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by force
+
+      then have pi2: "set (paths t) = (image ((#) x) (set (paths (snd ((xt # xts) ! i))))) 
+                      \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+        by auto
+(*      finally have "set (paths t) =  {}"
+        using Cons.IH[OF \<open>io_trie_invar (snd ((xt # xts) ! i))\<close>] sorry *)
+
+
+      define paths_shared where paths_shared_def: "paths_shared = set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
+      define paths_inserted where paths_inserted_def: "paths_inserted = (image ((#) x) {xs' \<in> Set.insert xs (set (paths (snd ((xt # xts) ! i)))). \<nexists>xs''. xs'' \<noteq> [] \<and> xs' @ xs'' \<in> Set.insert xs (set (paths (snd ((xt # xts) ! i))))})"
+      define paths_orig where paths_orig_def: "paths_orig = set (map ((#) x) (paths (snd ((xt # xts) ! i))))"
+
+
+      have "set (paths (insert (x#xs) t)) = paths_inserted \<union> paths_shared"
+        unfolding paths_inserted_def paths_shared_def pi1 by blast
+          
+
+      show ?thesis
+        unfolding pi1 pi2  
+
+
+      
+        
+        
+
+      then show ?thesis sorry
+    next
+      case False
+      have "insert (x#xs) t = IO_Trie (xt # (xts @ [(x, IO_Tree.insert xs empty)]))"
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> insert.simps
+        unfolding update_assoc_list_with_default_key_not_found[OF \<open>distinct (map fst (xt#xts))\<close> False]
+        by simp
+      
+      have "(paths (IO_Trie (xt # (xts @ [(x, IO_Tree.insert xs empty)])))) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts @ [(x, IO_Tree.insert xs empty)]))"
+        unfolding paths.simps empty_def by simp
+      also have "... = (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))) @ (map ((#) x) (paths (insert xs empty))) "
+        by auto
+      finally have "paths (insert (x#xs) t) = (paths t) @ [x#xs]"
+        unfolding \<open>insert (x#xs) t = IO_Trie (xt # (xts @ [(x, IO_Tree.insert xs empty)]))\<close>
+                  \<open>(paths t) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))\<close>[symmetric]
+                  paths_insert_empty 
+        by auto
+      then have "set (paths (insert (x#xs) t)) = Set.insert (x#xs) (set (paths t))"
+        by force
+        
+        
+      have "\<And> p . p \<in> set (paths t) \<Longrightarrow> hd p \<noteq> x"
+        using False
+        unfolding \<open>(paths t) = concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (xt # xts))\<close> by force
+      then have "\<not>(\<exists> xs'' . xs'' \<noteq> [] \<and> (x#xs)@xs'' \<in> Set.insert (x#xs) (set (paths t)))"
+        by fastforce
+
+      moreover have "\<And> xs' . xs' \<in> set (paths t) \<Longrightarrow> \<nexists>xs''. xs'' \<noteq> [] \<and> xs' @ xs'' \<in> Set.insert (x#xs) (set (paths t))"
+        using paths_maximal[OF Cons.prems(1)] \<open>\<And> p . p \<in> set (paths t) \<Longrightarrow> hd p \<noteq> x\<close>
+        by (metis IO_Tree.empty_def \<open>\<And>thesis. (\<And>xt xts. t = IO_Trie (xt # xts) \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> hd_append insert_iff io_trie.inject list.distinct(1) list.sel(1) paths_empty) 
+
+      ultimately show ?thesis 
+        unfolding \<open>set (paths (insert (x#xs) t)) = Set.insert (x#xs) (set (paths t))\<close> by blast
+    qed
+  qed
+qed
+
+   
+
+
+end (*
+    obtain t' where "(x,t') \<in> set (xt#xts)"
+              and   "xs \<in> set (paths t')"
+      using Cons.prems 
+      unfolding \<open>t = IO_Trie (xt#xts)\<close> paths.simps 
+      
+  
+    have "io_trie_invar t'"
+      using Cons.prems(1) \<open>(x,t') \<in> set (xt#xts)\<close> unfolding \<open>t = IO_Trie (xt#xts)\<close> by auto
+  
+    show ?case 
+    proof 
+      assume "\<exists>xs''. xs'' \<noteq> [] \<and> (x # xs') @ xs'' \<in> set (paths t)"
+      then obtain xs'' where "xs'' \<noteq> []" and "(x # (xs' @ xs'')) \<in> set (paths (IO_Trie (xt # xts)))"
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> by force
+  
+  
+      obtain t'' where "(x,t'') \<in> set (xt#xts)"
+                 and   "(xs' @ xs'') \<in> set (paths t'')"
+        using \<open>(x # (xs' @ xs'')) \<in> set (paths (IO_Trie (xt # xts)))\<close>
+        unfolding \<open>t = IO_Trie (xt#xts)\<close> paths.simps 
+        by force
+  
+      have "distinct (map fst (xt#xts))"
+        using Cons.prems(1) unfolding \<open>t = IO_Trie (xt#xts)\<close> by simp
+      then have "t'' = t'"
+        using \<open>(x,t') \<in> set (xt#xts)\<close> \<open>(x,t'') \<in> set (xt#xts)\<close>
+        by (meson eq_key_imp_eq_value)  
+      then have "xs'@xs'' \<in> set (paths t')"
+        using \<open>(xs' @ xs'') \<in> set (paths t'')\<close> by auto
+      then show "False"
+        using \<open>xs'' \<noteq> []\<close> Cons.IH[OF \<open>io_trie_invar t'\<close> \<open>xs' \<in> set (paths t')\<close>] by blast
+    qed
+  
+  
+    then show ?case sorry
 qed
 
 
