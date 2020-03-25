@@ -626,20 +626,20 @@ qed
 
 
 
-
-fun insert_all :: "'a list list \<Rightarrow> 'a mp_trie" where
-  "insert_all seqs = foldr insert seqs empty"
+(* possible TODO: generalize to a insert_list function *)
+fun from_list :: "'a list list \<Rightarrow> 'a mp_trie" where
+  "from_list seqs = foldr insert seqs empty"
 
  
 
-lemma insert_all_invar : "mp_trie_invar (insert_all xs)"
+lemma from_list_invar : "mp_trie_invar (from_list xs)"
   using empty_invar insert_invar by (induction xs; auto)
 
-lemma insert_all_paths :
-  "set (paths (insert_all (x#xs))) = {y. y \<in> set (x#xs) \<and> \<not>(\<exists> y' . y' \<noteq> [] \<and> y@y' \<in> set (x#xs))}"
+lemma from_list_paths :
+  "set (paths (from_list (x#xs))) = {y. y \<in> set (x#xs) \<and> \<not>(\<exists> y' . y' \<noteq> [] \<and> y@y' \<in> set (x#xs))}"
 proof (induction xs arbitrary: x)
   case Nil
-  have *: "paths (insert_all [x]) = paths (insert x empty)" by auto
+  have *: "paths (from_list [x]) = paths (insert x empty)" by auto
   
   show ?case 
     unfolding *
@@ -649,33 +649,33 @@ proof (induction xs arbitrary: x)
 next
   case (Cons x' xs)
 
-  have "insert_all (x#x'#xs) = insert x (insert x' (insert_all xs))" by auto
-  have "insert_all (x#x'#xs) = insert x (insert_all (x'#xs))" by auto
+  have "from_list (x#x'#xs) = insert x (insert x' (from_list xs))" by auto
+  have "from_list (x#x'#xs) = insert x (from_list (x'#xs))" by auto
 
-  have "mp_trie_invar (insert x' (insert_all xs))"
-    using insert_all_invar insert_invar by metis
-  have "(insert x' (insert_all xs)) = insert_all (x'#xs)" by auto
+  have "mp_trie_invar (insert x' (from_list xs))"
+    using from_list_invar insert_invar by metis
+  have "(insert x' (from_list xs)) = from_list (x'#xs)" by auto
 
 
-  thm paths_insert_maximal[OF \<open>mp_trie_invar (insert x' (insert_all xs))\<close>, of x]
+  thm paths_insert_maximal[OF \<open>mp_trie_invar (insert x' (from_list xs))\<close>, of x]
 
-  show ?case proof (cases "\<exists>xs'. x @ xs' \<in> set (paths (insert x' (insert_all xs)))")
+  show ?case proof (cases "\<exists>xs'. x @ xs' \<in> set (paths (insert x' (from_list xs)))")
     case True
-    then have "set (paths (insert x (insert x' (insert_all xs)))) = set (paths (insert x' (insert_all xs)))"
-      using paths_insert_maximal[OF \<open>mp_trie_invar (insert x' (insert_all xs))\<close>, of x] by simp
-    then have "set (paths (insert x (insert_all (x' # xs)))) = set (paths (insert_all (x' # xs)))"
-      unfolding \<open>(insert x' (insert_all xs)) = insert_all (x'#xs)\<close> 
+    then have "set (paths (insert x (insert x' (from_list xs)))) = set (paths (insert x' (from_list xs)))"
+      using paths_insert_maximal[OF \<open>mp_trie_invar (insert x' (from_list xs))\<close>, of x] by simp
+    then have "set (paths (insert x (from_list (x' # xs)))) = set (paths (from_list (x' # xs)))"
+      unfolding \<open>(insert x' (from_list xs)) = from_list (x'#xs)\<close> 
       by assumption
-    then have "set (paths (insert_all (x#x'#xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
-      unfolding Cons \<open>insert_all (x#x'#xs) = insert x (insert_all (x'#xs))\<close>
+    then have "set (paths (from_list (x#x'#xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
+      unfolding Cons \<open>from_list (x#x'#xs) = insert x (from_list (x'#xs))\<close>
       by assumption
 
-    show ?thesis proof (cases "x \<in> set (paths (insert x' (insert_all xs)))")
+    show ?thesis proof (cases "x \<in> set (paths (insert x' (from_list xs)))")
       case True
       then have "x \<in> set (x'#xs)"
-        using \<open>set (paths (insert x (insert x' (insert_all xs)))) = set (paths (insert x' (insert_all xs)))\<close> \<open>set (paths (insert_all (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto
+        using \<open>set (paths (insert x (insert x' (from_list xs)))) = set (paths (insert x' (from_list xs)))\<close> \<open>set (paths (from_list (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto
       then show ?thesis 
-        unfolding \<open>set (paths (insert_all (x#x'#xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto
+        unfolding \<open>set (paths (from_list (x#x'#xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto
     next
       case False
       
@@ -683,7 +683,7 @@ next
       proof -
         obtain xs' where "xs' \<noteq> []" and "x @ xs' \<in>  {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
           using True False
-          by (metis \<open>insert_all (x # x' # xs) = insert x (insert x' (insert_all xs))\<close> \<open>set (paths (insert x (insert x' (insert_all xs)))) = set (paths (insert x' (insert_all xs)))\<close> \<open>set (paths (insert_all (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> append_Nil2) 
+          by (metis \<open>from_list (x # x' # xs) = insert x (insert x' (from_list xs))\<close> \<open>set (paths (insert x (insert x' (from_list xs)))) = set (paths (insert x' (from_list xs)))\<close> \<open>set (paths (from_list (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> append_Nil2) 
         then have s1: "{y \<in> set (x # x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)} = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x # x' # xs)}"
           by auto 
             
@@ -709,20 +709,20 @@ next
           unfolding s1 s2 by simp
       qed
       then show ?thesis
-        using \<open>set (paths (insert_all (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto 
+        using \<open>set (paths (from_list (x # x' # xs))) = {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}\<close> by auto 
     qed
       
   next
     case False
     
 
-    then have *: "set (paths (insert x (insert x' (insert_all xs)))) 
-                = Set.insert x (set (paths (insert x' (insert_all xs))) - {xs'. \<exists>xs''. xs' @ xs'' = x})"
-      using paths_insert_maximal[OF \<open>mp_trie_invar (insert x' (insert_all xs))\<close>, of x] by simp
+    then have *: "set (paths (insert x (insert x' (from_list xs)))) 
+                = Set.insert x (set (paths (insert x' (from_list xs))) - {xs'. \<exists>xs''. xs' @ xs'' = x})"
+      using paths_insert_maximal[OF \<open>mp_trie_invar (insert x' (from_list xs))\<close>, of x] by simp
 
     have f: "\<nexists>xs'. x @ xs' \<in> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
       using False
-      unfolding \<open>(insert x' (insert_all xs)) = insert_all (x'#xs)\<close> Cons
+      unfolding \<open>(insert x' (from_list xs)) = from_list (x'#xs)\<close> Cons
       by assumption
     then have "x \<notin> {y \<in> set (x' # xs). \<nexists>y'. y' \<noteq> [] \<and> y @ y' \<in> set (x' # xs)}"
       by (metis (no_types, lifting) append_Nil2)
@@ -860,8 +860,8 @@ qed
 
 
 value "pow_list (upto 1 10)"
-value "insert_all (pow_list (upto 1 10))"
-value "paths (insert_all (pow_list (upto 1 10)))"
+value "from_list (pow_list (upto 1 10))"
+value "paths (from_list (pow_list (upto 1 10)))"
 
 
 
