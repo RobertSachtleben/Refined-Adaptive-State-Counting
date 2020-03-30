@@ -2209,6 +2209,74 @@ instance
 end
 
 
+subsection \<open>Pairs of Distinct Prefixes\<close>
+
+fun prefix_pairs :: "'a list \<Rightarrow> ('a list \<times> 'a list) list" 
+  where "prefix_pairs [] = []" |
+        "prefix_pairs xs = prefix_pairs (butlast xs) @ (map (\<lambda> ys. (ys,xs)) (butlast (prefixes xs)))"
+
+value "prefix_pairs [1,2,3::nat]"
+
+
+
+
+lemma prefixes_butlast :
+  "set (butlast (prefixes xs)) = {ys . \<exists> zs . ys@zs = xs \<and> zs \<noteq> []}"
+proof (cases xs rule: rev_cases)
+  case Nil
+  then show ?thesis by auto
+next
+  case (snoc ys y)
+  
+  have "prefixes (ys@[y]) = (prefixes ys) @ [ys@[y]]"
+    by (metis prefixes.elims snoc_eq_iff_butlast)
+  then have "butlast (prefixes xs) = prefixes ys"
+    using snoc by auto
+  then have "set (butlast (prefixes xs)) = {xs'. \<exists>xs''. xs' @ xs'' = ys}"
+    using prefixes_set by auto
+  also have "... = {xs'. \<exists>xs''. xs' @ xs'' = ys@[y] \<and> xs'' \<noteq> []}"
+    by (metis (no_types, lifting) Nil_is_append_conv append.assoc butlast_append butlast_snoc not_Cons_self2)
+  finally show ?thesis
+    using snoc by simp
+qed
+
+
+lemma prefix_pairs_set :
+  "set (prefix_pairs xs) = {(zs,ys) | zs ys . \<exists> xs1 xs2 . zs@xs1 = ys \<and> ys@xs2 = xs \<and> xs1 \<noteq> []}"  
+proof (induction xs rule: rev_induct)
+  case Nil
+  then show ?case by auto 
+next
+  case (snoc x xs)
+  have "prefix_pairs (xs @ [x]) = prefix_pairs (butlast (xs @ [x])) @ (map (\<lambda> ys. (ys,(xs @ [x]))) (butlast (prefixes (xs @ [x]))))"
+    by (cases "(xs @ [x])"; auto)
+  then have *: "prefix_pairs (xs @ [x]) = prefix_pairs xs @ (map (\<lambda> ys. (ys,(xs @ [x]))) (butlast (prefixes (xs @ [x]))))"
+    by auto
+
+  have "set (prefix_pairs xs) = {(zs, ys) |zs ys. \<exists>xs1 xs2. zs @ xs1 = ys \<and> ys @ xs2 = xs \<and> xs1 \<noteq> []}"
+    using snoc.IH by assumption
+  then have "set (prefix_pairs xs) = {(zs, ys) |zs ys. \<exists>xs1 xs2. zs @ xs1 = ys \<and> ys @ xs2 @ [x] = xs@[x] \<and> xs1 \<noteq> []}"
+    by auto
+  also have "... = {(zs, ys) |zs ys. \<exists>xs1 xs2. zs @ xs1 = ys \<and> ys @ xs2 = xs @[x] \<and> xs1 \<noteq> [] \<and> xs2 \<noteq> []}" 
+  proof -
+    let ?P1 = "\<lambda> zs ys . (\<exists>xs1 xs2. zs @ xs1 = ys \<and> ys @ xs2 @ [x] = xs@[x] \<and> xs1 \<noteq> [])"
+    let ?P2 = "\<lambda> zs ys . (\<exists>xs1 xs2. zs @ xs1 = ys \<and> ys @ xs2 = xs @[x] \<and> xs1 \<noteq> [] \<and> xs2 \<noteq> [])"
+
+    have "\<And> ys zs . ?P2 zs ys \<Longrightarrow> ?P1 zs ys"
+      by (metis append_assoc butlast_append butlast_snoc)
+    then have "\<And> ys zs . ?P1 ys zs = ?P2 ys zs"
+      by blast
+    then show ?thesis by force           
+  qed
+  finally have "set (prefix_pairs xs) = {(zs, ys) |zs ys. \<exists>xs1 xs2. zs @ xs1 = ys \<and> ys @ xs2 = xs @ [x] \<and> xs1 \<noteq> [] \<and> xs2 \<noteq> []}"
+    by assumption
+
+  moreover have "set (map (\<lambda> ys. (ys,(xs @ [x]))) (butlast (prefixes (xs @ [x])))) = {(zs, ys) |zs ys. \<exists>xs1 xs2. zs @ xs1 = ys \<and> ys @ xs2 = xs @ [x] \<and> xs1 \<noteq> [] \<and> xs2 = []}"
+    using prefixes_butlast[of "xs@[x]"] by force
+
+  ultimately show ?case using * by force
+qed
+
 
 subsection \<open>Assorted Other Lemmata\<close>
 

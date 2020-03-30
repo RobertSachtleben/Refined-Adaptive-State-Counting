@@ -101,6 +101,23 @@ shows "A = A'"
   using assms unfolding r_distinguishable_state_pairs_with_separators_def
   by force 
 
+lemma r_distinguishable_state_pairs_with_separators_elem_is_separator:
+  assumes "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
+  and     "observable M"
+  and     "completely_specified M"
+shows "is_separator M q1 q2 A (Inr q1) (Inr q2)"
+proof -
+  have *:"q1 \<in> nodes M" and **:"q2 \<in> nodes M" and ***:"q1 \<noteq> q2" and ****: "q2\<noteq>q1" and *****: "state_separator_from_s_states M q1 q2 = Some A \<or> state_separator_from_s_states M q2 q1 = Some A"
+    using assms(1) unfolding r_distinguishable_state_pairs_with_separators_def by auto
+
+  from ***** have "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A \<or> is_state_separator_from_canonical_separator (canonical_separator M q2 q1) q2 q1 A"
+    using state_separator_from_s_states_soundness[of M q1 q2 A, OF _ * ** assms(3)]
+    using state_separator_from_s_states_soundness[of M q2 q1 A, OF _ ** * assms(3)] by auto
+  then show ?thesis
+    using state_separator_from_canonical_separator_is_separator[of M q1 q2 A, OF _ \<open>observable M\<close> * ** ***] 
+    using state_separator_from_canonical_separator_is_separator[of M q2 q1 A, OF _ \<open>observable M\<close> ** * ****] 
+    using is_separator_sym[of M q2 q1 A "Inr q2" "Inr q1"] by auto
+qed
 
 
 subsection \<open>Pairwise r-distinguishable Sets of States\<close>
