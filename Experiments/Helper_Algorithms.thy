@@ -202,11 +202,6 @@ lemma d_reachable_states_with_preambles_soundness :
   unfolding d_reachable_states_with_preambles_def
   using imageE by auto
 
-
-
-
-
-
 definition maximal_repetition_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets_from_separators M = {(S, S \<inter> (image fst (d_reachable_states_with_preambles M))) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}"
 
@@ -218,6 +213,40 @@ lemma maximal_repetition_sets_from_separators_code[code]:
 
 value "maximal_repetition_sets_from_separators m_ex_H"
 value "maximal_repetition_sets_from_separators m_ex_9"
+
+
+
+
+
+
+subsubsection \<open>Calculating Sub-Optimal Repetition Sets\<close>
+
+text \<open>Finding maximal pairwise r-distinguishable subsets of the node set of some FSM is likely too expensive
+      for FSMs containing a large number of r-distinguishable pairs of states\<close>
+
+(* TODO: implement some (approximation?) algorithm based on https://en.wikipedia.org/wiki/Clique_problem#Listing_all_maximal_cliques *)
+
+fun extend_until_conflict :: "('a \<times> 'a) set \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> 'a list" where
+  "extend_until_conflict non_confl_set candidates xs 0 = xs" |
+  "extend_until_conflict non_confl_set candidates xs (Suc k) = (case find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates of
+    Some (x,c') \<Rightarrow> extend_until_conflict non_confl_set c' (x#xs) k |
+    None   \<Rightarrow> xs)"
+
+value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [3,2,5,4] [1] 5"
+value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [2,3,4,5] [1] 5"
+
+
+
+
+definition sub_optimal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
+  "sub_optimal_pairwise_r_distinguishable_state_sets_from_separators M = 
+    (let pwrds = image fst (r_distinguishable_state_pairs_with_separators M);
+         k     = size M;
+         nL    = nodes_as_list M
+     in image (\<lambda>q . set (extend_until_conflict pwrds (remove1 q nL) [q] k)) (nodes M))"
+
+value "sub_optimal_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
+value "sub_optimal_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
 
 
 end
