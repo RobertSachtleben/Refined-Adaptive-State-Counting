@@ -242,32 +242,34 @@ lemma preamble_prefix_tests_code[code]:
 
 
 
-end (*
+
 
 
 subsubsection "Calculating Tests between m-Traversal-Paths Prefixes and Preambles"
 
-fun preamble_pair_tests' :: "('a \<times> 'a Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> ('d,'b,'c) atc) list \<Rightarrow> ('a \<times> ('a,'b,'c) traversal_Path \<times> ('d,'b,'c) atc) list" where
-  "preamble_pair_tests' PS RDS = 
-    concat (map (\<lambda>((q1,P1),(q2,P2)) . (case (find (\<lambda> qqA . fst qqA = (q1,q2)) RDS) of 
-                                         Some ((q1',q2'),A) \<Rightarrow> [(q1,[],A),(q2,[],A)] |
-                                         None \<Rightarrow> []))
-           (cartesian_product_list PS PS))"
+fun preamble_pair_tests' :: "'a list \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> ('a,'b,'c) test_path list" where
+  "preamble_pair_tests' drs rds = map (\<lambda>(q1,q2) . (q1,[],q2)) (filter (\<lambda> qq . qq \<in> rds) (cartesian_product_list drs drs))"
 
-fun preamble_pair_tests :: "('a \<times> 'a Preamble) list \<Rightarrow> (('a \<times> 'a) \<times> ('d,'b,'c) atc) list \<Rightarrow> ('a \<times> 'a Preamble \<times> ('a,'b,'c) traversal_Path \<times> ('d,'b,'c) atc) set" where
-  "preamble_pair_tests PS RDS = \<Union>{{(q1,P1,[],A),(q2,P2,[],A)} | P1 P2 A q1 q2 . (q1,P1) \<in> set PS \<and> (q2,P2) \<in> set PS \<and> ((q1,q2),A) \<in> set RDS}"
+fun preamble_pair_tests :: "'a set \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> ('a,'b,'c) test_path set" where
+  "preamble_pair_tests drs rds = image (\<lambda> (q1,q2) . (q1,[],q2)) ((drs \<times> drs) \<inter> rds)"
 
-(* TODO: code 
-lemma preamble_pair_tests_code[code]:
-  "preamble_pair_tests PS RDS = set (preamble_pair_tests' PS RDS)"
-  sorry
-*)
+
 
 
 
 subsubsection "Collecting Tests"
 
 
+
+
+(* Currently disabled.
+   TODO: Decide at which point after/during test_path collection is is most appropriate to convert
+         from test_paths that store a single state to r-d from to test suite elements that store a
+         path and all states its target is to be r-d'd from.
+         Also decide whether this is necessary at all.
+*)
+
+(*
 fun collect_ATCs' :: "('a \<times> 'b \<times> 'c) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'd) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> ('d set)) list" where
   "collect_ATCs' [] ts = []" |
   "collect_ATCs' ((a,b,c)#xs) ts = (a,b,c, set (map (\<lambda>(x,y,z,d) . d) (filter (\<lambda>(x,y,z,d) . x = a \<and> y = b \<and> z = c) ts))) # (collect_ATCs' xs ts)"
@@ -304,7 +306,7 @@ lemma collect_ATCs_set :
   "set (collect_ATCs xs ts) = {(a,b,c,{d . (a,b,c,d) \<in> set ts}) | a b c . (a,b,c) \<in> set xs}"
   using collect_ATCs'_set[of "remdups xs" "remdups ts"] 
   unfolding collect_ATCs.simps set_remdups by assumption
-
+*)
 
 
 subsection \<open>Calculating the Test Suite\<close>
