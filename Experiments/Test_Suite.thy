@@ -1,5 +1,5 @@
 theory Test_Suite
-imports Helper_Algorithms Adaptive_Test_Case
+imports Helper_Algorithms Adaptive_Test_Case Traversal_Set
 begin
 
 section \<open>Test Suites\<close>
@@ -311,26 +311,24 @@ lemma collect_ATCs_set :
 
 subsection \<open>Calculating the Test Suite\<close>
 
-(* how to build with comments?
-definition calculate_test_suite' :: "'a FSM \<Rightarrow> nat \<Rightarrow> ('a \<times> 'a Preamble \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC set) list" where
+(* return type not final *)
+definition calculate_test_suite' :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) test_path list" where
   "calculate_test_suite' M m = 
     (let 
          RDSSL \<comment> \<open>R-D States with Separators\<close>
-              = r_distinguishable_state_pairs_with_separators_naive M;
-         RDSS \<comment> \<open>R-D States with Separators\<close>
-              = set RDSSL; \<comment> \<open>corresponds to r_distinguishable_state_pairs_with_separators\<close>
+              = r_distinguishable_state_pairs_with_separators M;
+         fRD   \<comment> \<open>R-D States with Separators\<close>
+              = set_as_map RDSSL;
          RDS  \<comment> \<open>R-D States\<close>
-              = image fst RDSS;
-         RDP  \<comment> \<open>R-D Pairs\<close>
-              = filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) (map set (pow_list (nodes_from_distinct_paths M))); \<comment> \<open>corresponds to pairwise_r_distinguishable_state_sets_from_separators\<close>
-         MPRD \<comment> \<open>Maximal Pairwise R-D sets\<close>
-              = filter (\<lambda> S . \<not>(\<exists> S' \<in> set RDP . S \<subset> S')) RDP;  \<comment> \<open>corresponds to maximal_pairwise_r_distinguishable_state_sets_from_separators\<close>
+              = image fst RDSS; \<comment> \<open>TODO: maybe replace by checking fRD?\<close> 
+         MPRD  \<comment> \<open>R-D Pairs\<close>
+              = maximal_pairwise_r_distinguishable_state_sets_from_separators M;
          DRSP \<comment> \<open>D-R States with Preambles\<close>
               = d_reachable_states_with_preambles M;
          DRS  \<comment> \<open>D-R States\<close>
               = map fst DRSP; \<comment> \<open>corresponds to d_reachable_states\<close>
          MRS  \<comment> \<open>Maximal Repetition sets (maximal pairwise r-d sets with their d-r subsets)\<close>
-              = map (\<lambda>S. (S, S \<inter> set DRS)) MPRD; \<comment> \<open>corresponds to maximal_repetition_sets_from_separators\<close>
+              = maximal_repetition_sets_from_separators M;
          MTP  \<comment> \<open>states and their outgoing m-Traversal Paths\<close>
               = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
          fTP  \<comment> \<open>function to get Traversal Paths with witnesses for states\<close>
@@ -347,7 +345,6 @@ definition calculate_test_suite' :: "'a FSM \<Rightarrow> nat \<Rightarrow> ('a 
               = preamble_pair_tests' DRSP RDSSL
       
     in collect_ATCs PMTP (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests))"
-*)
 
 
 
@@ -356,7 +353,8 @@ definition calculate_test_suite' :: "'a FSM \<Rightarrow> nat \<Rightarrow> ('a 
 
 
 
-definition calculate_test_suite :: "'a FSM \<Rightarrow> nat \<Rightarrow> (('a \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a) ATC) list \<times> ('a \<times> 'a Preamble) list)" where
+
+definition calculate_test_suite :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> (('a \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a) ATC) list \<times> ('a \<times> 'a Preamble) list)" where
   "calculate_test_suite M m = 
     (let 
          RDSSL = r_distinguishable_state_pairs_with_separators_naive M;
@@ -381,7 +379,7 @@ definition calculate_test_suite :: "'a FSM \<Rightarrow> nat \<Rightarrow> (('a 
 
 value "calculate_test_suite M_ex_H 4"
 
-definition calculate_test_suite_set :: "'a FSM \<Rightarrow> nat \<Rightarrow> (('a \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a) ATC) set \<times> ('a \<times> 'a Preamble) list)" where
+definition calculate_test_suite_set :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> (('a \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a) ATC) set \<times> ('a \<times> 'a Preamble) list)" where
   "calculate_test_suite_set M m = (case calculate_test_suite M m of (ts,ps) \<Rightarrow> (set ts,ps))"
 
 

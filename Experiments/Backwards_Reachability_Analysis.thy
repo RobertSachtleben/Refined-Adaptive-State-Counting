@@ -4,8 +4,7 @@ begin
 
 
 
-lemma remove1_length : "x \<in> set xs \<Longrightarrow> length (remove1 x xs) < length xs" 
-  by (induction xs; auto)
+
 
 
 function select_inputs :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where

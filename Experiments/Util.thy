@@ -2278,6 +2278,187 @@ next
 qed
 
 
+subsection \<open>Removing Subsets in a List of Sets\<close>
+
+lemma remove1_length : "x \<in> set xs \<Longrightarrow> length (remove1 x xs) < length xs" 
+  by (induction xs; auto)
+
+
+function remove_subsets :: "'a set list \<Rightarrow> 'a set list" where
+  "remove_subsets [] = []" |
+  "remove_subsets (x#xs) = (case find_remove (\<lambda> y . x \<subset> y) xs of
+    Some (y',xs') \<Rightarrow> remove_subsets (y'# (filter (\<lambda> y . \<not>(y \<subseteq> x)) xs')) |
+    None          \<Rightarrow> x # (remove_subsets (filter (\<lambda> y . \<not>(y \<subseteq> x)) xs)))"
+  by pat_completeness auto
+termination 
+  apply (relation "measure length")
+    apply simp
+proof -
+  show "\<And>x xs. find_remove ((\<subset>) x) xs = None \<Longrightarrow> (filter (\<lambda>y. \<not> y \<subseteq> x) xs, x # xs) \<in> measure length"
+    by (metis dual_order.trans impossible_Cons in_measure length_filter_le not_le_imp_less)
+  show "(\<And>(x :: 'a set) xs x2 xa y. find_remove ((\<subset>) x) xs = Some x2 \<Longrightarrow> (xa, y) = x2 \<Longrightarrow> (xa # filter (\<lambda>y. \<not> y \<subseteq> x) y, x # xs) \<in> measure length)"
+  proof -
+    fix x :: "'a set"
+    fix xs y'xs' y' xs'    
+    assume "find_remove ((\<subset>) x) xs = Some y'xs'" and "(y', xs') = y'xs'"
+    then have "find_remove ((\<subset>) x) xs = Some (y',xs')"
+      by auto
+
+    have "length xs' = length xs - 1"
+      using find_remove_set(2,3)[OF \<open>find_remove ((\<subset>) x) xs = Some (y',xs')\<close>]
+      by (simp add: length_remove1) 
+    then have "length (y'#xs') = length xs"
+      using find_remove_set(2)[OF \<open>find_remove ((\<subset>) x) xs = Some (y',xs')\<close>]
+      using remove1_length by fastforce 
+    
+    have "length (filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<le> length xs'"
+      by simp
+    then have "length (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<le> length xs' + 1"
+      by simp
+    then have "length (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<le> length xs" 
+      unfolding \<open>length (y'#xs') = length xs\<close>[symmetric] by simp
+    then show "(y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs', x # xs) \<in> measure length"
+      by auto 
+  qed
+qed
+
+
+lemma remove_subsets_set : "set (remove_subsets xss) = {xs . xs \<in> set xss \<and> (\<nexists> xs' . xs' \<in> set xss \<and> xs \<subset> xs')}"
+proof (induction "length xss" arbitrary: xss rule: less_induct)
+  case less
+  
+  show ?case proof (cases xss)
+
+    case Nil
+    then show ?thesis by auto
+  next
+    case (Cons x xss')
+    
+    show ?thesis proof (cases "find_remove (\<lambda> y . x \<subset> y) xss'")
+      case None
+      then have "(\<nexists> xs' . xs' \<in> set xss' \<and> x \<subset> xs')"
+        using find_remove_None_iff by metis
+
+      have "length (filter (\<lambda> y . \<not>(y \<subseteq> x)) xss') < length xss"
+        using Cons
+        by (meson dual_order.trans impossible_Cons leI length_filter_le) 
+  
+      have "remove_subsets (x#xss') = x # (remove_subsets (filter (\<lambda> y . \<not>(y \<subseteq> x)) xss'))"
+        using None by auto
+      then have "set (remove_subsets (x#xss')) = insert x {xs \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss'). \<nexists>xs'. xs' \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> xs \<subset> xs'}"
+        using less[OF \<open>length (filter (\<lambda> y . \<not>(y \<subseteq> x)) xss') < length xss\<close>]
+        by auto
+      also have "\<dots> = {xs . xs \<in> set (x#xss') \<and> (\<nexists> xs' . xs' \<in> set (x#xss') \<and> xs \<subset> xs')}"
+      proof -
+        have "\<And> xs . xs \<in> insert x {xs \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss'). \<nexists>xs'. xs' \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> xs \<subset> xs'}
+              \<Longrightarrow> xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'}"
+        proof -
+          fix xs assume "xs \<in> insert x {xs \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss'). \<nexists>xs'. xs' \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> xs \<subset> xs'}"
+          then consider "xs = x" | "xs \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> (\<nexists>xs'. xs' \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> xs \<subset> xs')"
+            by blast
+          then show "xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'}"
+            using \<open>(\<nexists> xs' . xs' \<in> set xss' \<and> x \<subset> xs')\<close> by (cases; auto)
+        qed
+        moreover have "\<And> xs . xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'}
+                        \<Longrightarrow> xs \<in> insert x {xs \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss'). \<nexists>xs'. xs' \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> xs \<subset> xs'}" 
+        proof -
+          fix xs assume "xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'}"
+          then have "xs \<in> set (x # xss')" and "\<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'"
+            by blast+
+          then consider "xs = x" | "xs \<in> set xss'" by auto
+          then show "xs \<in> insert x {xs \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss'). \<nexists>xs'. xs' \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> xs \<subset> xs'}"
+          proof cases
+            case 1
+            then show ?thesis by auto
+          next
+            case 2
+            show ?thesis proof (cases "xs \<subseteq> x")
+              case True
+              then show ?thesis
+                using \<open>\<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'\<close> by auto 
+            next
+              case False
+              then have "xs \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss')"
+                using 2 by auto
+              moreover have "\<nexists>xs'. xs' \<in> set (filter (\<lambda>y. \<not> y \<subseteq> x) xss') \<and> xs \<subset> xs'"
+                using \<open>\<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'\<close> by auto
+              ultimately show ?thesis by auto
+            qed 
+          qed
+        qed
+        ultimately show ?thesis
+          by (meson subset_antisym subset_eq) 
+      qed
+      finally show ?thesis unfolding Cons[symmetric] by assumption
+    next
+      case (Some a)
+      then obtain y' xs' where *: "find_remove (\<lambda> y . x \<subset> y) xss' = Some (y',xs')" by force
+      
+
+      have "length xs' = length xss' - 1"
+        using find_remove_set(2,3)[OF *]
+        by (simp add: length_remove1) 
+      then have "length (y'#xs') = length xss'"
+        using find_remove_set(2)[OF *]
+        using remove1_length by fastforce 
+      
+      have "length (filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<le> length xs'"
+        by simp
+      then have "length (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<le> length xs' + 1"
+        by simp
+      then have "length (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<le> length xss'" 
+        unfolding \<open>length (y'#xs') = length xss'\<close>[symmetric] by simp
+      then have "length (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') < length xss" 
+        unfolding Cons by auto
+
+
+      have "remove_subsets (x#xss') = remove_subsets (y'# (filter (\<lambda> y . \<not>(y \<subseteq> x)) xs'))"
+        using * by auto
+      then have "set (remove_subsets (x#xss')) = {xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs'). \<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a}"
+        using less[OF \<open>length (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') < length xss\<close>]
+        by auto
+      also have "\<dots> = {xs . xs \<in> set (x#xss') \<and> (\<nexists> xs' . xs' \<in> set (x#xss') \<and> xs \<subset> xs')}"
+      proof -
+        have "\<And> xs . xs \<in> {xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs'). \<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a} 
+                \<Longrightarrow> xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'}"
+        proof -
+          fix xs assume "xs \<in> {xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs'). \<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a}"
+          then have "xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs')" and "\<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a"
+            by blast+
+
+          have "xs \<in> set (x # xss')"
+            using \<open>xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs')\<close> find_remove_set(2,3)[OF *]
+            by auto 
+          moreover have "\<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'"
+            using \<open>\<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a\<close> find_remove_set[OF *]
+            by (metis dual_order.strict_trans filter_list_set in_set_remove1 list.set_intros(1) list.set_intros(2) psubsetI set_ConsD)
+          ultimately show "xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'}" 
+            by blast
+        qed
+        moreover have "\<And> xs . xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'} 
+                \<Longrightarrow> xs \<in> {xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs'). \<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a}" 
+        proof -
+          fix xs assume "xs \<in> {xs \<in> set (x # xss'). \<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'}"
+          then have "xs \<in> set (x # xss')" and  "\<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'"
+            by blast+
+
+          then have "xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs')"
+            using find_remove_set[OF *]
+            by (metis filter_list_set in_set_remove1 list.set_intros(1) list.set_intros(2) psubsetI set_ConsD) 
+          moreover have "\<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a"
+            using \<open>xs \<in> set (x # xss')\<close> \<open>\<nexists>xs'. xs' \<in> set (x # xss') \<and> xs \<subset> xs'\<close> find_remove_set[OF *]
+            by (metis filter_is_subset list.set_intros(2) notin_set_remove1 set_ConsD subset_iff)
+          ultimately show "xs \<in> {xs \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs'). \<nexists>xs'a. xs'a \<in> set (y' # filter (\<lambda>y. \<not> y \<subseteq> x) xs') \<and> xs \<subset> xs'a}"
+            by blast
+        qed
+        ultimately show ?thesis by blast
+      qed
+      finally show ?thesis unfolding Cons by assumption
+    qed
+  qed
+qed
+
+
 subsection \<open>Assorted Other Lemmata\<close>
 
 lemma distinct_not_in_prefix :

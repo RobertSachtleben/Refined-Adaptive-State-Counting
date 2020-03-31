@@ -126,14 +126,16 @@ subsection \<open>Pairwise r-distinguishable Sets of States\<close>
 definition pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
   "pairwise_r_distinguishable_state_sets_from_separators M = { S . S \<subseteq> nodes M \<and> (\<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M))}" 
 
+definition pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
+  "pairwise_r_distinguishable_state_sets_from_separators_list M = (let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
+                                                                    in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
+                                                                           (map set (pow_list (nodes_as_list M))))"
 
 (* use a list-based calculation to avoid storing the entire powerset *)
 lemma pairwise_r_distinguishable_state_sets_from_separators_code[code] :
-  "pairwise_r_distinguishable_state_sets_from_separators M = set (let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
-                                                                    in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
-                                                                           (map set (pow_list (nodes_as_list M))))"
+  "pairwise_r_distinguishable_state_sets_from_separators M = set (pairwise_r_distinguishable_state_sets_from_separators_list M)"
   using pow_list_set[of "nodes_as_list M"]
-  unfolding nodes_as_list_set[of M] pairwise_r_distinguishable_state_sets_from_separators_def Let_def
+  unfolding nodes_as_list_set[of M] pairwise_r_distinguishable_state_sets_from_separators_def pairwise_r_distinguishable_state_sets_from_separators_list_def Let_def
   by auto
 
 
@@ -153,6 +155,21 @@ lemma pairwise_r_distinguishable_state_sets_from_separators_cover :
 
 definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = { S . S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> (\<nexists> S' . S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> S \<subset> S')}"
+
+
+  
+      
+
+end (* x # (remove_subsets (filter (\<lambda> y . \<not>(y \<subseteq> x)) xs))
+      then show ?thesis sorry
+    qed
+  qed 
+
+end (*
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
+  "maximal_pairwise_r_distinguishable_state_sets_from_separators_list M = 
+
+end (*
 
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_code[code] :
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = 
