@@ -130,25 +130,119 @@ qed
 
 subsubsection "Calculating Tests between Preambles"
 
-end (*
 
 
-fun preamble_prefix_tests' :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('d,'b,'c) atc) \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Preamble) list \<Rightarrow> ('a \<times> ('a,'b,'c) traversal_Path \<times> ('d,'b,'c) atc) list" where
-  "preamble_prefix_tests' q fRD pds PS = 
-    concat (map (\<lambda>((p,(rd,dr)),(q2,P2),p1) . [(q,p1,fRD (target q p1) q2), (q2,[],fRD (target q p1) q2)]) 
-                (filter (\<lambda>((p,(rd,dr)),(q2,P2),p1) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) 
-                        (concat (map (\<lambda>((p,(rd,dr)),(q2,P2)) . map (\<lambda>p1 . ((p,(rd,dr)),(q2,P2),p1)) (prefixes p)) (cartesian_product_list pds PS)))))"
+fun preamble_prefix_tests' :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> 'a list \<Rightarrow> ('a,'b,'c) test_path list" where
+  "preamble_prefix_tests' q pds drs = 
+    concat (map (\<lambda>((p,(rd,dr)),q2,p1) . [(q,p1,q2), (q2,[],(target q p1))]) 
+                (filter (\<lambda>((p,(rd,dr)),q2,p1) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) 
+                        (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs)))))"
 
 
-fun preamble_prefix_tests :: "'a \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> ('d,'b,'c) atc) \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a \<times> 'a Preamble) list \<Rightarrow> ('a \<times> ('a,'b,'c) traversal_Path \<times> ('d,'b,'c) atc) set" where
-  "preamble_prefix_tests q fRD pds PS = \<Union>{{(q,p1,fRD (target q p1) q2), (q2,[],fRD (target q p1) q2)} | p1 q2 . \<exists> (p,(rd,dr)) \<in> set pds . \<exists> (q2,P2) \<in> set PS . \<exists> p2 . p = p1@p2 \<and> (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2}"
+definition preamble_prefix_tests :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> 'a set \<Rightarrow> ('a,'b,'c) test_path set" where
+  "preamble_prefix_tests q pds drs = \<Union>{{(q,p1,q2), (q2,[],(target q p1))} | p1 q2 . \<exists> (p,(rd,dr)) \<in> set pds . q2 \<in> drs \<and> (\<exists> p2 . p = p1@p2) \<and> (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2}"
 
 
-(* TODO: code 
+
+lemma set_concat_elem :
+  assumes "x \<in> set (concat xss)"
+  obtains xs where "xs \<in> set xss" and "x \<in> set xs" 
+  using assms by auto
+
+lemma set_map_elem :
+  assumes "y \<in> set (map f xs)"
+  obtains x where "y = f x" and "x \<in> set xs" using assms by auto
+
+
+
+lemma preamble_prefix_tests'_set:
+  "set (preamble_prefix_tests' q pds drs) = preamble_prefix_tests q pds (set drs)"
+proof -
+  have "\<And> tp . tp \<in> set (preamble_prefix_tests' q pds drs) \<Longrightarrow> tp \<in> preamble_prefix_tests q pds (set drs)"
+  proof -
+    fix tp assume "tp \<in> set (preamble_prefix_tests' q pds drs)"
+    then obtain tpl where *: "tpl \<in> set (map (\<lambda>((p,(rd,dr)),q2,p1) . [(q,p1,q2), (q2,[],(target q p1))]) 
+                (filter (\<lambda>((p,(rd,dr)),q2,p1) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) 
+                        (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs)))))"
+                    and   "tp \<in> set tpl" 
+      using set_concat_elem[of tp] unfolding preamble_prefix_tests'.simps by blast
+    
+    obtain tpp where "tpl = (\<lambda>((p,(rd,dr)),q2,p1) . [(q,p1,q2), (q2,[],(target q p1))]) tpp"
+                 and **: "tpp \<in> set (filter (\<lambda>((p,(rd,dr)),q2,p1) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) 
+                        (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs))))"  
+      using set_map_elem[OF *]
+      by blast 
+
+    then obtain p rd dr q2 p1 where "tpp = ((p,(rd,dr)),q2,p1)" 
+      by auto
+
+    have "(target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2"
+    and  ***: "((p,(rd,dr)),q2,p1) \<in> set (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs)))"
+      using ** unfolding \<open>tpp = ((p,(rd,dr)),q2,p1)\<close> by auto
+
+    have "(p,(rd,dr)) \<in> set pds"
+    and  "q2 \<in> set drs"
+    and  "p1 \<in> set (prefixes p)"
+      using *** cartesian_product_list_set[of pds drs] by auto
+
+    then have "\<exists>(p, rd, dr)\<in>set pds. q2\<in>set drs \<and> (\<exists>p2. p = p1 @ p2) \<and> target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2"
+      using \<open>(target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2\<close> unfolding prefixes_set
+      by blast
+    then have "{(q,p1,q2), (q2,[],(target q p1))} \<in> {{(q, p1, q2), (q2, [], target q p1)} |p1 q2.
+             \<exists>(p, rd, dr)\<in>set pds. q2\<in>set drs \<and> (\<exists>p2. p = p1 @ p2) \<and> target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2}" by blast
+    moreover have "tp \<in> {(q,p1,q2), (q2,[],(target q p1))}"
+      using \<open>tp \<in> set tpl\<close> 
+      unfolding \<open>tpl = (\<lambda>((p,(rd,dr)),q2,p1) . [(q,p1,q2), (q2,[],(target q p1))]) tpp\<close> \<open>tpp = ((p,(rd,dr)),q2,p1)\<close> by auto
+    ultimately show "tp \<in> preamble_prefix_tests q pds (set drs)"
+      unfolding  preamble_prefix_tests_def
+      by (meson UnionI) 
+  qed
+  moreover have "\<And> tp . tp \<in> preamble_prefix_tests q pds (set drs) \<Longrightarrow> tp \<in> set (preamble_prefix_tests' q pds drs)"
+  proof -
+    fix tp assume "tp \<in> preamble_prefix_tests q pds (set drs)"
+    then obtain q2 p1 where "tp \<in> {(q,p1,q2), (q2,[],(target q p1))}"
+                      and *: "\<exists> (p,(rd,dr)) \<in> set pds . q2 \<in> set drs \<and> (\<exists> p2 . p = p1@p2) \<and> (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2"
+      unfolding preamble_prefix_tests_def
+      by blast
+
+
+    have "tp \<in> set [(q, p1, q2), (q2, [], target q p1)]"
+      using \<open>tp \<in> {(q, p1, q2), (q2, [], target q p1)}\<close> by auto
+
+    from * obtain p rd dr where "(p, rd, dr)\<in>set pds" and "q2\<in>set drs" and "\<exists>p2. p = p1 @ p2" and "target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2"
+      using * by auto
+
+    have scheme : "\<And> y x xs . y \<in> set x \<Longrightarrow> x \<in> set xs \<Longrightarrow> y \<in> set (concat xs)" by auto
+
+    have "p1 \<in> set (prefixes p)"
+      using \<open>\<exists>p2. p = p1 @ p2\<close> unfolding prefixes_set by blast
+    then have "((p,(rd,dr)),q2,p1) \<in> set (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs)))"
+      using \<open>(p, rd, dr)\<in>set pds\<close> \<open>q2\<in>set drs\<close> cartesian_product_list_set[of pds drs] by force
+    then have "((p,(rd,dr)),q2,p1) \<in> set (filter (\<lambda>((p,(rd,dr)),q2,p1) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) 
+                        (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs))))"
+      using \<open>target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2\<close> by auto
+    then have **: "[(q, p1, q2), (q2, [], target q p1)] \<in> set (map (\<lambda>((p,(rd,dr)),q2,p1) . [(q,p1,q2), (q2,[],(target q p1))]) 
+                (filter (\<lambda>((p,(rd,dr)),q2,p1) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) 
+                        (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs)))))"
+      by force
+    
+    show "tp \<in> set (preamble_prefix_tests' q pds drs)"
+      using scheme[OF \<open>tp \<in> set [(q, p1, q2), (q2, [], target q p1)]\<close> **]
+      unfolding preamble_prefix_tests'.simps  by assumption
+  qed
+  ultimately show ?thesis by blast
+qed
+    
+
+(*
 lemma preamble_prefix_tests_code[code]:
-  "preamble_prefix_tests q fRD pds PS = set (preamble_prefix_tests' q fRD pds PS)"
-  sorry
+  "preamble_prefix_tests q pds drs = set (preamble_prefix_tests' q pds (sorted_list_of_set drs))"
+  using preamble_prefix_tests'_set 
 *)
+
+
+
+end (*
 
 
 subsubsection "Calculating Tests between m-Traversal-Paths Prefixes and Preambles"
