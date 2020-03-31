@@ -157,20 +157,10 @@ definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = { S . S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> (\<nexists> S' . S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> S \<subset> S')}"
 
 
-  
-      
-
-end (* x # (remove_subsets (filter (\<lambda> y . \<not>(y \<subseteq> x)) xs))
-      then show ?thesis sorry
-    qed
-  qed 
-
-end (*
 definition maximal_pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
-  "maximal_pairwise_r_distinguishable_state_sets_from_separators_list M = 
-
-end (*
-
+  "maximal_pairwise_r_distinguishable_state_sets_from_separators_list M = remove_subsets (pairwise_r_distinguishable_state_sets_from_separators_list M)"
+      
+(*
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_code[code] :
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = 
     (let PR = (pairwise_r_distinguishable_state_sets_from_separators M) 
@@ -180,6 +170,16 @@ lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_code[code] :
 
 value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
 value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
+*)
+
+
+lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_code[code] :
+  "maximal_pairwise_r_distinguishable_state_sets_from_separators M = set (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M)"
+  unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_list_def Let_def remove_subsets_set pairwise_r_distinguishable_state_sets_from_separators_code[symmetric] maximal_pairwise_r_distinguishable_state_sets_from_separators_def by blast
+
+value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
+value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
+
 
 
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_cover :
@@ -239,11 +239,21 @@ lemma d_reachable_states_with_preambles_soundness :
 definition maximal_repetition_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets_from_separators M = {(S, S \<inter> (image fst (d_reachable_states_with_preambles M))) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}"
 
+definition maximal_repetition_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
+  "maximal_repetition_sets_from_separators_list M = (let DR = (image fst (d_reachable_states_with_preambles M))
+    in  map (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M))"
+
 
 lemma maximal_repetition_sets_from_separators_code[code]: 
   "maximal_repetition_sets_from_separators M = (let DR = (image fst (d_reachable_states_with_preambles M))
     in  image (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators M))" 
   unfolding maximal_repetition_sets_from_separators_def Let_def by force
+
+(* TODO: decide which code equation to use *)
+lemma maximal_repetition_sets_from_separators_code_alt: 
+  "maximal_repetition_sets_from_separators M = set (maximal_repetition_sets_from_separators_list M)" 
+  unfolding maximal_repetition_sets_from_separators_def maximal_repetition_sets_from_separators_list_def Let_def maximal_pairwise_r_distinguishable_state_sets_from_separators_code by force
+
 
 value "maximal_repetition_sets_from_separators m_ex_H"
 value "maximal_repetition_sets_from_separators m_ex_9"

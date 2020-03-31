@@ -3338,4 +3338,51 @@ proof -
 qed
 
 
+lemma path_length_sum :
+  assumes "path M q p" 
+  shows "length p = (\<Sum> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) p))"
+  using assms
+proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc x xs)
+  then have "length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
+    by auto
+  
+  have *: "t_target x \<in> nodes M"
+    using \<open>path M q (xs @ [x])\<close> by auto
+  then have **: "length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])) = Suc (length (filter (\<lambda>t. t_target t = t_target x) xs))"
+    by auto
+
+  have "\<And> q . q \<in> nodes M \<Longrightarrow> q \<noteq> t_target x \<Longrightarrow> length (filter (\<lambda>t. t_target t = q) (xs @ [x])) = length (filter (\<lambda>t. t_target t = q) xs)"
+    by simp
+  then have ***: "(\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs))"
+    using fsm_nodes_finite[of M]
+    by (metis (no_types, lifting) DiffE insertCI sum.cong)
+
+  have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) + (length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])))"
+    using * fsm_nodes_finite[of M]
+  proof -
+    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) (xs @ [x]))) = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) (xs @ [x])))"
+      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
+    then show ?thesis
+      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
+  qed  
+  moreover have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs)) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs)) + (length (filter (\<lambda>t. t_target t = t_target x) xs))"
+    using * fsm_nodes_finite[of M]
+  proof -
+    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) xs)) = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) xs))"
+      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
+    then show ?thesis
+      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
+  qed  
+
+  ultimately have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = Suc (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
+    using ** *** by auto
+    
+  then show ?case
+    by (simp add: \<open>length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))\<close>) 
+qed
+
 end
