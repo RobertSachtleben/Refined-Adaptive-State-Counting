@@ -65,11 +65,23 @@ fun prefix_pair_tests' :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<times> 
   "prefix_pair_tests' q pds = concat (concat (map (prefix_pair_tests'' q) pds))"
 
 
-fun prefix_pair_tests :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> ('a,'b,'c) test_path set" where
-  "prefix_pair_tests q pds = \<Union>{{(q,p1,(target q p2)), (q,p2,(target q p1))} | p1 p2 . \<exists> (p,(rd,dr)) \<in> set pds . (p1,p2) \<in> set (prefix_pairs p) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)}"
+fun prefix_pair_tests :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) set \<Rightarrow> ('a,'b,'c) test_path set" where
+  "prefix_pair_tests q pds = \<Union>{{(q,p1,(target q p2)), (q,p2,(target q p1))} | p1 p2 . \<exists> (p,(rd,dr)) \<in> pds . (p1,p2) \<in> set (prefix_pairs p) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)}"
+
+lemma prefix_pair_tests[code] :
+  "prefix_pair_tests q pds = (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) pds))"
+proof -
+  have "\<And> tp . tp \<in> prefix_pair_tests q pds \<Longrightarrow> tp \<in> (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) pds))"
+  proof -
+    fix tp assume "tp \<in> prefix_pair_tests q pds"
+    then show "tp \<in> (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) pds))"
+      unfolding prefix_pair_tests.simps 
+
+end (*
+
 
 lemma prefix_pair_tests_containment :
-  assumes "(p,(rd,dr)) \<in> set pds"
+  assumes "(p,(rd,dr)) \<in> pds"
   and     "(p1,p2) \<in> set (prefix_pairs p)"
   and     "(target q p1) \<in> rd"
   and     "(target q p2) \<in> rd"
@@ -312,12 +324,12 @@ lemma collect_ATCs_set :
 subsection \<open>Calculating the Test Suite\<close>
 
 (* return type not final *)
-definition calculate_test_suite' :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) test_path list" where
+definition calculate_test_suite' :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) test_path list" where
   "calculate_test_suite' M m = 
     (let 
          RDSSL \<comment> \<open>R-D States with Separators\<close>
               = r_distinguishable_state_pairs_with_separators M;
-         fRD   \<comment> \<open>R-D States with Separators\<close>
+         fRD   \<comment> \<open>function that maps state pairs to Separators (if existing)\<close>
               = set_as_map RDSSL;
          RDS  \<comment> \<open>R-D States\<close>
               = image fst RDSS; \<comment> \<open>TODO: maybe replace by checking fRD?\<close> 
@@ -326,19 +338,15 @@ definition calculate_test_suite' :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarr
          DRSP \<comment> \<open>D-R States with Preambles\<close>
               = d_reachable_states_with_preambles M;
          DRS  \<comment> \<open>D-R States\<close>
-              = map fst DRSP; \<comment> \<open>corresponds to d_reachable_states\<close>
+              = image fst DRSP; \<comment> \<open>corresponds to d_reachable_states\<close>
          MRS  \<comment> \<open>Maximal Repetition sets (maximal pairwise r-d sets with their d-r subsets)\<close>
-              = maximal_repetition_sets_from_separators M;
+              = maximal_repetition_sets_from_separators_list M;
          MTP  \<comment> \<open>states and their outgoing m-Traversal Paths\<close>
               = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
          fTP  \<comment> \<open>function to get Traversal Paths with witnesses for states\<close>
-              = list_as_fun MTP []; \<comment> \<open>see list_as_fun_on and the sketch following fRD_helper\<close>
-         fRD  \<comment> \<open>function to get separators for R-D states\<close>
-              = \<lambda> q1 q2 . snd (the (find (\<lambda> qqA . fst qqA = (q1,q2)) RDSSL)); \<comment> \<open>see fRD_helper\<close>
-         PMTP 
-              = concat (map (\<lambda> (q,P) . map (\<lambda>(p,d) . (q,p)) (fTP q)) DRSP);
+              = set_as_map (set MTP);
          PrefixPairTests 
-              = concat (map (\<lambda> (q,P) . prefix_pair_tests' q fRD (fTP q)) DRSP);             
+              = \<Union> (image (\<lambda> q . prefix_pair_tests q RDS) DRS);             
          PreamblePrefixTests
               = concat (map (\<lambda> (q,P) . preamble_prefix_tests' q fRD (fTP q) DRSP) DRSP);              
          PreamblePairTests
