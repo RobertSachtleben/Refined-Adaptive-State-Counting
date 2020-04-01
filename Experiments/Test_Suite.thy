@@ -140,6 +140,8 @@ shows "(q,p1,(target q p2)) \<in> prefix_pair_tests q pds"
 and   "(q,p2,(target q p1)) \<in> prefix_pair_tests q pds"
   using assms unfolding prefix_pair_tests.simps by blast+
 
+
+
 (* TODO: move and rename *)
 lemma union_pair_exists_helper : "\<And> x xs f P . \<Union>{f y1 y2 | y1 y2 . \<exists> z \<in> set (x#xs) . P y1 y2 z} = (\<Union>{f y1 y2 | y1 y2 . \<exists> z \<in> set xs . P y1 y2 z}) \<union> (\<Union>{f y1 y2 | y1 y2 . P y1 y2 x})"
 proof -
@@ -202,8 +204,67 @@ fun preamble_prefix_tests' :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<tim
                         (concat (map (\<lambda>((p,(rd,dr)),q2) . map (\<lambda>p1 . ((p,(rd,dr)),q2,p1)) (prefixes p)) (cartesian_product_list pds drs)))))"
 
 
+definition preamble_prefix_tests :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) set \<Rightarrow> 'a set \<Rightarrow> ('a,'b,'c) test_path set" where
+  "preamble_prefix_tests q pds drs = \<Union>{{(q,p1,q2), (q2,[],(target q p1))} | p1 q2 . \<exists> (p,(rd,dr)) \<in> pds . q2 \<in> drs \<and> (\<exists> p2 . p = p1@p2) \<and> (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2}"
+
+lemma preamble_prefix_tests_code[code] :
+  "preamble_prefix_tests q pds drs = (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) pds))"
+proof -
+  have "\<And> pp . pp \<in> preamble_prefix_tests q pds drs \<Longrightarrow> pp \<in> (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) pds))"  
+  proof -
+    fix pp assume "pp \<in> preamble_prefix_tests q pds drs"
+    then obtain p1 q2 where "pp \<in> {(q,p1,q2), (q2,[],(target q p1))}"
+                      and   "\<exists> (p,(rd,dr)) \<in> pds . q2 \<in> drs \<and> (\<exists> p2 . p = p1@p2) \<and> (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2"
+      unfolding preamble_prefix_tests_def by blast
+    then obtain p rd dr where "(p,(rd,dr)) \<in> pds" and "q2 \<in> drs" and "(\<exists> p2 . p = p1@p2)" and "(target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2"
+      by auto
+
+    then have "(p1,q2) \<in> (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs))"
+      unfolding prefixes_set by force
+    then show "pp \<in> (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) pds))"
+      using \<open>(p,(rd,dr)) \<in> pds\<close>
+            \<open>pp \<in> {(q,p1,q2), (q2,[],(target q p1))}\<close> by blast
+  qed
+  moreover have "\<And> pp . pp \<in> (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) pds))
+                         \<Longrightarrow> pp \<in> preamble_prefix_tests q pds drs"
+  proof -
+    fix pp assume "pp \<in> (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) pds))"
+    then obtain prddr where "prddr \<in> pds"
+                      and   "pp \<in> (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) prddr"
+      by blast
+
+    obtain p rd dr where "prddr = (p,(rd,dr))"
+      using prod_cases3 by blast 
+
+    obtain p1 q2 where "(p1,q2) \<in> (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs))"
+                 and   "pp \<in> {(q,p1,q2), (q2,[],(target q p1))}"
+      using \<open>pp \<in> (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) prddr\<close>
+      unfolding \<open>prddr = (p,(rd,dr))\<close> 
+      by blast
+
+    have "q2 \<in> drs \<and> (\<exists> p2 . p = p1@p2) \<and> (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2"
+      using \<open>(p1,q2) \<in> (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs))\<close>
+      unfolding prefixes_set 
+      by auto
+    then have "\<exists>(p, rd, dr)\<in>pds. q2 \<in> drs \<and> (\<exists>p2. p = p1 @ p2) \<and> target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2"
+      using \<open>prddr \<in> pds\<close> \<open>prddr = (p,(rd,dr))\<close> 
+      by blast
+    then have *: "{(q,p1,q2), (q2,[],(target q p1))} \<in> {{(q, p1, q2), (q2, [], target q p1)} |p1 q2.
+             \<exists>(p, rd, dr)\<in>pds. q2 \<in> drs \<and> (\<exists>p2. p = p1 @ p2) \<and> target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2}" by blast
+
+    show "pp \<in> preamble_prefix_tests q pds drs"
+      using UnionI[OF * \<open>pp \<in> {(q,p1,q2), (q2,[],(target q p1))}\<close>]
+      unfolding preamble_prefix_tests_def by assumption
+  qed
+  ultimately show ?thesis by blast
+qed
+
+
+(*
 definition preamble_prefix_tests :: "'a \<Rightarrow> (('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)) list \<Rightarrow> 'a set \<Rightarrow> ('a,'b,'c) test_path set" where
   "preamble_prefix_tests q pds drs = \<Union>{{(q,p1,q2), (q2,[],(target q p1))} | p1 q2 . \<exists> (p,(rd,dr)) \<in> set pds . q2 \<in> drs \<and> (\<exists> p2 . p = p1@p2) \<and> (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2}"
+*)
+
 
 
 
@@ -217,7 +278,7 @@ lemma set_map_elem :
   obtains x where "y = f x" and "x \<in> set xs" using assms by auto
 
 
-
+(*
 lemma preamble_prefix_tests'_set:
   "set (preamble_prefix_tests' q pds drs) = preamble_prefix_tests q pds (set drs)"
 proof -
@@ -295,7 +356,7 @@ proof -
   qed
   ultimately show ?thesis by blast
 qed
-    
+*)    
 
 (*
 lemma preamble_prefix_tests_code[code]:
@@ -374,16 +435,17 @@ lemma collect_ATCs_set :
 
 subsection \<open>Calculating the Test Suite\<close>
 
+
 (* return type not final *)
-definition calculate_test_suite' :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) test_path list" where
-  "calculate_test_suite' M m = 
+definition calculate_test_paths :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) test_path set" where
+  "calculate_test_paths M m = 
     (let 
          RDSSL \<comment> \<open>R-D States with Separators\<close>
               = r_distinguishable_state_pairs_with_separators M;
          fRD   \<comment> \<open>function that maps state pairs to Separators (if existing)\<close>
               = set_as_map RDSSL;
          RDS  \<comment> \<open>R-D States\<close>
-              = image fst RDSS; \<comment> \<open>TODO: maybe replace by checking fRD?\<close> 
+              = image fst RDSSL; \<comment> \<open>TODO: maybe replace by checking fRD?\<close> 
          MPRD  \<comment> \<open>R-D Pairs\<close>
               = maximal_pairwise_r_distinguishable_state_sets_from_separators M;
          DRSP \<comment> \<open>D-R States with Preambles\<close>
@@ -393,65 +455,22 @@ definition calculate_test_suite' :: "('a::linorder,'b::linorder,'c) fsm \<Righta
          MRS  \<comment> \<open>Maximal Repetition sets (maximal pairwise r-d sets with their d-r subsets)\<close>
               = maximal_repetition_sets_from_separators_list M;
          MTP  \<comment> \<open>states and their outgoing m-Traversal Paths\<close>
-              = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
+              = image (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
          fTP  \<comment> \<open>function to get Traversal Paths with witnesses for states\<close>
-              = set_as_map (set MTP);
-         PrefixPairTests 
-              = \<Union> (image (\<lambda> q . prefix_pair_tests q RDS) DRS);             
+              = set_as_map MTP;
+         PrefixPairTests                    
+              = \<Union> q \<in> DRS . \<Union> mrsps \<in> (the (fTP q)) . prefix_pair_tests q mrsps;
          PreamblePrefixTests
-              = concat (map (\<lambda> (q,P) . preamble_prefix_tests' q fRD (fTP q) DRSP) DRSP);              
+              = \<Union> q \<in> DRS . \<Union> mrsps \<in> (the (fTP q)) . preamble_prefix_tests q mrsps DRS;
          PreamblePairTests
-              = preamble_pair_tests' DRSP RDSSL
-      
-    in collect_ATCs PMTP (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests))"
+              = preamble_pair_tests DRS RDS    
+  
+  in PrefixPairTests \<union> PreamblePrefixTests \<union> PreamblePairTests)"
+
+value "calculate_test_paths m_ex_H 4"
+value "calculate_test_paths m_ex_9 4"
 
 
-
-
-
-
-
-
-
-definition calculate_test_suite :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> (('a \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a) ATC) list \<times> ('a \<times> 'a Preamble) list)" where
-  "calculate_test_suite M m = 
-    (let 
-         RDSSL = r_distinguishable_state_pairs_with_separators_naive M;
-         RDS  = set (map fst RDSSL);
-         RDP  = filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) (map set (pow_list (nodes_from_distinct_paths M))); 
-         MPRD = filter (\<lambda> S . \<not>(\<exists> S' \<in> set RDP . S \<subset> S')) RDP;  
-         DRSP = d_reachable_states_with_preambles M;
-         DRS  = map fst DRSP; 
-         MRS  = map (\<lambda>S. (S, S \<inter> set DRS)) MPRD; 
-         MTP  = map (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
-         fTP  = list_as_fun MTP []; 
-         fRD  = \<lambda> q1 q2 . snd (the (find (\<lambda> qqA . fst qqA = (q1,q2)) RDSSL)); 
-         PMTP = concat (map (\<lambda> (q,P) . map (\<lambda>(p,d) . (q,p)) (fTP q)) DRSP);
-         PrefixPairTests 
-              = concat (map (\<lambda> (q,P) . prefix_pair_tests' q fRD (fTP q)) DRSP);             
-         PreamblePrefixTests
-              = concat (map (\<lambda> (q,P) . preamble_prefix_tests' q fRD (fTP q) DRSP) DRSP);              
-         PreamblePairTests
-              = preamble_pair_tests' DRSP RDSSL
-      
-    in  (PrefixPairTests @ PreamblePrefixTests @ PreamblePairTests, DRSP))"
-
-value "calculate_test_suite M_ex_H 4"
-
-definition calculate_test_suite_set :: "('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> (('a \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a) ATC) set \<times> ('a \<times> 'a Preamble) list)" where
-  "calculate_test_suite_set M m = (case calculate_test_suite M m of (ts,ps) \<Rightarrow> (set ts,ps))"
-
-
-(* TODO:
-
-fun convert_test_suite_elem :: "(('a::linorder \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> 'a Preamble)) \<Rightarrow> ('a \<times> 'a Preamble) list \<Rightarrow> 'a Transition list avl_tree" where
-  "convert_test_suite_elem (q,p,atcs) preambles = empty"
-
-thm foldl.simps
-
-fun convert_test_suite :: "(('a::linorder \<times> ('a,'b,'c) traversal_Path \<times> ('a \<times> 'a + 'a,'b) ATC) list \<times> ('a \<times> 'a Preamble) list) \<Rightarrow> 'a Transition list avl_tree" where
-  "convert_test_suite (elems,preambles) = foldl (\<lambda> prev elem . AVL_Set.union prev prev ) empty elems"
-*)
 
 
 end
