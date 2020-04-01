@@ -381,96 +381,102 @@ fun preamble_pair_tests :: "'a set \<Rightarrow> ('a \<times> 'a) set \<Rightarr
 
 
 
-subsubsection "Collecting Tests"
-
-
-
-
-(* Currently disabled.
-   TODO: Decide at which point after/during test_path collection is is most appropriate to convert
-         from test_paths that store a single state to r-d from to test suite elements that store a
-         path and all states its target is to be r-d'd from.
-         Also decide whether this is necessary at all.
-*)
-
-(*
-fun collect_ATCs' :: "('a \<times> 'b \<times> 'c) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'd) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> ('d set)) list" where
-  "collect_ATCs' [] ts = []" |
-  "collect_ATCs' ((a,b,c)#xs) ts = (a,b,c, set (map (\<lambda>(x,y,z,d) . d) (filter (\<lambda>(x,y,z,d) . x = a \<and> y = b \<and> z = c) ts))) # (collect_ATCs' xs ts)"
-
-
-
-lemma collect_ATCs'_set :
-  "set (collect_ATCs' xs ts) = {(a,b,c,{d . (a,b,c,d) \<in> set ts}) | a b c . (a,b,c) \<in> set xs}"
-proof (induction xs)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons x xs)
-
-  obtain a b c where "x=(a,b,c)"
-    using prod_cases3 by blast
-  have "(a,b,c, set (map (\<lambda>(x,y,z,d) . d) (filter (\<lambda>(x,y,z,d) . x = a \<and> y = b \<and> z = c) ts))) = (a,b,c,{d . (a,b,c,d) \<in> set ts})" 
-    by force
-  moreover have "set (collect_ATCs' ((a,b,c)#xs) ts) = insert (a,b,c, set (map (\<lambda>(x,y,z,d) . d) (filter (\<lambda>(x,y,z,d) . x = a \<and> y = b \<and> z = c) ts))) (set (collect_ATCs' xs ts))"
-    by auto
-  moreover have "{(a',b',c',{d . (a',b',c',d) \<in> set ts}) | a' b' c'. (a',b',c') \<in> set ((a,b,c)#xs)} = insert (a,b,c,{d . (a,b,c,d) \<in> set ts}) {(a',b',c',{d . (a',b',c',d) \<in> set ts}) | a' b' c' . (a',b',c') \<in> set xs}"
-    by auto
-  ultimately show ?case using Cons.IH unfolding \<open>x=(a,b,c)\<close> by auto
-qed 
-
-
-
-fun collect_ATCs :: "('a \<times> 'b \<times> 'c) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'd) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> ('d set)) list" where
-  "collect_ATCs xs ts = collect_ATCs' (remdups xs) (remdups ts)"
-
-
-
-lemma collect_ATCs_set :
-  "set (collect_ATCs xs ts) = {(a,b,c,{d . (a,b,c,d) \<in> set ts}) | a b c . (a,b,c) \<in> set xs}"
-  using collect_ATCs'_set[of "remdups xs" "remdups ts"] 
-  unfolding collect_ATCs.simps set_remdups by assumption
-*)
-
-
 subsection \<open>Calculating the Test Suite\<close>
 
+(* A test suite contains of
+    - a set of d-reachable states with their associated preambles
+    - a map from d_reachable states to their associated m-traversal paths 
+    - a map from d-reachable states and associated m-traversal paths to the set of states to r-distinguish the targets of those paths from
+    - a map from pairs of r-distinguishable states to a separator
+*)
+datatype ('a,'b,'c,'d) test_suite = Test_Suite "('a \<times> ('a,'b,'c) preamble) set" "'a \<Rightarrow> ('a,'b,'c) traversal_Path set" "('a \<times> ('a,'b,'c) traversal_Path) \<Rightarrow> 'a set" "('a \<times> 'a) \<Rightarrow> (('d,'b,'c) atc \<times> 'd \<times> 'd) set"
 
-(* return type not final *)
-definition calculate_test_paths :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) test_path set" where
-  "calculate_test_paths M m = 
-    (let 
-         RDSSL \<comment> \<open>R-D States with Separators\<close>
-              = r_distinguishable_state_pairs_with_separators M;
-         fRD   \<comment> \<open>function that maps state pairs to Separators (if existing)\<close>
-              = set_as_map RDSSL;
-         RDS  \<comment> \<open>R-D States\<close>
-              = image fst RDSSL; \<comment> \<open>TODO: maybe replace by checking fRD?\<close> 
-         MPRD  \<comment> \<open>R-D Pairs\<close>
-              = maximal_pairwise_r_distinguishable_state_sets_from_separators M;
-         DRSP \<comment> \<open>D-R States with Preambles\<close>
-              = d_reachable_states_with_preambles M;
-         DRS  \<comment> \<open>D-R States\<close>
-              = image fst DRSP; \<comment> \<open>corresponds to d_reachable_states\<close>
-         MRS  \<comment> \<open>Maximal Repetition sets (maximal pairwise r-d sets with their d-r subsets)\<close>
-              = maximal_repetition_sets_from_separators_list M;
-         MTP  \<comment> \<open>states and their outgoing m-Traversal Paths\<close>
-              = image (\<lambda> q . (q,m_traversal_paths_with_witness M q MRS m)) DRS;
-         fTP  \<comment> \<open>function to get Traversal Paths with witnesses for states\<close>
-              = set_as_map MTP;
+
+fun is_sufficient :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> bool" where
+  "is_sufficient (Test_Suite prs tps rd_targets atcs) M m = 
+    ( (initial M,initial_preamble M) \<in> prs 
+    \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> is_preamble P M q)
+    \<and> (\<forall> q P1 P2 . (q,P1) \<in> prs \<longrightarrow> (q,P2) \<in> prs \<longrightarrow> P1 = P2)
+    \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> (tps q) \<noteq> {})
+    \<and> (\<forall> q p qs . p \<in> tps q \<longrightarrow> qs \<in> rd_targets (q,p) \<longrightarrow> (\<exists> S pFull. S \<subseteq> nodes M 
+                                              \<and> (\<exists> p' . pFull = p@p')
+                                              \<and> (\<forall> q1 q2 . q1 \<in> S \<longrightarrow> q2 \<in> S \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})  
+                                              \<and> (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) pFull) \<ge> Suc (m - (card (snd d)))) (S, S \<inter> image fst prs)
+                                              \<and> (\<forall> p1 p2 p3 . pFull=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> S \<longrightarrow> target q p2 \<in> S \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
+                                              \<and> (\<forall> p1 p2 q' . pFull=p1@p2 \<longrightarrow> q' \<in> image fst prs \<longrightarrow> target q p1 \<in> S \<longrightarrow> q' \<in> S \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1)))))
+    \<and> (\<forall> q1 q2 . q1 \<in> image fst prs \<longrightarrow> q2 \<in> image fst prs \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {} \<longrightarrow> ([] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2,[]) \<and> q2 \<in> rd_targets (q1,[])))
+    \<and> (\<forall> q1 q2 A d1 d2 . ((A,d1,d2) \<in> atcs (q1,q2)) \<longleftrightarrow> ((A,d2,d1) \<in> atcs (q2,q1)))
+    \<and> (\<forall> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<longrightarrow> is_separator M q1 q2 A d1 d2)
+    )"
+
+
+
+
+
+
+
+
+definition calculate_test_paths ::
+  "('a,'b,'c) fsm
+  \<Rightarrow> nat
+  \<Rightarrow> 'a set
+  \<Rightarrow> ('a \<times> 'a) set
+  \<Rightarrow> ('a set \<times> 'a set) list
+  \<Rightarrow> ('a,'b,'c) test_path set" 
+  where
+  "calculate_test_paths M m d_reachable_nodes r_distinguishable_pairs repetition_sets =
+    (let
+         get_paths  
+              = m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q repetition_sets m)) d_reachable_nodes));
          PrefixPairTests                    
-              = \<Union> q \<in> DRS . \<Union> mrsps \<in> (the (fTP q)) . prefix_pair_tests q mrsps;
+              = \<Union> q \<in> d_reachable_nodes . \<Union> mrsps \<in> get_paths q . prefix_pair_tests q mrsps;
          PreamblePrefixTests
-              = \<Union> q \<in> DRS . \<Union> mrsps \<in> (the (fTP q)) . preamble_prefix_tests q mrsps DRS;
+              = \<Union> q \<in> d_reachable_nodes . \<Union> mrsps \<in> get_paths q . preamble_prefix_tests q mrsps d_reachable_nodes;
          PreamblePairTests
-              = preamble_pair_tests DRS RDS    
+              = preamble_pair_tests d_reachable_nodes r_distinguishable_pairs    
   
   in PrefixPairTests \<union> PreamblePrefixTests \<union> PreamblePairTests)"
 
-value "calculate_test_paths m_ex_H 4"
-value "calculate_test_paths m_ex_9 4"
+
+definition calculate_test_suite ::
+  "('a,'b,'c) fsm
+  \<Rightarrow> nat
+  \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set
+  \<Rightarrow> (('a \<times> 'a) \<times> (('d,'b,'c) atc \<times> 'd \<times> 'd)) set
+  \<Rightarrow> ('a set \<times> 'a set) list
+  \<Rightarrow> ('a,'b,'c,'d) test_suite" 
+  where
+  "calculate_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets =
+    (let drs = image fst nodes_with_preambles;
+        rds = image fst pairs_with_separators;
+        tps_and_targets = calculate_test_paths M m drs rds repetition_sets;
+        tps = m2f (set_as_map (image (\<lambda> (q,p,q') . (q,p)) tps_and_targets));
+        rd_targets = m2f (set_as_map (image (\<lambda> (q,p,q') . ((q,p),q')) tps_and_targets));
+        atcs = m2f (set_as_map pairs_with_separators) 
+in (Test_Suite nodes_with_preambles tps rd_targets atcs))"
 
 
 
+
+
+definition calculate_test_suite_example :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c, ('a \<times> 'a) + 'a) test_suite" where
+  "calculate_test_suite_example M m = 
+    (let
+         nodes_with_preambles = d_reachable_states_with_preambles M;
+         pairs_with_separators = image (\<lambda>((q1,q2),A) . ((q1,q2),A,Inr q1,Inr q2)) (r_distinguishable_state_pairs_with_separators M);
+         repetition_sets = maximal_repetition_sets_from_separators_list M
+  in calculate_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets)" 
+
+
+value "calculate_test_suite_example m_ex_H 4"
+value "case (calculate_test_suite_example m_ex_H 4) of
+        (Test_Suite a b c d) \<Rightarrow>
+          (image fst a,
+           image b (image fst a))"
+value "case (calculate_test_suite_example m_ex_H 4) of
+        (Test_Suite a b c d) \<Rightarrow>
+          (image (\<lambda> (x,_) . image (\<lambda> xy . (xy, c xy)) (image (Pair x) (b x))) a)"
+    
+        
 
 end

@@ -1205,6 +1205,15 @@ fun atc_to_io_set' :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow>
                              LM = image p_io (paths_up_to_length M (initial M) (size A -1))
                           in Set.filter (\<lambda>io . io \<in> LM) LA)"
 
+(* TODO: implement better algorithm
+   \<rightarrow> maybe based on product machine \<rightarrow> problem: creating the entire product machine likely too expensive
+   \<longrightarrow> maybe based on parallel exection of M and A, guided by A 
+fun atc_to_io_set' :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
+  "atc_to_io_set' M A = (let P = product M A in image p_io (acyclic_paths_up_to_length P (initial P) (size A - 1)))"
+*)  
+
+
+
 value "the (state_separator_from_s_states m_ex_9 0 3)"
 value "atc_to_io_set' (from_FSM m_ex_9 0) (the (state_separator_from_s_states m_ex_9 0 3))"
 value "atc_to_io_set' (from_FSM m_ex_9 3) (the (state_separator_from_s_states m_ex_9 0 3))"
