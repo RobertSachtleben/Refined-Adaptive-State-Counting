@@ -1861,6 +1861,27 @@ next
   qed
 qed
 
+lemma min_length_elem :
+  fixes xs :: "'a list set"
+  assumes "finite xs"
+  and     "xs \<noteq> {}"
+shows "\<exists> x \<in> xs . \<not>(\<exists> y \<in> xs . length y < length x)" 
+using assms proof (induction xs)
+  case empty
+  then show ?case by auto
+next
+  case (insert x F)
+  then show ?case proof (cases "F = {}")
+    case True
+    then show ?thesis by blast
+  next
+    case False
+    then obtain y where "y \<in> F" and "\<not>(\<exists> y' \<in> F . length y' < length y)"
+      using insert.IH by blast
+    then show ?thesis using dual_order.strict_trans by (cases "length x < length y"; auto)
+  qed
+qed
+
 lemma list_property_from_index_property :
   assumes "\<And> i . i < length xs \<Longrightarrow> P (xs ! i)"
   shows "\<And> x . x \<in> set xs \<Longrightarrow> P x"
