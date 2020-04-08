@@ -392,22 +392,42 @@ subsection \<open>Calculating the Test Suite\<close>
 datatype ('a,'b,'c,'d) test_suite = Test_Suite "('a \<times> ('a,'b,'c) preamble) set" "'a \<Rightarrow> ('a,'b,'c) traversal_Path set" "('a \<times> ('a,'b,'c) traversal_Path) \<Rightarrow> 'a set" "('a \<times> 'a) \<Rightarrow> (('d,'b,'c) atc \<times> 'd \<times> 'd) set"
 
 
+(* likely too restrictive
 fun is_sufficient :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> bool" where
   "is_sufficient (Test_Suite prs tps rd_targets atcs) M m = 
     ( (initial M,initial_preamble M) \<in> prs 
     \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> is_preamble P M q)
     \<and> (\<forall> q P1 P2 . (q,P1) \<in> prs \<longrightarrow> (q,P2) \<in> prs \<longrightarrow> P1 = P2)
     \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> (tps q) \<noteq> {})
-    \<and> (\<forall> q p qs . p \<in> tps q \<longrightarrow> qs \<in> rd_targets (q,p) \<longrightarrow> (\<exists> S pFull. S \<subseteq> nodes M 
-                                              \<and> (\<exists> p' . pFull = p@p')
+    \<and> (\<forall> q p qs . p \<in> tps q \<longrightarrow> qs \<in> rd_targets (q,p) \<longrightarrow> (\<exists> S pFull p' . 
+                                                 S \<subseteq> nodes M 
+                                              \<and> (pFull = p@p')
+                                              \<and> (path M q pFull)
+                                              \<and> (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) pFull) \<ge> Suc (m - (card (snd d)))) (S, S \<inter> image fst prs)                                              
                                               \<and> (\<forall> q1 q2 . q1 \<in> S \<longrightarrow> q2 \<in> S \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})  
-                                              \<and> (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) pFull) \<ge> Suc (m - (card (snd d)))) (S, S \<inter> image fst prs)
                                               \<and> (\<forall> p1 p2 p3 . pFull=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> S \<longrightarrow> target q p2 \<in> S \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
                                               \<and> (\<forall> p1 p2 q' . pFull=p1@p2 \<longrightarrow> q' \<in> image fst prs \<longrightarrow> target q p1 \<in> S \<longrightarrow> q' \<in> S \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1)))))
     \<and> (\<forall> q1 q2 . q1 \<in> image fst prs \<longrightarrow> q2 \<in> image fst prs \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {} \<longrightarrow> ([] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2,[]) \<and> q2 \<in> rd_targets (q1,[])))
     \<and> (\<forall> q1 q2 A d1 d2 . ((A,d1,d2) \<in> atcs (q1,q2)) \<longleftrightarrow> ((A,d2,d1) \<in> atcs (q2,q1)))
     \<and> (\<forall> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<longrightarrow> is_separator M q1 q2 A d1 d2)
     )"
+*)
+
+(* modified version that assumes the usage of m_traversal_paths_with_witness and thus of a universal ordering of the rep-sets *)
+(* TODO: generalise if necessary (and possible with acceptable effort) *)
+fun is_sufficient :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> bool" where
+  "is_sufficient (Test_Suite prs tps rd_targets atcs) M m = 
+    ( (initial M,initial_preamble M) \<in> prs 
+    \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> (is_preamble P M q) \<and> (tps q) \<noteq> {})
+    \<and> (\<forall> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<longrightarrow> (A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2)
+    \<and> (\<exists> RepSets .  
+        ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set RepSets. q \<in> fst d))
+        \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> snd d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+        \<and> (\<forall> q p d . q \<in> image fst prs \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q RepSets m \<longrightarrow> 
+              ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q p2 \<in> fst d \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
+              \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst prs \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1)))))))
+    \<and> (\<forall> q1 q2 . q1 \<in> image fst prs \<longrightarrow> q2 \<in> image fst prs \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {} \<longrightarrow> ([] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2,[]) \<and> q2 \<in> rd_targets (q1,[])))
+  )"
 
 
 
@@ -440,8 +460,12 @@ definition calculate_test_paths ::
               = preamble_pair_tests d_reachable_nodes r_distinguishable_pairs;
          tests
               = PrefixPairTests \<union> PreamblePrefixTests \<union> PreamblePairTests; 
-         tps  
+         tps'  
               = m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) paths_with_witnesses));
+         tps''  
+              = m2f (set_as_map (image (\<lambda> (q,p,q') . (q,p)) tests));
+         tps  
+              = (\<lambda> q . tps' q \<union> tps'' q);
          rd_targets 
               = m2f (set_as_map (image (\<lambda> (q,p,q') . ((q,p),q')) tests))    
   
@@ -510,7 +534,10 @@ proof -
 
 
   have nodes_with_preambles_def : "nodes_with_preambles = d_reachable_states_with_preambles M"
-  and  tps_def                  : "tps = m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M)))))"
+  and  tps_def                  : "tps = (\<lambda> q . (m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q
+                                                \<union> (m2f (set_as_map (image (\<lambda> (q,p,q') . (q,p)) ((\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . prefix_pair_tests q mrsps) 
+                                                        \<union> (\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . preamble_prefix_tests q mrsps (image fst (d_reachable_states_with_preambles M))) 
+                                                        \<union> (preamble_pair_tests (image fst (d_reachable_states_with_preambles M)) (image fst (image (\<lambda>((q1,q2),A) . ((q1,q2),A,(Inr q1) :: 'a \<times> 'a + 'a, (Inr q2) :: 'a \<times> 'a + 'a)) (r_distinguishable_state_pairs_with_separators M)))))))) q))"
   and  rd_targets_def           : "rd_targets = m2f (set_as_map (image (\<lambda> (q,p,q') . ((q,p),q')) 
                                                         ((\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . prefix_pair_tests q mrsps) 
                                                         \<union> (\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . preamble_prefix_tests q mrsps (image fst (d_reachable_states_with_preambles M))) 
@@ -520,11 +547,14 @@ proof -
     unfolding calculate_test_suite_example_def combine_test_suite_def Let_def calculate_test_paths_def  by force+
 
 
+  
+
+
   have p1: "(initial M,initial_preamble M) \<in> nodes_with_preambles"
     using fsm_initial[of M]
     unfolding nodes_with_preambles_def d_reachable_states_with_preambles_def calculate_state_preamble_from_input_choices.simps by force
 
-  have p2: "\<And> q P . (q,P) \<in> nodes_with_preambles \<Longrightarrow> is_preamble P M q"
+  have p2a: "\<And> q P . (q,P) \<in> nodes_with_preambles \<Longrightarrow> is_preamble P M q"
     using assms(1) d_reachable_states_with_preambles_soundness(1) nodes_with_preambles_def by blast
 
 
@@ -535,7 +565,7 @@ proof -
     using maximal_pairwise_r_distinguishable_state_sets_from_separators_cover[of _ M] by force+
 
 
-  have p3: "\<And> q P . (q,P) \<in> nodes_with_preambles \<Longrightarrow> (tps q) \<noteq> {}"
+  have p2b: "\<And> q P . (q,P) \<in> nodes_with_preambles \<Longrightarrow> (tps q) \<noteq> {}"
   proof -
     fix q P assume "(q,P) \<in> nodes_with_preambles"
     then have "q \<in> (image fst (d_reachable_states_with_preambles M))"
@@ -563,7 +593,127 @@ proof -
     then show "(tps q) \<noteq> {}"
       unfolding tps_def m2f_by_from_m2f by blast
   qed
-    
-       
+
+
+  have "\<And> q1 q2 A d1 d2 . ((A,d1,d2) \<in> atcs (q1,q2)) \<Longrightarrow> ((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M \<and> d1 = Inr q1 \<and> d2 = Inr q2"
+  proof -
+    fix q1 q2 A d1 d2 assume "((A,d1,d2) \<in> atcs (q1,q2))"
+    then have "atcs (q1,q2) = {z. ((q1, q2), z) \<in> (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M}"
+      unfolding atcs_def set_as_map_def by auto
+    then show "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M \<and> d1 = Inr q1 \<and> d2 = Inr q2"
+      using \<open>((A,d1,d2) \<in> atcs (q1,q2))\<close> by auto
+  qed
+
+
+  have p3: "\<And> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<Longrightarrow> (A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2"
+  proof -
+    fix q1 q2 A d1 d2 assume "(A,d1,d2) \<in> atcs (q1,q2)"
+    then have "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M" and "d1 = Inr q1" and "d2 = Inr q2"
+      using \<open>\<And> q1 q2 A d1 d2 . ((A,d1,d2) \<in> atcs (q1,q2)) \<Longrightarrow> ((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M \<and> d1 = Inr q1 \<and> d2 = Inr q2\<close>
+      by blast+
+    then have "((q2,q1),A) \<in> r_distinguishable_state_pairs_with_separators M"
+      unfolding r_distinguishable_state_pairs_with_separators_def
+      by auto  
+    then have "(A,d2,d1) \<in> atcs (q2,q1)"
+      unfolding atcs_def \<open>d1 = Inr q1\<close> \<open>d2 = Inr q2\<close> set_as_map_def by force
+    moreover have "is_separator M q1 q2 A d1 d2"
+      using r_distinguishable_state_pairs_with_separators_elem_is_separator[OF \<open>((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M\<close> assms(1,2)]
+      unfolding \<open>d1 = Inr q1\<close> \<open>d2 = Inr q2\<close>
+      by assumption
+    ultimately show "(A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2"
+      by simp
+  qed
+
+end (*
+
+
+
+
+
+
+
+  have "\<And> q p' . p' \<in> tps q \<Longrightarrow> \<exists> p'' . p'@p'' \<in> image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)"
+  proof -
+    fix q p' assume "p' \<in> tps q"
+    then consider (a) "p' \<in> (m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M)))))) q"
+                | (b) "p' \<in> (m2f (set_as_map (image (\<lambda> (q,p,q') . (q,p)) ((\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . prefix_pair_tests q mrsps) 
+                                                        \<union> (\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . preamble_prefix_tests q mrsps (image fst (d_reachable_states_with_preambles M))) 
+                                                        \<union> (preamble_pair_tests (image fst (d_reachable_states_with_preambles M)) (image fst (image (\<lambda>((q1,q2),A) . ((q1,q2),A,(Inr q1) :: 'a \<times> 'a + 'a, (Inr q2) :: 'a \<times> 'a + 'a)) (r_distinguishable_state_pairs_with_separators M)))))))) q"
+      unfolding tps_def by blast
+    then show "\<exists> p'' . p'@p'' \<in> image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)"
+    proof cases
+      case a
+
+      have "(image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M)))) = {(q,image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) | q . q \<in> (image fst (d_reachable_states_with_preambles M))}"
+      by force
+      then have "\<And> q . q \<in> (image fst (d_reachable_states_with_preambles M)) \<Longrightarrow> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q = Some {image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)}" 
+        unfolding set_as_map_def 
+        by auto
+
+      then have "p' \<in> image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)"
+        
+        unfolding set_as_map_def 
+      then show ?thesis by forc  sorry
+    next
+      case b
+      then show ?thesis sorry
+    qed
+
+end (*
+
+
+  have p4: "\<And> q p qs . p \<in> tps q \<Longrightarrow> qs \<in> rd_targets (q,p) \<Longrightarrow> (\<exists> S pFull p' . 
+                                                 S \<subseteq> nodes M 
+                                              \<and> (pFull = p@p')
+                                              \<and> (path M q pFull)
+                                              \<and> (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) pFull) \<ge> Suc (m - (card (snd d)))) (S, S \<inter> image fst nodes_with_preambles)                                              
+                                              \<and> (\<forall> q1 q2 . q1 \<in> S \<longrightarrow> q2 \<in> S \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})  
+                                              \<and> (\<forall> p1 p2 p3 . pFull=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> S \<longrightarrow> target q p2 \<in> S \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
+                                              \<and> (\<forall> p1 p2 q' . pFull=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> S \<longrightarrow> q' \<in> S \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))"
+
+  proof -
+    fix q p qs assume "p \<in> tps q" and "qs \<in> rd_targets (q,p)"
+
+
+    have "(image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M)))) = {(q,image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) | q . q \<in> (image fst (d_reachable_states_with_preambles M))}"
+      by force
+    then have "\<And> q . q \<in> (image fst (d_reachable_states_with_preambles M)) \<Longrightarrow> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q = Some {image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)}" 
+      unfolding set_as_map_def 
+      by auto
+    moreover have "\<And> q . q \<in> (image fst (d_reachable_states_with_preambles M)) \<Longrightarrow> finite ((m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q))"
+      
+
+end (*
+
+
+    have "\<And> q . finite (tps q)"
+    proof -
+      fix q
+      have "finite ((m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q))"
+      proof (cases "(set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q")
+        case None
+        then show ?thesis by auto
+      next
+        case (Some xs)
+        then have "(m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q) = \<Union> xs"
+          by auto
+        
+        have "xs = {image fst (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)}"
+          using Some 
+        then show ?thesis sorry
+      qed
+        unfolding m_traversal_paths_with_witness_def m_traversal_paths_with_witness_up_to_length_def
+        using paths_finite
+
+    (* set of paths in tps that p is a prefix of; the longest of these will serve as pFull *)
+    let ?ps = "{pF . (\<exists> p' . pF = p@p') \<and> pF \<in> tps q}"
+    have "?ps \<noteq> {}" using \<open>p \<in> tps q\<close> by auto
+    have "finite ?ps"
+  
+
+
+             
+end (*
+
 
 end
