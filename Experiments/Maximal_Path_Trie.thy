@@ -865,4 +865,19 @@ value "paths (from_list (pow_list (upto 1 10)))"
 
 
 
+
+
+
+subsection \<open>Removing Proper Prefixes From a Set of Sequences\<close> 
+
+definition remove_proper_prefixes :: "'a list set \<Rightarrow> 'a list set" where
+  "remove_proper_prefixes xs = {x . x \<in> xs \<and> (\<nexists> x' . x' \<noteq> [] \<and> x@x' \<in> xs)}"
+
+lemma remove_proper_prefixes[code] :
+  "remove_proper_prefixes (set xs) = (case xs of [] \<Rightarrow> {} | (x#xs') \<Rightarrow> set (paths (from_list (x#xs'))))"
+  unfolding from_list_paths remove_proper_prefixes_def by (cases xs; auto)
+
+value "remove_proper_prefixes {[1::nat], [1,2,3,4,5], [1,2,3], [3,4,5], [3,4,5,6]}"
+
+
 end 

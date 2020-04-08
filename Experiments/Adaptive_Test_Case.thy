@@ -1198,8 +1198,19 @@ subsection \<open>ATCs Represented as Sets of IO Sequences\<close>
 fun atc_to_io_set :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
   "atc_to_io_set M A = L M \<inter> L A"
 
+value "the (state_separator_from_s_states m_ex_9 0 3)"
+value "acyclic_language_intersection (from_FSM m_ex_9 0) (the (state_separator_from_s_states m_ex_9 0 3))"
+value "acyclic_language_intersection (from_FSM m_ex_9 3) (the (state_separator_from_s_states m_ex_9 0 3))"
 
-(* very inefficient calculation *)
+
+
+lemma atc_to_io_set_code :
+  assumes "acyclic A"
+  shows "atc_to_io_set M A = acyclic_language_intersection M A"
+  using acyclic_language_intersection_completeness[OF assms] unfolding atc_to_io_set.simps by blast
+
+
+(* very inefficient calculation 
 fun atc_to_io_set' :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
   "atc_to_io_set' M A = (let LA = image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1));
                              LM = image p_io (paths_up_to_length M (initial M) (size A -1))
@@ -1217,24 +1228,9 @@ fun atc_to_io_set' :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow>
 value "the (state_separator_from_s_states m_ex_9 0 3)"
 value "atc_to_io_set' (from_FSM m_ex_9 0) (the (state_separator_from_s_states m_ex_9 0 3))"
 value "atc_to_io_set' (from_FSM m_ex_9 3) (the (state_separator_from_s_states m_ex_9 0 3))"
+*)
 
-
-lemma acyclic_language_alt_def :
-  assumes "acyclic A"
-  shows "image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1)) = L A"
-proof -
-  let ?ps = "acyclic_paths_up_to_length A (initial A) (size A - 1)"
-  have "\<And> p . path A (initial A) p \<Longrightarrow> length p \<le> FSM.size A - 1"
-    using acyclic_path_length_limit assms unfolding acyclic.simps
-    by fastforce 
-  then have "?ps = {p. path A (initial A) p}"
-    using assms unfolding acyclic_paths_up_to_length.simps acyclic.simps by blast
-  then show ?thesis unfolding LS.simps by blast
-qed
-
-
-
-lemma atc_to_io_set_code :
+(*lemma atc_to_io_set_code :
   assumes "acyclic A"
   shows "atc_to_io_set M A = atc_to_io_set' M A"
 proof -
@@ -1256,7 +1252,9 @@ proof -
   moreover have "\<And> io . io \<in> L A \<Longrightarrow> length io \<le> FSM.size A - 1"
     using acyclic_path_length_limit[of A "initial A"] assms unfolding acyclic.simps LS.simps by force
   ultimately show ?thesis by fastforce
-qed
+qed*)
+
+
 
 
 

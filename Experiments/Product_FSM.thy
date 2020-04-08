@@ -919,6 +919,125 @@ proof
     using assms(1) by auto 
 qed
 
+
+
+
+
+
+subsubsection \<open>Calculating Acyclic Intersection Languages\<close>
+
+lemma acyclic_product :
+  assumes "acyclic B"
+  shows "acyclic (product A B)"
+proof -
+  show "acyclic (product A B)"
+  proof (rule ccontr)
+    assume "\<not> FSM.acyclic (Product_FSM.product A B)"
+    then obtain p where "path (product A B) (initial (product A B)) p" and "\<not> distinct (visited_nodes (initial (product A B)) p)"
+      by auto
+
+    have "path B (initial B) (right_path p)"
+      using product_path[of A B] \<open>path (product A B) (initial (product A B)) p\<close>
+      unfolding product_simps
+      by auto
+
     
+    moreover have "\<not> distinct (visited_nodes (initial B) (right_path p))"
+    proof -
+      obtain i j where "i < j" and "j < length ((initial A, initial B) # map t_target p)" and "((initial A, initial B) # map t_target p) ! i = ((initial A, initial B) # map t_target p) ! j"
+        using \<open>\<not> distinct (visited_nodes (initial (product A B)) p)\<close>
+        unfolding visited_nodes.simps product_simps
+        using non_distinct_repetition_indices by blast 
+
+      then have "snd (((initial A, initial B) # map t_target p) ! i) = snd (((initial A, initial B) # map t_target p) ! j)"
+        by simp
+
+      have * :"i < length ((initial B) # map t_target (right_path p))"
+      and  **:"j < length ((initial B) # map t_target (right_path p))"
+        using \<open>i < j\<close> \<open>j < length ((initial A, initial B) # map t_target p)\<close> by auto
+      
+      have right_nth: "\<And> i . i < length ((initial B) # map t_target (right_path p)) \<Longrightarrow> ((initial B) # map t_target (right_path p)) ! i = snd (((initial A, initial B) # map t_target p) ! i)"
+      proof -
+        have "((initial B) # map t_target (right_path p)) ! 0 = snd (((initial A, initial B) # map t_target p) ! 0)"
+          by simp
+        moreover have "\<And> i . Suc i < length ((initial B) # map t_target (right_path p)) \<Longrightarrow> ((initial B) # map t_target (right_path p)) ! Suc i = snd (((initial A, initial B) # map t_target p) ! Suc i)"
+          by auto
+        ultimately show "\<And> i . i < length ((initial B) # map t_target (right_path p)) \<Longrightarrow> ((initial B) # map t_target (right_path p)) ! i = snd (((initial A, initial B) # map t_target p) ! i)"
+          using less_Suc_eq_0_disj by auto
+      qed
+
+      have "((initial B) # map t_target (right_path p)) ! i = ((initial B) # map t_target (right_path p)) ! j"
+        using \<open>snd (((initial A, initial B) # map t_target p) ! i) = snd (((initial A, initial B) # map t_target p) ! j)\<close>
+        unfolding right_nth[OF *] right_nth[OF **] 
+        by assumption
+      then show ?thesis
+        unfolding visited_nodes.simps product_simps 
+        using non_distinct_repetition_indices_rev[OF \<open>i < j\<close> **] by blast
+    qed
+    ultimately show "False"
+      using \<open>acyclic B\<close> unfolding acyclic.simps by blast
+  qed
+qed
+
+lemma acyclic_product_path_length :
+  assumes "acyclic B"
+  and     "path (product A B) (initial (product A B)) p"
+shows "length p < size B"
+proof -
+  have *:"path B (initial B) (right_path p)"
+    using product_path[of A B] \<open>path (product A B) (initial (product A B)) p\<close>
+    unfolding product_simps
+    by auto
+  then have **: "distinct (visited_nodes (initial B) (right_path p))"
+    using assms unfolding acyclic.simps by blast
+
+  have "length (right_path p) < size B"
+    using acyclic_path_length_limit[OF * **] by assumption
+  then show "length p < size B"
+    by auto
+qed
+  
+
+
+lemma acyclic_language_alt_def :
+  assumes "acyclic A"
+  shows "image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1)) = L A"
+proof -
+  let ?ps = "acyclic_paths_up_to_length A (initial A) (size A - 1)"
+  have "\<And> p . path A (initial A) p \<Longrightarrow> length p \<le> FSM.size A - 1"
+    using acyclic_path_length_limit assms unfolding acyclic.simps
+    by fastforce 
+  then have "?ps = {p. path A (initial A) p}"
+    using assms unfolding acyclic_paths_up_to_length.simps acyclic.simps by blast
+  then show ?thesis unfolding LS.simps by blast
+qed
+
+
+
+definition acyclic_language_intersection :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
+  "acyclic_language_intersection M A = (let P = product M A in image p_io (acyclic_paths_up_to_length P (initial P) (size A - 1)))"
+
+lemma acyclic_language_intersection_completeness :
+  assumes "acyclic A"
+  shows "acyclic_language_intersection M A = L M \<inter> L A"
+proof -
+  let ?P = "product M A"
+  let ?ps = "acyclic_paths_up_to_length ?P (initial ?P) (size A - 1)"
+  
+  have "L ?P = L M \<inter> L A"
+    using product_language by blast
+
+  
+  have "\<And> p . path ?P (initial ?P) p \<Longrightarrow> length p \<le> FSM.size A - 1"
+    using acyclic_product_path_length[OF assms]
+    by fastforce
+  then have "?ps = {p. path ?P (initial ?P) p}"
+    using acyclic_product[OF assms] unfolding acyclic_paths_up_to_length.simps acyclic.simps by blast
+  then have "image p_io ?ps = L ?P"
+    unfolding LS.simps by blast
+  then show ?thesis 
+    using product_language unfolding acyclic_language_intersection_def Let_def by blast
+qed
+
 
 end

@@ -856,6 +856,11 @@ lemma non_distinct_repetition_indices :
   shows "\<exists> i j . i < j \<and> j < length xs \<and> xs ! i = xs ! j"
   by (metis assms distinct_conv_nth le_neq_implies_less not_le)
 
+lemma non_distinct_repetition_indices_rev :
+  assumes "i < j" and "j < length xs" and "xs ! i = xs ! j"
+  shows "\<not> distinct xs"
+  using assms nth_eq_iff_index_eq by fastforce 
+
 lemma ordered_list_distinct :
   fixes xs :: "('a::preorder) list"
   assumes "\<And> i . Suc i < length xs \<Longrightarrow> (xs ! i) < (xs ! (Suc i))"
