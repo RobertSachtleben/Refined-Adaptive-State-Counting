@@ -422,7 +422,7 @@ fun is_sufficient :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Ri
     \<and> (\<forall> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<longrightarrow> (A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2)
     \<and> (\<exists> RepSets .  
         ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set RepSets. q \<in> fst d))
-        \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> snd d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+        \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
         \<and> (\<forall> q p d . q \<in> image fst prs \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q RepSets m \<longrightarrow> 
               ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q p2 \<in> fst d \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
               \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst prs \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1)))))))
@@ -547,7 +547,18 @@ proof -
     unfolding calculate_test_suite_example_def combine_test_suite_def Let_def calculate_test_paths_def  by force+
 
 
-  
+  (*
+    ( (initial M,initial_preamble M) \<in> prs 
+    \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> (is_preamble P M q) \<and> (tps q) \<noteq> {})
+    \<and> (\<forall> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<longrightarrow> (A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2)
+    \<and> (\<exists> RepSets .  
+        ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set RepSets. q \<in> fst d))
+        \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> snd d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+        \<and> (\<forall> q p d . q \<in> image fst prs \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q RepSets m \<longrightarrow> 
+              ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q p2 \<in> fst d \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
+              \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst prs \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1)))))))
+    \<and> (\<forall> q1 q2 . q1 \<in> image fst prs \<longrightarrow> q2 \<in> image fst prs \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {} \<longrightarrow> ([] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2,[]) \<and> q2 \<in> rd_targets (q1,[])))
+  )"*)
 
 
   have p1: "(initial M,initial_preamble M) \<in> nodes_with_preambles"
@@ -623,6 +634,77 @@ proof -
     ultimately show "(A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2"
       by simp
   qed
+
+
+  have p4: "(\<exists> RepSets .  
+        ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set RepSets. q \<in> fst d))
+        \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+        \<and> (\<forall> q p d . q \<in> image fst nodes_with_preambles \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q RepSets m \<longrightarrow> 
+              ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q p2 \<in> fst d \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
+              \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1)))))))"
+  proof -
+    let ?RepSets = "(maximal_repetition_sets_from_separators_list M)"
+
+    have p4a: "\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists>d \<in> set ?RepSets. q \<in> fst d)"
+    proof -
+      fix q assume "q \<in> nodes M"
+
+      have *: "image fst (set ?RepSets) = set (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M)"
+        unfolding maximal_repetition_sets_from_separators_list_def
+        by force
+      have "(\<exists>d \<in> image fst (set ?RepSets). q \<in> d)"
+        unfolding * maximal_pairwise_r_distinguishable_state_sets_from_separators_code[symmetric]
+        using maximal_pairwise_r_distinguishable_state_sets_from_separators_cover[OF \<open>q \<in> nodes M\<close>]
+        by assumption
+      then show "(\<exists>d \<in> set ?RepSets. q \<in> fst d)"
+        by auto
+    qed
+      
+    have p4b: "\<And> d . d \<in> set ?RepSets \<Longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {}))"
+    proof -
+      fix d assume "d \<in> set ?RepSets"
+      then have "d \<in> maximal_repetition_sets_from_separators M"
+        unfolding maximal_repetition_sets_from_separators_code_alt[symmetric] 
+        by assumption
+      
+
+
+      have "fst d \<subseteq> nodes M" and "(snd d \<subseteq> fst d)" and "\<And> q1 q2 . q1\<in>fst d \<Longrightarrow> q2\<in>fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
+        using \<open>d \<in> maximal_repetition_sets_from_separators M\<close>
+        unfolding maximal_repetition_sets_from_separators_def 
+                  maximal_pairwise_r_distinguishable_state_sets_from_separators_def
+                  pairwise_r_distinguishable_state_sets_from_separators_def 
+        by force+
+
+      moreover have "\<And> q1 q2 . q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1,q2) \<noteq> {}"
+      proof -
+        fix q1 q2 assume "q1 \<in> fst d" and "q2 \<in> fst d" and "q1 \<noteq> q2"
+        then have "(q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
+          using \<open>\<And> q1 q2 . q1\<in>fst d \<Longrightarrow> q2\<in>fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M\<close>
+          by blast
+        then obtain A where "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
+          by auto
+        then have "(A,Inr q1,Inr q2) \<in> atcs (q1,q2)"
+          unfolding atcs_def set_as_map_def 
+          by force
+        then show "atcs (q1,q2) \<noteq> {}"
+          by blast
+      qed
+      ultimately show "((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {}))"
+        by blast
+    qed
+      
+    have p4c : "\<And> q p d . q \<in> image fst nodes_with_preambles \<Longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q ?RepSets m \<Longrightarrow> 
+              ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q p2 \<in> fst d \<longrightarrow> target q p1 \<noteq> target q p2 \<longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1)))
+              \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))"
+    proof -
+      fix q p d assume "q \<in> image fst nodes_with_preambles" and "(p,d) \<in> m_traversal_paths_with_witness M q ?RepSets m"
+
+      have p4c1 : "\<And> p1 p2 p3 . p=p1@p2@p3 \<Longrightarrow> p2 \<noteq> [] \<Longrightarrow> target q p1 \<in> fst d \<Longrightarrow> target q p2 \<in> fst d \<Longrightarrow> target q p1 \<noteq> target q p2 \<Longrightarrow> (p1 \<in> tps q \<and> p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q,p2) \<and> target q p2 \<in> rd_targets (q,p1))"
+      proof -
+        fix p1 p2 p3 assume "p=p1@p2@p3" and "p2 \<noteq> []" and "target q p1 \<in> fst d" and "target q p2 \<in> fst d" and "target q p1 \<noteq> target q p2"
+        
+        
 
 end (*
 
