@@ -2303,6 +2303,11 @@ next
   ultimately show ?case using * by force
 qed
 
+lemma prefix_pairs_set_alt :
+  "set (prefix_pairs xs) = {(xs1,xs1@xs2) | xs1 xs2 . xs2 \<noteq> [] \<and> (\<exists> xs3 . xs1@xs2@xs3 = xs)}"
+  unfolding prefix_pairs_set by auto
+    
+
 
 subsection \<open>Removing Subsets in a List of Sets\<close>
 
