@@ -78,8 +78,84 @@ qed
 
 subsection \<open>Pass Relation for Test Suites and Reduction Testing\<close>
 
-definition passes_test_suite :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> bool" where
-  "passes_test_suite M T M' = False"
+fun passes_test_suite :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> bool" where
+  "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M' = (
+    \<comment> \<open>Reduction on preambles: as the preambles contain all responses of M to their chosen inputs, M' must not exhibit any other response\<close>
+    (\<forall> q P io x y y' . (q,P) \<in> prs \<longrightarrow> io@[(x,y)] \<in> L P \<longrightarrow> io@[(x,y')] \<in> L M' \<longrightarrow> io@[(x,y')] \<in> L P) 
+    \<comment> \<open>Reduction on traversal-paths applied after preambles (i.e., completed paths in preambles)\<close>
+    \<and> (\<forall> q P pP ioT pT x y y' . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> p_io pT = ioT@[(x,y)] \<longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> p_io pT' = ioT@[(x,y')]))
+    \<comment> \<open>Passing ATCs: if M' contains an IO-sequence that in the test suite leads through a preamble and an m-traversal path and the target of the latter is to be r-distinguished from some other state, then M' passes the corresponding ATC\<close>
+    \<and> (\<forall> q P pP pT . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<longrightarrow> (\<forall> q' A d1 d2 qT . q' \<in> rd_targets (q,pT) \<longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<longrightarrow> pass_separator_ATC M' A qT d2))
+    )"                                                                                                                                                                                                                                                                                                   
+
+
+
+
+
+lemma preamble_paths :
+  assumes "is_preamble P M q'"
+  and     "path M q p"  
+  and     "p_io p  \<in> LS P q"
+shows "path P q p"
+using assms(2,3) proof (induction p arbitrary: q)
+  case (nil q'' M)
+  then show ?case by auto
+next
+  case (cons t M ts)
+  then show ?case sorry
+qed
+
+
+
+lemma preamble_paths :
+  assumes "is_preamble P M q"
+  and     "path M (initial M) p"  
+  and     "p_io p  \<in> L P"
+shows "path P (initial P) p"
+using assms(2,3) proof (induction p rule: rev_induct)
+  case Nil
+  then show ?case by auto
+next
+  case (snoc t p)
+  then have "path P (FSM.initial P) p"
+    by (metis (no_types, lifting) language_prefix map_append path_append_transition_elim(1)) 
+  then have "target (initial P) p \<in> reachable_nodes P"
+    unfolding reachable_nodes_def by auto
+
+  have "t \<in> transitions P" and "
+
+
+  have   "is_submachine P M"
+  and *: "\<And> q' x t t' . q'\<in>reachable_nodes P \<Longrightarrow> x\<in>FSM.inputs M \<Longrightarrow>
+            t\<in>FSM.transitions P \<Longrightarrow> t_source t = q' \<Longrightarrow> t_input t = x \<Longrightarrow>
+            t'\<in>FSM.transitions M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> FSM.transitions P"
+    using assms(1)  unfolding is_preamble_def by blast+
+
+  then show ?case sorry
+qed
+
+
+
+end (*
+  
+
+lemma passes_test_suite_helper_1 :
+  assumes "is_preamble P M q"
+  and     "io@[(x,y)] \<in> L P"
+  and     "io@[(x,y')] \<in> L M"
+shows     "io@[(x,y')] \<in> L P"
+proof -
+  have   "is_submachine P M"
+  and *: "\<And> q' x t t' . q'\<in>reachable_nodes P \<Longrightarrow> x\<in>FSM.inputs M \<Longrightarrow>
+            t\<in>FSM.transitions P \<Longrightarrow> t_source t = q' \<Longrightarrow> t_input t = x \<Longrightarrow>
+            t'\<in>FSM.transitions M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> FSM.transitions P"
+    using assms(1)  unfolding is_preamble_def by blast+
+
+  
+  obtain p where "path P (initial M) p" and "p_io p = io @ [(x,y)]"
+    using assms(2) unfolding submachine_simps[OF \<open>is_submachine P M\<close>] by auto
+
+  
 
 
 
