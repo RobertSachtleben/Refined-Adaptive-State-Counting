@@ -871,6 +871,7 @@ proof -
   have p4_witness: " 
         ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set (maximal_repetition_sets_from_separators_list M). q \<in> fst d))
         \<and> (\<forall> d . d \<in> set (maximal_repetition_sets_from_separators_list M) \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+        \<and> (\<forall> q . q \<in> image fst nodes_with_preambles \<longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m} \<and> fst ` (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<subseteq> tps q) 
         \<and> (\<forall> q p d . q \<in> image fst nodes_with_preambles \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m \<longrightarrow> 
               ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q (p1@p2) \<in> fst d \<longrightarrow> target q p1 \<noteq> target q (p1@p2) \<longrightarrow> (p1 \<in> tps q \<and> (p1@p2) \<in> tps q \<and> target q p1 \<in> rd_targets (q,(p1@p2)) \<and> target q (p1@p2) \<in> rd_targets (q,p1)))
               \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))))"
@@ -926,8 +927,132 @@ proof -
         by blast
     qed
 
+
+    have p4c : "\<And> q . q \<in> image fst nodes_with_preambles \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m} \<and> fst ` (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<subseteq> tps q"
+    proof 
+      fix q assume "q \<in> image fst nodes_with_preambles"
+      then have "q \<in> fst ` d_reachable_states_with_preambles M"
+        unfolding nodes_with_preambles_def by assumption
+      then have "q \<in> nodes M"
+        by (metis (no_types, lifting) assms(1) d_reachable_states_with_preambles_soundness(2) image_iff prod.collapse)
+      show "fst ` m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m \<subseteq> tps q"
+        unfolding tps_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>]
+        by blast
+
+      show "tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}"
+      proof
+        fix p assume "p \<in> tps q"
+
+
+        have * : "(\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists>d \<in> set (maximal_repetition_sets_from_separators_list M). q \<in> fst d))" 
+          using p4a by blast
+
+        have  **: "(\<And> d . d \<in> set (maximal_repetition_sets_from_separators_list M) \<Longrightarrow> (snd d \<subseteq> fst d))"
+          using p4b by simp
+
+
+        from \<open>p \<in> tps q\<close> consider 
+          (a) "p \<in> fst ` m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m" |
+          (b) "(q, p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m))" |
+          (c) "(q, p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
+                  \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
+                     preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))" |
+          (d) "(q, p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))"  
+          unfolding tps_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] by blast
+        then show "p \<in> {p1. \<exists>p2 d. (p1 @ p2, d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}"
+        proof cases
+          case a
+          then obtain d where "(p,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m"
+            by auto
+          then have "\<exists>p2 d. (p @ p2, d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m"
+            by (metis append_eq_append_conv2)
+          then show ?thesis 
+            by blast
+        next
+          case b
+    
+          obtain p1 p2  where "(q,p) \<in> ((\<lambda>(q, p, q'). (q, p)) `{(q, p1, target q p2), (q, p2, target q p1)})"
+             and "\<exists>(p, rd, dr)\<in>m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m.
+                (p1, p2) \<in> set (prefix_pairs p) \<and> target q p1 \<in> rd \<and> target q p2 \<in> rd \<and> target q p1 \<noteq> target q p2"
+            using b
+            unfolding prefix_pair_tests.simps by blast
+    
+          
+    
+          obtain p' d where "(p', d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m"
+                      and   "(p1, p2) \<in> set (prefix_pairs p')"
+            using \<open>\<exists>(p, rd, dr)\<in>m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m.
+                (p1, p2) \<in> set (prefix_pairs p) \<and> target q p1 \<in> rd \<and> target q p2 \<in> rd \<and> target q p1 \<noteq> target q p2\<close>
+            by blast
+    
+          have "\<exists> p'' . p' = p @ p''"
+            using \<open>(p1, p2) \<in> set (prefix_pairs p')\<close> unfolding prefix_pairs_set_alt 
+            using \<open>(q,p) \<in> ((\<lambda>(q, p, q'). (q, p)) `{(q, p1, target q p2), (q, p2, target q p1)})\<close> by auto
+          then show ?thesis
+            using \<open>(p', d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m\<close>  
+            by blast
+        next
+          case c     
+    
+          obtain q' where "q' \<in> fst ` d_reachable_states_with_preambles M"
+                    and   "(q,p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (preamble_prefix_tests q' (m_traversal_paths_with_witness M q' (maximal_repetition_sets_from_separators_list M) m) (fst ` d_reachable_states_with_preambles M))"
+            using c by blast
+    
+          obtain p1 q2  where "(q,p) \<in> ((\<lambda>(q, p, q'). (q, p)) `{(q', p1, q2), (q2, [], target q' p1)})"
+             and "\<exists>(p, rd, dr)\<in>m_traversal_paths_with_witness M q' (maximal_repetition_sets_from_separators_list M) m.
+                q2 \<in> fst ` d_reachable_states_with_preambles M \<and> (\<exists>p2. p = p1 @ p2) \<and> target q' p1 \<in> rd \<and> q2 \<in> rd \<and> target q' p1 \<noteq> q2"
+            using \<open>(q,p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (preamble_prefix_tests q' (m_traversal_paths_with_witness M q' (maximal_repetition_sets_from_separators_list M) m) (fst ` d_reachable_states_with_preambles M))\<close>
+            unfolding preamble_prefix_tests_def
+            by blast
+    
+          
+    
+          obtain p2 d where "(p1@p2, d)\<in>m_traversal_paths_with_witness M q' (maximal_repetition_sets_from_separators_list M) m"
+                          and   "q2 \<in> fst ` d_reachable_states_with_preambles M"
+            using \<open>\<exists>(p, rd, dr)\<in>m_traversal_paths_with_witness M q' (maximal_repetition_sets_from_separators_list M) m.
+                q2 \<in> fst ` d_reachable_states_with_preambles M \<and> (\<exists>p2. p = p1 @ p2) \<and> target q' p1 \<in> rd \<and> q2 \<in> rd \<and> target q' p1 \<noteq> q2\<close>
+            by blast
+    
+          consider (a) "q = q' \<and> p = p1" | (b) "q = q2 \<and> p = []"
+            using \<open>(q,p) \<in> ((\<lambda>(q, p, q'). (q, p)) `{(q', p1, q2), (q2, [], target q' p1)})\<close> by auto
+          then show ?thesis proof cases
+            case a
+            then show ?thesis
+              using \<open>(p1 @ p2, d) \<in> m_traversal_paths_with_witness M q' (maximal_repetition_sets_from_separators_list M) m\<close> by blast 
+    
+          next
+            case b
+    
+            then have "q \<in> nodes M" and "p = []"
+              using \<open>q2 \<in> fst ` d_reachable_states_with_preambles M\<close> unfolding d_reachable_states_with_preambles_def by auto
+    
+            have "\<exists>p' d'. (p', d') \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m"
+              using m_traversal_path_exist[OF assms(2) \<open>q \<in> nodes M\<close> assms(3) * **]
+              by blast
+            then show ?thesis 
+              unfolding \<open>p = []\<close>
+              by simp
+          qed
+        next
+          case d 
+          then have "q \<in> (fst ` d_reachable_states_with_preambles M)" and "p = []"
+            unfolding preamble_pair_tests.simps by auto
+          then have "q \<in> nodes M"
+            using \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close> unfolding d_reachable_states_with_preambles_def by auto
+    
+          have "\<exists>p' d'. (p', d') \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m"
+            using m_traversal_path_exist[OF assms(2) \<open>q \<in> nodes M\<close> assms(3) * **]
+            by blast
+          then show ?thesis 
+            unfolding \<open>p = []\<close>
+            by simp
+        qed
+      qed
+    qed
+
+
       
-    have p4c : "\<And> q p d . q \<in> image fst nodes_with_preambles \<Longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q ?RepSets m \<Longrightarrow> 
+    have p4d : "\<And> q p d . q \<in> image fst nodes_with_preambles \<Longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q ?RepSets m \<Longrightarrow> 
               ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q (p1@p2) \<in> fst d \<longrightarrow> target q p1 \<noteq> target q (p1@p2) \<longrightarrow> (p1 \<in> tps q \<and> (p1@p2) \<in> tps q \<and> target q p1 \<in> rd_targets (q,(p1@p2)) \<and> target q (p1@p2) \<in> rd_targets (q,p1)))
               \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))"
     proof -
@@ -1061,12 +1186,13 @@ proof -
 
 
     show ?thesis
-      using p4a p4b p4c by blast
+      using p4a p4b p4c p4d by blast
   qed
   
   have p4: "(\<exists> RepSets .
         ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set RepSets. q \<in> fst d))
         \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+        \<and> (\<forall> q . q \<in> image fst nodes_with_preambles \<longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q)
         \<and> (\<forall> q p d . q \<in> image fst nodes_with_preambles \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q RepSets m \<longrightarrow> 
               ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q (p1@p2) \<in> fst d \<longrightarrow> target q p1 \<noteq> target q (p1@p2) \<longrightarrow> (p1 \<in> tps q \<and> (p1@p2) \<in> tps q \<and> target q p1 \<in> rd_targets (q,(p1@p2)) \<and> target q (p1@p2) \<in> rd_targets (q,p1)))
               \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1)))))))"
@@ -1074,6 +1200,7 @@ proof -
     let ?RepSets = "(maximal_repetition_sets_from_separators_list M)"
     show "((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set ?RepSets. q \<in> fst d))
         \<and> (\<forall> d . d \<in> set ?RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+        \<and> (\<forall> q . q \<in> image fst nodes_with_preambles \<longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q ?RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q ?RepSets m) \<subseteq> tps q)
         \<and> (\<forall> q p d . q \<in> image fst nodes_with_preambles \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q ?RepSets m \<longrightarrow> 
               ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q (p1@p2) \<in> fst d \<longrightarrow> target q p1 \<noteq> target q (p1@p2) \<longrightarrow> (p1 \<in> tps q \<and> (p1@p2) \<in> tps q \<and> target q p1 \<in> rd_targets (q,(p1@p2)) \<and> target q (p1@p2) \<in> rd_targets (q,p1)))
               \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))))"
