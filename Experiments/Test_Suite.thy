@@ -273,21 +273,21 @@ lemma passes_test_suite_soundness :
   and     "L M' \<subseteq> L M"
 shows     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
 proof -
-  have "(initial M, initial_preamble M) \<in> prs" 
+  have t1: "(initial M, initial_preamble M) \<in> prs" 
     using assms(2) unfolding is_sufficient_for_reduction_testing.simps by blast
-  have "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}"
+  have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}"
     using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force
-  have "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
+  have t3: "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
     using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force 
-  have "\<And> q1 q2 . q1 \<in> fst ` prs \<Longrightarrow> q2 \<in> fst ` prs \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {} \<Longrightarrow> [] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2, []) \<and> q2 \<in> rd_targets (q1, [])"
+  have t4: "\<And> q1 q2 . q1 \<in> fst ` prs \<Longrightarrow> q2 \<in> fst ` prs \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {} \<Longrightarrow> [] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2, []) \<and> q2 \<in> rd_targets (q1, [])"
     using assms(2) unfolding is_sufficient_for_reduction_testing.simps by blast
-  have "\<And> q p. q \<in> fst ` prs \<Longrightarrow> p \<in> tps q \<Longrightarrow> path M q p"
+  have t5: "\<And> q p. q \<in> fst ` prs \<Longrightarrow> p \<in> tps q \<Longrightarrow> path M q p"
     using assms(2) unfolding is_sufficient_for_reduction_testing.simps by blast
 
   obtain RepSets where
        "\<And>q. q \<in> FSM.nodes M \<Longrightarrow> (\<exists>d\<in>set RepSets. q \<in> fst d)"
    and "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M \<and> snd d \<subseteq> fst d \<and> (\<forall>q1 q2. q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1, q2) \<noteq> {})"
-   and "\<And> q p d.
+   and rs_paths': "\<And> q p d.
           q \<in> fst ` prs \<Longrightarrow>
           (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
           (\<forall>p1 p2 p3.
@@ -303,6 +303,35 @@ proof -
               target q p1 \<in> fst d \<longrightarrow>
               q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1))"
     using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force
+
+  have t6: "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M \<and> snd d \<subseteq> fst d"
+  and  t7: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
+    using \<open>\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M \<and> snd d \<subseteq> fst d \<and> (\<forall>q1 q2. q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1, q2) \<noteq> {})\<close>
+    by blast+
+
+  have t8: "\<And> q p d p1 p2 p3.
+              q \<in> fst ` prs \<Longrightarrow>
+              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
+              p = p1 @ p2 @ p3 \<Longrightarrow>
+              p2 \<noteq> [] \<Longrightarrow>
+              target q p1 \<in> fst d \<Longrightarrow>
+              target q (p1 @ p2) \<in> fst d \<Longrightarrow>
+              target q p1 \<noteq> target q (p1 @ p2) \<Longrightarrow>
+              p1 \<in> tps q \<and> p1 @ p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q, p1 @ p2) \<and> target q (p1 @ p2) \<in> rd_targets (q, p1)"
+    using rs_paths' by blast
+
+  have t9: "\<And> q p d p1 p2 q'.
+              q \<in> fst ` prs \<Longrightarrow>
+              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
+              p = p1 @ p2 \<Longrightarrow>
+              q' \<in> fst ` prs \<Longrightarrow>
+              target q p1 \<in> fst d \<Longrightarrow>
+              q' \<in> fst d \<Longrightarrow> 
+              target q p1 \<noteq> q' \<Longrightarrow> 
+              p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1)"
+    using rs_paths' by blast
+  
+    
 
 
 
@@ -328,8 +357,25 @@ proof -
 
 
 
+  have "\<And> q P pP ioT pT x y y' . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> p_io pT = ioT@[(x,y)] \<Longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<Longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> p_io pT' = ioT@[(x,y')])"
+  proof -
+    fix q P pP ioT pT x y y' 
+    assume "(q,P) \<in> prs"  
+       and "path P (initial P) pP" 
+       and "target (initial P) pP = q" 
+       and "pT \<in> tps q" 
+       and "p_io pT = ioT@[(x,y)]" 
+       and "(p_io pP)@ioT@[(x,y')] \<in> L M'"
 
-  have p2: "(\<forall> q P pP ioT pT x y y' . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> p_io pT = ioT@[(x,y)] \<longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> p_io pT' = ioT@[(x,y')]))"
+    have "is_preamble P M q"
+      using \<open>(q,P) \<in> prs\<close> \<open>\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}\<close> by blast
+
+        
+
+
+end (*
+
+  then have p2: "(\<forall> q P pP ioT pT x y y' . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> p_io pT = ioT@[(x,y)] \<longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> p_io pT' = ioT@[(x,y')]))"
     sorry
 
 
