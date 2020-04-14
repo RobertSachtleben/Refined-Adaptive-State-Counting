@@ -92,55 +92,68 @@ fun passes_test_suite :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite 
 
 
 
-lemma preamble_paths :
+lemma observable_preamble_paths :
   assumes "is_preamble P M q'"
+  and     "observable M"
   and     "path M q p"  
-  and     "p_io p  \<in> LS P q"
+  and     "p_io p \<in> LS P q"
+  and     "q \<in> reachable_nodes P"
 shows "path P q p"
-using assms(2,3) proof (induction p arbitrary: q)
-  case (nil q'' M)
-  then show ?case by auto
-next
-  case (cons t M ts)
-  then show ?case sorry
-qed
-
-
-
-lemma preamble_paths :
-  assumes "is_preamble P M q"
-  and     "path M (initial M) p"  
-  and     "p_io p  \<in> L P"
-shows "path P (initial P) p"
-using assms(2,3) proof (induction p rule: rev_induct)
+using assms(3,4,5) proof (induction p arbitrary: q rule: list.induct)
   case Nil
   then show ?case by auto
 next
-  case (snoc t p)
-  then have "path P (FSM.initial P) p"
-    by (metis (no_types, lifting) language_prefix map_append path_append_transition_elim(1)) 
-  then have "target (initial P) p \<in> reachable_nodes P"
-    unfolding reachable_nodes_def by auto
-
-  have "t \<in> transitions P" and "
-
+  case (Cons t p)
 
   have   "is_submachine P M"
   and *: "\<And> q' x t t' . q'\<in>reachable_nodes P \<Longrightarrow> x\<in>FSM.inputs M \<Longrightarrow>
             t\<in>FSM.transitions P \<Longrightarrow> t_source t = q' \<Longrightarrow> t_input t = x \<Longrightarrow>
             t'\<in>FSM.transitions M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> FSM.transitions P"
-    using assms(1)  unfolding is_preamble_def by blast+
+    using assms(1) unfolding is_preamble_def by blast+
 
-  then show ?case sorry
+  have "observable P"
+    using submachine_observable[OF \<open>is_submachine P M\<close> \<open>observable M\<close>] by blast
+
+  obtain t' where "t'\<in>FSM.transitions P" and "t_source t' = q" and "t_input t' = t_input t"
+    using \<open>p_io (t # p) \<in> LS P q\<close> by auto
+
+  have "t_source t = q" and "t \<in> transitions M" and "t_input t \<in> inputs M"
+    using \<open>path M q (t # p)\<close> by auto
+
+  have "t \<in> transitions P"
+    using *[OF \<open>q \<in> reachable_nodes P\<close> \<open>t_input t \<in> inputs M\<close> \<open>t'\<in>FSM.transitions P\<close> \<open>t_source t' = q\<close> \<open>t_input t' = t_input t\<close> \<open>t \<in> transitions M\<close> \<open>t_source t = q\<close>]
+    by auto
+
+  have "path M (t_target t) p"
+    using \<open>path M q (t # p)\<close> by auto
+  moreover have "p_io p \<in> LS P (t_target t)"
+  proof -
+    have f1: "t_input t = fst (t_input t, t_output t)"
+      by (metis fst_conv)
+    have f2: "t_output t = snd (t_input t, t_output t)"
+      by auto
+    have f3: "(t_input t, t_output t) # p_io p \<in> LS P (t_source t)"
+      using Cons.prems(2) \<open>t_source t = q\<close> by fastforce
+    have "L (FSM.from_FSM P (t_target t)) = LS P (t_target t)"
+      by (meson \<open>t \<in> FSM.transitions P\<close> from_FSM_language fsm_transition_target)
+    then show ?thesis
+      using f3 f2 f1 \<open>observable P\<close> \<open>t \<in> FSM.transitions P\<close> observable_language_next by blast
+  qed   
+  moreover have "t_target t \<in> reachable_nodes P"
+    using \<open>t \<in> transitions P\<close> \<open>t_source t = q\<close> \<open>q \<in> reachable_nodes P\<close>
+    by (meson reachable_nodes_next) 
+  ultimately have "path P (t_target t) p"
+    using Cons.IH by blast
+  then show ?case
+    using \<open>t \<in> transitions P\<close> \<open>t_source t = q\<close> by auto
 qed
 
 
-
-end (*
   
 
-lemma passes_test_suite_helper_1 :
+lemma passes_test_suite_soundness_helper_1 :
   assumes "is_preamble P M q"
+  and     "observable M"
   and     "io@[(x,y)] \<in> L P"
   and     "io@[(x,y')] \<in> L M"
 shows     "io@[(x,y')] \<in> L P"
@@ -151,12 +164,182 @@ proof -
             t'\<in>FSM.transitions M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> FSM.transitions P"
     using assms(1)  unfolding is_preamble_def by blast+
 
+  have "initial P = initial M"
+    unfolding submachine_simps[OF \<open>is_submachine P M\<close>]
+    by simp
   
-  obtain p where "path P (initial M) p" and "p_io p = io @ [(x,y)]"
-    using assms(2) unfolding submachine_simps[OF \<open>is_submachine P M\<close>] by auto
+  obtain p where "path M (initial M) p" and "p_io p = io @ [(x,y')]"
+    using assms(4) unfolding submachine_simps[OF \<open>is_submachine P M\<close>] by auto
+  
+  obtain p' t where "p = p'@[t]"
+    using \<open>p_io p = io @ [(x,y')]\<close> by (induction p rule: rev_induct; auto)
+
+  have "path M (initial M) p'" and "t \<in> transitions M" and "t_source t = target (initial M) p'"
+    using \<open>path M (initial M) p\<close> path_append_transition_elim
+    unfolding \<open>p = p'@[t]\<close> by force+
+
+  have "p_io p' = io" and "t_input t = x" and "t_output t = y'"
+    using \<open>p_io p = io @ [(x,y')]\<close> unfolding \<open>p = p'@[t]\<close> by force+
+     
 
   
+  have "p_io p' \<in> LS P (FSM.initial M)"
+    using assms(3) unfolding \<open>p_io p' = io\<close> \<open>initial P = initial M\<close>
+    by (meson language_prefix) 
 
+  have "FSM.initial M \<in> reachable_nodes P"
+    unfolding submachine_simps(1)[OF \<open>is_submachine P M\<close>, symmetric]
+    using reachable_nodes_initial by blast
+  
+
+  obtain pp where "path P (initial P) pp" and "p_io pp = io @ [(x,y)]"
+    using assms(3) by auto
+  then obtain pp' t' where "pp = pp'@[t']"
+  proof -
+    assume a1: "\<And>pp' t'. pp = pp' @ [t'] \<Longrightarrow> thesis"
+    have "pp \<noteq> []"
+      using \<open>p_io pp = io @ [(x, y)]\<close> by auto
+    then show ?thesis
+      using a1 by (metis (no_types) rev_exhaust)
+  qed 
+
+  have "path P (initial P) pp'" and "t' \<in> transitions P" and "t_source t' = target (initial P) pp'"
+    using \<open>path P (initial P) pp\<close> path_append_transition_elim
+    unfolding \<open>pp = pp'@[t']\<close> by force+
+  have "p_io pp' = io" and "t_input t' = x"
+    using \<open>p_io pp = io @ [(x,y)]\<close> unfolding \<open>pp = pp'@[t']\<close> by force+
+
+  have "path M (initial M) pp'"
+    using \<open>path P (initial P) pp'\<close> submachine_path_initial[OF \<open>is_submachine P M\<close>] by blast
+  
+  have "pp' = p'"
+    using observable_path_unique[OF assms(2) \<open>path M (initial M) pp'\<close> \<open>path M (initial M) p'\<close> ]
+    unfolding \<open>p_io pp' = io\<close> \<open>p_io p' = io\<close>
+    by blast
+  then have "t_source t' = target (initial M) p'"
+    using \<open>t_source t' = target (initial P) pp'\<close> unfolding \<open>initial P = initial M\<close> by blast
+
+
+  have "path P (FSM.initial M) p'"
+    using observable_preamble_paths[OF assms(1,2) \<open>path M (initial M) p'\<close> \<open>p_io p' \<in> LS P (FSM.initial M)\<close> \<open>FSM.initial M \<in> reachable_nodes P\<close>]
+    by assumption
+  then have "target (initial M) p' \<in> reachable_nodes P"
+    using reachable_nodes_intro unfolding \<open>initial P = initial M\<close>[symmetric] by blast
+  moreover have "x \<in> inputs M"
+    using \<open>t \<in> transitions M\<close> \<open>t_input t = x\<close> fsm_transition_input by blast
+
+
+  have "t \<in> transitions P"
+    using *[OF \<open>target (initial M) p' \<in> reachable_nodes P\<close> \<open>x \<in> inputs M\<close> \<open>t' \<in> transitions P\<close> \<open>t_source t' = target (initial M) p'\<close> \<open>t_input t' = x\<close> \<open>t \<in> transitions M\<close> \<open>t_source t = target (FSM.initial M) p'\<close> \<open>t_input t = x\<close>]
+    by assumption
+
+  then have "path P (initial P) (p'@[t])"
+    using \<open>path P (initial P) pp'\<close> \<open>t_source t = target (initial M) p'\<close>
+    unfolding \<open>pp' = p'\<close> \<open>initial P = initial M\<close> 
+    using path_append_transition by simp
+  then show ?thesis 
+    unfolding \<open>p = p'@[t]\<close>[symmetric] LS.simps
+    using \<open>p_io p = io@[(x,y')]\<close>
+    by force
+qed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+lemma passes_test_suite_soundness :
+  assumes "observable M"
+  and     "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
+  and     "L M' \<subseteq> L M"
+shows     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
+proof -
+  have "(initial M, initial_preamble M) \<in> prs" 
+    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by blast
+  have "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}"
+    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force
+  have "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
+    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force 
+  have "\<And> q1 q2 . q1 \<in> fst ` prs \<Longrightarrow> q2 \<in> fst ` prs \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {} \<Longrightarrow> [] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2, []) \<and> q2 \<in> rd_targets (q1, [])"
+    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by blast
+  have "\<And> q p. q \<in> fst ` prs \<Longrightarrow> p \<in> tps q \<Longrightarrow> path M q p"
+    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by blast
+
+  obtain RepSets where
+       "\<And>q. q \<in> FSM.nodes M \<Longrightarrow> (\<exists>d\<in>set RepSets. q \<in> fst d)"
+   and "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M \<and> snd d \<subseteq> fst d \<and> (\<forall>q1 q2. q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1, q2) \<noteq> {})"
+   and "\<And> q p d.
+          q \<in> fst ` prs \<Longrightarrow>
+          (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
+          (\<forall>p1 p2 p3.
+              p = p1 @ p2 @ p3 \<longrightarrow>
+              p2 \<noteq> [] \<longrightarrow>
+              target q p1 \<in> fst d \<longrightarrow>
+              target q (p1 @ p2) \<in> fst d \<longrightarrow>
+              target q p1 \<noteq> target q (p1 @ p2) \<longrightarrow>
+              p1 \<in> tps q \<and> p1 @ p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q, p1 @ p2) \<and> target q (p1 @ p2) \<in> rd_targets (q, p1)) \<and>
+          (\<forall>p1 p2 q'.
+              p = p1 @ p2 \<longrightarrow>
+              q' \<in> fst ` prs \<longrightarrow>
+              target q p1 \<in> fst d \<longrightarrow>
+              q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1))"
+    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force
+
+
+
+
+
+
+  have "\<And> q P io x y y' . (q,P) \<in> prs \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  proof -
+    fix q P io x y y' assume "(q,P) \<in> prs" and "io@[(x,y)] \<in> L P" and "io@[(x,y')] \<in> L M'"
+
+    have "is_preamble P M q"
+      using \<open>(q,P) \<in> prs\<close> \<open>\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}\<close> by blast
+
+    have "io@[(x,y')] \<in> L M"
+      using \<open>io@[(x,y')] \<in> L M'\<close> assms(3) by blast
+
+    show "io@[(x,y')] \<in> L P"
+      using passes_test_suite_soundness_helper_1[OF \<open>is_preamble P M q\<close> assms(1) \<open>io@[(x,y)] \<in> L P\<close> \<open>io@[(x,y')] \<in> L M\<close>]
+      by assumption
+  qed
+  then have p1: "(\<forall> q P io x y y' . (q,P) \<in> prs \<longrightarrow> io@[(x,y)] \<in> L P \<longrightarrow> io@[(x,y')] \<in> L M' \<longrightarrow> io@[(x,y')] \<in> L P)"
+    by blast
+
+
+
+
+  have p2: "(\<forall> q P pP ioT pT x y y' . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> p_io pT = ioT@[(x,y)] \<longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> p_io pT' = ioT@[(x,y')]))"
+    sorry
+
+
+  have p3: "(\<forall> q P pP pT . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<longrightarrow> (\<forall> q' A d1 d2 qT . q' \<in> rd_targets (q,pT) \<longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<longrightarrow> pass_separator_ATC M' A qT d2))"
+    sorry
+
+
+  show ?thesis 
+    using p1 p2 p3 unfolding passes_test_suite.simps by blast
+qed
 
 
 end
