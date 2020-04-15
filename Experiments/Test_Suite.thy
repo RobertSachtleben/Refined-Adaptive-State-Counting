@@ -292,9 +292,9 @@ proof -
 
 
   obtain RepSets where
-       "\<And>q. q \<in> FSM.nodes M \<Longrightarrow> (\<exists>d\<in>set RepSets. q \<in> fst d)"
+       t5: "\<And>q. q \<in> FSM.nodes M \<Longrightarrow> (\<exists>d\<in>set RepSets. q \<in> fst d)"
    and "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M \<and> snd d \<subseteq> fst d \<and> (\<forall>q1 q2. q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1, q2) \<noteq> {})"
-   and t5: "\<And> q. q \<in> fst ` prs \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q"
+   and t6: "\<And> q. q \<in> fst ` prs \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q"
    and rs_paths': "\<And> q p d.
           q \<in> fst ` prs \<Longrightarrow>
           (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
@@ -312,12 +312,13 @@ proof -
               q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1))"
     using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force
 
-  have t6: "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M \<and> snd d \<subseteq> fst d"
-  and  t7: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
+  have t7: "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M"
+  and  t8: "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d \<subseteq> fst d"
+  and  t9: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
     using \<open>\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M \<and> snd d \<subseteq> fst d \<and> (\<forall>q1 q2. q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1, q2) \<noteq> {})\<close>
     by blast+
 
-  have t8: "\<And> q p d p1 p2 p3.
+  have t10: "\<And> q p d p1 p2 p3.
               q \<in> fst ` prs \<Longrightarrow>
               (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
               p = p1 @ p2 @ p3 \<Longrightarrow>
@@ -328,7 +329,7 @@ proof -
               p1 \<in> tps q \<and> p1 @ p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q, p1 @ p2) \<and> target q (p1 @ p2) \<in> rd_targets (q, p1)"
     using rs_paths' by blast
 
-  have t9: "\<And> q p d p1 p2 q'.
+  have t11: "\<And> q p d p1 p2 q'.
               q \<in> fst ` prs \<Longrightarrow>
               (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
               p = p1 @ p2 \<Longrightarrow>
@@ -365,21 +366,61 @@ proof -
 
 
 
-  have "\<And> q P pP ioT pT x y y' . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> ioT @ [(x, y)] \<in> set (prefixes (p_io pT)) \<Longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<Longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> ioT @ [(x, y')] \<in> set (prefixes (p_io pT')))"
+  have "\<And> q P pP ioT pT x x' y y' . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> ioT @ [(x, y)] \<in> set (prefixes (p_io pT)) \<Longrightarrow> (p_io pP)@ioT@[(x',y')] \<in> L M' \<Longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> ioT @ [(x', y')] \<in> set (prefixes (p_io pT')))"
   proof -
-    fix q P pP ioT pT x y y' 
+    fix q P pP ioT pT x x' y y' 
     assume "(q,P) \<in> prs"  
        and "path P (initial P) pP" 
        and "target (initial P) pP = q" 
        and "pT \<in> tps q" 
        and "ioT @ [(x, y)] \<in> set (prefixes (p_io pT))" 
-       and "(p_io pP)@ioT@[(x,y')] \<in> L M'"
+       and "(p_io pP)@ioT@[(x',y')] \<in> L M'"
 
     have "is_preamble P M q"
       using \<open>(q,P) \<in> prs\<close> \<open>\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}\<close> by blast
+    then have "q \<in> nodes M"
+      unfolding is_preamble_def
+      by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
 
 
-    show "(\<exists> pT' . pT' \<in> tps q \<and> ioT @ [(x, y')] \<in> set (prefixes (p_io pT')))"
+    have "q \<in> fst ` prs"
+      using \<open>(q,P) \<in> prs\<close>
+      using image_iff by fastforce 
+
+
+    obtain ioT' where "p_io pT = (ioT @ [(x, y)]) @ ioT'"
+      using \<open>ioT @ [(x, y)] \<in> set (prefixes (p_io pT))\<close>
+      unfolding prefixes_set 
+      by moura
+    then have "length pT > length ioT"
+      using length_map[of "(\<lambda> t . (t_input t, t_output t))" pT] by auto
+
+    
+    obtain pT' d' where "(pT @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m"
+      using t6[OF \<open>q \<in> fst ` prs\<close>] \<open>pT \<in> tps q\<close>
+      by blast
+
+    let ?p = "pT @ pT'"
+
+    have "path M q ?p"
+    and  "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) ?p)) RepSets = Some d'"
+    and  "(\<forall>p' p''. ?p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None)"
+      using \<open>(pT @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m\<close>
+            m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m] 
+
+
+
+    let ?pIO = "take (length ioT) pT"
+    have "p_io ?pIO = ioT"
+      using \<open>ioT @ [(x, y)] \<in> set (prefixes (p_io pT))\<close>
+      unfolding prefixes_set
+
+
+    let ?p = "pT @ pT'"
+    
+
+
+    show "(\<exists> pT' . pT' \<in> tps q \<and> ioT @ [(x', y')] \<in> set (prefixes (p_io pT')))"
       sorry
   qed
 
