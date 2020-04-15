@@ -518,6 +518,31 @@ proof -
       by simp
 
 
+
+
+    show "(\<exists> pT' . pT' \<in> tps q \<and> ioT @ [(x', y')] \<in> set (prefixes (p_io pT')))"
+    proof (cases "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (?pT@[?t]))) RepSets = None")
+      case True
+
+      obtain pT' d' where "(?pT @ [?t] @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m"
+        using m_traversal_path_extension_exist[OF \<open>completely_specified M\<close> \<open>q \<in> nodes M\<close> \<open>inputs M \<noteq> {}\<close> t5 t8 \<open>path M q (?pT@[?t])\<close> True]
+        by auto
+      then have "?pT @ [?t] @ pT' \<in> tps q"
+        using t6[OF \<open>q \<in> fst ` prs\<close>] by force
+
+      moreover have "ioT @ [(x', y')] \<in> set (prefixes (p_io (?pT @ [?t] @ pT')))"
+        using \<open>p_io ?pIO = ioT\<close> \<open>p_io [?t] = [(x',y')]\<close> 
+        unfolding \<open>?pT = ?pIO\<close> prefixes_set by force
+
+      ultimately show ?thesis 
+        by blast
+    next
+      case False
+      then show ?thesis sorry
+    qed
+
+    
+
 end (*
 
     
