@@ -480,7 +480,7 @@ proof -
 
     have "path M q ?p"
     and  "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) ?p)) RepSets = Some d'"
-    and  "(\<forall>p' p''. ?p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None)"
+    and  "\<And> p' p''. ?p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
       using \<open>(pT @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m\<close>
             m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m] 
       by blast+
@@ -538,36 +538,51 @@ proof -
         by blast
     next
       case False
-      then show ?thesis sorry
+      
+      note \<open>path M q (?pT @ [?t])\<close> 
+      moreover obtain d' where "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (?pT@[?t]))) RepSets = Some d'"
+        using False by blast
+
+
+      moreover have "\<forall> p' p''. (?pT @ [?t]) = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
+      proof -
+        have "\<And> p' p''. (?pT @ [?t]) = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
+        proof -
+          fix p' p'' assume "(?pT @ [?t]) = p' @ p''" and "p'' \<noteq> []" 
+          then obtain pIO' where "?pIO = p' @ pIO'"
+            unfolding \<open>?pT = ?pIO\<close>
+            by (metis butlast_append butlast_snoc)
+          then have "?p = p'@pIO'@(drop (length ioT) ?p)"
+            using \<open>?p = ?pIO@((drop (length ioT) ?p))\<close>
+            by (metis append.assoc) 
+  
+          have "pIO' @ drop (length ioT) (pT @ pT') \<noteq> []"
+            using \<open>(drop (length ioT) ?p) \<noteq> []\<close> by auto
+  
+          show "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
+            using \<open>\<And> p' p''. ?p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None\<close>
+                  [of p' "pIO'@(drop (length ioT) ?p)", OF \<open>?p = p'@pIO'@(drop (length ioT) ?p)\<close> \<open>pIO' @ drop (length ioT) (pT @ pT') \<noteq> []\<close>]
+            by assumption
+        qed
+        then show ?thesis by blast
+      qed
+
+      ultimately have "((?pT @ [?t]),d') \<in> m_traversal_paths_with_witness M q RepSets m"
+        using m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m] 
+        by auto
+      then have "(?pT @ [?t]) \<in> tps q"
+        using t6[OF \<open>q \<in> fst ` prs\<close>] by force
+      moreover have "ioT @ [(x', y')] \<in> set (prefixes (p_io (?pT @ [?t])))"
+        using \<open>p_io ?pT = ioT\<close> \<open>p_io [?t] = [(x',y')]\<close>
+        unfolding prefixes_set by force
+
+      ultimately show ?thesis 
+        by blast
     qed
-
-    
-
-end (*
-
-    
-
-    have "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (length ioT) pT))) RepSets = None"
-      using \<open>(\<forall>p' p''. ?p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None)\<close>
-            \<open>?p = ?pIO@(drop (length ioT) ?p)\<close>
-            \<open>(drop (length ioT) ?p) \<noteq> []\<close> 
-      by blast
-
-    (* TODO: applied to wrong path \<rightarrow> needs to be applied to the path obtained from M' *)
-    thm m_traversal_path_extension_exist[OF \<open>completely_specified M\<close> \<open>q \<in> nodes M\<close> \<open>inputs M \<noteq> {}\<close> t5 t8 \<open>path M q ?pIO\<close> \<open>find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (length ioT) pT))) RepSets = None\<close>]
-
-    let ?p = "pT @ pT'"
-    
-
-
-    show "(\<exists> pT' . pT' \<in> tps q \<and> ioT @ [(x', y')] \<in> set (prefixes (p_io pT')))"
-      sorry
   qed
-
-
-
   then have p2: "(\<forall> q P pP ioT pT x y y' . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> ioT @ [(x, y)] \<in> set (prefixes (p_io pT)) \<longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> ioT @ [(x, y')] \<in> set (prefixes (p_io pT'))))"
     by blast
+
 
 
   have p3: "(\<forall> q P pP pT . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<longrightarrow> (\<forall> q' A d1 d2 qT . q' \<in> rd_targets (q,pT) \<longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<longrightarrow> pass_separator_ATC M' A qT d2))"
