@@ -267,6 +267,15 @@ qed
 
 
 
+lemma path_prefix_take :
+  assumes "path M q p"
+  shows "path M q (take i p)"
+proof -
+  have "p = (take i p)@(drop i p)" by auto
+  then have "path M q ((take i p)@(drop i p))" using assms by auto
+  then show ?thesis
+    by blast 
+qed
 
 
 
@@ -275,18 +284,19 @@ qed
 
 lemma passes_test_suite_soundness :
   assumes "observable M"
+  and     "completely_specified M"
   and     "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
   and     "L M' \<subseteq> L M"
 shows     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
 proof -
   have t1: "(initial M, initial_preamble M) \<in> prs" 
-    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by blast
+    using assms(3) unfolding is_sufficient_for_reduction_testing.simps by blast
   have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}"
-    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force
+    using assms(3) unfolding is_sufficient_for_reduction_testing.simps by force
   have t3: "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
-    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force 
+    using assms(3) unfolding is_sufficient_for_reduction_testing.simps by force 
   have t4: "\<And> q1 q2 . q1 \<in> fst ` prs \<Longrightarrow> q2 \<in> fst ` prs \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {} \<Longrightarrow> [] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2, []) \<and> q2 \<in> rd_targets (q1, [])"
-    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by auto 
+    using assms(3) unfolding is_sufficient_for_reduction_testing.simps by auto 
   
 
 
@@ -310,7 +320,7 @@ proof -
               q' \<in> fst ` prs \<longrightarrow>
               target q p1 \<in> fst d \<longrightarrow>
               q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1))"
-    using assms(2) unfolding is_sufficient_for_reduction_testing.simps by force
+    using assms(3) unfolding is_sufficient_for_reduction_testing.simps by force
 
   have t7: "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M"
   and  t8: "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d \<subseteq> fst d"
@@ -355,7 +365,7 @@ proof -
       using \<open>(q,P) \<in> prs\<close> \<open>\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}\<close> by blast
 
     have "io@[(x,y')] \<in> L M"
-      using \<open>io@[(x,y')] \<in> L M'\<close> assms(3) by blast
+      using \<open>io@[(x,y')] \<in> L M'\<close> assms(4) by blast
 
     show "io@[(x,y')] \<in> L P"
       using passes_test_suite_soundness_helper_1[OF \<open>is_preamble P M q\<close> assms(1) \<open>io@[(x,y)] \<in> L P\<close> \<open>io@[(x,y')] \<in> L M\<close>]
@@ -382,6 +392,12 @@ proof -
       unfolding is_preamble_def
       by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
 
+    have "(p_io pP)@ioT@[(x',y')] \<in> L M"
+      using \<open>(p_io pP)@ioT@[(x',y')] \<in> L M'\<close> assms(4) by blast
+    have "inputs M \<noteq> {}"
+      using language_io(1)[OF \<open>(p_io pP)@ioT@[(x',y')] \<in> L M\<close>, of x' y']
+      by auto 
+
 
     have "q \<in> fst ` prs"
       using \<open>(q,P) \<in> prs\<close>
@@ -407,14 +423,42 @@ proof -
     and  "(\<forall>p' p''. ?p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None)"
       using \<open>(pT @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m\<close>
             m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m] 
+      by blast+
 
+    
 
 
     let ?pIO = "take (length ioT) pT"
-    have "p_io ?pIO = ioT"
-      using \<open>ioT @ [(x, y)] \<in> set (prefixes (p_io pT))\<close>
-      unfolding prefixes_set
+    have "?pIO = take (length ioT) ?p" 
+      using \<open>length pT > length ioT\<close> by auto
+    then have "?p = ?pIO@(drop (length ioT) ?p)"
+      by auto
+    have "(drop (length ioT) ?p) \<noteq> []" 
+      using \<open>length pT > length ioT\<close> by auto
 
+    have "p_io ?pIO = ioT" 
+    proof -
+      have "p_io ?pIO = take (length ioT) (p_io pT)"
+        by (simp add: take_map)
+      moreover have "take (length ioT) (p_io pT) = ioT"
+        using \<open>p_io pT = (ioT @ [(x, y)]) @ ioT'\<close> by auto
+      ultimately show ?thesis by simp
+    qed
+
+    
+    have "path M q ?pIO"
+      using \<open>path M q ?p\<close> unfolding \<open>?pIO = take (length ioT) ?p\<close> 
+      using path_prefix_take by metis
+    
+
+    have "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (length ioT) pT))) RepSets = None"
+      using \<open>(\<forall>p' p''. ?p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None)\<close>
+            \<open>?p = ?pIO@(drop (length ioT) ?p)\<close>
+            \<open>(drop (length ioT) ?p) \<noteq> []\<close> 
+      by blast
+
+    (* TODO: applied to wrong path \<rightarrow> needs to be applied to the path obtained from M' *)
+    thm m_traversal_path_extension_exist[OF \<open>completely_specified M\<close> \<open>q \<in> nodes M\<close> \<open>inputs M \<noteq> {}\<close> t5 t8 \<open>path M q ?pIO\<close> \<open>find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (length ioT) pT))) RepSets = None\<close>]
 
     let ?p = "pT @ pT'"
     
