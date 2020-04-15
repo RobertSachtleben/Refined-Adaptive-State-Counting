@@ -392,8 +392,68 @@ proof -
       unfolding is_preamble_def
       by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
 
+
+    have "initial P = initial M"
+      using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
+    have "path M (initial M) pP"
+      using \<open>is_preamble P M q\<close> unfolding is_preamble_def using submachine_path_initial
+      using \<open>path P (FSM.initial P) pP\<close> by blast
+    
+
     have "(p_io pP)@ioT@[(x',y')] \<in> L M"
       using \<open>(p_io pP)@ioT@[(x',y')] \<in> L M'\<close> assms(4) by blast
+    then obtain pM' where "path M (initial M) pM'" and "p_io pM' = (p_io pP)@ioT@[(x',y')]" 
+      by auto
+
+    let ?pP = "take (length pP) pM'"
+    let ?pT = "take (length ioT) (drop (length pP) pM')"
+    let ?t  = "last pM'"
+
+
+    have "pM' = ?pP @ ?pT @ [?t]"
+    proof -
+      have "length pM' = (length pP) + (length ioT) + 1"
+        using \<open>p_io pM' = (p_io pP)@ioT@[(x',y')]\<close> 
+        unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", of pM', symmetric] 
+        unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", of pP, symmetric] 
+        by auto
+      then show ?thesis
+        by (metis (no_types, lifting) add_diff_cancel_right' antisym_conv antisym_conv2 append_butlast_last_id append_eq_append_conv2 butlast_conv_take drop_Nil drop_eq_Nil le_add1 less_add_one take_add) 
+    qed
+
+    
+
+    have "p_io ?pP = p_io pP"  
+      using \<open>p_io pM' = (p_io pP)@ioT@[(x',y')]\<close>
+      by (metis (no_types, lifting) append_eq_conv_conj length_map take_map)
+
+    have "p_io ?pT = ioT" 
+      using \<open>p_io pM' = (p_io pP)@ioT@[(x',y')]\<close>
+      using \<open>pM' = ?pP @ ?pT @ [?t]\<close>
+      by (metis (no_types, lifting) append_eq_conv_conj length_map map_append take_map) 
+      
+    have "p_io [?t] = [(x',y')]"
+      using \<open>p_io pM' = (p_io pP)@ioT@[(x',y')]\<close>
+      using \<open>pM' = ?pP @ ?pT @ [?t]\<close>
+      by (metis (no_types, lifting) append_is_Nil_conv last_appendR last_map last_snoc list.simps(8) list.simps(9))
+
+    have "path M (initial M) ?pP"
+      using \<open>path M (initial M) pM'\<close> \<open>pM' = ?pP @ ?pT @ [?t]\<close>
+      by (meson path_prefix_take)
+      
+
+    have "?pP = pP"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) ?pP\<close> \<open>path M (initial M) pP\<close> \<open>p_io ?pP = p_io pP\<close>]
+      by assumption
+    then have "path M q (?pT@[?t])"
+      by (metis \<open>FSM.initial P = FSM.initial M\<close> \<open>pM' = take (length pP) pM' @ take (length ioT) (drop (length pP) pM') @ [last pM']\<close> \<open>path M (FSM.initial M) pM'\<close> \<open>target (FSM.initial P) pP = q\<close> path_suffix)
+    then have "path M q ?pT" 
+         and  "?t \<in> transitions M" 
+         and  "t_source ?t = target q ?pT"
+      by auto
+
+
+
     have "inputs M \<noteq> {}"
       using language_io(1)[OF \<open>(p_io pP)@ioT@[(x',y')] \<in> L M\<close>, of x' y']
       by auto 
@@ -444,11 +504,22 @@ proof -
         using \<open>p_io pT = (ioT @ [(x, y)]) @ ioT'\<close> by auto
       ultimately show ?thesis by simp
     qed
+    then have "p_io ?pIO = p_io ?pT"
+      using \<open>p_io ?pT = ioT\<close> by simp
 
     
     have "path M q ?pIO"
       using \<open>path M q ?p\<close> unfolding \<open>?pIO = take (length ioT) ?p\<close> 
       using path_prefix_take by metis
+
+
+    have "?pT = ?pIO"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M q ?pIO\<close> \<open>path M q ?pT\<close> \<open>p_io ?pIO = p_io ?pT\<close>] 
+      by simp
+
+
+end (*
+
     
 
     have "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (length ioT) pT))) RepSets = None"
