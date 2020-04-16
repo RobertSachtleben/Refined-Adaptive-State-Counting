@@ -287,6 +287,7 @@ lemma passes_test_suite_soundness :
   and     "completely_specified M"
   and     "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
   and     "L M' \<subseteq> L M"
+  and     "observable M'"
 shows     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
 proof -
   have t1: "(initial M, initial_preamble M) \<in> prs" 
@@ -584,9 +585,26 @@ proof -
     by blast
 
 
+  have "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<Longrightarrow>  q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"
+  proof -
+    fix q P pP pT q' A d1 d2 qT
+    assume "(q,P) \<in> prs" 
+    and    "path P (initial P) pP" 
+    and    "target (initial P) pP = q" 
+    and    "pT \<in> tps q" 
+    and    "(p_io pP)@(p_io pT) \<in> L M'" 
+    and    "q' \<in> rd_targets (q,pT)" 
+    and    "(A,d1,d2) \<in> atcs (target q pT, q')" 
+    and    "qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M')"
 
-  have p3: "(\<forall> q P pP pT . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<longrightarrow> (\<forall> q' A d1 d2 qT . q' \<in> rd_targets (q,pT) \<longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<longrightarrow> pass_separator_ATC M' A qT d2))"
-    sorry
+    
+
+
+    show "pass_separator_ATC M' A qT d2"
+
+end (*
+  then have p3: "(\<forall> q P pP pT . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<longrightarrow> (\<forall> q' A d1 d2 qT . q' \<in> rd_targets (q,pT) \<longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<longrightarrow> pass_separator_ATC M' A qT d2))"
+    by blast
 
 
   show ?thesis 
