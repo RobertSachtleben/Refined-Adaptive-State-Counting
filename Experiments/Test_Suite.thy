@@ -605,6 +605,12 @@ proof -
       unfolding is_preamble_def
       by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
 
+    have "initial P = initial M"
+      using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
+    have "path M (initial M) pP"
+      using \<open>is_preamble P M q\<close> unfolding is_preamble_def using submachine_path_initial
+      using \<open>path P (FSM.initial P) pP\<close> by blast
+
     have "is_separator M (target q pT) q' A d1 d2"
       using t3[OF \<open>(A,d1,d2) \<in> atcs (target q pT, q')\<close>]
       by blast
@@ -631,16 +637,26 @@ proof -
       by assumption
 
     moreover have "LS M' qT \<subseteq> LS M (target q pT)"
-      sorry
+    proof -
+      have "(target q pT) = target (initial M) (pP@pT)"
+        using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by auto
 
-    (* TODO: show LS M' qT \<subseteq> LS M (target q pT) *)
+      have "path M (initial M) (pP@pT)"
+        using \<open>path M (initial M) pP\<close> \<open>target (initial P) pP = q\<close> \<open>path M q pT\<close> unfolding \<open>initial P = initial M\<close> by auto
+      
+      then have "(target q pT) \<in> io_targets M (p_io pP @ p_io pT) (FSM.initial M)"
+        unfolding io_targets.simps \<open>(target q pT) = target (initial M) (pP@pT)\<close>
+        using map_append by blast 
+      
 
+      show ?thesis
+        using observable_language_target[OF \<open>observable M\<close> \<open>(target q pT) \<in> io_targets M (p_io pP @ p_io pT) (FSM.initial M)\<close> \<open>qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M')\<close> \<open>L M' \<subseteq> L M\<close>]
+        by assumption
+    qed
 
     ultimately show "pass_separator_ATC M' A qT d2"
       by blast
   qed
-
-end (*
   then have p3: "(\<forall> q P pP pT . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<longrightarrow> (\<forall> q' A d1 d2 qT . q' \<in> rd_targets (q,pT) \<longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<longrightarrow> pass_separator_ATC M' A qT d2))"
     by blast
 
