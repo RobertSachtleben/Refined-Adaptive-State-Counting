@@ -288,6 +288,7 @@ lemma passes_test_suite_soundness :
   and     "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
   and     "L M' \<subseteq> L M"
   and     "observable M'"
+  and     "inputs M' = inputs M"
 shows     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
 proof -
   have t1: "(initial M, initial_preamble M) \<in> prs" 
@@ -585,22 +586,59 @@ proof -
     by blast
 
 
-  have "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<Longrightarrow>  q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"
+  have "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"
   proof -
     fix q P pP pT q' A d1 d2 qT
     assume "(q,P) \<in> prs" 
     and    "path P (initial P) pP" 
     and    "target (initial P) pP = q" 
-    and    "pT \<in> tps q" 
-    and    "(p_io pP)@(p_io pT) \<in> L M'" 
+    and    "pT \<in> tps q"  
     and    "q' \<in> rd_targets (q,pT)" 
     and    "(A,d1,d2) \<in> atcs (target q pT, q')" 
     and    "qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M')"
 
-    
+    have "q \<in> fst ` prs"
+      using \<open>(q,P) \<in> prs\<close> by force
+    have "is_preamble P M q"
+      using \<open>(q,P) \<in> prs\<close> \<open>\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}\<close> by blast
+    then have "q \<in> nodes M"
+      unfolding is_preamble_def
+      by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
+
+    have "is_separator M (target q pT) q' A d1 d2"
+      using t3[OF \<open>(A,d1,d2) \<in> atcs (target q pT, q')\<close>]
+      by blast
+
+    have "qT \<in> nodes M'"
+      using \<open>qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M')\<close>
+            io_targets_nodes
+      by (metis (no_types, lifting) subsetD) 
+
+    obtain pT' d' where "(pT @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m"
+      using t6[OF \<open>q \<in> fst ` prs\<close>] \<open>pT \<in> tps q\<close> 
+      by blast
+    then have "path M q pT"
+      using m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m] 
+      by auto
+    then have "target q pT \<in> FSM.nodes M"
+      using path_target_is_node by metis
+
+    have "q' \<in> FSM.nodes M"
+      using is_separator_separated_node_is_node[OF \<open>is_separator M (target q pT) q' A d1 d2\<close>] by simp
+
+    have "\<not> pass_separator_ATC M' A qT d2 \<Longrightarrow> \<not> LS M' qT \<subseteq> LS M (target q pT)"
+      using pass_separator_ATC_fail_no_reduction[OF \<open>observable M'\<close> \<open>observable M\<close> \<open>qT \<in> nodes M'\<close> \<open>target q pT \<in> FSM.nodes M\<close> \<open>q' \<in> FSM.nodes M\<close> \<open>is_separator M (target q pT) q' A d1 d2\<close> \<open>inputs M' = inputs M\<close>]
+      by assumption
+
+    moreover have "LS M' qT \<subseteq> LS M (target q pT)"
+      sorry
+
+    (* TODO: show LS M' qT \<subseteq> LS M (target q pT) *)
 
 
-    show "pass_separator_ATC M' A qT d2"
+    ultimately show "pass_separator_ATC M' A qT d2"
+      by blast
+  qed
 
 end (*
   then have p3: "(\<forall> q P pP pT . (q,P) \<in> prs \<longrightarrow> path P (initial P) pP \<longrightarrow> target (initial P) pP = q \<longrightarrow> pT \<in> tps q \<longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<longrightarrow> (\<forall> q' A d1 d2 qT . q' \<in> rd_targets (q,pT) \<longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<longrightarrow> pass_separator_ATC M' A qT d2))"

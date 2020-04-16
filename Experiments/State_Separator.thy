@@ -4723,5 +4723,36 @@ qed
 
 
 
+       
+lemma is_separator_separated_node_is_node :
+  assumes "is_separator M q1 q2 A t1 t2"
+  shows "q1 \<in> nodes M" and "q2 \<in> nodes M"
+proof -
+  have "initial A \<noteq> t1"
+    using separator_initial[OF assms(1)] by blast
+
+  have "t1 \<in> reachable_nodes A"
+  and  "\<And> p . path A (FSM.initial A) p \<Longrightarrow> target (FSM.initial A) p = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2"
+  and  "t2 \<in> reachable_nodes A"
+  and  "\<And> p . path A (FSM.initial A) p \<Longrightarrow> target (FSM.initial A) p = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1"
+    using is_separator_simps[OF assms(1)] 
+    by blast+
+
+  obtain p1 where "path A (FSM.initial A) p1" and "target (FSM.initial A) p1 = t1"
+    using \<open>t1 \<in> reachable_nodes A\<close> unfolding reachable_nodes_def by auto
+  then have "p_io p1 \<in> LS M q1 - LS M q2"
+    using \<open>\<And> p . path A (FSM.initial A) p \<Longrightarrow> target (FSM.initial A) p = t1 \<Longrightarrow> p_io p \<in> LS M q1 - LS M q2\<close> 
+    by blast
+  then show "q1 \<in> nodes M" unfolding LS.simps
+    using path_begin_node by fastforce 
+
+  obtain p2 where "path A (FSM.initial A) p2" and "target (FSM.initial A) p2 = t2"
+    using \<open>t2 \<in> reachable_nodes A\<close> unfolding reachable_nodes_def by auto
+  then have "p_io p2 \<in> LS M q2 - LS M q1"
+    using \<open>\<And> p . path A (FSM.initial A) p \<Longrightarrow> target (FSM.initial A) p = t2 \<Longrightarrow> p_io p \<in> LS M q2 - LS M q1\<close> 
+    by blast
+  then show "q2 \<in> nodes M" unfolding LS.simps
+    using path_begin_node by fastforce 
+qed
 
 end
