@@ -981,27 +981,72 @@ proof (rule ccontr)
         using \<open>find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) pMin)) RepSets = Some dMin\<close>
               m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m]
         by blast
+
+      then have "pMin \<in> tps q"
+        using t6[OF \<open>q \<in> fst ` prs\<close>]
+        by force
   
 
+      show ?thesis proof (cases "pMin = (pF@[tM])")
+        (* if the m-traversal path is not shorter than io, then again the failure is observed *)
+        case True 
+        then have "?ioF @ [(?xF, t_output tM)] \<in> set (prefixes (p_io pMin))"
+          using \<open>p_io pF = ?ioF\<close> \<open>t_input tM = ?xF\<close> unfolding prefixes_set by force
 
 
-end (*
+        obtain pMinF where "pMinF \<in> tps q" and "io \<in> set (prefixes (p_io pMinF))"
+          using pass2[OF \<open>(q,P) \<in> prs\<close> \<open>path P (initial P) p\<close> \<open>target (initial P) p = q\<close> \<open>pMin \<in> tps q\<close> \<open>?ioF @ [(?xF, t_output tM)] \<in> set (prefixes (p_io pMin))\<close>, of ?yF]
+          using \<open>p_io p @ io \<in> L M'\<close>
+          unfolding \<open>io = ?ioF@[?xyF]\<close>[symmetric]
+          by blast
+
+        have "path M q pMinF"
+        proof -
+          obtain pT'' d'' where "(pMinF@pT'', d'') \<in> m_traversal_paths_with_witness M q RepSets m"
+            using \<open>pMinF \<in> tps q\<close> t6[OF \<open>q \<in> fst ` prs\<close>] by blast
+          then have "path M q (pMinF@pT'')"
+            using m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>] 
+            by force
+          then show ?thesis by auto
+        qed
+        then have "path M (initial M) (p@pMinF)"
+          using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q\<close> by auto
+        then have "(p_io (p@pMinF)) \<in> L M"
+          unfolding LS.simps by blast
+        then have "(p_io p)@(p_io pMinF) \<in> L M"
+          by auto
+        
+  
+  
+        obtain io' where "p_io pMinF = io @ io'"
+          using \<open>io \<in> set (prefixes (p_io pMinF))\<close> unfolding prefixes_set by moura
+        
+        have " p_io p @ io \<in> L M"
+          using \<open>(p_io p)@(p_io pMinF) \<in> L M\<close> 
+          unfolding \<open>p_io pMinF = io @ io'\<close>
+          unfolding append.assoc[symmetric]
+          using language_prefix[of "p_io p @ io" io', of M "initial M"] 
+          by blast
+        
+        then show ?thesis
+          using \<open>(p_io p) @ io \<notin> L M\<close> by simp
+      next
+        case False
+        then obtain pMin'' where "pF = pMin @ pMin''"
+          using \<open>(pF@[tM]) = pMin @ pMin'\<close>
+          by (metis butlast_append butlast_snoc) 
+        then have "io = (p_io pMin) @ (p_io pMin'') @ [?xyF]"
+          using \<open>io = ?ioF @ [?xyF]\<close> \<open>p_io pF = ?ioF\<close>
+          by (metis (no_types, lifting) append_assoc map_append)
 
 
+        then show ?thesis using that[OF \<open>(pMin,dMin) \<in> m_traversal_paths_with_witness M q RepSets m\<close>, of "(p_io pMin'') @ [?xyF]"] by auto
+      qed
+    qed
+  qed
 
-      show ?thesis using that[OF \<open>(pMin,dMin) \<in> m_traversal_paths_with_witness M q RepSets m\<close>] sorry
-    qed    
 
-    
-
-    thm pass2[OF \<open>(q,P) \<in> prs\<close> \<open>path P (initial P) p\<close> \<open>target (initial P) p = q\<close> ]
-
-end (*
-
-    obtain pPF where "path
-    
-              
-  thm pass2[OF \<open>(q,P) \<in> prs\<close> \<open>path P (initial P) p\<close> \<open>target (initial P) p = q\<close> ]
+  
 
 
 end
