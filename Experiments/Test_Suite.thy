@@ -923,9 +923,73 @@ proof (rule ccontr)
       then show ?thesis
         using \<open>(p_io p) @ io \<notin> L M\<close> by simp
     next
-      case (Some a)
+      case (Some d)
+
       (* get the shortest prefix of pF that still has a RepSet witness *)
-      then show ?thesis sorry
+
+      let ?ps = "{ p1 . \<exists> p2 . (pF@[tM]) = p1 @ p2 \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p1)) RepSets \<noteq> None}"
+
+      have "finite ?ps"
+      proof -
+        have "?ps \<subseteq> set (prefixes (pF@[tM]))"
+          unfolding prefixes_set by force
+        moreover have "finite (set (prefixes (pF@[tM])))"
+          by simp
+        ultimately show ?thesis
+          by (simp add: finite_subset) 
+      qed
+      moreover have "?ps \<noteq> {}"
+      proof -
+        have "pF @ [tM] = (pF @ [tM]) @ [] \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (pF @ [tM]))) RepSets \<noteq> None"
+          using Some by auto
+        then have "(pF@[tM]) \<in> ?ps"
+          by blast
+        then show ?thesis by blast
+      qed
+      ultimately obtain pMin where "pMin \<in> ?ps" and "\<And> p' . p' \<in> ?ps \<Longrightarrow> length pMin \<le> length p'"
+        by (meson leI min_length_elem) 
+
+
+
+
+      obtain pMin' dMin where "(pF@[tM]) = pMin @ pMin'" and "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) pMin)) RepSets = Some dMin"
+        using \<open>pMin \<in> ?ps\<close> by blast
+      then have "path M q pMin"
+        using \<open>path M q (pF@[tM])\<close> by auto
+
+      moreover have "(\<forall>p' p''. pMin = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None)"
+      proof -
+        have "\<And> p' p''. pMin = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
+        proof -
+          fix p' p'' assume "pMin = p' @ p''" and "p'' \<noteq> []"
+          show "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
+          proof (rule ccontr) 
+            assume "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets \<noteq> None"
+            then have "p' \<in> ?ps"
+              using \<open>(pF@[tM]) = pMin @ pMin'\<close> unfolding \<open>pMin = p' @ p''\<close> append.assoc by blast
+            
+            have "length p' < length pMin"
+              using \<open>pMin = p' @ p''\<close> \<open>p'' \<noteq> []\<close> by auto
+            then show "False"
+              using \<open>\<And> p' . p' \<in> ?ps \<Longrightarrow> length pMin \<le> length p'\<close>[OF \<open>p' \<in> ?ps\<close>] by simp
+          qed
+        qed
+        then show ?thesis by blast
+      qed
+      
+      ultimately have "(pMin,dMin) \<in> m_traversal_paths_with_witness M q RepSets m"
+        using \<open>find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) pMin)) RepSets = Some dMin\<close>
+              m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m]
+        by blast
+  
+
+
+
+end (*
+
+
+
+      show ?thesis using that[OF \<open>(pMin,dMin) \<in> m_traversal_paths_with_witness M q RepSets m\<close>] sorry
     qed    
 
     
