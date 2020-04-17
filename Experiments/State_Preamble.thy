@@ -741,8 +741,8 @@ subsection \<open>Minimal Sequences to Failures extending Preambles\<close>
 
 
 
-definition sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<Rightarrow> ('a,'b,'c) fsm option) \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
-  "sequence_to_failure_extending_preamble M M' PS io = (\<exists> q \<in> nodes M . \<exists> P p . PS q = Some P
+definition sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
+  "sequence_to_failure_extending_preamble M M' PS io = (\<exists> q \<in> nodes M . \<exists> P p . (q,P) \<in> PS
                                                                                   \<and> path P (initial P) p 
                                                                                   \<and> target (initial P) p = q
                                                                                   \<and> ((p_io p) @ butlast io) \<in> L M   
@@ -750,7 +750,7 @@ definition sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarro
                                                                                   \<and> ((p_io p) @ io) \<in> L M')"
 
 lemma sequence_to_failure_extending_preamble_ex :
-  assumes "PS (initial M) = Some (initial_preamble M)" (is "PS (initial M) = Some ?P")
+  assumes "(initial M, (initial_preamble M)) \<in> PS" (is "(initial M,?P) \<in> PS")
   and     "\<not> L M' \<subseteq> L M"
 obtains io where "sequence_to_failure_extending_preamble M M' PS io"
 proof -
@@ -786,7 +786,7 @@ proof -
   
 
   have "initial M \<in> nodes M" by auto
-  moreover have "PS (initial M) = Some ?P" using assms by auto
+  moreover note \<open>(initial M, (initial_preamble M)) \<in> PS\<close>
   moreover have "path ?P (initial ?P) []" by force
   moreover have "((p_io []) @ butlast ?io) \<in> L M" using \<open>take j io \<in> L M\<close>  unfolding List.list.map(1) append_Nil 
     by (metis Diff_iff One_nat_def \<open>io \<in> LS M' (initial M') - LS M (initial M)\<close> butlast_take diff_Suc_Suc minus_nat.diff_0 not_less_eq_eq take_all)
@@ -801,12 +801,12 @@ qed
   
 
 
-definition minimal_sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<Rightarrow> ('a,'b,'c) fsm option) \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
+definition minimal_sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
   "minimal_sequence_to_failure_extending_preamble M M' PS io = ((sequence_to_failure_extending_preamble M M' PS io)
                                                                 \<and> (\<forall> io' . sequence_to_failure_extending_preamble M M' PS io' \<longrightarrow> length io \<le> length io'))"
 
 lemma minimal_sequence_to_failure_extending_preamble_ex :
-  assumes "PS (initial M) = Some (initial_preamble M)" (is "PS (initial M) = Some ?P")
+  assumes "(initial M, (initial_preamble M)) \<in> PS" (is "(initial M,?P) \<in> PS")
   and     "\<not> L M' \<subseteq> L M"
 obtains io where "minimal_sequence_to_failure_extending_preamble M M' PS io"
 proof -
@@ -815,7 +815,7 @@ proof -
 
 
   have "?ios \<noteq> {}"
-    using sequence_to_failure_extending_preamble_ex[of PS M M', OF assms] by blast
+    using sequence_to_failure_extending_preamble_ex[OF assms] by blast
   then have "?io_min \<in> ?ios \<and> (\<forall> io' \<in> ?ios . length ?io_min \<le> length io')"
     by (meson arg_min_nat_lemma some_in_eq)
   then show ?thesis
