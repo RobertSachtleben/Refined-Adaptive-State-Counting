@@ -905,7 +905,27 @@ proof -
   qed
 qed
       
-  
+
+
+(* TODO: move *)
+lemma language_io_target_append :
+  assumes "q' \<in> io_targets M io1 q"
+  and     "io2 \<in> LS M q'"
+shows "(io1@io2) \<in> LS M q"
+proof - 
+  obtain p2 where "path M q' p2" and "p_io p2 = io2"
+    using assms(2) by auto
+
+  moreover obtain p1 where "q' = target q p1" and "path M q p1" and "p_io p1 = io1"
+    using assms(1) by auto
+
+  ultimately show ?thesis unfolding LS.simps
+    by (metis (mono_tags, lifting) map_append mem_Collect_eq path_append) 
+qed
+
+
+
+
   
 
 lemma x :
@@ -918,36 +938,137 @@ lemma x :
   and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'"
   and     "observable M"
   and     "path M q p"
-  and     "p_io p = io"
+  and     "p_io p = butlast io"
   and     "observable M'"
-  and     "q' \<in> io_targets M' (initial M') (p_io pP)"
+  and     "q' \<in> io_targets M' (p_io pP) (initial M')"
   and     "path M' q' p'"
   and     "p_io p' = io"
   and     "i < j" 
-  and     "j < length io"
+  and     "j < length (butlast io)"
+  and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"
 shows "t_target (p ! i) \<noteq> t_target (p ! j) \<or> t_target (p' ! i) \<noteq> t_target (p' ! j)"
 proof (rule ccontr)
   assume "\<not> (t_target (p ! i) \<noteq> t_target (p ! j) \<or> t_target (p' ! i) \<noteq> t_target (p' ! j))"
+
+  (* cut the loop and create a shorter path with the same target as p (p') *)
+
   then have "t_target (p ! i) = t_target (p ! j)"
        and  "t_target (p' ! i) = t_target (p' ! j)"
     by blast+
 
+  have "io \<noteq> []"
+    using \<open>((p_io pP) @ butlast io) \<in> L M\<close> \<open>((p_io pP) @ io) \<notin> L M\<close> by auto
+  then have "length p' > 0"
+    using \<open>p_io p' = io\<close> by auto
+  then have "p' = (butlast p')@[last p']"
+    by auto
+  then have "path M' q' ((butlast p')@[last p'])"
+    using \<open>path M' q' p'\<close> by simp
+  then have "path M' q' (butlast p')" and "(last p') \<in> transitions M'" and "t_source (last p') = target q' (butlast p')"
+    by auto
+    
+
+  have "p_io (butlast p') = butlast io"
+    using \<open>p' = (butlast p')@[last p']\<close> \<open>p_io p' = io\<close>
+    using map_butlast by auto 
+
+
+
   let ?p = "((take (Suc i) p) @ (drop (Suc j) p))"
-  let ?p' = "((take (Suc i) p') @ (drop (Suc j) p'))"
+  let ?p' = "((take (Suc i) (butlast p')) @ (drop (Suc j) (butlast p')))"
 
   have "j < length p"
-    using \<open>j < length io\<close> \<open>p_io p = io\<close> by auto
-  have "j < length p'"
-    using \<open>j < length io\<close> \<open>p_io p' = io\<close> by auto
+    using \<open>j < length (butlast io)\<close> \<open>p_io p = butlast io\<close>
+    by (metis (no_types, lifting) length_map) 
+  have "j < length (butlast p')"
+    using \<open>j < length (butlast io)\<close> \<open>p_io p' = io\<close> \<open>p' = (butlast p')@[last p']\<close>
+    by auto
+  then have "t_target ((butlast p') ! i) = t_target ((butlast p') ! j)"
+    using \<open>t_target (p' ! i) = t_target (p' ! j)\<close> 
+    by (simp add: \<open>i < j\<close> dual_order.strict_trans nth_butlast) 
 
   have "path M q ?p" and "target q ?p = target q p" and "length ?p < length p"
     using path_loop_cut[OF \<open>path M q p\<close> \<open>t_target (p ! i) = t_target (p ! j)\<close> \<open>i < j\<close> \<open>j < length p\<close>]
     by blast+
 
-  have "path M' q' ?p'" and "target q' ?p' = target q' p'" and "length ?p' < length p'"
-    using path_loop_cut[OF \<open>path M' q' p'\<close> \<open>t_target (p' ! i) = t_target (p' ! j)\<close> \<open>i < j\<close> \<open>j < length p'\<close>]
+  have "path M' q' ?p'" and "target q' ?p' = target q' (butlast p')" and "length ?p' < length (butlast p')"
+    using path_loop_cut[OF \<open>path M' q' (butlast p')\<close> \<open>t_target ((butlast p') ! i) = t_target ((butlast p') ! j)\<close> \<open>i < j\<close> \<open>j < length (butlast p')\<close>]
     by blast+
+  
+  have "path M' q' (?p'@[last p'])"
+    using \<open>t_source (last p') = target q' (butlast p')\<close> 
+    using path_append_transition[OF \<open>path M' q' ?p'\<close> \<open>(last p') \<in> transitions M'\<close>]
+    unfolding \<open>target q' ?p' = target q' (butlast p')\<close> by simp
 
+
+  have "p_io ?p' = p_io ?p"
+    using \<open>p_io p = butlast io\<close> \<open>p_io (butlast p') = butlast io\<close>
+    by (metis (no_types, lifting) drop_map map_append take_map)
+
+  have min_prop: "length (p_io (?p'@[last p'])) < length io"
+    using \<open>length ?p' < length (butlast p')\<close> \<open>p_io p' = io\<close> 
+    unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))"]
+    by auto
+
+
+
+
+  (* show that the shorter path would constitute a shorter seq to a failure, contradicting
+     the minimality assumption on io *)
+
+  have "is_preamble P M q"
+    using \<open>(q,P) \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
+  then have "q \<in> nodes M"
+    unfolding is_preamble_def
+    by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
+
+  have "initial P = initial M"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
+  have "path M (initial M) pP"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def using submachine_path_initial
+    using \<open>path P (FSM.initial P) pP\<close> by blast
+  have "target (initial M) pP = q"
+    using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+  have "q \<in> io_targets M (p_io pP) (initial M)"
+    using \<open>path M (initial M) pP\<close> \<open>target (initial M) pP = q\<close> unfolding io_targets.simps
+    by blast 
+
+  have "((p_io pP) @ (p_io ?p)) \<in> L M"
+    using language_io_target_append[OF \<open>q \<in> io_targets M (p_io pP) (initial M)\<close>, of "p_io ?p"]
+          \<open>path M q ?p\<close>
+    unfolding LS.simps by blast
+  then have p1: "((p_io pP) @ butlast (p_io (?p' @ [last p']))) \<in> L M"
+    unfolding \<open>p_io ?p' = p_io ?p\<close>[symmetric]
+    by (metis (no_types, lifting) butlast_snoc map_butlast) 
+
+  
+  have p2: "((p_io pP) @ (p_io (?p' @ [last p']))) \<notin> L M"
+  (* TODO: show contradiction: if this is in L M, then io is in L M due to observability *)
+
+end (*
+
+
+  have p3: "((p_io pP) @ (p_io (?p' @ [last p']))) \<in> L M'"
+    using language_io_target_append[OF \<open>q' \<in> io_targets M' (p_io pP) (initial M')\<close>, of "(p_io (?p' @ [last p']))"]
+    using \<open>path M' q' (?p'@[last p'])\<close> 
+    unfolding LS.simps
+    by (metis (mono_tags, lifting) mem_Collect_eq) 
+
+  
+  have "sequence_to_failure_extending_preamble M M' PS (p_io (?p' @ [last p']))"
+    unfolding sequence_to_failure_extending_preamble_def
+    using \<open>q \<in> nodes M\<close>
+          \<open>(q,P) \<in> PS\<close>
+          \<open>path P (FSM.initial P) pP\<close>
+          \<open>target (FSM.initial P) pP = q\<close>
+          p1 p2 p3 by blast
+  
+  show "False"
+    using \<open>\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'\<close>[OF \<open>sequence_to_failure_extending_preamble M M' PS (p_io (?p' @ [last p']))\<close>]
+          min_prop
+    by simp
+qed
 
 end (*
 
