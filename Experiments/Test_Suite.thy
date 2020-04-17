@@ -670,6 +670,25 @@ qed
 
 
 
+lemma observable_path_suffix :
+  assumes "(p_io p)@io \<in> LS M q"
+  and     "path M q p"
+  and     "observable M"
+obtains p' where "path M (target q p) p'" and "p_io p' = io"
+proof -
+  obtain p1 p2 where "path M q p1" and "path M (target q p1) p2"  and "p_io p1 = p_io p" and "p_io p2 = io"
+    using language_state_split[OF assms(1)] by blast
+
+  have "p1 = p"
+    using observable_path_unique[OF assms(3,2) \<open>path M q p1\<close> \<open>p_io p1 = p_io p\<close>[symmetric]]
+    by simp
+
+  show ?thesis using that[of p2] \<open>path M (target q p1) p2\<close> \<open>p_io p2 = io\<close> unfolding \<open>p1 = p\<close>
+    by blast
+qed
+
+
+
 
 
 
@@ -680,9 +699,13 @@ lemma passes_test_suite_exhaustiveness :
   and     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
   and     "observable M'"
   and     "inputs M' = inputs M"
+  and     "inputs M \<noteq> {}"
 shows     "L M' \<subseteq> L M"
 proof (rule ccontr)
   assume "\<not> L M' \<subseteq> L M"
+
+
+  (* sufficiency properties *)
 
 
   have t1: "(initial M, initial_preamble M) \<in> prs" 
@@ -748,6 +771,24 @@ proof (rule ccontr)
   
 
 
+  (* pass properties *)
+
+  have pass1: "\<And> q P io x y y' . (q,P) \<in> prs \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P" 
+    using \<open>passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'\<close>
+    unfolding passes_test_suite.simps
+    by meson 
+
+  have pass2: "\<And> q P pP ioT pT x y y' . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> ioT@[(x,y)] \<in> set (prefixes (p_io pT)) \<Longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<Longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> ioT@[(x,y')] \<in> set (prefixes (p_io pT')))"
+    using \<open>passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'\<close>
+    unfolding passes_test_suite.simps by blast
+
+  have pass3: "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<Longrightarrow> q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"  
+    using \<open>passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'\<close>
+    unfolding passes_test_suite.simps by blast
+
+
+  (* seq to failure *)
+
 
   obtain io where "minimal_sequence_to_failure_extending_preamble M M' prs io"
     using minimal_sequence_to_failure_extending_preamble_ex[OF t1 \<open>\<not> L M' \<subseteq> L M\<close>] by blast
@@ -761,15 +802,142 @@ proof (rule ccontr)
                  and "(q,P) \<in> prs"
                  and "path P (initial P) p"
                  and "target (initial P) p = q"
-                 and "((p_io p) @ butlast io) \<in> L M  " 
+                 and "((p_io p) @ butlast io) \<in> L M" 
                  and "((p_io p) @ io) \<notin> L M"
                  and "((p_io p) @ io) \<in> L M'"
     using \<open>sequence_to_failure_extending_preamble M M' prs io\<close>
     unfolding sequence_to_failure_extending_preamble_def 
     by blast
 
-              
+  let ?xF = "fst (last io)"
+  let ?yF = "snd (last io)"
+  let ?xyF = "(?xF,?yF)"
+  let ?ioF = "butlast io"
+  have "io \<noteq> []"
+    using \<open>((p_io p) @ io) \<notin> L M\<close> \<open>((p_io p) @ butlast io) \<in> L M\<close> by auto
+  then have "io = ?ioF@[?xyF]"
+    by auto
 
+  have "?xF \<in> inputs M'"
+    using language_io(1)[OF \<open>((p_io p) @ io) \<in> L M'\<close>, of ?xF ?yF] \<open>io \<noteq> []\<close> by auto 
+  then have "?xF \<in> inputs M"
+    using assms(6) by simp
+
+  have "q \<in> fst ` prs"
+    using \<open>(q,P) \<in> prs\<close> by force
+  have "is_preamble P M q"
+    using \<open>(q,P) \<in> prs\<close> \<open>\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}\<close> by blast
+  then have "q \<in> nodes M"
+    unfolding is_preamble_def
+    by (metis \<open>path P (FSM.initial P) p\<close> \<open>target (FSM.initial P) p = q\<close> path_target_is_node submachine_path) 
+
+  have "initial P = initial M"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
+  have "path M (initial M) p"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def using submachine_path_initial
+    using \<open>path P (FSM.initial P) p\<close> by blast
+  have "target (initial M) p = q"
+    using \<open>target (initial P) p = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+
+  (* io must be a proper extension of some m-traversal path, as all m-traversal paths pass *)
+  obtain pM dM ioEx where "(pM,dM) \<in> m_traversal_paths_with_witness M q RepSets m"
+                    and   "io = (p_io pM)@ioEx"
+                    and   "ioEx \<noteq> []"
+  proof -
+    
+    obtain pF where "path M q pF" and "p_io pF = ?ioF"
+      using observable_path_suffix[OF \<open>((p_io p) @ ?ioF) \<in> L M\<close> \<open>path M (initial M) p\<close> \<open>observable M\<close> ]
+      unfolding \<open>target (initial M) p = q\<close>
+      by blast
+
+    obtain tM where "tM \<in> transitions M" and "t_source tM = target q pF" and "t_input tM = ?xF"
+      using \<open>?xF \<in> inputs M\<close> path_target_is_node[OF \<open>path M q pF\<close>]
+            \<open>completely_specified M\<close>
+      unfolding completely_specified.simps
+      by blast
+
+    then have "path M q (pF@[tM])"
+      using \<open>path M q pF\<close> path_append_transition by simp
+
+
+
+
+    show ?thesis proof (cases "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (pF@[tM]))) RepSets")
+      case None
+
+      (* if no RepSets witness exists for (pF@[tM]), then it is a proper prefix of some m-traversal path and hence also in L M, providing a contradiction*)
+
+      obtain pF' d' where "((pF@[tM]) @ pF', d') \<in> m_traversal_paths_with_witness M q RepSets m"
+        using m_traversal_path_extension_exist[OF \<open>completely_specified M\<close> \<open>q \<in> nodes M\<close> \<open>inputs M \<noteq> {}\<close> t5 t8 \<open>path M q (pF@[tM])\<close> None]
+        by blast
+
+      then have "(pF@[tM]) @ pF' \<in> tps q"
+        using t6[OF \<open>q \<in> fst ` prs\<close>] by force
+
+
+      
+      have "(p_io pF) @ [(?xF,t_output tM)] \<in> set (prefixes (p_io ((pF@[tM])@pF')))"
+        using \<open>t_input tM = ?xF\<close>
+        unfolding prefixes_set by auto
+
+      have "p_io p @ p_io pF @ [?xyF] \<in> L M'"
+        using \<open>((p_io p) @ io) \<in> L M'\<close> unfolding \<open>p_io pF = ?ioF\<close> \<open>io = ?ioF@[?xyF]\<close>[symmetric] by assumption
+
+      obtain pT' where "pT' \<in> tps q" 
+                 and   "p_io pF @ [(fst (last io), snd (last io))] \<in> set (prefixes (p_io pT'))"
+        using pass2[OF \<open>(q,P) \<in> prs\<close> \<open>path P (initial P) p\<close> \<open>target (initial P) p = q\<close> \<open>(pF@[tM]) @ pF' \<in> tps q\<close> \<open>(p_io pF) @ [(?xF,t_output tM)] \<in> set (prefixes (p_io ((pF@[tM])@pF')))\<close> \<open>p_io p @ p_io pF @ [?xyF] \<in> L M'\<close>]
+        by blast
+
+      have "path M q pT'"
+      proof -
+        obtain pT'' d'' where "(pT'@pT'', d'') \<in> m_traversal_paths_with_witness M q RepSets m"
+          using \<open>pT' \<in> tps q\<close> t6[OF \<open>q \<in> fst ` prs\<close>] by blast
+        then have "path M q (pT'@pT'')"
+          using m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>] 
+          by force
+        then show ?thesis by auto
+      qed
+      then have "path M (initial M) (p@pT')"
+        using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q\<close> by auto
+      then have "(p_io (p@pT')) \<in> L M"
+        unfolding LS.simps by blast
+      then have "(p_io p)@(p_io pT') \<in> L M"
+        by auto
+      
+
+
+      have "io \<in> set (prefixes (p_io pT'))"
+        using \<open>p_io pF @ [(fst (last io), snd (last io))] \<in> set (prefixes (p_io pT'))\<close>
+        unfolding \<open>p_io pF = ?ioF\<close> \<open>io = ?ioF@[?xyF]\<close>[symmetric] by assumption
+      then obtain io' where "p_io pT' = io @ io'"
+        unfolding prefixes_set by moura
+      
+      have " p_io p @ io \<in> L M"
+        using \<open>(p_io p)@(p_io pT') \<in> L M\<close> 
+        unfolding \<open>p_io pT' = io @ io'\<close>
+        unfolding append.assoc[symmetric]
+        using language_prefix[of "p_io p @ io" io', of M "initial M"] 
+        by blast
+      
+      then show ?thesis
+        using \<open>(p_io p) @ io \<notin> L M\<close> by simp
+    next
+      case (Some a)
+      (* get the shortest prefix of pF that still has a RepSet witness *)
+      then show ?thesis sorry
+    qed    
+
+    
+
+    thm pass2[OF \<open>(q,P) \<in> prs\<close> \<open>path P (initial P) p\<close> \<open>target (initial P) p = q\<close> ]
+
+end (*
+
+    obtain pPF where "path
+    
+              
+  thm pass2[OF \<open>(q,P) \<in> prs\<close> \<open>path P (initial P) p\<close> \<open>target (initial P) p = q\<close> ]
 
 
 end
