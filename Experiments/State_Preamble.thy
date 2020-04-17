@@ -740,6 +740,12 @@ qed
 subsection \<open>Minimal Sequences to Failures extending Preambles\<close>
 
 
+(* TODO: rework and add property concerning the absence of repetitions (by prefix or preamble-cover) for minimal seqs 
+  \<longrightarrow> use pass1: \<And> q P io x y y' . (q,P) \<in> prs \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P 
+*)
+
+
+
 
 definition sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
   "sequence_to_failure_extending_preamble M M' PS io = (\<exists> q \<in> nodes M . \<exists> P p . (q,P) \<in> PS
@@ -822,7 +828,168 @@ proof -
     unfolding minimal_sequence_to_failure_extending_preamble_def 
     by (simp add: minimal_sequence_to_failure_extending_preamble_def that)
 qed
+
+
+
+
+(* TODO: move *)
+lemma path_loop_cut :
+  assumes "path M q p"
+  and     "t_target (p ! i) = t_target (p ! j)"
+  and     "i < j"
+  and     "j < length p"
+shows "path M q ((take (Suc i) p) @ (drop (Suc j) p))"
+and   "target q ((take (Suc i) p) @ (drop (Suc j) p)) = target q p"
+and   "length ((take (Suc i) p) @ (drop (Suc j) p)) < length p"
+proof -
     
+  have "p = (take (Suc j) p) @ (drop (Suc j) p)"
+    by auto
+  also have "\<dots> = ((take (Suc i) (take (Suc j) p)) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p)"
+    by (metis append_take_drop_id)
+  also have "\<dots> = ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p)"
+    using \<open>i < j\<close> by (simp add: min.strict_order_iff) 
+  finally have "p = (take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p)"
+    by simp
+
+  then have "path M q ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p))"
+       and  "path M q (((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p))"
+    using \<open>path M q p\<close> by auto
+
+  have "path M q (take (Suc i) p)" and "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p) @ drop (Suc j) p)"
+    using path_append_elim[OF \<open>path M q ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p))\<close>] 
+    by blast+
+
+  
+  have *: "(take (Suc i) p @ drop (Suc i) (take (Suc j) p)) = (take (Suc j) p)"
+      using \<open>i < j\<close> append_take_drop_id
+      by (metis \<open>(take (Suc i) (take (Suc j) p) @ drop (Suc i) (take (Suc j) p)) @ drop (Suc j) p = (take (Suc i) p @ drop (Suc i) (take (Suc j) p)) @ drop (Suc j) p\<close> append_same_eq)
+
+  have "path M q (take (Suc j) p)" and "path M (target q (take (Suc j) p)) (drop (Suc j) p)"
+    using path_append_elim[OF \<open>path M q (((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p))\<close>] 
+    unfolding *
+    by blast+
+
+  have **: "(target q (take (Suc j) p)) = (target q (take (Suc i) p))"
+  proof -
+    have "p ! i = last (take (Suc i) p)"
+      by (metis Suc_lessD assms(3) assms(4) less_trans_Suc take_last_index)
+    moreover have "p ! j = last (take (Suc j) p)"
+      by (simp add: assms(4) take_last_index)
+    ultimately show ?thesis
+      using assms(2) unfolding * target.simps visited_nodes.simps
+      by (simp add: last_map) 
+  qed
+
+  show "path M q ((take (Suc i) p) @ (drop (Suc j) p))"
+    using \<open>path M q (take (Suc i) p)\<close> \<open>path M (target q (take (Suc j) p)) (drop (Suc j) p)\<close> unfolding ** by auto
+
+  show "target q ((take (Suc i) p) @ (drop (Suc j) p)) = target q p"
+    by (metis "**" append_take_drop_id path_append_target)
+    
+  show "length ((take (Suc i) p) @ (drop (Suc j) p)) < length p"
+  proof -
+    have ***: "length p = length ((take (Suc j) p) @ (drop (Suc j) p))"
+      by auto
+
+    have "length (take (Suc i) p) < length (take (Suc j) p)"
+      using assms(3,4)
+      by (simp add: min_absorb2) 
+
+    have scheme: "\<And> a b c . length a < length b \<Longrightarrow> length (a@c) < length (b@c)"
+      by auto
+    
+    show ?thesis 
+      unfolding *** using scheme[OF \<open>length (take (Suc i) p) < length (take (Suc j) p)\<close>, of "(drop (Suc j) p)"]
+      by assumption
+  qed
+qed
+      
+  
+  
+
+lemma x :
+  assumes "(q,P) \<in> PS"
+  and     "path P (initial P) pP"
+  and     "target (initial P) pP = q"
+  and     "((p_io pP) @ butlast io) \<in> L M" 
+  and     "((p_io pP) @ io) \<notin> L M"
+  and     "((p_io pP) @ io) \<in> L M'"
+  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'"
+  and     "observable M"
+  and     "path M q p"
+  and     "p_io p = io"
+  and     "observable M'"
+  and     "q' \<in> io_targets M' (initial M') (p_io pP)"
+  and     "path M' q' p'"
+  and     "p_io p' = io"
+  and     "i < j" 
+  and     "j < length io"
+shows "t_target (p ! i) \<noteq> t_target (p ! j) \<or> t_target (p' ! i) \<noteq> t_target (p' ! j)"
+proof (rule ccontr)
+  assume "\<not> (t_target (p ! i) \<noteq> t_target (p ! j) \<or> t_target (p' ! i) \<noteq> t_target (p' ! j))"
+  then have "t_target (p ! i) = t_target (p ! j)"
+       and  "t_target (p' ! i) = t_target (p' ! j)"
+    by blast+
+
+  let ?p = "((take (Suc i) p) @ (drop (Suc j) p))"
+  let ?p' = "((take (Suc i) p') @ (drop (Suc j) p'))"
+
+  have "j < length p"
+    using \<open>j < length io\<close> \<open>p_io p = io\<close> by auto
+  have "j < length p'"
+    using \<open>j < length io\<close> \<open>p_io p' = io\<close> by auto
+
+  have "path M q ?p" and "target q ?p = target q p" and "length ?p < length p"
+    using path_loop_cut[OF \<open>path M q p\<close> \<open>t_target (p ! i) = t_target (p ! j)\<close> \<open>i < j\<close> \<open>j < length p\<close>]
+    by blast+
+
+  have "path M' q' ?p'" and "target q' ?p' = target q' p'" and "length ?p' < length p'"
+    using path_loop_cut[OF \<open>path M' q' p'\<close> \<open>t_target (p' ! i) = t_target (p' ! j)\<close> \<open>i < j\<close> \<open>j < length p'\<close>]
+    by blast+
+
+
+end (*
+
+lemma x :
+  assumes "(q,P) \<in> PS"
+  and     "path P (initial P) pP"
+  and     "target (initial P) pP = q"
+  and     "((p_io pP) @ butlast io) \<in> L M" 
+  and     "((p_io pP) @ io) \<notin> L M"
+  and     "((p_io pP) @ io) \<in> L M'"
+  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'"
+  and     "observable M"
+  and     "path M q p"
+  and     "p_io p = io"
+  and     "observable M'"
+  and     "q' \<in> io_targets M' (initial M') (p_io pP)"
+  and     "path M' q' p'"
+  and     "p_io p' = io"
+shows "\<And> i j . i < j \<Longrightarrow> j < length io \<Longrightarrow> t_target (p ! i) \<noteq> t_target (p ! j) \<or> t_target (p' ! i) \<noteq> t_target (p' ! j)"
+shows "\<And> i . 0 < i \<Longrightarrow> i < length io \<Longrightarrow> \<not> (\<exists> PF .  (t_target (p ! i), PF) \<in> PS \<and> 
+
+
+lemma minimal_sequence_to_failure_extending_preamble_path_distinct :
+  assumes "q \<in> nodes M"
+  and     "(q,P) \<in> PS"
+  and     "path P (initial P) pP"
+  and     "target (initial P) pP = q"
+  and     "((p_io pP) @ butlast (p_io p)) \<in> L M" 
+  and     "((p_io pP) @ (p_io p)) \<notin> L M"
+  and     "((p_io pP) @ (p_io p)) \<in> L M'"
+  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length (p_io p) \<le> length io'"
+  and     "observable M"
+  and     "path M q p"
+shows "distinct (zip (map t_target p)"
+proof (rule ccontr) 
+  
+  assume *: "\<not> distinct (visited_nodes q p)"
+  thm cyclic_path_shortening[OF assms(10) *]
+  
+  
+  
+
     
 
 end
