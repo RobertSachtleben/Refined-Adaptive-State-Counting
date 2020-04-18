@@ -841,6 +841,8 @@ lemma path_loop_cut :
 shows "path M q ((take (Suc i) p) @ (drop (Suc j) p))"
 and   "target q ((take (Suc i) p) @ (drop (Suc j) p)) = target q p"
 and   "length ((take (Suc i) p) @ (drop (Suc j) p)) < length p"
+and   "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p))"
+and   "target (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p)) = (target q (take (Suc i) p))"
 proof -
     
   have "p = (take (Suc j) p) @ (drop (Suc j) p)"
@@ -903,6 +905,12 @@ proof -
       unfolding *** using scheme[OF \<open>length (take (Suc i) p) < length (take (Suc j) p)\<close>, of "(drop (Suc j) p)"]
       by assumption
   qed
+
+  show "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p))"
+    using \<open>path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p) @ drop (Suc j) p)\<close> by blast
+
+  show "target (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p)) = (target q (take (Suc i) p))"
+    by (metis "*" "**" path_append_target) 
 qed
       
 
@@ -924,11 +932,47 @@ proof -
 qed
 
 
+(* TODO: move *)
+
+lemma path_io_split :
+  assumes "path M q p"
+  and     "p_io p = io1@io2"
+shows "path M q (take (length io1) p)"
+and   "p_io (take (length io1) p) = io1"
+and   "path M (target q (take (length io1) p)) (drop (length io1) p)"
+and   "p_io (drop (length io1) p) = io2"
+proof -
+  have "length io1 \<le> length p"
+    using \<open>p_io p = io1@io2\<close> 
+    unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric]
+    by auto
+
+  have "p = (take (length io1) p)@(drop (length io1) p)"
+    by simp
+  then have *: "path M q ((take (length io1) p)@(drop (length io1) p))"
+    using \<open>path M q p\<close> by auto
+
+  show "path M q (take (length io1) p)"
+       and  "path M (target q (take (length io1) p)) (drop (length io1) p)"
+    using path_append_elim[OF *] by blast+
+
+  show "p_io (take (length io1) p) = io1"
+    using \<open>p = (take (length io1) p)@(drop (length io1) p)\<close> \<open>p_io p = io1@io2\<close>
+    by (metis append_eq_conv_conj take_map) 
+
+  show "p_io (drop (length io1) p) = io2"
+    using \<open>p = (take (length io1) p)@(drop (length io1) p)\<close> \<open>p_io p = io1@io2\<close>
+    by (metis append_eq_conv_conj drop_map)
+qed
+    
+  
+
+
 
 
   
 
-lemma x :
+lemma minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path :
   assumes "(q,P) \<in> PS"
   and     "path P (initial P) pP"
   and     "target (initial P) pP = q"
@@ -975,6 +1019,7 @@ proof (rule ccontr)
 
 
   let ?p = "((take (Suc i) p) @ (drop (Suc j) p))"
+  let ?pCut = "(drop (Suc i) (take (Suc j) p))" (* the loop cut out of p *)
   let ?p' = "((take (Suc i) (butlast p')) @ (drop (Suc j) (butlast p')))"
 
   have "j < length p"
@@ -987,7 +1032,7 @@ proof (rule ccontr)
     using \<open>t_target (p' ! i) = t_target (p' ! j)\<close> 
     by (simp add: \<open>i < j\<close> dual_order.strict_trans nth_butlast) 
 
-  have "path M q ?p" and "target q ?p = target q p" and "length ?p < length p"
+  have "path M q ?p" and "target q ?p = target q p" and "length ?p < length p" and "path M (target q (take (Suc i) p)) ?pCut" and "target (target q (take (Suc i) p)) ?pCut = target q (take (Suc i) p)"
     using path_loop_cut[OF \<open>path M q p\<close> \<open>t_target (p ! i) = t_target (p ! j)\<close> \<open>i < j\<close> \<open>j < length p\<close>]
     by blast+
 
@@ -1044,9 +1089,75 @@ proof (rule ccontr)
 
   
   have p2: "((p_io pP) @ (p_io (?p' @ [last p']))) \<notin> L M"
-  (* TODO: show contradiction: if this is in L M, then io is in L M due to observability *)
+  proof 
+    assume "((p_io pP) @ (p_io (?p' @ [last p']))) \<in> L M"
+    then obtain pCntr where "path M (initial M) pCntr" and "p_io pCntr = (p_io pP) @ (p_io (?p' @ [last p']))"
+      by auto
 
-end (*
+    let ?pCntr1 = "(take (length (p_io pP)) pCntr)"
+    let ?pCntr23 = "(drop (length (p_io pP)) pCntr)"
+
+    have "path M (initial M) ?pCntr1" 
+    and  "p_io ?pCntr1 = p_io pP"
+    and  "path M (target (initial M) ?pCntr1) ?pCntr23"
+    and  "p_io ?pCntr23 = p_io (?p' @ [last p'])"
+      using path_io_split[OF \<open>path M (initial M) pCntr\<close> \<open>p_io pCntr = (p_io pP) @ (p_io (?p' @ [last p']))\<close>] 
+      by blast+
+
+    let ?pCntr2 = "(take (length (p_io (take (Suc i) (butlast p') @ drop (Suc j) (butlast p')))) (drop (length (p_io pP)) pCntr))"
+    let ?pCntr3 = "(drop (length (p_io (take (Suc i) (butlast p') @ drop (Suc j) (butlast p')))) (drop (length (p_io pP)) pCntr))"
+
+    have "p_io ?pCntr23 = p_io ?p' @ p_io [last p']"
+      using \<open>p_io ?pCntr23 = p_io (?p' @ [last p'])\<close> by auto
+    have "path M (target (initial M) ?pCntr1) ?pCntr2" 
+    and  "p_io ?pCntr2 = p_io ?p'"
+    and  "path M (target (target (initial M) ?pCntr1) ?pCntr2) ?pCntr3"
+    and  "p_io ?pCntr3 = p_io [last p']"
+      using path_io_split[OF \<open>path M (target (initial M) ?pCntr1) ?pCntr23\<close> \<open>p_io ?pCntr23 = p_io ?p' @ p_io [last p']\<close>]
+      by blast+
+
+
+    have "?pCntr1 = pP"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) ?pCntr1\<close> \<open>path M (initial M) pP\<close> \<open>p_io ?pCntr1 = p_io pP\<close>]
+      by assumption
+    
+    
+    then have "(target (initial M) ?pCntr1) = q"
+      using \<open>target (initial M) pP = q\<close> by auto
+    then have "path M q ?pCntr2"
+         and  "path M (target q ?pCntr2) ?pCntr3"
+      using \<open>path M (target (initial M) ?pCntr1) ?pCntr2\<close>
+            \<open>path M (target (target (initial M) ?pCntr1) ?pCntr2) ?pCntr3\<close>
+      by auto
+
+    have "?pCntr2 = ?p"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M q ?pCntr2\<close> \<open>path M q ?p\<close> ]
+            \<open>p_io ?pCntr2 = p_io ?p'\<close>
+      unfolding \<open>p_io ?p' = p_io ?p\<close>
+      by blast
+    then have "(target q ?pCntr2) = (target q ?p)"
+      by auto
+    then have "(target q ?pCntr2) = (target q p)"
+      using \<open>target q ?p = target q p\<close> by auto
+    
+
+    have "p_io ?pCntr3 = [last io]"
+      using \<open>p_io ?pCntr3 = p_io [last p']\<close>
+      by (metis (mono_tags, lifting) \<open>io \<noteq> []\<close> assms(14) last_map list.simps(8) list.simps(9)) 
+
+    have "path M (initial M) (pP @ p @ ?pCntr3)"
+      using \<open>path M (initial M) pP\<close> \<open>target (initial M) pP = q\<close> \<open>path M q p\<close> \<open>path M (target q ?pCntr2) ?pCntr3\<close>
+      unfolding \<open>(target q ?pCntr2) = (target q p)\<close> 
+      by auto
+    moreover have "p_io (pP @ p @ ?pCntr3) = ((p_io pP) @ io)"
+      using \<open>p_io p = butlast io\<close> \<open>p_io ?pCntr3 = [last io]\<close>
+      by (simp add: \<open>io \<noteq> []\<close>) 
+    ultimately have "((p_io pP) @ io) \<in> L M"
+      by (metis (mono_tags, lifting) language_state_containment)
+    then show "False"
+      using \<open>((p_io pP) @ io) \<notin> L M\<close>
+      by simp
+  qed
 
 
   have p3: "((p_io pP) @ (p_io (?p' @ [last p']))) \<in> L M'"
