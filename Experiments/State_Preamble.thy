@@ -1180,6 +1180,51 @@ proof (rule ccontr)
     by simp
 qed
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+lemma minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles :
+  assumes "(q,P) \<in> PS"
+  and     "path P (initial P) pP"
+  and     "target (initial P) pP = q"
+  and     "((p_io pP) @ butlast io) \<in> L M" 
+  and     "((p_io pP) @ io) \<notin> L M"
+  and     "((p_io pP) @ io) \<in> L M'"
+  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'"
+  and     "observable M"
+  and     "path M q p"
+  and     "p_io p = butlast io"
+  and     "q' \<in> io_targets M' (p_io pP) (initial M')"
+  and     "path M' q' p'"
+  and     "p_io p' = io"
+  and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"  
+  and     "0 < i"
+  and     "i < length (butlast io)"
+  and     "(t_target (p ! i), P') \<in> PS"
+  and     "path P' (initial P') pP'"
+  and     "target (initial P') pP' = t_target (p ! i)"
+shows "t_target (p' ! i) \<notin> io_targets M' (p_io pP') (initial M')"
+proof 
+  assume "t_target (p' ! i) \<in> io_targets M' (p_io pP') (FSM.initial M')"
+
+  (* TODO: show that (drop (Suc i) io) after (p_io pP') is a shorter sequence to a failure *)
+
+
 end (*
 
 lemma x :
