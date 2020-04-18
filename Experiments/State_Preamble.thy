@@ -983,7 +983,6 @@ lemma minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path :
   and     "observable M"
   and     "path M q p"
   and     "p_io p = butlast io"
-  and     "observable M'"
   and     "q' \<in> io_targets M' (p_io pP) (initial M')"
   and     "path M' q' p'"
   and     "p_io p' = io"
@@ -1143,7 +1142,7 @@ proof (rule ccontr)
 
     have "p_io ?pCntr3 = [last io]"
       using \<open>p_io ?pCntr3 = p_io [last p']\<close>
-      by (metis (mono_tags, lifting) \<open>io \<noteq> []\<close> assms(14) last_map list.simps(8) list.simps(9)) 
+      by (metis (mono_tags, lifting) \<open>io \<noteq> []\<close> assms(13) last_map list.simps(8) list.simps(9)) 
 
     have "path M (initial M) (pP @ p @ ?pCntr3)"
       using \<open>path M (initial M) pP\<close> \<open>target (initial M) pP = q\<close> \<open>path M q p\<close> \<open>path M (target q ?pCntr2) ?pCntr3\<close>
