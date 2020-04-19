@@ -1384,7 +1384,7 @@ proof
   have p3: "((p_io pP') @ ?io) \<in> L M'"
   proof -
 
-    note \<open>t_target (p' ! i) \<in> io_targets M' (p_io pP') (FSM.initial M')\<close>
+    
 
     have "i < length (butlast p')"
       using \<open>i < length (butlast io)\<close> unfolding \<open>p_io p' = io\<close>[symmetric] 
@@ -1412,76 +1412,32 @@ proof
       by (metis assms(12) path_suffix) 
     then have "path M' (t_target (p' ! i)) (?p' @ [last p'])"
       unfolding \<open>(target q' (take (Suc i) (butlast p'))) = t_target (p' ! i)\<close> by assumption
-    
+    moreover have "p_io (?p' @ [last p']) = ?io"
+      by (metis (no_types, lifting) \<open>io \<noteq> []\<close> \<open>p' = butlast p' @ [last p']\<close> \<open>p_io (butlast p') = butlast io\<close> append_butlast_last_id assms(10) assms(13) drop_map map_append same_append_eq) 
+    ultimately have "?io \<in> LS M' (t_target (p' ! i))"
+      by (metis (mono_tags, lifting) language_state_containment)
+
+    show "((p_io pP') @ ?io) \<in> L M'"
+      using language_io_target_append[OF \<open>t_target (p' ! i) \<in> io_targets M' (p_io pP') (FSM.initial M')\<close> \<open>?io \<in> LS M' (t_target (p' ! i))\<close>]
+      by assumption   
+  qed
+
+  have *: "\<And> xs x . butlast (xs @ [x]) = xs" by auto
+
+  have "sequence_to_failure_extending_preamble M M' PS ?io"
+    unfolding sequence_to_failure_extending_preamble_def
+    using \<open>t_target (p ! i) \<in> nodes M\<close> assms(17,18,19) p1 p2 p3 
+    unfolding * by blast
+
+  then have "length io \<le> length ?io"
+    using \<open>\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'\<close>
+    by blast
+
+  then show "False"
+    using is_shorter
+    by simp
+qed
 
 
-end (* and "path M' (target q' )
-      using \<open>path M' q' p'\<close>
-
-end (*
-  
-  have "path M' q' (?p'@[last p'])"
-    using \<open>t_source (last p') = target q' (butlast p')\<close> 
-    using path_append_transition[OF \<open>path M' q' ?p'\<close> \<open>(last p') \<in> transitions M'\<close>]
-    unfolding \<open>target q' ?p' = target q' (butlast p')\<close> by simp
-
-    have "path M' q' (?p'@[last p'])"
-    
-
-
-
-    using language_io_target_append[OF \<open>q' \<in> io_targets M' (p_io pP) (initial M')\<close>, of "(p_io (?p' @ [last p']))"]
-
-end (*
-    using \<open>path M' q' (?p'@[last p'])\<close> 
-    unfolding LS.simps
-    by (metis (mono_tags, lifting) mem_Collect_eq)
-end (*
-  and     
-  and     "((p_io pP) @ io) \<in> L M'"
-    
-
-end (*
-
-lemma x :
-  assumes "(q,P) \<in> PS"
-  and     "path P (initial P) pP"
-  and     "target (initial P) pP = q"
-  and     "((p_io pP) @ butlast io) \<in> L M" 
-  and     "((p_io pP) @ io) \<notin> L M"
-  and     "((p_io pP) @ io) \<in> L M'"
-  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'"
-  and     "observable M"
-  and     "path M q p"
-  and     "p_io p = io"
-  and     "observable M'"
-  and     "q' \<in> io_targets M' (initial M') (p_io pP)"
-  and     "path M' q' p'"
-  and     "p_io p' = io"
-shows "\<And> i j . i < j \<Longrightarrow> j < length io \<Longrightarrow> t_target (p ! i) \<noteq> t_target (p ! j) \<or> t_target (p' ! i) \<noteq> t_target (p' ! j)"
-shows "\<And> i . 0 < i \<Longrightarrow> i < length io \<Longrightarrow> \<not> (\<exists> PF .  (t_target (p ! i), PF) \<in> PS \<and> 
-
-
-lemma minimal_sequence_to_failure_extending_preamble_path_distinct :
-  assumes "q \<in> nodes M"
-  and     "(q,P) \<in> PS"
-  and     "path P (initial P) pP"
-  and     "target (initial P) pP = q"
-  and     "((p_io pP) @ butlast (p_io p)) \<in> L M" 
-  and     "((p_io pP) @ (p_io p)) \<notin> L M"
-  and     "((p_io pP) @ (p_io p)) \<in> L M'"
-  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length (p_io p) \<le> length io'"
-  and     "observable M"
-  and     "path M q p"
-shows "distinct (zip (map t_target p)"
-proof (rule ccontr) 
-  
-  assume *: "\<not> distinct (visited_nodes q p)"
-  thm cyclic_path_shortening[OF assms(10) *]
-  
-  
-  
-
-    
 
 end
