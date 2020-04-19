@@ -1222,8 +1222,224 @@ shows "t_target (p' ! i) \<notin> io_targets M' (p_io pP') (initial M')"
 proof 
   assume "t_target (p' ! i) \<in> io_targets M' (p_io pP') (FSM.initial M')"
 
-  (* TODO: show that (drop (Suc i) io) after (p_io pP') is a shorter sequence to a failure *)
+  (* Contradiction: (drop (Suc i) io) after (p_io pP') is a shorter sequence to a failure than io *)
 
+
+  have "is_preamble P M q"
+    using \<open>(q,P) \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
+  then have "q \<in> nodes M"
+    unfolding is_preamble_def
+    by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
+
+  have "initial P = initial M"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
+  have "path M (initial M) pP"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def using submachine_path_initial
+    using \<open>path P (FSM.initial P) pP\<close> by blast
+  have "target (initial M) pP = q"
+    using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+
+  have "is_preamble P' M (t_target (p ! i))"
+    using \<open>(t_target (p ! i), P') \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
+  then have "(t_target (p ! i)) \<in> nodes M"
+    unfolding is_preamble_def
+    by (metis \<open>path P' (initial P') pP'\<close> \<open>target (initial P') pP' = t_target (p ! i)\<close> path_target_is_node submachine_path) 
+
+  have "initial P' = initial M"
+    using \<open>is_preamble P' M (t_target (p ! i))\<close> unfolding is_preamble_def by auto
+  have "path M (initial M) pP'"
+    using \<open>is_preamble P' M (t_target (p ! i))\<close> unfolding is_preamble_def using submachine_path_initial
+    using \<open>path P' (initial P') pP'\<close> by blast
+  have "target (initial M) pP' = t_target (p ! i)"
+    using \<open>target (initial P') pP' = t_target (p ! i)\<close> unfolding \<open>initial P' = initial M\<close> by simp
+
+
+
+  have "io \<noteq> []"
+    using \<open>((p_io pP) @ butlast io) \<in> L M\<close> \<open>((p_io pP) @ io) \<notin> L M\<close> by auto
+  then have "length p' > 0"
+    using \<open>p_io p' = io\<close> by auto
+  then have "p' = (butlast p')@[last p']"
+    by auto
+  then have "path M' q' ((butlast p')@[last p'])"
+    using \<open>path M' q' p'\<close> by simp
+  then have "path M' q' (butlast p')" and "(last p') \<in> transitions M'" and "t_source (last p') = target q' (butlast p')"
+    by auto
+    
+
+  have "p_io (butlast p') = butlast io"
+    using \<open>p' = (butlast p')@[last p']\<close> \<open>p_io p' = io\<close>
+    using map_butlast by auto 
+
+  have "butlast io \<noteq> []"
+    using assms(16) by fastforce
+    
+
+
+  let ?p = "(drop (Suc i) p)"
+  let ?p' = "(drop (Suc i) (butlast p'))"
+
+  have "i < length p"
+    using \<open>i < length (butlast io)\<close> unfolding \<open>p_io p = butlast io\<close>[symmetric] length_map[of "(\<lambda> t . (t_input t, t_output t))"]
+    by assumption
+  then have "p ! i = last (take (Suc i) p)"
+    by (simp add: take_last_index)
+  then have "t_target (p ! i) = target q (take (Suc i) p)"
+    unfolding target.simps visited_nodes.simps
+    by (metis (no_types, lifting) \<open>i < length p\<close> gr_implies_not0 last_ConsR length_0_conv length_map nth_map old.nat.distinct(2) take_eq_Nil take_last_index take_map) 
+
+
+  
+
+  have "p = (take (Suc i) p @ ?p)"
+    by simp
+  then have "p_io p = (p_io (take (Suc i) p)) @ (p_io ?p)"
+    by (metis map_append)
+  have "(length (p_io (take (Suc i) p))) = Suc i"
+    using \<open>i < length p\<close>
+    unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))"]
+    by auto
+
+  have "path M (t_target (p ! i)) ?p"
+    using path_io_split(3)[OF \<open>path M q p\<close> \<open>p_io p = (p_io (take (Suc i) p)) @ (p_io ?p)\<close>]
+    unfolding \<open>(length (p_io (take (Suc i) p))) = Suc i\<close> \<open>t_target (p ! i) = target q (take (Suc i) p)\<close>
+    by assumption
+  then have "path M (initial M) (pP' @ ?p)"
+    using \<open>path M (initial M) pP'\<close> \<open>target (initial M) pP' = t_target (p ! i)\<close>
+    by (simp add: path_append)
+  
+  
+  let ?io = "(p_io ?p) @ [last io]"
+  have is_shorter: "length ?io < length io"
+  proof -
+    have "p_io ?p = drop (Suc i) (butlast io)"
+      by (metis assms(10) drop_map)
+    moreover have "length (drop (Suc i) (butlast io)) < length (butlast io)"
+      using assms(16) by auto
+    ultimately have "length (p_io ?p) < length (butlast io)" 
+      by simp
+    then show ?thesis
+      by auto
+  qed
+
+    
+    
+          
+    
+  have p1: "((p_io pP') @ (p_io ?p)) \<in> L M" 
+    using \<open>path M (initial M) (pP' @ ?p)\<close>
+    by (metis (mono_tags, lifting) language_state_containment map_append) 
+
+  have p2: "((p_io pP') @ ?io) \<notin> L M"
+  proof 
+    assume "((p_io pP') @ ?io) \<in> L M"
+    then obtain pCntr where "path M (initial M) pCntr" and "p_io pCntr = (p_io pP') @ (p_io ?p) @ [last io]"
+      by auto
+
+    let ?pCntr1 = "(take (length (p_io pP')) pCntr)"
+    let ?pCntr23 = "(drop (length (p_io pP')) pCntr)"
+
+    have "path M (initial M) ?pCntr1" 
+    and  "p_io ?pCntr1 = p_io pP'"
+    and  "path M (target (initial M) ?pCntr1) ?pCntr23"
+    and  "p_io ?pCntr23 = (p_io ?p) @ [last io]"
+      using path_io_split[OF \<open>path M (initial M) pCntr\<close> \<open>p_io pCntr = (p_io pP') @ (p_io ?p) @ [last io]\<close>] 
+      by blast+
+
+
+    have "?pCntr1 = pP'"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) ?pCntr1\<close> \<open>path M (initial M) pP'\<close> \<open>p_io ?pCntr1 = p_io pP'\<close>]
+      by assumption
+    then have "(target (initial M) ?pCntr1) = (t_target (p ! i))"
+      using \<open>target (initial M) pP' = (t_target (p ! i))\<close> by auto
+    then have "path M (t_target (p ! i)) ?pCntr23"
+      using \<open>path M (target (initial M) ?pCntr1) ?pCntr23\<close>
+      by simp
+
+    have "path M q (take (Suc i) p)"
+      using \<open>path M q p\<close>
+      by (metis append_take_drop_id path_prefix) 
+    
+    then have "path M q ((take (Suc i) p) @ ?pCntr23)"
+      using \<open>path M (target (initial M) ?pCntr1) ?pCntr23\<close> 
+      unfolding \<open>(target (initial M) ?pCntr1) = (t_target (p ! i))\<close>
+      unfolding \<open>t_target (p ! i) = target q (take (Suc i) p)\<close> 
+      by auto
+    then have "path M (initial M) (pP @ ((take (Suc i) p) @ ?pCntr23))"
+      using \<open>path M (initial M) pP\<close> \<open>target (initial M) pP = q\<close>
+      by auto
+
+    moreover have "p_io (pP @ ((take (Suc i) p) @ ?pCntr23)) = p_io pP @ io"
+      using \<open>io \<noteq> []\<close> \<open>p_io (drop (length (p_io pP')) pCntr) = p_io (drop (Suc i) p) @ [last io]\<close> \<open>p_io p = p_io (take (Suc i) p) @ p_io (drop (Suc i) p)\<close> append_butlast_last_id assms(10) by fastforce
+
+    ultimately have "(p_io pP @ io) \<in> L M"
+      by (metis (mono_tags, lifting) language_state_containment)
+
+    then show "False" 
+      using \<open>(p_io pP @ io) \<notin> L M\<close>
+      by simp
+  qed
+
+  have p3: "((p_io pP') @ ?io) \<in> L M'"
+  proof -
+
+    note \<open>t_target (p' ! i) \<in> io_targets M' (p_io pP') (FSM.initial M')\<close>
+
+    have "i < length (butlast p')"
+      using \<open>i < length (butlast io)\<close> unfolding \<open>p_io p' = io\<close>[symmetric] 
+      using length_map[of "(\<lambda> t . (t_input t, t_output t))"]
+      by simp
+    then have "butlast p' ! i = last (take (Suc i) (butlast p'))"
+      by (simp add: nth_butlast take_last_index) 
+    moreover have "(take (Suc i) (butlast p')) \<noteq> []"
+      by (metis Zero_not_Suc \<open>i < length (butlast p')\<close> list.size(3) not_less0 take_eq_Nil) 
+    ultimately have "(target q' (take (Suc i) (butlast p'))) = t_target ((butlast p') ! i)"
+      unfolding target.simps visited_nodes.simps
+      by (simp add: last_map)
+    moreover have "(butlast p') ! i = p' ! i"
+      using \<open>i < length (butlast p')\<close>
+      by (simp add: nth_butlast) 
+    ultimately have "(target q' (take (Suc i) (butlast p'))) = t_target (p' ! i)"
+      by simp
+
+    
+
+
+    have "p' = (take (Suc i) (butlast p')) @ ?p' @ [last p']"
+      by (metis \<open>p' = butlast p' @ [last p']\<close> append.assoc append_take_drop_id) 
+    then have "path M' (target q' (take (Suc i) (butlast p'))) (?p' @ [last p'])"
+      by (metis assms(12) path_suffix) 
+    then have "path M' (t_target (p' ! i)) (?p' @ [last p'])"
+      unfolding \<open>(target q' (take (Suc i) (butlast p'))) = t_target (p' ! i)\<close> by assumption
+    
+
+
+end (* and "path M' (target q' )
+      using \<open>path M' q' p'\<close>
+
+end (*
+  
+  have "path M' q' (?p'@[last p'])"
+    using \<open>t_source (last p') = target q' (butlast p')\<close> 
+    using path_append_transition[OF \<open>path M' q' ?p'\<close> \<open>(last p') \<in> transitions M'\<close>]
+    unfolding \<open>target q' ?p' = target q' (butlast p')\<close> by simp
+
+    have "path M' q' (?p'@[last p'])"
+    
+
+
+
+    using language_io_target_append[OF \<open>q' \<in> io_targets M' (p_io pP) (initial M')\<close>, of "(p_io (?p' @ [last p']))"]
+
+end (*
+    using \<open>path M' q' (?p'@[last p'])\<close> 
+    unfolding LS.simps
+    by (metis (mono_tags, lifting) mem_Collect_eq)
+end (*
+  and     
+  and     "((p_io pP) @ io) \<in> L M'"
+    
 
 end (*
 
