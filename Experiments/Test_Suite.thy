@@ -709,7 +709,7 @@ qed
 
 
 lemma card_union_of_singletons :
-  assumes "\<forall> S \<in> SS . (\<exists> t . S = {t})"
+  assumes "\<And> S . S \<in> SS \<Longrightarrow> (\<exists> t . S = {t})"
 shows "card (\<Union> SS) = card SS"
 proof -
   let ?f = "\<lambda> x . {x}"
@@ -1025,9 +1025,20 @@ proof -
   
   have p1: "(\<And>S1 S2. S1 \<in> ?R \<Longrightarrow> S2 \<in> ?R \<Longrightarrow> S1 = S2 \<or> ?f S1 \<inter> ?f S2 = {})"
     using pairwise_dist_prop by blast
+  have p2: "(\<And>S. S \<in> R M (target (FSM.initial M) pP) q' p \<Longrightarrow> io_targets M' (p_io pP @ p_io S) (FSM.initial M') \<noteq> {})"
+    using singleton_prop by blast
+  have c1: "card (R M (target (FSM.initial M) pP) q' p) = card ((\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p)"
+    using card_union_of_distinct[of ?R, OF p1 \<open>finite ?R\<close> p2] by force
 
+  have p3: "(\<And>S. S \<in> (\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p \<Longrightarrow> \<exists>t. S = {t})"
+    using singleton_prop by blast
+  have c2:"card ((\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p) = card (\<Union>S\<in>R M (target (FSM.initial M) pP) q' p. io_targets M' (p_io pP @ p_io S) (FSM.initial M'))"
+    using card_union_of_singletons[of "((\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p)", OF p3] by force
 
-  thm card_union_of_distinct[of ?R, OF p1 \<open>finite ?R\<close> ]
+    
+  show ?thesis
+    unfolding c1 c2 by blast
+qed
 
 
 end (*
