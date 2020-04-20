@@ -740,25 +740,19 @@ qed
 subsection \<open>Minimal Sequences to Failures extending Preambles\<close>
 
 
-(* TODO: rework and add property concerning the absence of repetitions (by prefix or preamble-cover) for minimal seqs 
-  \<longrightarrow> use pass1: \<And> q P io x y y' . (q,P) \<in> prs \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P 
-*)
-
-
-
-
-definition sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
-  "sequence_to_failure_extending_preamble M M' PS io = (\<exists> q \<in> nodes M . \<exists> P p . (q,P) \<in> PS
-                                                                                  \<and> path P (initial P) p 
-                                                                                  \<and> target (initial P) p = q
-                                                                                  \<and> ((p_io p) @ butlast io) \<in> L M   
-                                                                                  \<and> ((p_io p) @ io) \<notin> L M
-                                                                                  \<and> ((p_io p) @ io) \<in> L M')"
+definition sequence_to_failure_extending_preamble_path :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('a\<times>'b\<times>'c\<times>'a) list \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
+  "sequence_to_failure_extending_preamble_path M M' PS p io = (\<exists> q P . q \<in> nodes M 
+                                                                        \<and> (q,P) \<in> PS
+                                                                        \<and> path P (initial P) p 
+                                                                        \<and> target (initial P) p = q
+                                                                        \<and> ((p_io p) @ butlast io) \<in> L M   
+                                                                        \<and> ((p_io p) @ io) \<notin> L M
+                                                                        \<and> ((p_io p) @ io) \<in> L M')"
 
 lemma sequence_to_failure_extending_preamble_ex :
   assumes "(initial M, (initial_preamble M)) \<in> PS" (is "(initial M,?P) \<in> PS")
   and     "\<not> L M' \<subseteq> L M"
-obtains io where "sequence_to_failure_extending_preamble M M' PS io"
+obtains p io where "sequence_to_failure_extending_preamble_path M M' PS p io"
 proof -
   obtain io where "io \<in> L M' - L M"
     using \<open>\<not> L M' \<subseteq> L M\<close> by auto
@@ -798,8 +792,8 @@ proof -
     by (metis Diff_iff One_nat_def \<open>io \<in> LS M' (initial M') - LS M (initial M)\<close> butlast_take diff_Suc_Suc minus_nat.diff_0 not_less_eq_eq take_all)
   moreover have "((p_io []) @ ?io) \<notin> L M" using \<open>take (Suc j) io \<notin> L M\<close> by auto
   moreover have "((p_io []) @ ?io) \<in> L M'" using \<open>\<And> i . take i io \<in> L M'\<close> by auto
-  ultimately have "sequence_to_failure_extending_preamble M M' PS ?io"
-    unfolding sequence_to_failure_extending_preamble_def by force
+  ultimately have "sequence_to_failure_extending_preamble_path M M' PS [] ?io"
+    unfolding sequence_to_failure_extending_preamble_path_def by force
   then show ?thesis using that by blast
 qed
   
@@ -807,26 +801,33 @@ qed
   
 
 
-definition minimal_sequence_to_failure_extending_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
-  "minimal_sequence_to_failure_extending_preamble M M' PS io = ((sequence_to_failure_extending_preamble M M' PS io)
-                                                                \<and> (\<forall> io' . sequence_to_failure_extending_preamble M M' PS io' \<longrightarrow> length io \<le> length io'))"
+definition minimal_sequence_to_failure_extending_preamble_path :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('a\<times>'b\<times>'c\<times>'a) list \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
+  "minimal_sequence_to_failure_extending_preamble_path M M' PS p io = ((sequence_to_failure_extending_preamble_path M M' PS p io)
+                                                                \<and> (\<forall> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<longrightarrow> length io \<le> length io'))"
 
 lemma minimal_sequence_to_failure_extending_preamble_ex :
   assumes "(initial M, (initial_preamble M)) \<in> PS" (is "(initial M,?P) \<in> PS")
   and     "\<not> L M' \<subseteq> L M"
-obtains io where "minimal_sequence_to_failure_extending_preamble M M' PS io"
+obtains p io where "minimal_sequence_to_failure_extending_preamble_path M M' PS p io"
 proof -
-  let ?ios = "{io . sequence_to_failure_extending_preamble M M' PS io}"
+  let ?ios = "{io . \<exists> p . sequence_to_failure_extending_preamble_path M M' PS p io}"
   let ?io_min = "arg_min length (\<lambda>io . io \<in> ?ios)"
 
 
   have "?ios \<noteq> {}"
     using sequence_to_failure_extending_preamble_ex[OF assms] by blast
-  then have "?io_min \<in> ?ios \<and> (\<forall> io' \<in> ?ios . length ?io_min \<le> length io')"
-    by (meson arg_min_nat_lemma some_in_eq)
-  then show ?thesis
-    unfolding minimal_sequence_to_failure_extending_preamble_def 
-    by (simp add: minimal_sequence_to_failure_extending_preamble_def that)
+  then have "?io_min \<in> ?ios" and "(\<forall> io' \<in> ?ios . length ?io_min \<le> length io')"
+    by (meson arg_min_nat_lemma some_in_eq)+
+
+  obtain p where "sequence_to_failure_extending_preamble_path M M' PS p ?io_min"
+    using \<open>?io_min \<in> ?ios\<close>
+    by auto
+  moreover have "(\<forall> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<longrightarrow> length ?io_min \<le> length io')"
+    using \<open>(\<forall> io' \<in> ?ios . length ?io_min \<le> length io')\<close> by blast
+  ultimately show ?thesis
+    using that[of p ?io_min]
+    unfolding minimal_sequence_to_failure_extending_preamble_path_def
+    by blast
 qed
 
 
@@ -973,15 +974,9 @@ qed
   
 
 lemma minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path :
-  assumes "(q,P) \<in> PS"
-  and     "path P (initial P) pP"
-  and     "target (initial P) pP = q"
-  and     "((p_io pP) @ butlast io) \<in> L M" 
-  and     "((p_io pP) @ io) \<notin> L M"
-  and     "((p_io pP) @ io) \<in> L M'"
-  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'"
+  assumes "minimal_sequence_to_failure_extending_preamble_path M M' PS pP io"
   and     "observable M"
-  and     "path M q p"
+  and     "path M (target (initial M) pP) p"
   and     "p_io p = butlast io"
   and     "q' \<in> io_targets M' (p_io pP) (initial M')"
   and     "path M' q' p'"
@@ -998,6 +993,42 @@ proof (rule ccontr)
   then have "t_target (p ! i) = t_target (p ! j)"
        and  "t_target (p' ! i) = t_target (p' ! j)"
     by blast+
+
+
+  have "sequence_to_failure_extending_preamble_path M M' PS pP io"
+  and  "\<And> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<Longrightarrow> length io \<le> length io'"
+    using \<open>minimal_sequence_to_failure_extending_preamble_path M M' PS pP io\<close>
+    unfolding minimal_sequence_to_failure_extending_preamble_path_def   
+    by blast+
+
+  obtain q P where "(q,P) \<in> PS"
+              and  "path P (initial P) pP"
+              and  "target (initial P) pP = q"
+              and  "((p_io pP) @ butlast io) \<in> L M" 
+              and  "((p_io pP) @ io) \<notin> L M"
+              and  "((p_io pP) @ io) \<in> L M'"
+
+    using \<open>sequence_to_failure_extending_preamble_path M M' PS pP io\<close>
+    unfolding sequence_to_failure_extending_preamble_path_def  
+    by blast
+
+  have "is_preamble P M q"
+    using \<open>(q,P) \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
+  then have "q \<in> nodes M"
+    unfolding is_preamble_def
+    by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
+
+  have "initial P = initial M"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
+  have "path M (initial M) pP"
+    using \<open>is_preamble P M q\<close> unfolding is_preamble_def using submachine_path_initial
+    using \<open>path P (FSM.initial P) pP\<close> by blast
+  have "target (initial M) pP = q"
+    using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+  then have "path M q p"
+    using \<open>path M (target (initial M) pP) p\<close> by auto
+    
 
   have "io \<noteq> []"
     using \<open>((p_io pP) @ butlast io) \<in> L M\<close> \<open>((p_io pP) @ io) \<notin> L M\<close> by auto
@@ -1060,19 +1091,7 @@ proof (rule ccontr)
   (* show that the shorter path would constitute a shorter seq to a failure, contradicting
      the minimality assumption on io *)
 
-  have "is_preamble P M q"
-    using \<open>(q,P) \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
-  then have "q \<in> nodes M"
-    unfolding is_preamble_def
-    by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
-
-  have "initial P = initial M"
-    using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
-  have "path M (initial M) pP"
-    using \<open>is_preamble P M q\<close> unfolding is_preamble_def using submachine_path_initial
-    using \<open>path P (FSM.initial P) pP\<close> by blast
-  have "target (initial M) pP = q"
-    using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+  
 
   have "q \<in> io_targets M (p_io pP) (initial M)"
     using \<open>path M (initial M) pP\<close> \<open>target (initial M) pP = q\<close> unfolding io_targets.simps
@@ -1142,7 +1161,7 @@ proof (rule ccontr)
 
     have "p_io ?pCntr3 = [last io]"
       using \<open>p_io ?pCntr3 = p_io [last p']\<close>
-      by (metis (mono_tags, lifting) \<open>io \<noteq> []\<close> assms(13) last_map list.simps(8) list.simps(9)) 
+      by (metis (mono_tags, lifting) \<open>io \<noteq> []\<close> assms(7) last_map list.simps(8) list.simps(9))
 
     have "path M (initial M) (pP @ p @ ?pCntr3)"
       using \<open>path M (initial M) pP\<close> \<open>target (initial M) pP = q\<close> \<open>path M q p\<close> \<open>path M (target q ?pCntr2) ?pCntr3\<close>
@@ -1166,8 +1185,8 @@ proof (rule ccontr)
     by (metis (mono_tags, lifting) mem_Collect_eq) 
 
   
-  have "sequence_to_failure_extending_preamble M M' PS (p_io (?p' @ [last p']))"
-    unfolding sequence_to_failure_extending_preamble_def
+  have "sequence_to_failure_extending_preamble_path M M' PS pP (p_io (?p' @ [last p']))"
+    unfolding sequence_to_failure_extending_preamble_path_def
     using \<open>q \<in> nodes M\<close>
           \<open>(q,P) \<in> PS\<close>
           \<open>path P (FSM.initial P) pP\<close>
@@ -1175,7 +1194,7 @@ proof (rule ccontr)
           p1 p2 p3 by blast
   
   show "False"
-    using \<open>\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'\<close>[OF \<open>sequence_to_failure_extending_preamble M M' PS (p_io (?p' @ [last p']))\<close>]
+    using \<open>\<And> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<Longrightarrow> length io \<le> length io'\<close>[OF \<open>sequence_to_failure_extending_preamble_path M M' PS pP (p_io (?p' @ [last p']))\<close>]
           min_prop
     by simp
 qed
@@ -1199,15 +1218,9 @@ qed
 
 
 lemma minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles :
-  assumes "(q,P) \<in> PS"
-  and     "path P (initial P) pP"
-  and     "target (initial P) pP = q"
-  and     "((p_io pP) @ butlast io) \<in> L M" 
-  and     "((p_io pP) @ io) \<notin> L M"
-  and     "((p_io pP) @ io) \<in> L M'"
-  and     "\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'"
+  assumes "minimal_sequence_to_failure_extending_preamble_path M M' PS pP io"
   and     "observable M"
-  and     "path M q p"
+  and     "path M (target (initial M) pP) p"
   and     "p_io p = butlast io"
   and     "q' \<in> io_targets M' (p_io pP) (initial M')"
   and     "path M' q' p'"
@@ -1224,6 +1237,22 @@ proof
 
   (* Contradiction: (drop (Suc i) io) after (p_io pP') is a shorter sequence to a failure than io *)
 
+  have "sequence_to_failure_extending_preamble_path M M' PS pP io"
+  and  "\<And> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<Longrightarrow> length io \<le> length io'"
+    using \<open>minimal_sequence_to_failure_extending_preamble_path M M' PS pP io\<close>
+    unfolding minimal_sequence_to_failure_extending_preamble_path_def   
+    by blast+
+
+  obtain q P where "(q,P) \<in> PS"
+              and  "path P (initial P) pP"
+              and  "target (initial P) pP = q"
+              and  "((p_io pP) @ butlast io) \<in> L M" 
+              and  "((p_io pP) @ io) \<notin> L M"
+              and  "((p_io pP) @ io) \<in> L M'"
+
+    using \<open>sequence_to_failure_extending_preamble_path M M' PS pP io\<close>
+    unfolding sequence_to_failure_extending_preamble_path_def  
+    by blast
 
   have "is_preamble P M q"
     using \<open>(q,P) \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
@@ -1238,6 +1267,12 @@ proof
     using \<open>path P (FSM.initial P) pP\<close> by blast
   have "target (initial M) pP = q"
     using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+  then have "path M q p"
+    using \<open>path M (target (initial M) pP) p\<close> by auto
+
+
+  
 
 
   have "is_preamble P' M (t_target (p ! i))"
@@ -1273,7 +1308,7 @@ proof
     using map_butlast by auto 
 
   have "butlast io \<noteq> []"
-    using assms(16) by fastforce
+    using assms(10) by fastforce
     
 
 
@@ -1314,9 +1349,9 @@ proof
   have is_shorter: "length ?io < length io"
   proof -
     have "p_io ?p = drop (Suc i) (butlast io)"
-      by (metis assms(10) drop_map)
+      by (metis assms(4) drop_map)
     moreover have "length (drop (Suc i) (butlast io)) < length (butlast io)"
-      using assms(16) by auto
+      using assms(10) by auto
     ultimately have "length (p_io ?p) < length (butlast io)" 
       by simp
     then show ?thesis
@@ -1371,7 +1406,8 @@ proof
       by auto
 
     moreover have "p_io (pP @ ((take (Suc i) p) @ ?pCntr23)) = p_io pP @ io"
-      using \<open>io \<noteq> []\<close> \<open>p_io (drop (length (p_io pP')) pCntr) = p_io (drop (Suc i) p) @ [last io]\<close> \<open>p_io p = p_io (take (Suc i) p) @ p_io (drop (Suc i) p)\<close> append_butlast_last_id assms(10) by fastforce
+      using \<open>io \<noteq> []\<close> \<open>p_io (drop (length (p_io pP')) pCntr) = p_io (drop (Suc i) p) @ [last io]\<close> \<open>p_io p = p_io (take (Suc i) p) @ p_io (drop (Suc i) p)\<close> append_butlast_last_id assms(4) 
+      by fastforce
 
     ultimately have "(p_io pP @ io) \<in> L M"
       by (metis (mono_tags, lifting) language_state_containment)
@@ -1409,11 +1445,11 @@ proof
     have "p' = (take (Suc i) (butlast p')) @ ?p' @ [last p']"
       by (metis \<open>p' = butlast p' @ [last p']\<close> append.assoc append_take_drop_id) 
     then have "path M' (target q' (take (Suc i) (butlast p'))) (?p' @ [last p'])"
-      by (metis assms(12) path_suffix) 
+      by (metis assms(6) path_suffix) 
     then have "path M' (t_target (p' ! i)) (?p' @ [last p'])"
       unfolding \<open>(target q' (take (Suc i) (butlast p'))) = t_target (p' ! i)\<close> by assumption
     moreover have "p_io (?p' @ [last p']) = ?io"
-      by (metis (no_types, lifting) \<open>io \<noteq> []\<close> \<open>p' = butlast p' @ [last p']\<close> \<open>p_io (butlast p') = butlast io\<close> append_butlast_last_id assms(10) assms(13) drop_map map_append same_append_eq) 
+      by (metis (no_types, lifting) \<open>io \<noteq> []\<close> \<open>p' = butlast p' @ [last p']\<close> \<open>p_io (butlast p') = butlast io\<close> append_butlast_last_id assms(4) assms(7) drop_map map_append same_append_eq) 
     ultimately have "?io \<in> LS M' (t_target (p' ! i))"
       by (metis (mono_tags, lifting) language_state_containment)
 
@@ -1424,13 +1460,13 @@ proof
 
   have *: "\<And> xs x . butlast (xs @ [x]) = xs" by auto
 
-  have "sequence_to_failure_extending_preamble M M' PS ?io"
-    unfolding sequence_to_failure_extending_preamble_def
-    using \<open>t_target (p ! i) \<in> nodes M\<close> assms(17,18,19) p1 p2 p3 
+  have "sequence_to_failure_extending_preamble_path M M' PS pP' ?io"
+    unfolding sequence_to_failure_extending_preamble_path_def
+    using \<open>t_target (p ! i) \<in> nodes M\<close> assms(11,12,13) p1 p2 p3 
     unfolding * by blast
 
   then have "length io \<le> length ?io"
-    using \<open>\<And> io' . sequence_to_failure_extending_preamble M M' PS io' \<Longrightarrow> length io \<le> length io'\<close>
+    using \<open>\<And> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<Longrightarrow> length io \<le> length io'\<close>
     by blast
 
   then show "False"
