@@ -1283,10 +1283,10 @@ qed
 lemma R_union_card_is_suffix_length :
   assumes "path M (initial M) pP"
   and     "path M (target (initial M) pP) p"
-shows "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q p)) = length p"
+shows "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q pP p)) = length p"
 using assms(2) proof (induction p rule: rev_induct)
   case Nil
-  have "\<And> q' . R M (target (initial M) pP) q' [] = {}"
+  have "\<And> q' . R M (target (initial M) pP) q' pP [] = {}"
     unfolding R_def by auto 
   then show ?case
     by simp 
@@ -1298,29 +1298,29 @@ next
   let ?q = "(target (initial M) pP)"
   let ?q' = "target ?q (p @ [t])"
 
-  have "\<And> q . q \<noteq> ?q' \<Longrightarrow> R M ?q q (p@[t]) = R M ?q q p"
-    using R_update[of M ?q _ p t] by force
-  then have *: "(\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q (p@[t]))) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q p))"
+  have "\<And> q . q \<noteq> ?q' \<Longrightarrow> R M ?q q pP (p@[t]) = R M ?q q pP p"
+    using R_update[of M ?q _ pP p t] by force
+  then have *: "(\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q pP (p@[t]))) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q pP p))"
     by force
 
 
 
-  have "R M ?q ?q' (p@[t]) = insert (p@[t]) (R M ?q ?q' p)"
-    using R_update[of M ?q ?q' p t] by force 
-  moreover have "(p@[t]) \<notin> (R M ?q ?q' p)"
+  have "R M ?q ?q' pP (p@[t]) = insert (pP@p@[t]) (R M ?q ?q' pP p)"
+    using R_update[of M ?q ?q' pP p t] by force 
+  moreover have "(pP@p@[t]) \<notin> (R M ?q ?q' pP p)"
     unfolding R_def by simp 
-  ultimately have **: "card (R M (target (initial M) pP) ?q' (p@[t])) = Suc (card (R M (target (initial M) pP) ?q' p))"
+  ultimately have **: "card (R M (target (initial M) pP) ?q' pP (p@[t])) = Suc (card (R M (target (initial M) pP) ?q' pP p))"
     using finite_R[OF \<open>path M (target (initial M) pP) (p@[t])\<close>] finite_R[OF \<open>path M (target (initial M) pP) p\<close>]
     by simp
 
 
   have "?q' \<in> nodes M"
     using path_target_is_node[OF \<open>path M (target (FSM.initial M) pP) (p @ [t])\<close>] by assumption
-  then have ***: "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q (p@[t]))) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q (p@[t]))) + (card (R M (target (initial M) pP) ?q' (p@[t])))"
-       and ****: "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q p)) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q p)) + (card (R M (target (initial M) pP) ?q' p))"
+  then have ***: "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q pP (p@[t]))) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q pP (p@[t]))) + (card (R M (target (initial M) pP) ?q' pP (p@[t])))"
+       and ****: "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q pP p)) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q pP p)) + (card (R M (target (initial M) pP) ?q' pP p))"
     by (metis (no_types, lifting) Diff_insert_absorb add.commute finite_Diff fsm_nodes_finite mk_disjoint_insert sum.insert)+
 
-  have "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q (p@[t]))) = Suc (\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q p))"
+  have "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q pP (p@[t]))) = Suc (\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q pP p))"
     unfolding **** *** ** * by simp
 
   then show ?case
