@@ -693,9 +693,76 @@ subsection \<open>Lower Bound\<close>
 
 subsubsection \<open>R Functions\<close>
 
+
 (* collect all proper suffixes of p that target q' if applied to q *)
 definition R :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
   "R M q q' p = {p' . p' \<noteq> [] \<and> target q p' = q' \<and> (\<exists> p'' . p = p'@p'')}" 
+
+(* add one completed path of some Preamble of q' to R if a preamble exists *)
+definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
+  "RP M q q' p PS = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q') (R M q q' p) else (R M q q' p))" 
+
+lemma RP_from_R :
+  assumes "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
+  shows "(RP M q q' p PS = R M q q' p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))"
+proof (rule ccontr)
+  assume "\<not> ((RP M q q' p PS = R M q q' p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p)))"
+  then have "(RP M q q' p PS \<noteq> R M q q' p)"
+       and  "\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))"
+    by blast+
+
+  let ?p = "(SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q')"
+
+  have "\<exists> P' .  (q',P') \<in> PS"
+    using \<open>(RP M q q' p PS \<noteq> R M q q' p)\<close> unfolding RP_def by auto
+  then obtain P' where "(q',P') \<in> PS"
+    by auto
+  then have "is_preamble P' M q'"
+    using assms by blast
+
+  then have "q' \<in> reachable_nodes P'"
+    unfolding is_preamble_def by blast
+  then obtain pP' where "path P' (initial P') pP'" and "target (initial P') pP' = q'"
+    unfolding reachable_nodes_def by blast
+
+  then have "\<exists> pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q'"
+    using \<open>(q',P') \<in> PS\<close> by blast
+  have "\<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') ?p \<and> target (initial P') ?p = q'"
+    using someI_ex[OF \<open>\<exists> pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q'\<close>] 
+    by blast
+
+  then obtain P'' where "(q',P'') \<in> PS" and "path P'' (initial P'') ?p" and "target (initial P'') ?p = q'"
+    by auto
+  then have "is_preamble P'' M q'"
+    using assms by blast
+
+  
+  have "initial P'' = initial M"
+    using \<open>is_preamble P'' M q'\<close> unfolding is_preamble_def by auto
+  have "path M (initial M) ?p"
+    using \<open>is_preamble P'' M q'\<close> unfolding is_preamble_def using submachine_path_initial
+    using \<open>path P'' (FSM.initial P'') ?p\<close> by blast
+  have "target (initial M) ?p = q'"
+    using \<open>target (initial P'') ?p = q'\<close> unfolding \<open>initial P'' = initial M\<close> by assumption
+
+  have "RP M q q' p PS = insert ?p (R M q q' p)"
+    using \<open>\<exists> P' .  (q',P') \<in> PS\<close> unfolding RP_def by auto
+
+  then have "(\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))"
+    using \<open>path M (initial M) ?p\<close> \<open>target (initial M) ?p = q'\<close> by blast
+  then show "False"
+    using \<open>\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))\<close>
+    by blast
+qed
+
+
+
+
+
+
+
+
+
 
 lemma finite_R :
   assumes "path M q p"
@@ -706,6 +773,16 @@ proof -
   then show ?thesis
     using rev_finite_subset by auto 
 qed
+
+lemma finite_RP :
+  assumes "path M q p"
+  and     "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
+shows "finite (RP M q q' p PS)"
+  using finite_R[OF assms(1), of q']
+        RP_from_R[OF assms(2), of PS q q' p]
+  by auto 
+
+
 
 
 lemma card_union_of_singletons :
