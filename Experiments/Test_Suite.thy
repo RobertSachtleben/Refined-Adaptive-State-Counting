@@ -1187,39 +1187,47 @@ qed
 
 
 
+
+
 lemma R_update :
-  "R M q q' (p@[t]) = (if (target q (p@[t]) = q')
-                          then insert (p@[t]) (R M q q' p)
-                          else (R M q q' p))"
+  "R M q q' pP (p@[t]) = (if (target q (p@[t]) = q')
+                          then insert (pP@p@[t]) (R M q q' pP p)
+                          else (R M q q' pP p))"
   (is "?R1 = ?R2")
 proof (cases "(target q (p@[t]) = q')")
   case True
-  then have *: "?R2 = insert (p@[t]) (R M q q' p)"
+  then have *: "?R2 = insert (pP@p@[t]) (R M q q' pP p)"
     by auto
   
-  have "\<And> p' . p' \<in> R M q q' (p@[t]) \<Longrightarrow> p' \<in> insert (p@[t]) (R M q q' p)"
+  have "\<And> p' . p' \<in> R M q q' pP (p@[t]) \<Longrightarrow> p' \<in> insert (pP@p@[t]) (R M q q' pP p)"
   proof -
-    fix p' assume "p' \<in> R M q q' (p@[t])"
-    then obtain p'' where "p' \<noteq> []" and "target q p' = q'" and "p @ [t] = p' @ p''"
-      unfolding R_def by blast
+    fix p' assume "p' \<in> R M q q' pP (p@[t])"
 
-    show "p' \<in> insert (p@[t]) (R M q q' p)"
-    proof (cases p'' rule: rev_cases)
+    obtain p'' where "p' = pP @ p''"
+      using R_component_ob[OF \<open>p' \<in> R M q q' pP (p@[t])\<close>] by blast
+
+    obtain p''' where "p'' \<noteq> []" and "target q p'' = q'" and "p @ [t] = p'' @ p'''"
+      using \<open>p' \<in> R M q q' pP (p@[t])\<close> unfolding R_def \<open>p' = pP @ p''\<close>
+      by auto 
+
+    show "p' \<in> insert (pP@p@[t]) (R M q q' pP p)"
+    proof (cases p''' rule: rev_cases)
       case Nil
-      then have "p' = (p@[t])" using \<open>p @ [t] = p' @ p''\<close> by auto
+      then have "p' = pP@(p@[t])" using \<open>p' = pP @ p''\<close> \<open>p @ [t] = p'' @ p'''\<close> by auto
       then show ?thesis by blast
     next
-      case (snoc p''' t')
-      then have "p = p' @ p'''" using \<open>p @ [t] = p' @ p''\<close> by auto
+      case (snoc p'''' t')
+      then have "p = p'' @ p''''" using \<open>p @ [t] = p'' @ p'''\<close> by auto
       then show ?thesis 
-        unfolding R_def using \<open>p' \<noteq> []\<close> \<open>target q p' = q'\<close> by blast
+        unfolding R_def using \<open>p'' \<noteq> []\<close> \<open>target q p'' = q'\<close>
+        by (simp add: \<open>p' = pP @ p''\<close>) 
     qed
   qed
-  moreover have "\<And> p' . p' \<in> insert (p@[t]) (R M q q' p) \<Longrightarrow> p' \<in> R M q q' (p@[t])"
+  moreover have "\<And> p' . p' \<in> insert (pP@p@[t]) (R M q q' pP p) \<Longrightarrow> p' \<in> R M q q' pP (p@[t])"
   proof -
-    fix p' assume "p' \<in> insert (p@[t]) (R M q q' p)"
-    then consider (a) "p' = (p@[t])" | (b) "p' \<in> (R M q q' p)" by blast
-    then show "p' \<in> R M q q' (p@[t])" proof cases
+    fix p' assume "p' \<in> insert (pP@p@[t]) (R M q q' pP p)"
+    then consider (a) "p' = (pP@p@[t])" | (b) "p' \<in> (R M q q' pP p)" by blast
+    then show "p' \<in> R M q q' pP (p@[t])" proof cases
       case a
       then show ?thesis using True unfolding R_def
         by simp 
@@ -1233,32 +1241,37 @@ proof (cases "(target q (p@[t]) = q')")
     unfolding * by blast
 next
   case False
-  then have *: "?R2 = (R M q q' p)"
+  then have *: "?R2 = (R M q q' pP p)"
     by auto
 
-  have "\<And> p' . p' \<in> R M q q' (p@[t]) \<Longrightarrow> p' \<in> (R M q q' p)"
+  have "\<And> p' . p' \<in> R M q q' pP (p@[t]) \<Longrightarrow> p' \<in> (R M q q' pP p)"
   proof -
-    fix p' assume "p' \<in> R M q q' (p@[t])"
-    then obtain p'' where "p' \<noteq> []" and "target q p' = q'" and "p @ [t] = p' @ p''"
-      unfolding R_def by blast
+    fix p' assume "p' \<in> R M q q' pP (p@[t])"
 
-    show "p' \<in> (R M q q' p)"
-    proof (cases p'' rule: rev_cases)
+    obtain p'' where "p' = pP @ p''"
+      using R_component_ob[OF \<open>p' \<in> R M q q' pP (p@[t])\<close>] by blast
+
+    obtain p''' where "p'' \<noteq> []" and "target q p'' = q'" and "p @ [t] = p'' @ p'''"
+      using \<open>p' \<in> R M q q' pP (p@[t])\<close> unfolding R_def \<open>p' = pP @ p''\<close> by blast
+
+    show "p' \<in> (R M q q' pP p)"
+    proof (cases p''' rule: rev_cases)
       case Nil
-      then have "p' = (p@[t])" using \<open>p @ [t] = p' @ p''\<close> by auto
-      then show ?thesis using False
-        using \<open>target q p' = q'\<close> by auto 
+      then have "p' = pP@(p@[t])" using \<open>p' = pP @ p''\<close> \<open>p @ [t] = p'' @ p'''\<close> by auto
+      then show ?thesis
+        using False \<open>p @ [t] = p'' @ p'''\<close> \<open>target q p'' = q'\<close> local.Nil by auto
     next
-      case (snoc p''' t')
-      then have "p = p' @ p'''" using \<open>p @ [t] = p' @ p''\<close> by auto
+      case (snoc p'''' t')
+      then have "p = p'' @ p''''" using \<open>p @ [t] = p'' @ p'''\<close> by auto
       then show ?thesis 
-        unfolding R_def using \<open>p' \<noteq> []\<close> \<open>target q p' = q'\<close> by blast
+        unfolding R_def using \<open>p'' \<noteq> []\<close> \<open>target q p'' = q'\<close>
+        by (simp add: \<open>p' = pP @ p''\<close>) 
     qed
   qed
-  moreover have "\<And> p' . p' \<in> (R M q q' p) \<Longrightarrow> p' \<in> R M q q' (p@[t])"
+  moreover have "\<And> p' . p' \<in> (R M q q' pP p) \<Longrightarrow> p' \<in> R M q q' pP (p@[t])"
   proof -
-    fix p' assume "p' \<in> (R M q q' p)"
-    then show "p' \<in> R M q q' (p@[t])" unfolding R_def
+    fix p' assume "p' \<in> (R M q q' pP p)"
+    then show "p' \<in> R M q q' pP (p@[t])" unfolding R_def
       using append.assoc by blast 
   qed
   ultimately show ?thesis 
