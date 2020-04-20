@@ -1030,53 +1030,56 @@ proof -
 
   (* every element in R reaches exactly one state in M' *)
 
-  have singleton_prop: "\<And> pR . pR \<in> ?R \<Longrightarrow> io_targets M' (p_io pR) (initial M') = {target ?q (take (length pR) p')}"
+  have singleton_prop': "\<And> pR . pP@pR \<in> ?R \<Longrightarrow> io_targets M' (p_io (pP@pR)) (initial M') = {target ?q (take (length pR) p')}"
   proof -
-    have *: "\<And> pR . pP@pR \<in> ?R \<Longrightarrow> io_targets M' (p_io (pP@pR)) (initial M') = {target ?q (take (length pR) p')}"
-    proof -
-      fix pR assume "pP@pR \<in> ?R"
-      then have "path M' ?q (take (length pR) p')" and "p_io (take (length pR) p') = p_io pR"
-        using \<open>\<And> pR . pP@pR \<in> ?R \<Longrightarrow> path M' ?q (take (length pR) p') \<and> p_io (take (length pR) p') = p_io pR\<close> by blast+
-  
-      have *:"path M' (initial M') (pP' @ (take (length pR) p'))"
-        using \<open>path M' (initial M') pP'\<close> \<open>path M' ?q (take (length pR) p')\<close> by auto
-      have **:"p_io (pP' @ (take (length pR) p')) = (p_io (pP@pR))"
-        using \<open>p_io pP' = p_io pP\<close> \<open>p_io (take (length pR) p') = p_io pR\<close> by auto
-      
-      have "target (initial M') (pP' @ (take (length pR) p')) = target ?q (take (length pR) p')"
-        by auto 
-      then have "target ?q (take (length pR) p') \<in> io_targets M' (p_io (pP@pR)) (initial M')"
-        unfolding io_targets.simps using * **
-        by (metis (mono_tags, lifting) mem_Collect_eq) 
-  
-      show "io_targets M' (p_io (pP@pR)) (initial M') = {target ?q (take (length pR) p')}"
-        using observable_io_targets[OF \<open>observable M'\<close> language_state_containment[OF * **]]
-        by (metis (no_types) \<open>target (target (FSM.initial M') pP') (take (length pR) p') \<in> io_targets M' (p_io (pP@pR)) (FSM.initial M')\<close> singleton_iff)
-    qed
+    fix pR assume "pP@pR \<in> ?R"
+    then have "path M' ?q (take (length pR) p')" and "p_io (take (length pR) p') = p_io pR"
+      using \<open>\<And> pR . pP@pR \<in> ?R \<Longrightarrow> path M' ?q (take (length pR) p') \<and> p_io (take (length pR) p') = p_io pR\<close> by blast+
 
+    have *:"path M' (initial M') (pP' @ (take (length pR) p'))"
+      using \<open>path M' (initial M') pP'\<close> \<open>path M' ?q (take (length pR) p')\<close> by auto
+    have **:"p_io (pP' @ (take (length pR) p')) = (p_io (pP@pR))"
+      using \<open>p_io pP' = p_io pP\<close> \<open>p_io (take (length pR) p') = p_io pR\<close> by auto
+    
+    have "target (initial M') (pP' @ (take (length pR) p')) = target ?q (take (length pR) p')"
+      by auto 
+    then have "target ?q (take (length pR) p') \<in> io_targets M' (p_io (pP@pR)) (initial M')"
+      unfolding io_targets.simps using * **
+      by (metis (mono_tags, lifting) mem_Collect_eq) 
+
+    show "io_targets M' (p_io (pP@pR)) (initial M') = {target ?q (take (length pR) p')}"
+      using observable_io_targets[OF \<open>observable M'\<close> language_state_containment[OF * **]]
+      by (metis (no_types) \<open>target (target (FSM.initial M') pP') (take (length pR) p') \<in> io_targets M' (p_io (pP@pR)) (FSM.initial M')\<close> singleton_iff)
+  qed
+
+  have singleton_prop: "\<And> pR . pR \<in> ?R \<Longrightarrow> io_targets M' (p_io pR) (initial M') = {target ?q (take (length pR - length pP) p')}"
+  proof -
     fix pR assume "pR \<in> ?R"
     then obtain pR' where "pR = pP@pR'"
       using R_component_ob[of _ M "(target (FSM.initial M) pP)" q' pP p] by blast
+    have **: "(length (pP @ pR') - length pP) = length pR'"
+      by auto
 
-    show "io_targets M' (p_io pR) (initial M') = {target ?q (take (length pR) p')}"
-      using *[of pR'] \<open>pR \<in> ?R\<close> unfolding \<open>pR = pP@pR'\<close>
+    show "io_targets M' (p_io pR) (initial M') = {target ?q (take (length pR - length pP) p')}"
+      using singleton_prop'[of pR'] \<open>pR \<in> ?R\<close> unfolding \<open>pR = pP@pR'\<close> ** by blast
+  qed
 
   (* distinct elements in R reach distinct states in M' *)
-  have pairwise_dist_prop: "\<And> pR1 pR2 . pR1 \<in> ?R \<Longrightarrow> pR2 \<in> ?R \<Longrightarrow> pR1 \<noteq> pR2 \<Longrightarrow> io_targets M' (p_io pP @ p_io pR1) (initial M') \<inter> io_targets M' (p_io pP @ p_io pR2) (initial M') = {}"
+  have pairwise_dist_prop': "\<And> pR1 pR2 . pP@pR1 \<in> ?R \<Longrightarrow> pP@pR2 \<in> ?R \<Longrightarrow> pR1 \<noteq> pR2 \<Longrightarrow> io_targets M' (p_io (pP@pR1)) (initial M') \<inter> io_targets M' (p_io (pP@pR2)) (initial M') = {}"
   proof -
     
-    have diff_prop: "\<And> pR1 pR2 . pR1 \<in> ?R \<Longrightarrow> pR2 \<in> ?R \<Longrightarrow> length pR1 < length pR2 \<Longrightarrow> io_targets M' (p_io pP @ p_io pR1) (initial M') \<inter> io_targets M' (p_io pP @ p_io pR2) (initial M') = {}"
+    have diff_prop: "\<And> pR1 pR2 . pP@pR1 \<in> ?R \<Longrightarrow> pP@pR2 \<in> ?R \<Longrightarrow> length pR1 < length pR2 \<Longrightarrow> io_targets M' (p_io (pP@pR1)) (initial M') \<inter> io_targets M' (p_io (pP@pR2)) (initial M') = {}"
     proof -
-      fix pR1 pR2 assume "pR1 \<in> ?R" and "pR2 \<in> ?R" and "length pR1 < length pR2"
+      fix pR1 pR2 assume "pP@pR1 \<in> ?R" and "pP@pR2 \<in> ?R" and "length pR1 < length pR2"
 
       let ?i = "length pR1 - 1"
       let ?j = "length pR2 - 1"
 
       have "pR1 = take (length pR1) p" and \<open>length pR1 \<le> length p\<close> and "t_target (p ! ?i) = q'"
-        using R_component[OF \<open>pR1 \<in> ?R\<close>]
+        using R_component[OF \<open>pP@pR1 \<in> ?R\<close>]
         by simp+
       have "length pR1 \<noteq> 0"
-        using \<open>pR1 \<in> ?R\<close> unfolding R_def
+        using \<open>pP@pR1 \<in> ?R\<close> unfolding R_def
         by simp 
       then have "?i < ?j" 
         using \<open>length pR1 < length pR2\<close>
@@ -1084,7 +1087,7 @@ proof -
 
 
       have "pR2 = take (length pR2) p" and \<open>length pR2 \<le> length p\<close> and "t_target (p ! ?j) = q'"
-        using R_component[OF \<open>pR2 \<in> ?R\<close>]
+        using R_component[OF \<open>pP@pR2 \<in> ?R\<close>]
         by simp+
       then have "?j < length (butlast io)"
         unfolding \<open>p_io p = butlast io\<close>[symmetric] 
@@ -1102,7 +1105,7 @@ proof -
         using minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path[OF assms(1,2,5,6) \<open>?q \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') p'\<close> \<open>p_io p' = io\<close> \<open>?i < ?j\<close> \<open>?j < length (butlast io)\<close> assms(4)]
         by blast
 
-      have t1: "io_targets M' (p_io pP @ p_io pR1) (initial M') = {t_target (p' ! ?i)}"
+      have t1: "io_targets M' (p_io (pP@pR1)) (initial M') = {t_target (p' ! ?i)}"
       proof -
         have "(p' ! ?i) = last (take (length pR1) p')"
           using \<open>length pR1 \<le> length p\<close> \<open>length p < length p'\<close>
@@ -1110,66 +1113,71 @@ proof -
         then have *: "target (target (FSM.initial M') pP') (take (length pR1) p') = t_target (p' ! ?i)"
           unfolding target.simps visited_nodes.simps
           by (metis (no_types, lifting) \<open>length p < length p'\<close> \<open>length pR1 \<noteq> 0\<close> gr_implies_not_zero last.simps last_map length_0_conv map_is_Nil_conv take_eq_Nil) 
-
+        have **: "(length (pP @ pR1) - length pP) = length pR1"
+          by auto
         show ?thesis
-          using \<open>\<And> pR . pR \<in> ?R \<Longrightarrow> io_targets M' (p_io pP @ p_io pR) (initial M') = {target ?q (take (length pR) p')}\<close>[OF \<open>pR1 \<in> ?R\<close>]
-          unfolding * by assumption
+          using singleton_prop[OF \<open>pP@pR1 \<in> ?R\<close>]
+          unfolding * ** by assumption
       qed
 
-      have t2: "io_targets M' (p_io pP @ p_io pR2) (initial M') = {t_target (p' ! ?j)}"
+      have t2: "io_targets M' (p_io (pP@pR2)) (initial M') = {t_target (p' ! ?j)}"
       proof -
         have "(p' ! ?j) = last (take (length pR2) p')"
           using \<open>length pR2 \<le> length p\<close> \<open>length p < length p'\<close>
           by (metis Suc_diff_1 \<open>length pR1 - 1 < length pR2 - 1\<close> le_less_trans less_imp_diff_less linorder_neqE_nat not_less_zero take_last_index zero_less_diff)
-              
-
         then have *: "target (target (FSM.initial M') pP') (take (length pR2) p') = t_target (p' ! ?j)"
           unfolding target.simps visited_nodes.simps
           by (metis (no_types, lifting) Nil_is_map_conv \<open>length p < length p'\<close> \<open>length pR1 < length pR2\<close> last.simps last_map list.size(3) not_less_zero take_eq_Nil)
-          
+        have **: "(length (pP @ pR2) - length pP) = length pR2"
+          by auto  
         show ?thesis
-          using \<open>\<And> pR . pR \<in> ?R \<Longrightarrow> io_targets M' (p_io pP @ p_io pR) (initial M') = {target ?q (take (length pR) p')}\<close>[OF \<open>pR2 \<in> ?R\<close>]
-          unfolding * by assumption
+          using singleton_prop'[OF \<open>pP@pR2 \<in> ?R\<close>]
+          unfolding * ** by assumption
       qed
 
-      show "io_targets M' (p_io pP @ p_io pR1) (initial M') \<inter> io_targets M' (p_io pP @ p_io pR2) (initial M') = {}"
+      show "io_targets M' (p_io (pP@pR1)) (initial M') \<inter> io_targets M' (p_io (pP@pR2)) (initial M') = {}"
         using \<open>t_target (p' ! ?i) \<noteq> t_target (p' ! ?j)\<close>
         unfolding t1 t2 by simp
     qed
 
 
-    fix pR1 pR2 assume "pR1 \<in> ?R" and "pR2 \<in> ?R" and "pR1 \<noteq> pR2"
+    fix pR1 pR2 assume "pP@pR1 \<in> ?R" and "pP@pR2 \<in> ?R" and "pR1 \<noteq> pR2"
     then have "length pR1 \<noteq> length pR2"
       unfolding R_def
       by auto 
 
     then consider (a) "length pR1 < length pR2" | (b) "length pR2 < length pR1"
       using nat_neq_iff by blast 
-    then show "io_targets M' (p_io pP @ p_io pR1) (initial M') \<inter> io_targets M' (p_io pP @ p_io pR2) (initial M') = {}"
+    then show "io_targets M' (p_io (pP@pR1)) (initial M') \<inter> io_targets M' (p_io (pP@pR2)) (initial M') = {}"
     proof cases
       case a
-      show ?thesis using diff_prop[OF \<open>pR1 \<in> ?R\<close> \<open>pR2 \<in> ?R\<close> a] by blast
+      show ?thesis using diff_prop[OF \<open>pP@pR1 \<in> ?R\<close> \<open>pP@pR2 \<in> ?R\<close> a] by blast
     next
       case b
-      show ?thesis using diff_prop[OF \<open>pR2 \<in> ?R\<close> \<open>pR1 \<in> ?R\<close> b] by blast
+      show ?thesis using diff_prop[OF \<open>pP@pR2 \<in> ?R\<close> \<open>pP@pR1 \<in> ?R\<close> b] by blast
     qed
   qed
 
+  then have pairwise_dist_prop: "\<And> pR1 pR2 . pR1 \<in> ?R \<Longrightarrow> pR2 \<in> ?R \<Longrightarrow> pR1 \<noteq> pR2 \<Longrightarrow> io_targets M' (p_io pR1) (initial M') \<inter> io_targets M' (p_io pR2) (initial M') = {}" 
+    using R_component_ob
+    by (metis (no_types, lifting)) 
+
+
   (* combining results *)
 
-  let ?f = "(\<lambda> pR . io_targets M' (p_io pP @ p_io pR) (initial M'))"
+  let ?f = "(\<lambda> pR . io_targets M' (p_io pR) (initial M'))"
   
   have p1: "(\<And>S1 S2. S1 \<in> ?R \<Longrightarrow> S2 \<in> ?R \<Longrightarrow> S1 = S2 \<or> ?f S1 \<inter> ?f S2 = {})"
     using pairwise_dist_prop by blast
-  have p2: "(\<And>S. S \<in> R M (target (FSM.initial M) pP) q' p \<Longrightarrow> io_targets M' (p_io pP @ p_io S) (FSM.initial M') \<noteq> {})"
+  have p2: "(\<And>S. S \<in> R M (target (FSM.initial M) pP) q' pP p \<Longrightarrow> io_targets M' (p_io S) (FSM.initial M') \<noteq> {})"
     using singleton_prop by blast
-  have c1: "card (R M (target (FSM.initial M) pP) q' p) = card ((\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p)"
+  have c1: "card (R M (target (FSM.initial M) pP) q' pP p) = card ((\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' pP p)"
     using card_union_of_distinct[of ?R, OF p1 \<open>finite ?R\<close> p2] by force
 
-  have p3: "(\<And>S. S \<in> (\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p \<Longrightarrow> \<exists>t. S = {t})"
+  have p3: "(\<And>S. S \<in> (\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' pP p \<Longrightarrow> \<exists>t. S = {t})"
     using singleton_prop by blast
-  have c2:"card ((\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p) = card (\<Union>S\<in>R M (target (FSM.initial M) pP) q' p. io_targets M' (p_io pP @ p_io S) (FSM.initial M'))"
-    using card_union_of_singletons[of "((\<lambda>S. io_targets M' (p_io pP @ p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' p)", OF p3] by force
+  have c2:"card ((\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' pP p) = card (\<Union>S\<in>R M (target (FSM.initial M) pP) q' pP p. io_targets M' (p_io S) (FSM.initial M'))"
+    using card_union_of_singletons[of "((\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` R M (target (FSM.initial M) pP) q' pP p)", OF p3] by force
 
     
   show ?thesis
