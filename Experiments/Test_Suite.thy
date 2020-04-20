@@ -699,22 +699,23 @@ definition R :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 
   "R M q q' pP p = {pP @ p' | p' . p' \<noteq> [] \<and> target q p' = q' \<and> (\<exists> p'' . p = p'@p'')}" 
 
 (* add one completed path of some Preamble of q' to R if a preamble exists *)
-definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
-  "RP M q q' pP p PS = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q') (R M q q' pP p) else (R M q q' pP p))" 
+definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
+  "RP M q q' pP p PS M' = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M') (R M q q' pP p) else (R M q q' pP p))" 
 
 lemma RP_from_R :
   assumes "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
-  shows "(RP M q q' pP p PS = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))"
+  and     "\<And> q P io x y y' . (q,P) \<in> prs \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  shows "(RP M q q' pP p PS M' = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M = insert pP' (R M q q' pP p))"
 proof (rule ccontr)
-  assume "\<not> ((RP M q q' pP p PS = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p)))"
-  then have "(RP M q q' pP p PS \<noteq> R M q q' pP p)"
-       and  "\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))"
+  assume "\<not> (RP M q q' pP p PS M' = R M q q' pP p \<or> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M = insert pP' (R M q q' pP p)))"
+  then have "(RP M q q' pP p PS M' \<noteq> R M q q' pP p)"
+       and  "\<not> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M = insert pP' (R M q q' pP p))"
     by blast+
 
-  let ?p = "(SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q')"
+  let ?p = "SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M'"
 
   have "\<exists> P' .  (q',P') \<in> PS"
-    using \<open>(RP M q q' pP p PS \<noteq> R M q q' pP p)\<close> unfolding RP_def by auto
+    using \<open>(RP M q q' pP p PS M' \<noteq> R M q q' pP p)\<close> unfolding RP_def by auto
   then obtain P' where "(q',P') \<in> PS"
     by auto
   then have "is_preamble P' M q'"
@@ -725,6 +726,10 @@ proof (rule ccontr)
   then obtain pP' where "path P' (initial P') pP'" and "target (initial P') pP' = q'"
     unfolding reachable_nodes_def by blast
 
+(* TODO: finish rewrite requiring that (p_io pP') is in L M', should be ensured by pass1, as by that
+         M' must have some completed path for P' *)
+
+end (*
   then have "\<exists> pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q'"
     using \<open>(q',P') \<in> PS\<close> by blast
   have "\<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') ?p \<and> target (initial P') ?p = q'"
