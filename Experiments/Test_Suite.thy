@@ -695,26 +695,26 @@ subsubsection \<open>R Functions\<close>
 
 
 (* collect all proper suffixes of p that target q' if applied to q *)
-definition R :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
-  "R M q q' p = {p' . p' \<noteq> [] \<and> target q p' = q' \<and> (\<exists> p'' . p = p'@p'')}" 
+definition R :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
+  "R M q q' pP p = {pP @ p' | p' . p' \<noteq> [] \<and> target q p' = q' \<and> (\<exists> p'' . p = p'@p'')}" 
 
 (* add one completed path of some Preamble of q' to R if a preamble exists *)
-definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
-  "RP M q q' p PS = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q') (R M q q' p) else (R M q q' p))" 
+definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
+  "RP M q q' pP p PS = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q') (R M q q' pP p) else (R M q q' pP p))" 
 
 lemma RP_from_R :
   assumes "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
-  shows "(RP M q q' p PS = R M q q' p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))"
+  shows "(RP M q q' pP p PS = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))"
 proof (rule ccontr)
-  assume "\<not> ((RP M q q' p PS = R M q q' p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p)))"
-  then have "(RP M q q' p PS \<noteq> R M q q' p)"
-       and  "\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))"
+  assume "\<not> ((RP M q q' pP p PS = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p)))"
+  then have "(RP M q q' pP p PS \<noteq> R M q q' pP p)"
+       and  "\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))"
     by blast+
 
   let ?p = "(SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q')"
 
   have "\<exists> P' .  (q',P') \<in> PS"
-    using \<open>(RP M q q' p PS \<noteq> R M q q' p)\<close> unfolding RP_def by auto
+    using \<open>(RP M q q' pP p PS \<noteq> R M q q' pP p)\<close> unfolding RP_def by auto
   then obtain P' where "(q',P') \<in> PS"
     by auto
   then have "is_preamble P' M q'"
@@ -745,13 +745,13 @@ proof (rule ccontr)
   have "target (initial M) ?p = q'"
     using \<open>target (initial P'') ?p = q'\<close> unfolding \<open>initial P'' = initial M\<close> by assumption
 
-  have "RP M q q' p PS = insert ?p (R M q q' p)"
+  have "RP M q q' pP p PS = insert ?p (R M q q' pP p)"
     using \<open>\<exists> P' .  (q',P') \<in> PS\<close> unfolding RP_def by auto
 
-  then have "(\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))"
+  then have "(\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))"
     using \<open>path M (initial M) ?p\<close> \<open>target (initial M) ?p = q'\<close> by blast
   then show "False"
-    using \<open>\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' p PS = insert pP' (R M q q' p))\<close>
+    using \<open>\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))\<close>
     by blast
 qed
 
@@ -766,10 +766,21 @@ qed
 
 lemma finite_R :
   assumes "path M q p"
-  shows "finite (R M q q' p)"
+  shows "finite (R M q q' pP p)"
 proof -
-  have "(R M q q' p) \<subseteq> set (prefixes p)"
-    unfolding R_def prefixes_set by blast
+  have "\<And> p' . p' \<in> (R M q q' pP p) \<Longrightarrow> p' \<in> set (prefixes (pP@p))"
+  proof -
+    fix p' assume "p' \<in> (R M q q' pP p)"
+    then obtain p'' where "p' = pP @ p''"
+      unfolding R_def by blast
+    then obtain p''' where "p = p'' @ p'''"
+      using \<open>p' \<in> (R M q q' pP p)\<close> unfolding R_def by blast
+    
+    show "p' \<in> set (prefixes (pP@p))"
+      unfolding prefixes_set \<open>p' = pP @ p''\<close> \<open>p = p'' @ p'''\<close> by auto
+  qed
+  then have "(R M q q' pP p) \<subseteq> set (prefixes (pP@p))"
+    by blast
   then show ?thesis
     using rev_finite_subset by auto 
 qed
@@ -777,9 +788,9 @@ qed
 lemma finite_RP :
   assumes "path M q p"
   and     "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
-shows "finite (RP M q q' p PS)"
-  using finite_R[OF assms(1), of q']
-        RP_from_R[OF assms(2), of PS q q' p]
+shows "finite (RP M q q' pP p PS)"
+  using finite_R[OF assms(1), of q' pP ]
+        RP_from_R[OF assms(2), of PS q q' pP p]
   by auto 
 
 
@@ -840,8 +851,13 @@ lemma butlast_take_le :
   using take_le[OF assms, of "[last xs]"]
   by (metis append_butlast_last_id butlast.simps(1)) 
 
+lemma R_component_ob :
+  assumes "pR' \<in> R M q q' pP p"
+  obtains pR where "pR' = pP@pR"
+  using assms unfolding R_def by blast
+
 lemma R_component :
-  assumes "pR \<in> R M q q' p" 
+  assumes "(pP@pR) \<in> R M q q' pP p" 
 shows "pR = take (length pR) p"
 and   "length pR \<le> length p"
 and   "t_target (p ! (length pR - 1)) = q'"
@@ -849,7 +865,7 @@ proof -
   let ?R = "R M q q' p"
 
   have "pR \<noteq> []" and "target q pR = q'" and "\<exists> p'' . p = pR@p''"
-    using \<open>pR \<in> R M q q' p\<close> unfolding R_def by blast+
+    using \<open>pP@pR \<in> R M q q' pP p\<close> unfolding R_def by blast+
   then obtain pR' where "p = pR@pR'"
     by blast
 
@@ -863,7 +879,7 @@ qed
 
 
 lemma R_component_observable :
-  assumes "pR \<in> R M (target (initial M) pP) q' p"
+  assumes "pP@pR \<in> R M (target (initial M) pP) q' pP p"
   and     "observable M"
   and     "path M (initial M) pP"
   and     "path M (target (initial M) pP) p"
@@ -898,6 +914,20 @@ proof -
 qed
 
 
+(* TODO: move *)
+lemma io_targets_finite :
+  "finite (io_targets M io q)"
+proof -
+  have "(io_targets M io q) \<subseteq> {target q p | p . path M q p \<and> length p \<le> length io}"
+    unfolding io_targets.simps length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] by force
+  moreover have "finite {target q p | p . path M q p \<and> length p \<le> length io}"
+    using paths_finite[of M q "length io"]
+    by simp 
+  ultimately show ?thesis
+    using rev_finite_subset by blast 
+qed
+
+
 
 lemma R_count :                        
   assumes "minimal_sequence_to_failure_extending_preamble_path M M' PS pP io"
@@ -906,7 +936,7 @@ lemma R_count :
   and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"
   and     "path M (target (initial M) pP) p"
   and     "p_io p = butlast io"
-shows "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pP @ p_io pR) (initial M')) (R M (target (initial M) pP) q' p))) = card (R M (target (initial M) pP) q' p)"
+shows "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) (R M (target (initial M) pP) q' pP p))) = card (R M (target (initial M) pP) q' pP p)"
   (is "card ?Tgts = card ?R")
 proof -
 
@@ -953,17 +983,8 @@ proof -
   have "finite ?R"
     using finite_R[OF \<open>path M (target (initial M) pP) p\<close>]
     by assumption
-  moreover have "\<And> pR . pR \<in> ?R \<Longrightarrow> finite (io_targets M' (p_io pP @ p_io pR) (initial M'))"
-  proof -
-    fix pR assume "pR \<in> ?R"
-    have "io_targets M' (p_io pP @ p_io pR) (initial M') \<subseteq> nodes M'"
-      unfolding io_targets.simps using path_target_is_node[of M' "initial M'"]
-      by blast
-    moreover have "finite (nodes M')"
-      using fsm_nodes_finite by auto
-    ultimately show "finite (io_targets M' (p_io pP @ p_io pR) (initial M'))"
-      using infinite_super by blast
-  qed
+  moreover have "\<And> pR . pR \<in> ?R \<Longrightarrow> finite (io_targets M' (p_io pR) (initial M'))"
+    using io_targets_finite by metis
   ultimately have "finite ?Tgts"
     by blast
 
@@ -983,9 +1004,9 @@ proof -
 
   let ?q = "(target (FSM.initial M') pP')"
 
-  have "\<And> pR . pR \<in> ?R \<Longrightarrow> path M' ?q (take (length pR) p') \<and> p_io (take (length pR) p') = p_io pR"
+  have "\<And> pR . pP@pR \<in> ?R \<Longrightarrow> path M' ?q (take (length pR) p') \<and> p_io (take (length pR) p') = p_io pR"
   proof -
-    fix pR assume "pR \<in> ?R"
+    fix pR assume "pP@pR \<in> ?R"
     then have  "pR = take (length pR) p \<and> length pR \<le> length p"
       using R_component(1,2) by metis
     then have "p_io pR = take (length pR) (butlast io)"
@@ -1009,27 +1030,36 @@ proof -
 
   (* every element in R reaches exactly one state in M' *)
 
-  have singleton_prop: "\<And> pR . pR \<in> ?R \<Longrightarrow> io_targets M' (p_io pP @ p_io pR) (initial M') = {target ?q (take (length pR) p')}"
+  have singleton_prop: "\<And> pR . pR \<in> ?R \<Longrightarrow> io_targets M' (p_io pR) (initial M') = {target ?q (take (length pR) p')}"
   proof -
+    have *: "\<And> pR . pP@pR \<in> ?R \<Longrightarrow> io_targets M' (p_io (pP@pR)) (initial M') = {target ?q (take (length pR) p')}"
+    proof -
+      fix pR assume "pP@pR \<in> ?R"
+      then have "path M' ?q (take (length pR) p')" and "p_io (take (length pR) p') = p_io pR"
+        using \<open>\<And> pR . pP@pR \<in> ?R \<Longrightarrow> path M' ?q (take (length pR) p') \<and> p_io (take (length pR) p') = p_io pR\<close> by blast+
+  
+      have *:"path M' (initial M') (pP' @ (take (length pR) p'))"
+        using \<open>path M' (initial M') pP'\<close> \<open>path M' ?q (take (length pR) p')\<close> by auto
+      have **:"p_io (pP' @ (take (length pR) p')) = (p_io (pP@pR))"
+        using \<open>p_io pP' = p_io pP\<close> \<open>p_io (take (length pR) p') = p_io pR\<close> by auto
+      
+      have "target (initial M') (pP' @ (take (length pR) p')) = target ?q (take (length pR) p')"
+        by auto 
+      then have "target ?q (take (length pR) p') \<in> io_targets M' (p_io (pP@pR)) (initial M')"
+        unfolding io_targets.simps using * **
+        by (metis (mono_tags, lifting) mem_Collect_eq) 
+  
+      show "io_targets M' (p_io (pP@pR)) (initial M') = {target ?q (take (length pR) p')}"
+        using observable_io_targets[OF \<open>observable M'\<close> language_state_containment[OF * **]]
+        by (metis (no_types) \<open>target (target (FSM.initial M') pP') (take (length pR) p') \<in> io_targets M' (p_io (pP@pR)) (FSM.initial M')\<close> singleton_iff)
+    qed
+
     fix pR assume "pR \<in> ?R"
-    then have "path M' ?q (take (length pR) p')" and "p_io (take (length pR) p') = p_io pR"
-      using \<open>\<And> pR . pR \<in> ?R \<Longrightarrow> path M' ?q (take (length pR) p') \<and> p_io (take (length pR) p') = p_io pR\<close> by blast+
+    then obtain pR' where "pR = pP@pR'"
+      using R_component_ob[of _ M "(target (FSM.initial M) pP)" q' pP p] by blast
 
-    have *:"path M' (initial M') (pP' @ (take (length pR) p'))"
-      using \<open>path M' (initial M') pP'\<close> \<open>path M' ?q (take (length pR) p')\<close> by auto
-    have **:"p_io (pP' @ (take (length pR) p')) = (p_io pP @ p_io pR)"
-      using \<open>p_io pP' = p_io pP\<close> \<open>p_io (take (length pR) p') = p_io pR\<close> by auto
-    
-    have "target (initial M') (pP' @ (take (length pR) p')) = target ?q (take (length pR) p')"
-      by auto 
-    then have "target ?q (take (length pR) p') \<in> io_targets M' (p_io pP @ p_io pR) (initial M')"
-      unfolding io_targets.simps using * **
-      by (metis (mono_tags, lifting) mem_Collect_eq) 
-
-    show "io_targets M' (p_io pP @ p_io pR) (initial M') = {target ?q (take (length pR) p')}"
-      using observable_io_targets[OF \<open>observable M'\<close> language_state_containment[OF * **]]
-      by (metis (no_types) \<open>target (target (FSM.initial M') pP') (take (length pR) p') \<in> io_targets M' (p_io pP @ p_io pR) (FSM.initial M')\<close> singleton_iff)
-  qed
+    show "io_targets M' (p_io pR) (initial M') = {target ?q (take (length pR) p')}"
+      using *[of pR'] \<open>pR \<in> ?R\<close> unfolding \<open>pR = pP@pR'\<close>
 
   (* distinct elements in R reach distinct states in M' *)
   have pairwise_dist_prop: "\<And> pR1 pR2 . pR1 \<in> ?R \<Longrightarrow> pR2 \<in> ?R \<Longrightarrow> pR1 \<noteq> pR2 \<Longrightarrow> io_targets M' (p_io pP @ p_io pR1) (initial M') \<inter> io_targets M' (p_io pP @ p_io pR2) (initial M') = {}"
@@ -1277,6 +1307,20 @@ next
 qed
 
 
+
+
+
+
+
+lemma RP_count :                        
+  assumes "minimal_sequence_to_failure_extending_preamble_path M M' PS pP io"
+  and     "observable M"
+  and     "observable M'"
+  and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"
+  and     "path M (target (initial M) pP) p"
+  and     "p_io p = butlast io"
+shows "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pP @ p_io pR) (initial M')) (R M (target (initial M) pP) q' p))) = card (R M (target (initial M) pP) q' p)"
+  (is "card ?Tgts = card ?R")
 
 
 
