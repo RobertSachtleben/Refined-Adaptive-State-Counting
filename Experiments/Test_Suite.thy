@@ -702,14 +702,111 @@ definition R :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 
 definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
   "RP M q q' pP p PS M' = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M') (R M q q' pP p) else (R M q q' pP p))" 
 
+
+
+
+
+(* TODO: move *)
+lemma language_intro :
+  assumes "path M q p"
+  shows "p_io p \<in> LS M q"
+  using assms unfolding LS.simps by auto
+
+(* TODO: move *)
+lemma preamble_pass_path :
+  assumes "is_preamble P M q"
+  and     "\<And> io x y y' . io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  and     "completely_specified M'"
+  and     "inputs M' = inputs M"
+obtains p where "path P (initial P) p" and "target (initial P) p = q" and "p_io p \<in> L M'"
+proof -
+  (* get the longest paths p such that p_io p is still in L M' *)
+
+  let ?ps = "{p . path P (initial P) p \<and> p_io p \<in> L M'}"
+  have "?ps \<noteq> {}"
+  proof -
+    have "[] \<in> ?ps" by auto
+    then show ?thesis by blast
+  qed
+  moreover have "finite ?ps"
+  proof -
+    have "acyclic P"
+      using assms(1) unfolding is_preamble_def by blast
+    have "finite {p. path P (FSM.initial P) p}"
+      using acyclic_finite_paths_from_reachable_node[OF \<open>acyclic P\<close>, of "[]" "initial P"] by auto
+    then show ?thesis
+      by simp 
+  qed
+  ultimately obtain p where "p \<in> ?ps" and "\<And> p' . p' \<in> ?ps \<Longrightarrow> length p' \<le> length p" 
+    by (meson leI max_length_elem) 
+  then have "path P (initial P) p"
+       and  "p_io p \<in> L M'"
+    by blast+
+
+  show ?thesis
+  proof (cases "target (initial P) p = q")
+    case True
+    then show ?thesis using that[OF \<open>path P (initial P) p\<close> _ \<open>p_io p \<in> L M'\<close>] by blast
+  next
+    case False
+
+    (* if p does not target the sole deadlock state q, then it can be extended *)
+
+    then have "\<not> deadlock_state P (target (initial P) p)"
+      using reachable_nodes_intro[OF \<open>path P (initial P) p\<close>] assms(1) unfolding is_preamble_def by fastforce
+    then obtain t where "t \<in> transitions P" and "t_source t = target (initial P) p"
+      by auto
+    then have "path P (initial P) (p@[t])" 
+      using \<open>path P (initial P) p\<close> path_append_transition by simp
+    have "(p_io p) @ [(t_input t, t_output t)] \<in> L P"
+      using language_intro[OF \<open>path P (initial P) (p@[t])\<close>] by simp
+
+    have "t_input t \<in> inputs M'"
+      using assms(1,4) fsm_transition_input[OF \<open>t \<in> transitions P\<close>] unfolding is_preamble_def is_submachine.simps by blast
+    
+    obtain p' where "path M' (initial M') p'" and "p_io p' = p_io p"
+      using \<open>p_io p \<in> L M'\<close> by auto
+    obtain t' where "t' \<in> transitions M'" and "t_source t' = target (initial M') p'" and "t_input t' = t_input t"
+      using \<open>completely_specified M'\<close> \<open>t_input t \<in> inputs M'\<close> path_target_is_node[OF \<open>path M' (initial M') p'\<close>]
+      unfolding completely_specified.simps by blast
+    then have "path M' (initial M') (p'@[t'])" 
+      using \<open>path M' (initial M') p'\<close> path_append_transition by simp
+    have "(p_io p) @ [(t_input t, t_output t')] \<in> L M'"
+      using language_intro[OF \<open>path M' (initial M') (p'@[t'])\<close>] 
+      unfolding \<open>p_io p' = p_io p\<close>[symmetric] \<open>t_input t' = t_input t\<close>[symmetric] by simp
+
+    have "(p_io p) @ [(t_input t, t_output t')] \<in> L P"
+      using assms(2)[OF \<open>(p_io p) @ [(t_input t, t_output t)] \<in> L P\<close> \<open>(p_io p) @ [(t_input t, t_output t')] \<in> L M'\<close>]
+      by assumption
+    then obtain pt' where "path P (initial P) pt'" and "p_io pt' = (p_io p) @ [(t_input t, t_output t')]"
+      by auto
+    then have "pt' \<in> ?ps"
+      using \<open>(p_io p) @ [(t_input t, t_output t')] \<in> L M'\<close> by auto
+    then have "length pt' \<le> length p"
+      using \<open>\<And> p' . p' \<in> ?ps \<Longrightarrow> length p' \<le> length p\<close> by blast
+    moreover have "length pt' > length p"
+      using \<open>p_io pt' = (p_io p) @ [(t_input t, t_output t')]\<close> 
+      unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] by simp
+    ultimately have "False"
+      by simp
+    then show ?thesis by simp
+  qed
+qed
+    
+
+
+
+
 lemma RP_from_R :
   assumes "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
-  and     "\<And> q P io x y y' . (q,P) \<in> prs \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
-  shows "(RP M q q' pP p PS M' = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M = insert pP' (R M q q' pP p))"
+  and     "\<And> q P io x y y' . (q,P) \<in> PS \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  and     "completely_specified M'"
+  and     "inputs M' = inputs M"
+shows "(RP M q q' pP p PS M' = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
 proof (rule ccontr)
-  assume "\<not> (RP M q q' pP p PS M' = R M q q' pP p \<or> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M = insert pP' (R M q q' pP p)))"
+  assume "\<not> (RP M q q' pP p PS M' = R M q q' pP p \<or> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p)))"
   then have "(RP M q q' pP p PS M' \<noteq> R M q q' pP p)"
-       and  "\<not> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M = insert pP' (R M q q' pP p))"
+       and  "\<not> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
     by blast+
 
   let ?p = "SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M'"
@@ -721,22 +818,17 @@ proof (rule ccontr)
   then have "is_preamble P' M q'"
     using assms by blast
 
-  then have "q' \<in> reachable_nodes P'"
-    unfolding is_preamble_def by blast
-  then obtain pP' where "path P' (initial P') pP'" and "target (initial P') pP' = q'"
-    unfolding reachable_nodes_def by blast
+  obtain pP' where "path P' (initial P') pP'" and "target (initial P') pP' = q'" and "p_io pP' \<in> L M'"
+    using preamble_pass_path[OF \<open>is_preamble P' M q'\<close>  assms(2)[OF \<open>(q',P') \<in> PS\<close>] assms(3,4)] by force
 
-(* TODO: finish rewrite requiring that (p_io pP') is in L M', should be ensured by pass1, as by that
-         M' must have some completed path for P' *)
 
-end (*
-  then have "\<exists> pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q'"
+  then have "\<exists> pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M'"
     using \<open>(q',P') \<in> PS\<close> by blast
-  have "\<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') ?p \<and> target (initial P') ?p = q'"
-    using someI_ex[OF \<open>\<exists> pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q'\<close>] 
+  have "\<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') ?p \<and> target (initial P') ?p = q' \<and> p_io ?p \<in> L M'"
+    using someI_ex[OF \<open>\<exists> pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M'\<close>] 
     by blast
 
-  then obtain P'' where "(q',P'') \<in> PS" and "path P'' (initial P'') ?p" and "target (initial P'') ?p = q'"
+  then obtain P'' where "(q',P'') \<in> PS" and "path P'' (initial P'') ?p" and "target (initial P'') ?p = q'" and "p_io ?p \<in> L M'"
     by auto
   then have "is_preamble P'' M q'"
     using assms by blast
@@ -750,13 +842,13 @@ end (*
   have "target (initial M) ?p = q'"
     using \<open>target (initial P'') ?p = q'\<close> unfolding \<open>initial P'' = initial M\<close> by assumption
 
-  have "RP M q q' pP p PS = insert ?p (R M q q' pP p)"
+  have "RP M q q' pP p PS M' = insert ?p (R M q q' pP p)"
     using \<open>\<exists> P' .  (q',P') \<in> PS\<close> unfolding RP_def by auto
 
-  then have "(\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))"
-    using \<open>path M (initial M) ?p\<close> \<open>target (initial M) ?p = q'\<close> by blast
+  then have "(\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
+    using \<open>path M (initial M) ?p\<close> \<open>target (initial M) ?p = q'\<close> \<open>p_io ?p \<in> L M'\<close> by blast
   then show "False"
-    using \<open>\<not> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> RP M q q' pP p PS = insert pP' (R M q q' pP p))\<close>
+    using \<open>\<not> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))\<close>
     by blast
 qed
 
@@ -793,10 +885,13 @@ qed
 lemma finite_RP :
   assumes "path M q p"
   and     "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
-shows "finite (RP M q q' pP p PS)"
+  and     "\<And> q P io x y y' . (q,P) \<in> PS \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  and     "completely_specified M'"
+  and     "inputs M' = inputs M"
+shows "finite (RP M q q' pP p PS M')"
   using finite_R[OF assms(1), of q' pP ]
-        RP_from_R[OF assms(2), of PS q q' pP p]
-  by auto 
+        RP_from_R[OF assms(2,3,4,5), of PS _ _ q q' pP p] by force
+  
 
 
 
