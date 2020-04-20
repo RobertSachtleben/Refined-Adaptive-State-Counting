@@ -785,6 +785,42 @@ proof -
 qed
 
 
+lemma R_component_observable :
+  assumes "pR \<in> R M (target (initial M) pP) q' p"
+  and     "observable M"
+  and     "path M (initial M) pP"
+  and     "path M (target (initial M) pP) p"
+shows "io_targets M (p_io pP @ p_io pR) (initial M) = {target (target (initial M) pP) (take (length pR) p)}"
+proof -
+  have "pR = take (length pR) p"
+  and  "length pR \<le> length p"
+  and  "t_target (p ! (length pR - 1)) = q'"
+    using R_component[OF assms(1)] by blast+
+
+  let ?q = "(target (initial M) pP)"
+  have "path M ?q (take (length pR) p)"
+    using assms(4) by (simp add: path_prefix_take) 
+  have "p_io (take (length pR) p) = p_io pR"
+    using \<open>pR = take (length pR) p\<close> by auto
+    
+
+  have *:"path M (initial M) (pP @ (take (length pR) p))"
+    using \<open>path M (initial M) pP\<close> \<open>path M ?q (take (length pR) p)\<close> by auto
+  have **:"p_io (pP @ (take (length pR) p)) = (p_io pP @ p_io pR)"
+    using \<open>p_io (take (length pR) p) = p_io pR\<close> by auto
+  
+  have "target (initial M) (pP @ (take (length pR) p)) = target ?q (take (length pR) p)"
+    by auto 
+  then have "target ?q (take (length pR) p) \<in> io_targets M (p_io pP @ p_io pR) (initial M)"
+    unfolding io_targets.simps using * **
+    by (metis (mono_tags, lifting) mem_Collect_eq) 
+
+  show "io_targets M (p_io pP @ p_io pR) (initial M) = {target ?q (take (length pR) p)}"
+    using observable_io_targets[OF \<open>observable M\<close> language_state_containment[OF * **]]
+    by (metis (no_types) \<open>target (target (FSM.initial M) pP) (take (length pR) p) \<in> io_targets M (p_io pP @ p_io pR) (FSM.initial M)\<close> singleton_iff)
+qed
+
+
 
 lemma R_count :                        
   assumes "minimal_sequence_to_failure_extending_preamble_path M M' PS pP io"
@@ -793,13 +829,6 @@ lemma R_count :
   and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"
   and     "path M (target (initial M) pP) p"
   and     "p_io p = butlast io"
-(*
-  and     "q' \<in> io_targets M' (p_io pP) (initial M')"
-  and     "path M' q' p'"
-  and     "p_io p' = io"
-  and     "i < j" 
-  and     "j < length (butlast io)"
-*)
 shows "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pP @ p_io pR) (initial M')) (R M (target (initial M) pP) q' p))) = card (R M (target (initial M) pP) q' p)"
   (is "card ?Tgts = card ?R")
 proof -
@@ -1041,15 +1070,140 @@ proof -
 qed
 
 
-end (*
 
-    fix pR1 pR2 assume "pR1 \<in> ?R" and "pR2 \<in> ?R" and "pR1 \<noteq> pR2"
-    
 
-end (*
-
-  thm minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path[OF assms(1,2,4,5)]
+lemma R_update :
+  "R M q q' (p@[t]) = (if (target q (p@[t]) = q')
+                          then insert (p@[t]) (R M q q' p)
+                          else (R M q q' p))"
+  (is "?R1 = ?R2")
+proof (cases "(target q (p@[t]) = q')")
+  case True
+  then have *: "?R2 = insert (p@[t]) (R M q q' p)"
+    by auto
   
+  have "\<And> p' . p' \<in> R M q q' (p@[t]) \<Longrightarrow> p' \<in> insert (p@[t]) (R M q q' p)"
+  proof -
+    fix p' assume "p' \<in> R M q q' (p@[t])"
+    then obtain p'' where "p' \<noteq> []" and "target q p' = q'" and "p @ [t] = p' @ p''"
+      unfolding R_def by blast
+
+    show "p' \<in> insert (p@[t]) (R M q q' p)"
+    proof (cases p'' rule: rev_cases)
+      case Nil
+      then have "p' = (p@[t])" using \<open>p @ [t] = p' @ p''\<close> by auto
+      then show ?thesis by blast
+    next
+      case (snoc p''' t')
+      then have "p = p' @ p'''" using \<open>p @ [t] = p' @ p''\<close> by auto
+      then show ?thesis 
+        unfolding R_def using \<open>p' \<noteq> []\<close> \<open>target q p' = q'\<close> by blast
+    qed
+  qed
+  moreover have "\<And> p' . p' \<in> insert (p@[t]) (R M q q' p) \<Longrightarrow> p' \<in> R M q q' (p@[t])"
+  proof -
+    fix p' assume "p' \<in> insert (p@[t]) (R M q q' p)"
+    then consider (a) "p' = (p@[t])" | (b) "p' \<in> (R M q q' p)" by blast
+    then show "p' \<in> R M q q' (p@[t])" proof cases
+      case a
+      then show ?thesis using True unfolding R_def
+        by simp 
+    next
+      case b
+      then show ?thesis unfolding R_def
+        using append.assoc by blast 
+    qed 
+  qed
+  ultimately show ?thesis 
+    unfolding * by blast
+next
+  case False
+  then have *: "?R2 = (R M q q' p)"
+    by auto
+
+  have "\<And> p' . p' \<in> R M q q' (p@[t]) \<Longrightarrow> p' \<in> (R M q q' p)"
+  proof -
+    fix p' assume "p' \<in> R M q q' (p@[t])"
+    then obtain p'' where "p' \<noteq> []" and "target q p' = q'" and "p @ [t] = p' @ p''"
+      unfolding R_def by blast
+
+    show "p' \<in> (R M q q' p)"
+    proof (cases p'' rule: rev_cases)
+      case Nil
+      then have "p' = (p@[t])" using \<open>p @ [t] = p' @ p''\<close> by auto
+      then show ?thesis using False
+        using \<open>target q p' = q'\<close> by auto 
+    next
+      case (snoc p''' t')
+      then have "p = p' @ p'''" using \<open>p @ [t] = p' @ p''\<close> by auto
+      then show ?thesis 
+        unfolding R_def using \<open>p' \<noteq> []\<close> \<open>target q p' = q'\<close> by blast
+    qed
+  qed
+  moreover have "\<And> p' . p' \<in> (R M q q' p) \<Longrightarrow> p' \<in> R M q q' (p@[t])"
+  proof -
+    fix p' assume "p' \<in> (R M q q' p)"
+    then show "p' \<in> R M q q' (p@[t])" unfolding R_def
+      using append.assoc by blast 
+  qed
+  ultimately show ?thesis 
+    unfolding * by blast
+qed
+
+
+
+lemma R_union_card_is_suffix_length :
+  assumes "path M (initial M) pP"
+  and     "path M (target (initial M) pP) p"
+shows "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q p)) = length p"
+using assms(2) proof (induction p rule: rev_induct)
+  case Nil
+  have "\<And> q' . R M (target (initial M) pP) q' [] = {}"
+    unfolding R_def by auto 
+  then show ?case
+    by simp 
+next
+  case (snoc t p)
+  then have "path M (target (initial M) pP) p"
+    by auto
+
+  let ?q = "(target (initial M) pP)"
+  let ?q' = "target ?q (p @ [t])"
+
+  have "\<And> q . q \<noteq> ?q' \<Longrightarrow> R M ?q q (p@[t]) = R M ?q q p"
+    using R_update[of M ?q _ p t] by force
+  then have *: "(\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q (p@[t]))) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q p))"
+    by force
+
+
+
+  have "R M ?q ?q' (p@[t]) = insert (p@[t]) (R M ?q ?q' p)"
+    using R_update[of M ?q ?q' p t] by force 
+  moreover have "(p@[t]) \<notin> (R M ?q ?q' p)"
+    unfolding R_def by simp 
+  ultimately have **: "card (R M (target (initial M) pP) ?q' (p@[t])) = Suc (card (R M (target (initial M) pP) ?q' p))"
+    using finite_R[OF \<open>path M (target (initial M) pP) (p@[t])\<close>] finite_R[OF \<open>path M (target (initial M) pP) p\<close>]
+    by simp
+
+
+  have "?q' \<in> nodes M"
+    using path_target_is_node[OF \<open>path M (target (FSM.initial M) pP) (p @ [t])\<close>] by assumption
+  then have ***: "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q (p@[t]))) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q (p@[t]))) + (card (R M (target (initial M) pP) ?q' (p@[t])))"
+       and ****: "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q p)) = (\<Sum> q \<in> nodes M - {?q'} . card (R M (target (initial M) pP) q p)) + (card (R M (target (initial M) pP) ?q' p))"
+    by (metis (no_types, lifting) Diff_insert_absorb add.commute finite_Diff fsm_nodes_finite mk_disjoint_insert sum.insert)+
+
+  have "(\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q (p@[t]))) = Suc (\<Sum> q \<in> nodes M . card (R M (target (initial M) pP) q p))"
+    unfolding **** *** ** * by simp
+
+  then show ?case
+    unfolding snoc.IH[OF \<open>path M (target (initial M) pP) p\<close>] by auto
+qed
+
+
+
+
+
+
 
 end (*
 
