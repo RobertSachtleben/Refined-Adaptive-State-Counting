@@ -1340,12 +1340,12 @@ lemma RP_count :
   and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"
   and     "path M (target (initial M) pP) p"
   and     "p_io p = butlast io"
-shows "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pP @ p_io pR) (initial M')) (R M (target (initial M) pP) q' p))) = card (R M (target (initial M) pP) q' p)"
+shows "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) (RP M (target (initial M) pP) q' pP p PS))) = card (RP M (target (initial M) pP) q' pP p PS)"
   (is "card ?Tgts = card ?R")
 
 
 
-
+(* TODO: show more directly that no two sequences in (RP M (target (initial M) pP) q' pP p PS) reach the same state in M' ? *)
 
 end (*
 
