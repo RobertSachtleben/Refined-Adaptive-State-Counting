@@ -1307,7 +1307,7 @@ proof
     using map_butlast by auto 
 
   have "butlast io \<noteq> []"
-    using assms(10) by fastforce
+    using assms(9) by fastforce
     
 
 
@@ -1350,7 +1350,7 @@ proof
     have "p_io ?p = drop (Suc i) (butlast io)"
       by (metis assms(4) drop_map)
     moreover have "length (drop (Suc i) (butlast io)) < length (butlast io)"
-      using assms(10) by auto
+      using assms(9) by auto
     ultimately have "length (p_io ?p) < length (butlast io)" 
       by simp
     then show ?thesis
@@ -1461,7 +1461,7 @@ proof
 
   have "sequence_to_failure_extending_preamble_path M M' PS pP' ?io"
     unfolding sequence_to_failure_extending_preamble_path_def
-    using \<open>t_target (p ! i) \<in> nodes M\<close> assms(11,12,13) p1 p2 p3 
+    using \<open>t_target (p ! i) \<in> nodes M\<close> assms(10-12) p1 p2 p3 
     unfolding * by blast
 
   then have "length io \<le> length ?io"

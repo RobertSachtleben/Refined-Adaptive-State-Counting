@@ -1769,6 +1769,13 @@ qed
 
 
 
+(* TODO: show that under pass3 the io_targets of RP q' and RP q'' for distinct q' q'' are pairwise distinct *)
+
+
+lemma x :
+  assumes "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> PS \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<Longrightarrow> q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"
+
+
 end (*
 
 
