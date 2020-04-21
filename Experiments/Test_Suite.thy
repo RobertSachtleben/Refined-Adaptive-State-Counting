@@ -1852,8 +1852,12 @@ proof -
 qed
 
 
-(* TODO: show that under pass3 the io_targets of RP q' and RP q'' for distinct q' q'' are pairwise distinct *)
 
+(* TODO: name *)
+(* TODO: check whether the exhaustiveness proof actually requires unfolding is_sufficient anymore
+         \<longrightarrow> if not, then use it here as one assumption *)
+
+end (*
 
 lemma x :
   assumes "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
@@ -1902,7 +1906,7 @@ lemma x :
               p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1)"
 
   and t12: "\<And> q p d q1 q2.
-              q \<in> fst ` prs \<Longrightarrow>
+              q \<in> fst ` PS \<Longrightarrow>
               (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
               q1 \<noteq> q2 \<Longrightarrow>
               q1 \<in> snd d \<Longrightarrow> 
@@ -2173,10 +2177,54 @@ proof -
     next
       case d
 
+      then have "pR1 \<notin> ?R1" and "pR2 \<notin> ?R2"
+        by auto
+                
+      obtain P' where "(q', P') \<in> PS"
+                      "path P' (FSM.initial P') pR1"
+                      "target (FSM.initial P') pR1 = q'"
+                      "path M (FSM.initial M) pR1" 
+                      "target (FSM.initial M) pR1 = q'" 
+                      "p_io pR1 \<in> L M'"
+                      "RP M q q' pP p PS M' = insert pR1 (R M q q' pP p)"
+        using RP_from_R_inserted[OF assms(1-4) \<open>pR1 \<in> ?RP1\<close> \<open>pR1 \<notin> ?R1\<close>, of "\<lambda> q P io x y y' . q" "\<lambda> q P io x y y' . y"] by blast
+
+      have "q' \<in> snd d"
+        by (metis IntI \<open>(q', P') \<in> PS\<close> assms(12) assms(13) fst_conv image_eqI)
 
 
-end (*
-      then show ?thesis sorry
+      obtain P'' where "(q'', P'') \<in> PS"
+                      "path P'' (FSM.initial P'') pR2"
+                      "target (FSM.initial P'') pR2 = q''"
+                      "path M (FSM.initial M) pR2" 
+                      "target (FSM.initial M) pR2 = q''" 
+                      "p_io pR2 \<in> L M'"
+                      "RP M q q'' pP p PS M' = insert pR2 (R M q q'' pP p)"
+        using RP_from_R_inserted[OF assms(1-4) \<open>pR2 \<in> ?RP2\<close> \<open>pR2 \<notin> ?R2\<close>, of "\<lambda> q P io x y y' . q" "\<lambda> q P io x y y' . y"] by blast
+
+      have "q'' \<in> snd d"
+        by (metis IntI \<open>(q'', P'') \<in> PS\<close> assms(12) assms(14) fst_conv image_eqI)
+
+      have "[] \<in> tps q'" and "[] \<in> tps q''" and "q' \<in> rd_targets (q'', [])" and "q'' \<in> rd_targets (q', [])"
+        using t12[OF \<open>q \<in> fst ` PS\<close> \<open>(p, d) \<in> m_traversal_paths_with_witness M q RepSets m\<close> \<open>q' \<noteq> q''\<close> \<open>q' \<in> snd d\<close> \<open>q'' \<in> snd d\<close>]
+        by simp+
+
+
+      have "pass_separator_ATC M' A qT t1"
+        using pass3[OF \<open>(q'', P'') \<in> PS\<close> \<open>path P'' (initial P'') pR2\<close> \<open>target (initial P'') pR2 = q''\<close> \<open>[] \<in> tps q''\<close> _ \<open>q' \<in> rd_targets (q'', [])\<close>, of A t2 t1 qT]
+              \<open>p_io pR2 \<in> L M'\<close> \<open>(A, t2, t1) \<in> atcs (q'', q')\<close> \<open>qT \<in> io_targets M' (p_io pR2) (FSM.initial M')\<close> 
+        by auto
+      
+      have "pass_separator_ATC M' A qT t2"
+        using pass3[OF \<open>(q', P') \<in> PS\<close> \<open>path P' (initial P') pR1\<close> \<open>target (initial P') pR1 = q'\<close> \<open>[] \<in> tps q'\<close> _ \<open>q'' \<in> rd_targets (q', [])\<close>, of A t1 t2 qT]
+              \<open>p_io pR1 \<in> L M'\<close> \<open>(A, t1, t2) \<in> atcs (q', q'')\<close> \<open>qT \<in> io_targets M' (p_io pR1) (FSM.initial M')\<close> 
+        by auto
+
+      have "qT \<noteq> qT"
+        using pass_separator_ATC_reduction_distinction[OF \<open>observable M\<close> \<open>observable M'\<close> \<open>inputs M' = inputs M\<close> \<open>pass_separator_ATC M' A qT t1\<close> \<open>pass_separator_ATC M' A qT t2\<close> \<open>q'' \<in> nodes M\<close> \<open>q' \<in> nodes M\<close> _ \<open>qT \<in> nodes M'\<close> \<open>qT \<in> nodes M'\<close> \<open>is_separator M q'' q' A t2 t1\<close> \<open>completely_specified M'\<close>]
+              \<open>q' \<noteq> q''\<close> by simp
+      then show False
+        by simp
     qed
   qed
 qed
@@ -2185,9 +2233,6 @@ qed
 
       
 
-
-(* TODO: rework t8 (... \<inter> fst ` PS) and check whether t4 is necessary at all *)
-(* TODO: if t4 is not necessary, then is should be removed/refined *)
 
 
 lemma passes_test_suite_exhaustiveness :
