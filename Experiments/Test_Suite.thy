@@ -1769,16 +1769,299 @@ qed
 
 
 
+lemma RP_target: 
+  assumes "pR \<in> (RP M q q' pP p PS M')" 
+  assumes "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
+  and     "\<And> q P io x y y' . (q,P) \<in> PS \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  and     "completely_specified M'"
+  and     "inputs M' = inputs M"
+shows "target (initial M) pR = q'"
+proof -
+  show "target (initial M) pR = q'"
+  proof (cases "pR \<in> R M q q' pP p")
+    case True
+    then show ?thesis unfolding R_def by force
+  next
+    case False
+    then have "RP M q q' pP p PS M' \<noteq> R M q q' pP p"
+      using assms(1) by blast
+    then have "(\<exists>P' pP'.
+        (q', P') \<in> PS \<and>
+        path P' (FSM.initial P') pP' \<and>
+        target (FSM.initial P') pP' = q' \<and>
+        path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
+      using RP_from_R[OF assms(2-5), of PS _ _ q q' pP p] by force
+    then obtain pP' where "target (FSM.initial M) pP' = q'" and "RP M q q' pP p PS M' = insert pP' (R M q q' pP p)"
+      by blast
+    
+    have "pR = pP'"
+      using \<open>RP M q q' pP p PS M' = insert pP' (R M q q' pP p)\<close> \<open>pR \<in> (RP M q q' pP p PS M')\<close> False by blast
+
+    show ?thesis using \<open>target (FSM.initial M) pP' = q'\<close> unfolding \<open>pR = pP'\<close> by assumption
+  qed
+qed 
+
+
+
+
+lemma language_prefix_append :
+  assumes "io1 @ (p_io p) \<in> L M"
+shows   "io1 @ p_io (take i p) \<in> L M"
+proof -
+  fix i
+  have "p_io p = (p_io (take i p)) @ (p_io (drop i p))"
+    by (metis append_take_drop_id map_append) 
+  then have "(io1 @ (p_io (take i p))) @ (p_io (drop i p)) \<in> L M"
+    using \<open>io1 @ p_io p \<in> L M\<close> by auto
+  show "io1 @ p_io (take i p) \<in> L M" 
+    using language_prefix[OF \<open>(io1 @ (p_io (take i p))) @ (p_io (drop i p)) \<in> L M\<close>] by assumption
+qed
+
+
 (* TODO: show that under pass3 the io_targets of RP q' and RP q'' for distinct q' q'' are pairwise distinct *)
 
 
 lemma x :
-  assumes "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> PS \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<Longrightarrow> q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"
+  assumes "\<And> q P . (q,P) \<in> PS \<Longrightarrow> is_preamble P M q"
+  and     "\<And> q P io x y y' . (q,P) \<in> PS \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  and     "completely_specified M'"
+  and     "inputs M' = inputs M"
+  assumes "observable M"
+  assumes "observable M'"
+  assumes "inputs M' = inputs M"
+  and     "q' \<in> nodes M"
+  and     "q'' \<in> nodes M"
+  assumes "q' \<noteq> q''"
+  and     "(p, d) \<in> m_traversal_paths_with_witness M q RepSets m"
+  and     "snd d = fst d \<inter> fst ` PS"
+  and     "q' \<in> fst d"
+  and     "q'' \<in> fst d"
+  assumes "atcs (q', q'') \<noteq> {}"
+  assumes "(q,P) \<in> PS"
+  and     "path P (initial P) pP"
+  and     "target (initial P) pP = q"
+  and     "p_io pP @ p_io p \<in> L M'"
+  and     "d \<in> set RepSets"
+
+  assumes pass3: "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> PS \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<Longrightarrow> q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"
+  and t3: "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
+  and t6: "\<And> q. q \<in> fst ` PS \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q"
+  and t9: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
+  and t10: "\<And> q p d p1 p2 p3.
+              q \<in> fst ` PS \<Longrightarrow>
+              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
+              p = p1 @ p2 @ p3 \<Longrightarrow>
+              p2 \<noteq> [] \<Longrightarrow>
+              target q p1 \<in> fst d \<Longrightarrow>
+              target q (p1 @ p2) \<in> fst d \<Longrightarrow>
+              target q p1 \<noteq> target q (p1 @ p2) \<Longrightarrow>
+              p1 \<in> tps q \<and> p1 @ p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q, p1 @ p2) \<and> target q (p1 @ p2) \<in> rd_targets (q, p1)"
+
+  and t11: "\<And> q p d p1 p2 q'.
+              q \<in> fst ` PS \<Longrightarrow>
+              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
+              p = p1 @ p2 \<Longrightarrow>
+              q' \<in> fst ` PS \<Longrightarrow>
+              target q p1 \<in> fst d \<Longrightarrow>
+              q' \<in> fst d \<Longrightarrow> 
+              target q p1 \<noteq> q' \<Longrightarrow> 
+              p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1)"
+  
+shows "\<And> pR1 pR2 . pR1 \<in> (RP M q q' pP p PS M') \<Longrightarrow> pR2 \<in> (RP M q q'' pP p PS M') \<Longrightarrow> io_targets M' (p_io pR1) (initial M') \<inter> io_targets M' (p_io pR2) (initial M') = {}"
+
+
+proof -
+  fix pR1 pR2 assume "pR1 \<in> (RP M q q' pP p PS M')" and "pR2 \<in> (RP M q q'' pP p PS M')"
+
+  let ?RP1 = "(RP M q q' pP p PS M')"
+  let ?RP2 = "(RP M q q'' pP p PS M')"
+  let ?R1  = "(R M q q' pP p)"
+  let ?R2  = "(R M q q'' pP p)"
+
+  have "q \<in> fst ` PS"
+    using \<open>(q,P) \<in> PS\<close> by force
+
+
+  have "target (initial M) pR1 = q'"
+    using RP_target[OF \<open>pR1 \<in> ?RP1\<close> assms(1-4)] by force
+  then have "target (initial M) pR1 \<in> fst d"
+    using \<open>q' \<in> fst d\<close> by blast
+
+  have "target (initial M) pR2 = q''"
+    using RP_target[OF \<open>pR2 \<in> ?RP2\<close> assms(1-4)] by force
+  then have "target (initial M) pR2 \<in> fst d"
+    using \<open>q'' \<in> fst d\<close> by blast
+
+  have "pR1 \<noteq> pR2"
+    using \<open>target (initial M) pR1 = q'\<close> \<open>target (initial M) pR2 = q''\<close> \<open>q' \<noteq> q''\<close> by auto
+
+
+  obtain A t1 t2 where "(A,t1,t2) \<in> atcs (q',q'')"
+    using t9[OF \<open>d \<in> set RepSets\<close> \<open>q' \<in> fst d\<close> \<open>q'' \<in> fst d\<close> \<open>q' \<noteq> q''\<close>]
+    by auto
+  have "(A,t2,t1) \<in> atcs (q'',q')" and "is_separator M q' q'' A t1 t2"
+    using t3[OF \<open>(A,t1,t2) \<in> atcs (q',q'')\<close>] by simp+
+  then have "is_separator M q'' q' A t2 t1"
+    using is_separator_sym by force
+
+  show "io_targets M' (p_io pR1) (initial M') \<inter> io_targets M' (p_io pR2) (initial M') = {}" 
+  proof (rule ccontr) 
+    assume "io_targets M' (p_io pR1) (FSM.initial M') \<inter> io_targets M' (p_io pR2) (FSM.initial M') \<noteq> {}"
+    then obtain qT where "qT \<in> io_targets M' (p_io pR1) (FSM.initial M')"
+                   and   "qT \<in> io_targets M' (p_io pR2) (FSM.initial M')"
+      by blast
+
+    then have "qT \<in> nodes M'"
+      using path_target_is_node unfolding io_targets.simps by force
+
+    consider (a) "?RP1 = ?R1 \<and> ?RP2 = ?R2" |
+             (b) "?RP1 = ?R1 \<and> ?RP2 \<noteq> ?R2" |
+             (c) "?RP1 \<noteq> ?R1 \<and> ?RP2 = ?R2" |
+             (d) "?RP1 \<noteq> ?R1 \<and> ?RP2 \<noteq> ?R2"
+      by blast
+
+    then show "False" proof cases
+      case a
+      then have "pR1 \<in> ?R1" and "pR2 \<in> ?R2"
+        using \<open>pR1 \<in> ?RP1\<close> \<open>pR2 \<in> ?RP2\<close> by auto
+                
+      obtain pR1' where "pR1 = pP@pR1'" using R_component_ob[OF \<open>pR1 \<in> ?R1\<close>] by blast
+      obtain pR2' where "pR2 = pP@pR2'" using R_component_ob[OF \<open>pR2 \<in> ?R2\<close>] by blast
+
+      have "pR1' = take (length pR1') p" and "length pR1' \<le> length p" and "t_target (p ! (length pR1' - 1)) = q'" and "pR1' \<noteq> []"
+        using R_component[of pP pR1' M q q' p] \<open>pR1 \<in> ?R1\<close> unfolding \<open>pR1 = pP@pR1'\<close> by blast+ 
+
+      have "pR2' = take (length pR2') p" and "length pR2' \<le> length p" and "t_target (p ! (length pR2' - 1)) = q''" and "pR2' \<noteq> []"
+        using R_component[of pP pR2' M q q'' p] \<open>pR2 \<in> ?R2\<close> unfolding \<open>pR2 = pP@pR2'\<close> by blast+ 
+
+      have "target q pR1' = q'"
+        using \<open>target (initial M) pR1 = q'\<close> \<open>pR1' \<noteq> []\<close> unfolding target.simps visited_nodes.simps \<open>pR1 = pP@pR1'\<close> by simp 
+      then have "target q pR1' \<in> fst d"
+        using \<open>q' \<in> fst d\<close> by blast
+
+      have "target q pR2' = q''"
+        using \<open>target (initial M) pR2 = q''\<close> \<open>pR2' \<noteq> []\<close> unfolding target.simps visited_nodes.simps \<open>pR2 = pP@pR2'\<close> by simp 
+      then have "target q pR2' \<in> fst d"
+        using \<open>q'' \<in> fst d\<close> by blast
+
+      have "pR1' \<noteq> pR2'"
+        using \<open>pR1 \<noteq> pR2\<close> unfolding \<open>pR1 = pP@pR1'\<close> \<open>pR2 = pP@pR2'\<close> by simp
+      then have "length pR1' \<noteq> length pR2'"
+        using \<open>pR1' = take (length pR1') p\<close> \<open>pR2' = take (length pR2') p\<close> by auto
+      then consider (a1) "length pR1' < length pR2'" | (a2) "length pR2' < length pR1'"
+        using nat_neq_iff by blast 
+      then have "pR1' \<in> tps q \<and> pR2' \<in> tps q \<and> q' \<in> rd_targets (q, pR2') \<and> q'' \<in> rd_targets (q, pR1')"
+      proof cases
+        case a1
+        then have "pR2' = pR1' @ (drop (length pR1') pR2')"
+          using \<open>pR1' = take (length pR1') p\<close> \<open>pR2' = take (length pR2') p\<close>
+          by (metis append_take_drop_id less_imp_le_nat take_le) 
+        then have "p = pR1' @ (drop (length pR1') pR2') @ (drop (length pR2') p)"
+          using \<open>pR2' = take (length pR2') p\<close>
+          by (metis append.assoc append_take_drop_id)
+
+        have "(drop (length pR1') pR2') \<noteq> []"
+          using a1 \<open>pR2' = take (length pR2') p\<close> by auto
+        have "target q (pR1' @ drop (length pR1') pR2') \<in> fst d"
+          using \<open>pR2' = pR1' @ (drop (length pR1') pR2')\<close>[symmetric] \<open>target q pR2' \<in> fst d\<close> by auto
+
+        show ?thesis
+          using t10[OF \<open>q \<in> fst ` PS\<close> \<open>(p, d) \<in> m_traversal_paths_with_witness M q RepSets m\<close> \<open>p = pR1' @ (drop (length pR1') pR2') @ (drop (length pR2') p)\<close> \<open>(drop (length pR1') pR2') \<noteq> []\<close> \<open>target q pR1' \<in> fst d\<close> \<open>target q (pR1' @ drop (length pR1') pR2') \<in> fst d\<close>]
+          unfolding \<open>pR2' = pR1' @ (drop (length pR1') pR2')\<close>[symmetric] \<open>target q pR1' = q'\<close>  \<open>target q pR2' = q''\<close>
+          using \<open>q' \<noteq> q''\<close>
+          by blast
+      next
+        case a2
+        then have "pR1' = pR2' @ (drop (length pR2') pR1')"
+          using \<open>pR1' = take (length pR1') p\<close> \<open>pR2' = take (length pR2') p\<close>
+          by (metis append_take_drop_id less_imp_le_nat take_le) 
+        then have "p = pR2' @ (drop (length pR2') pR1') @ (drop (length pR1') p)"
+          using \<open>pR1' = take (length pR1') p\<close>
+          by (metis append.assoc append_take_drop_id)
+
+        have "(drop (length pR2') pR1') \<noteq> []"
+          using a2 \<open>pR1' = take (length pR1') p\<close> by auto
+        have "target q (pR2' @ drop (length pR2') pR1') \<in> fst d"
+          using \<open>pR1' = pR2' @ (drop (length pR2') pR1')\<close>[symmetric] \<open>target q pR1' \<in> fst d\<close> by auto
+
+        show ?thesis
+          using t10[OF \<open>q \<in> fst ` PS\<close> \<open>(p, d) \<in> m_traversal_paths_with_witness M q RepSets m\<close> \<open>p = pR2' @ (drop (length pR2') pR1') @ (drop (length pR1') p)\<close> \<open>(drop (length pR2') pR1') \<noteq> []\<close> \<open>target q pR2' \<in> fst d\<close> \<open>target q (pR2' @ drop (length pR2') pR1') \<in> fst d\<close>]
+          unfolding \<open>pR1' = pR2' @ (drop (length pR2') pR1')\<close>[symmetric] \<open>target q pR1' = q'\<close>  \<open>target q pR2' = q''\<close>
+          using \<open>q' \<noteq> q''\<close>
+          by blast
+      qed 
+      then have "pR1' \<in> tps q" and "pR2' \<in> tps q" and "q' \<in> rd_targets (q, pR2')" and "q'' \<in> rd_targets (q, pR1')"
+        by simp+
+
+      
+
+      have "p_io pP @ p_io pR1' \<in> L M'"
+        using language_prefix_append[OF \<open>p_io pP @ p_io p \<in> L M'\<close>, of "length pR1'"]
+        using \<open>pR1' = take (length pR1') p\<close> by simp
+      have "pass_separator_ATC M' A qT t2"
+        using pass3[OF \<open>(q, P) \<in> PS\<close> \<open>path P (initial P) pP\<close> \<open>target (initial P) pP = q\<close> \<open>pR1' \<in> tps q\<close> \<open>p_io pP @ p_io pR1' \<in> L M'\<close> \<open>q'' \<in> rd_targets (q, pR1')\<close>, of A t1 t2]
+              \<open>(A, t1, t2) \<in> atcs (q', q'')\<close> \<open>qT \<in> io_targets M' (p_io pR1) (FSM.initial M')\<close> 
+        unfolding \<open>target q pR1' = q'\<close> \<open>pR1 = pP @ pR1'\<close> by auto
+
+
+      have "p_io pP @ p_io pR2' \<in> L M'"
+        using language_prefix_append[OF \<open>p_io pP @ p_io p \<in> L M'\<close>, of "length pR2'"]
+        using \<open>pR2' = take (length pR2') p\<close> by simp
+      have "pass_separator_ATC M' A qT t1"
+        using pass3[OF \<open>(q, P) \<in> PS\<close> \<open>path P (initial P) pP\<close> \<open>target (initial P) pP = q\<close> \<open>pR2' \<in> tps q\<close> \<open>p_io pP @ p_io pR2' \<in> L M'\<close> \<open>q' \<in> rd_targets (q, pR2')\<close>, of A t2 t1]
+              \<open>(A, t2, t1) \<in> atcs (q'', q')\<close> \<open>qT \<in> io_targets M' (p_io pR2) (FSM.initial M')\<close> 
+        unfolding \<open>target q pR2' = q''\<close> \<open>pR2 = pP @ pR2'\<close> by auto
+
+      (* the state qT reached by both paths cannot satisfy the ATC that r-distinduishes their respective targets for both targets at the same time *)
+
+      have "qT \<noteq> qT"
+        using pass_separator_ATC_reduction_distinction[OF \<open>observable M\<close> \<open>observable M'\<close> \<open>inputs M' = inputs M\<close> \<open>pass_separator_ATC M' A qT t2\<close> \<open>pass_separator_ATC M' A qT t1\<close> \<open>q' \<in> nodes M\<close> \<open>q'' \<in> nodes M\<close> \<open>q' \<noteq> q''\<close> \<open>qT \<in> nodes M'\<close> \<open>qT \<in> nodes M'\<close> \<open>is_separator M q' q'' A t1 t2\<close> \<open>completely_specified M'\<close>]
+        by assumption
+      then show False
+        by simp
+
+    next
+      case b
+
+      thm t11
+      
+    
+        
+
+end (*
+      have "p \<in> tps q"
+        using t6[of q] \<open>(q,P) \<in> PS\<close> \<open>(p, d) \<in> m_traversal_paths_with_witness M q RepSets m\<close> by force
+
+      thm pass3[OF \<open>(q, P) \<in> PS\<close> \<open>path P (initial P) pP\<close> \<open>target (initial P) pP = q\<close> ]
+      then have 
+
+
+
+
+end (*
+next
+case b
+then show ?thesis sorry
+next
+case c
+then show ?thesis sorry
+next
+  case d
+  then show ?thesis sorry
+qed 
+
+    thm RP_from_R[OF assms(1-4)]
+
+
+
+  thm pass_separator_ATC_reduction_distinction[OF \<open>observable M\<close> \<open>observable M'\<close> \<open>inputs M' = inputs M\<close> _ _ \<open>q' \<in> nodes M\<close> \<open>q'' \<in> nodes M\<close> \<open>q' \<noteq> q''\<close>]
+
 
 
 end (*
 
-
+(* TODO: rework t8 (... \<inter> fst ` PS) and check whether t4 is necessary at all *)
+(* TODO: if t4 is not necessary, then is should be removed/refined *)
 
 
 lemma passes_test_suite_exhaustiveness :
