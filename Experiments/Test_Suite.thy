@@ -802,11 +802,11 @@ lemma RP_from_R :
   and     "\<And> q P io x y y' . (q,P) \<in> PS \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
   and     "completely_specified M'"
   and     "inputs M' = inputs M"
-shows "(RP M q q' pP p PS M' = R M q q' pP p) \<or> (\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
+shows "(RP M q q' pP p PS M' = R M q q' pP p) \<or> (\<exists> P' pP' . (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
 proof (rule ccontr)
-  assume "\<not> (RP M q q' pP p PS M' = R M q q' pP p \<or> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p)))"
+  assume "\<not> (RP M q q' pP p PS M' = R M q q' pP p \<or> (\<exists> P' pP' . (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p)))"
   then have "(RP M q q' pP p PS M' \<noteq> R M q q' pP p)"
-       and  "\<not> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
+       and  "\<not> (\<exists> P' pP' . (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
     by blast+
 
   let ?p = "SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M'"
@@ -845,10 +845,10 @@ proof (rule ccontr)
   have "RP M q q' pP p PS M' = insert ?p (R M q q' pP p)"
     using \<open>\<exists> P' .  (q',P') \<in> PS\<close> unfolding RP_def by auto
 
-  then have "(\<exists> pP' . path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
-    using \<open>path M (initial M) ?p\<close> \<open>target (initial M) ?p = q'\<close> \<open>p_io ?p \<in> L M'\<close> by blast
+  then have "(\<exists> P' pP' . (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))"
+    using \<open>(q',P'') \<in> PS\<close> \<open>path P'' (initial P'') ?p\<close> \<open>target (initial P'') ?p = q'\<close> \<open>path M (initial M) ?p\<close> \<open>target (initial M) ?p = q'\<close> \<open>p_io ?p \<in> L M'\<close> by blast
   then show "False"
-    using \<open>\<not> (\<exists>pP'. path M (FSM.initial M) pP' \<and> target (FSM.initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))\<close>
+    using \<open>\<not> (\<exists> P' pP' . (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> path M (initial M) pP' \<and> target (initial M) pP' = q' \<and> p_io pP' \<in> L M' \<and> RP M q q' pP p PS M' = insert pP' (R M q q' pP p))\<close>
     by blast
 qed
 
