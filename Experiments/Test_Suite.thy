@@ -1738,25 +1738,36 @@ proof -
     
     
 
-    
+    let ?f = "(\<lambda> pR . io_targets M' (p_io pR) (initial M'))"
+  
+    have p1: "(\<And>S1 S2. S1 \<in> ?RP \<Longrightarrow> S2 \<in> ?RP \<Longrightarrow> S1 = S2 \<or> ?f S1 \<inter> ?f S2 = {})"
+      using pairwise_dist_prop_RP by blast
+    have p2: "(\<And>S. S \<in> ?RP \<Longrightarrow> io_targets M' (p_io S) (FSM.initial M') \<noteq> {})"
+      using singleton_prop_RP by blast
+    have c1: "card ?RP = card ((\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` ?RP)"
+      using card_union_of_distinct[of ?RP, OF p1 \<open>finite ?RP\<close> p2] by force
+  
+    have p3: "(\<And>S. S \<in> (\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` ?RP \<Longrightarrow> \<exists>t. S = {t})"
+      using singleton_prop_RP by blast
+    have c2:"card ((\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` ?RP) = card (\<Union>S\<in>?RP. io_targets M' (p_io S) (FSM.initial M'))"
+      using card_union_of_singletons[of "((\<lambda>S. io_targets M' (p_io S) (FSM.initial M')) ` ?RP)", OF p3] by force
+  
+      
+    have ?P1
+      unfolding c1 c2 by blast
 
-
-
-
-
-
-
-
-
-
-
-    
-
-    then show ?thesis sorry
+    show ?combined_goals using \<open>?P1\<close> \<open>?P2\<close> \<open>?P3\<close> by blast
   qed
 
+  
 
-(* TODO: show more directly that no two sequences in (RP M (target (initial M) pP) q' pP p PS) reach the same state in M' ? *)
+  then show "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) (RP M (target (initial M) pP) q' pP p PS M'))) = card (RP M (target (initial M) pP) q' pP p PS M')"
+       and  "\<And> pR . pR \<in> (RP M (target (initial M) pP) q' pP p PS M') \<Longrightarrow> \<exists> q . io_targets M' (p_io pR) (initial M') = {q}"
+       and  "\<And> pR1 pR2 . pR1 \<in> (RP M (target (initial M) pP) q' pP p PS M') \<Longrightarrow> pR2 \<in> (RP M (target (initial M) pP) q' pP p PS M') \<Longrightarrow> pR1 \<noteq> pR2 \<Longrightarrow> io_targets M' (p_io pR1) (initial M') \<inter> io_targets M' (p_io pR2) (initial M') = {}"
+    by blast+
+qed
+
+
 
 end (*
 
