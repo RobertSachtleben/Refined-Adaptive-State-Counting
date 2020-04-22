@@ -2427,7 +2427,7 @@ qed
 (* TODO: move *)
 lemma distinct_union_union_card :
   assumes "finite xs"
-  and     "\<And> x1 x2 . x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> x1 \<noteq> x2 \<Longrightarrow> \<Union> (g ` f x1) \<inter> \<Union> (g ` f x2) = {}"
+  and     "\<And> x1 x2 y1 y2 . x1 \<noteq> x2 \<Longrightarrow> x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> y1 \<in> f x1 \<Longrightarrow> y2 \<in> f x2 \<Longrightarrow> g y1 \<inter> g y2 = {}"
   and     "\<And> x1 y1 y2 . y1 \<in> f x1 \<Longrightarrow> y2 \<in> f x1 \<Longrightarrow> y1 \<noteq> y2 \<Longrightarrow> g y1 \<inter> g y2 = {}"
   and     "\<And> x1 . finite (f x1)"
   and     "\<And> y1 . finite (g y1)"
@@ -2461,7 +2461,8 @@ proof -
         then have "x' \<noteq> x" and "x' \<in> insert x xs" using insert.hyps by blast+
 
         have "\<Union> (g ` f x') \<inter> \<Union> (g ` f x) = {}"
-          using insert.prems[OF \<open>x' \<in> insert x xs\<close> \<open>x \<in> insert x xs\<close> \<open>x' \<noteq> x\<close>] by assumption
+          using insert.prems[OF \<open>x' \<noteq> x\<close> \<open>x' \<in> insert x xs\<close> \<open>x \<in> insert x xs\<close> ]
+          by blast 
         then show "False"
           using \<open>z \<in> \<Union> (g ` f x')\<close> \<open>z \<in> \<Union> (g ` f x)\<close> by blast
       qed
@@ -3087,80 +3088,8 @@ proof (rule ccontr)
   qed
 
 
-  (*have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))) \<ge> Suc (m - card (snd dM))"
-  proof -   
 
-    have "\<And> nds . finite nds \<Longrightarrow> nds \<subseteq> fst dM \<Longrightarrow> (\<Sum> q' \<in> nds . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
-    proof -
-      fix nds assume "finite nds" and "nds \<subseteq> fst dM"
-
-      then show "(\<Sum> q' \<in> nds . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
-      proof (induction)
-        case empty
-        then show ?case by auto
-      next
-        case (insert q' nds)
-        then have ****: "(\<Sum>q'\<in>nds. card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
-          by blast
-
-        have *: "length (filter (\<lambda>t. t_target t \<in> insert q' nds) pM) = length (filter (\<lambda>t. t_target t \<in> nds) pM) + length (filter (\<lambda>t. t_target t = q') pM)"
-          using \<open>q' \<notin> nds\<close> by (induction pM; auto)
-
-        have **: "(\<Sum>q'\<in>insert q' nds. card (R M q q' pP pM)) = (\<Sum>q'\<in>nds. card (R M q q' pP pM)) + (card (R M q q' pP pM))"
-          using \<open>q' \<notin> nds\<close> \<open>finite nds\<close> by auto 
-
-        have ***: "(card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t = q') pM)" 
-        using \<open>path M q pM\<close> proof (induction pM rule: rev_induct)
-          case Nil
-          then show ?case unfolding R_def by auto
-        next
-          case (snoc t pM)
-          then have "path M q pM" and "card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)"
-            by auto
-
-          note R_update[of M q q' pP pM t]
-
-          show ?case proof (cases "target q (pM @ [t]) = q'")
-            case True
-            then have "(R M q q' pP (pM @ [t])) = insert (pP @ pM @ [t]) (R M q q' pP pM)"
-              unfolding R_update[of M q q' pP pM t] by simp
-            moreover have "(pP @ pM @ [t]) \<notin> (R M q q' pP pM)"
-              unfolding R_def by auto
-            ultimately have "card (R M q q' pP (pM @ [t])) = Suc (card (R M q q' pP pM))"
-              using finite_R[OF \<open>path M q pM\<close>, of q' pP] by simp 
-            then show ?thesis 
-              using True unfolding \<open>card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)\<close> by auto
-          next
-            case False
-            then have "card (R M q q' pP (pM @ [t])) = card (R M q q' pP pM)"
-              unfolding R_update[of M q q' pP pM t] by simp
-            then show ?thesis 
-              using False unfolding \<open>card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)\<close> by auto
-          qed 
-        qed
-
-        show ?case 
-          unfolding * ** *** **** by simp
-      qed
-    qed
-    moreover have "finite (fst dM)"
-      using t7[OF \<open>dM \<in> set RepSets\<close>] fsm_nodes_finite[of M]
-      using rev_finite_subset by auto 
-    ultimately have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> fst dM) pM)"
-      by blast
-    then have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) \<ge> Suc (m - card (snd dM))"
-      using \<open>Suc (m - card (snd dM)) \<le> length (filter (\<lambda>t. t_target t \<in> fst dM) pM)\<close> by simp
-    moreover have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) = (\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M')))"
-      using R_count(1)[OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>observable M'\<close> t2 \<open>path M (target (FSM.initial M) pP) pM\<close> \<open>butlast io = (p_io pM)@ioX\<close>]
-      unfolding \<open>target (FSM.initial M) pP = q\<close> by auto
-    ultimately show ?thesis
-      by simp
-  qed*)
-
-
-  
-
-
+  (* combine counting results on RP (from R) to show that the path along pM collects at least m+1 distinct io-targets (i.e. visites at least m+1 distinct nodes) in M' *)
 
 
   have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M'))) \<ge> Suc m"
@@ -3281,123 +3210,38 @@ proof (rule ccontr)
   proof -
     have "finite (fst dM)"
       by (meson \<open>dM \<in> set RepSets\<close> fsm_nodes_finite rev_finite_subset t7) 
-    thm no_shared_targets_for_distinct_states
-    thm distinct_union_union_card
-        [OF \<open>finite (fst dM)\<close>
-        , of "\<lambda> pR . io_targets M' (p_io pR) (initial M')" "\<lambda> q' . (RP M q q' pP pM prs M')"
-        ]
 
-    have "\<And> xs f g zs. (\<And> x1 x2 . x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> f x1 \<inter> f x2 = {}) 
-                \<Longrightarrow> (\<And> x1 y1 y2 . y1 \<in> f x1 \<Longrightarrow> y2 \<in> f x1 \<Longrightarrow> y1 \<noteq> y2 \<Longrightarrow> g y1 \<inter> g y2 = {})
-                \<Longrightarrow> (\<And> x1 . finite (f x1))
-                \<Longrightarrow> (\<And> y1 . finite (g y1))
-                \<Longrightarrow> (\<And> y1 . g y1 \<subseteq> zs)
-                \<Longrightarrow> (finite zs)
-                \<Longrightarrow> (\<Sum> x \<in> xs . card (\<Union> y \<in> f x . g y)) \<le> card zs" 
+    have "(\<And>x1. finite (RP M q x1 pP pM prs M'))"
+      using finite_RP[OF \<open>path M q pM\<close> t2 pass1 \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close>] by force
 
-end (*
+    have "(\<And>y1. finite (io_targets M' (p_io y1) (FSM.initial M')))"
+      by (meson io_targets_finite)
 
-    using RP_targets
-
-
-
-  
-
-end (*
-
-    have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) \<ge> Suc (m - card (snd dM))"
-    proof -
+    have "(\<And>y1. io_targets M' (p_io y1) (FSM.initial M') \<subseteq> nodes M')"
+      by (meson io_targets_nodes)
       
-      
-       
+    show ?thesis 
+      using distinct_union_union_card
+        [ of "fst dM" "\<lambda> q' . (RP M q q' pP pM prs M')" "\<lambda> pR . io_targets M' (p_io pR) (initial M')"
+        , OF \<open>finite (fst dM)\<close>
+             no_shared_targets_for_distinct_states
+             no_shared_targets_for_identical_states
+             \<open>(\<And>x1. finite (RP M q x1 pP pM prs M'))\<close>
+             io_targets_finite
+             io_targets_nodes
+             fsm_nodes_finite[of M']] 
+      unfolding \<open>(target (FSM.initial M) pP) = q\<close> by force
+  qed
 
-end(*
+  (* create a contradiction due to the assumption that M' has at most m nodes *)
 
-  1) assign each q' in (snd dM) some p such that 
-    (RP M (target (FSM.initial M) pP) q' pP pM prs M') = insert p (R M (target (FSM.initial M) pP) q' pP pM)
+  moreover have "card (nodes M') \<le> m"
+    using \<open>size M' \<le> m\<close> by auto
 
-  2) SUM q' \<in> fst d . (R M (target (FSM.initial M) pP) q' pP pM) \<ge> Suc (m - card (snd d))
+  ultimately show False
+    by linarith
+qed
 
-  3) the (card (snd d)) elements of (1) are not contained in those considered in (2)
-
-  3b) sth sth finite blah
-
-  4) overalls m+1 nodes must exist in M'
-
-
-
-
-end (*
-  have "\<And> t . t \<in> set pM \<Longrightarrow> t_target t \<notin> snd dM"
-  proof -
-    fix t assume "t \<in> set pM"
-    then obtain i where "pM ! i = t" and "i < length pM"
-      by (meson in_set_conv_nth) 
-
-    show "t_target t \<notin> snd dM"
-    proof 
-      assume "t_target t \<in> snd dM"
-    
-      (* get the full path along (butlast io) in M, of which p is a (possibly proper) prefix *)
-  
-      obtain pX where "path M (target (initial M) pP) (pM@pX)" and "p_io (pM@pX) = butlast io"
-      proof -
-        have "p_io pP @ p_io pM @ ioX \<in> L M"
-          using \<open>((p_io pP) @ butlast io) \<in> L M\<close> unfolding \<open>butlast io = p_io pM @ ioX\<close> by assumption
-    
-        obtain p1 p23 where "path M (FSM.initial M) p1" and "path M (target (FSM.initial M) p1) p23" and "p_io p1 = p_io pP" and "p_io p23 = p_io pM @ ioX"
-          using language_state_split[OF \<open>p_io pP @ p_io pM @ ioX \<in> L M\<close>] by blast
-    
-        have "p1 = pP"
-          using observable_path_unique[OF \<open>observable M\<close> \<open>path M (FSM.initial M) p1\<close> \<open>path M (FSM.initial M) pP\<close> \<open>p_io p1 = p_io pP\<close>] by assumption
-        then have "path M (target (FSM.initial M) pP) p23"
-          using \<open>path M (target (FSM.initial M) p1) p23\<close> by auto
-        then have "p_io pM @ ioX \<in> LS M (target (initial M) pP)"
-          using \<open>p_io p23 = p_io pM @ ioX\<close> language_state_containment by auto
-    
-        obtain p2 p3 where "path M (target (FSM.initial M) pP) p2" and "path M (target (target (FSM.initial M) pP) p2) p3" and "p_io p2 = p_io pM" and "p_io p3 = ioX"
-          using language_state_split[OF \<open>p_io pM @ ioX \<in> LS M (target (initial M) pP)\<close>] by blast
-    
-        have "p2 = pM"
-          using observable_path_unique[OF \<open>observable M\<close> \<open>path M (target (FSM.initial M) pP) p2\<close> \<open>path M (target (FSM.initial M) pP) pM\<close> \<open>p_io p2 = p_io pM\<close>] by assumption
-        then have "path M (target (FSM.initial M) pP) (pM@p3)"
-          using \<open>path M (target (FSM.initial M) pP) pM\<close> \<open>path M (target (target (FSM.initial M) pP) p2) p3\<close> by auto
-        moreover have "p_io (pM@p3) = butlast io"
-          unfolding \<open>butlast io = p_io pM @ ioX\<close> using \<open>p_io p3 = ioX\<close> by auto
-        ultimately show ?thesis using that[of p3] by simp
-      qed
-  
-      (* get paths corresponding to pP and io in M' *)
-      obtain pP' pIO where "path M' (FSM.initial M') pP'" and "path M' (target (FSM.initial M') pP') pIO" and "p_io pP' = p_io pP" and "p_io pIO = io"
-        using language_state_split[OF \<open>((p_io pP) @ io) \<in> L M'\<close>] by blast
-  
-      have "target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')"
-        using \<open>path M' (FSM.initial M') pP'\<close> unfolding \<open>p_io pP' = p_io pP\<close>[symmetric] by auto
-  
-      have "i < length (butlast io)"
-        using \<open>i < length pM\<close> 
-        unfolding \<open>p_io (pM@pX) = butlast io\<close>[symmetric] length_map[of"(\<lambda> t . (t_input t, t_output t))",symmetric] by auto
-  
-      have "(pM@pX) ! i = t"
-        using \<open>pM ! i = t\<close> by (simp add: \<open>i < length pM\<close> nth_append) 
-  
-      obtain Pi where "(t_target ((pM @ pX) ! i), Pi) \<in> prs"
-        using t8'[OF \<open>dM \<in> set RepSets\<close>] \<open>t_target t \<in> snd dM\<close> unfolding \<open>(pM@pX) ! i = t\<close> by auto
-      then have "is_preamble Pi M (t_target ((pM @ pX) ! i))"
-        using t2 by blast
-
-      obtain pPi where "path Pi (initial Pi) pPi" and "target (initial Pi) pPi = t_target ((pM @ pX) ! i)" and "p_io pPi \<in> L M'"
-        using preamble_pass_path[OF \<open>is_preamble Pi M (t_target ((pM @ pX) ! i))\<close> pass1[OF \<open>(t_target ((pM @ pX) ! i), Pi) \<in> prs\<close>] \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close>] by force
-
-      have "t_target (pIO ! i) \<notin> io_targets M' (p_io pPi) (FSM.initial M')"     
-        using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM @ pX) = butlast io\<close> \<open>target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') pIO\<close> \<open>p_io pIO = io\<close> t2 \<open>i < length (butlast io)\<close> \<open>(t_target ((pM @ pX) ! i), Pi) \<in> prs\<close> \<open>path Pi (initial Pi) pPi\<close> \<open>target (FSM.initial Pi) pPi = t_target ((pM @ pX) ! i)\<close>]
-        by blast
-      then show "False"
-          
-end (*
-thm passes_test_suite_exhaustiveness_helper_1[OF t2' pass1 \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close> \<open>observable M\<close> \<open>observable M'\<close> _ _ _ \<open>(pM,dM) \<in> m_traversal_paths_with_witness M q RepSets m\<close> ]
-  thm passes_test_suite_exhaustiveness_helper_1[OF t2' pass1, of prs "\<lambda> q P io x y y' . q" "\<lambda> q P io x y y' . y", OF \<open>completely_specified M'\<close>]
-  
 
 
 end
