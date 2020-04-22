@@ -3021,8 +3021,7 @@ proof (rule ccontr)
 
 
   have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))) \<ge> Suc (m - card (snd dM))"
-  proof -
-    note \<open>Suc (m - card (snd dM)) \<le> length (filter (\<lambda>t. t_target t \<in> fst dM) pM)\<close>
+  proof -   
 
     have "\<And> nds . finite nds \<Longrightarrow> nds \<subseteq> fst dM \<Longrightarrow> (\<Sum> q' \<in> nds . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
     proof -
@@ -3082,6 +3081,14 @@ proof (rule ccontr)
       using rev_finite_subset by auto 
     ultimately have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> fst dM) pM)"
       by blast
+    then have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) \<ge> Suc (m - card (snd dM))"
+      using \<open>Suc (m - card (snd dM)) \<le> length (filter (\<lambda>t. t_target t \<in> fst dM) pM)\<close> by simp
+    moreover have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) = (\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M')))"
+      using R_count(1)[OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>observable M'\<close> t2 \<open>path M (target (FSM.initial M) pP) pM\<close> \<open>butlast io = (p_io pM)@ioX\<close>]
+      unfolding \<open>target (FSM.initial M) pP = q\<close> by auto
+    ultimately show ?thesis
+      by simp
+  qed
 
 end (*
 
