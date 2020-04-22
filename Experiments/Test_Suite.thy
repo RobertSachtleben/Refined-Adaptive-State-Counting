@@ -2926,10 +2926,31 @@ proof (rule ccontr)
         using \<open>t_target ((pM @ pX) ! (length pR' - 1)) = q'\<close> \<open>target (FSM.initial PQ') pPQ = q'\<close> by blast
 
 
-      thm minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles
+      have "t_target (pIO ! ?i) \<notin> io_targets M' (p_io pPQ) (FSM.initial M')"
+        using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles
           [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM@pX) = butlast io\<close>
+              \<open>target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') pIO\<close> \<open>p_io pIO = io\<close> t2
+              \<open>?i < length (butlast io)\<close> \<open>(t_target ((pM @ pX) ! (length pR' - 1)), PQ') \<in> prs\<close>
+              \<open>path PQ' (initial PQ') pPQ\<close> \<open>target (FSM.initial PQ') pPQ = t_target ((pM @ pX) ! (length pR' - 1))\<close>]
+        by blast
 
-          ]
+      moreover have "io_targets M' (p_io pPQ) (FSM.initial M') = {target (initial M') pPQ'}"
+        using \<open>path M' (initial M') pPQ'\<close>
+        using \<open>io_targets M' (p_io pPQ) (FSM.initial M') = {target (FSM.initial M') pPQ'}\<close> \<open>p_io pPQ' = p_io pPQ\<close> by auto 
+      moreover have "io_targets M' (p_io (pP@pR')) (FSM.initial M') = {t_target (pIO ! ?i)}"
+      proof -
+        have "(take (length pR') pIO) \<noteq> []" 
+          using \<open>p_io pIO = io\<close> \<open>?i < length pR'\<close>
+          using \<open>io = p_io pM @ ioEx\<close> \<open>pR' = take (length pR') pM\<close> by auto
+        moreover have "pIO ! ?i = last (take (length pR') pIO)" 
+          using \<open>p_io pIO = io\<close> \<open>?i < length pR'\<close>
+          by (metis (no_types, lifting) \<open>io = p_io pM @ ioEx\<close> \<open>length pR' \<le> length pM\<close> \<open>pR' = take (length pR') pM\<close> butlast.simps(1) last_conv_nth length_butlast length_map neq_iff nth_take take_le take_map)
+        ultimately have "t_target (pIO ! ?i) = target (target (FSM.initial M') pP') (take (length pR') pIO)"
+          unfolding target.simps visited_nodes.simps
+          by (simp add: last_map) 
+          
+        
+
 end (*
 
       have "t_target (pIO ! (length pR' - 1)) \<notin> io_targets M' (p_io pPQ) (FSM.initial M')"
