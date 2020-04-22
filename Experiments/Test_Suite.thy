@@ -2861,7 +2861,7 @@ proof (rule ccontr)
     then have "io_targets M' (p_io pPQ) (initial M') = {target (initial M') pPQ'}"
       using \<open>observable M'\<close> by (metis (mono_tags, lifting) observable_path_io_target) 
     
-    have "target (initial M') pPQ' \<notin> (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) ?R))"
+    moreover have "target (initial M') pPQ' \<notin> (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) ?R))"
     proof 
       assume "target (initial M') pPQ' \<in> (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) ?R))"
       then obtain pR where "pR \<in> ?R" and "target (initial M') pPQ' \<in> io_targets M' (p_io pR) (initial M')"
@@ -2948,9 +2948,49 @@ proof (rule ccontr)
         ultimately have "t_target (pIO ! ?i) = target (target (FSM.initial M') pP') (take (length pR') pIO)"
           unfolding target.simps visited_nodes.simps
           by (simp add: last_map) 
+        then have "t_target (pIO ! ?i) = target (initial M') (pP' @ (take (length pR') pIO))"
+          by auto 
           
-        
+        have "path M' (target (FSM.initial M') pP') (take (length pR') pIO)"
+          using \<open>path M' (target (FSM.initial M') pP') pIO\<close>
+          by (simp add: path_prefix_take) 
+        then have "path M' (initial M') (pP' @ (take (length pR') pIO))"
+          using \<open>path M' (FSM.initial M') pP'\<close> by auto
+        moreover have "p_io (pP' @ (take (length pR') pIO)) = (p_io (pP@pR'))"
+        proof -
+          have "p_io (take (length pR') pIO) = p_io pR'"
+            using \<open>p_io pIO = io\<close> \<open>pR' = take (length pR') pM\<close> \<open>p_io (pM@pX) = butlast io\<close> \<open>length pR' \<le> length pM\<close>
+            by (metis (no_types, lifting) \<open>io = p_io pM @ ioEx\<close> length_map take_le take_map) 
+          then show ?thesis
+            using \<open>p_io pP' = p_io pP\<close> by auto
+        qed
+        ultimately have "io_targets M' (p_io (pP@pR')) (FSM.initial M') = {target (initial M') (pP' @ (take (length pR') pIO))}"
+          by (metis (mono_tags, lifting) assms(5) observable_path_io_target)
 
+        then show ?thesis
+          unfolding \<open>t_target (pIO ! ?i) = target (initial M') (pP' @ (take (length pR') pIO))\<close>
+          by assumption
+      qed
+
+      ultimately have "target (initial M') pPQ' \<notin> io_targets M' (p_io pR) (initial M')"
+        unfolding \<open>pR = pP@pR'\<close> by auto
+      then show "False"
+        using \<open>target (initial M') pPQ' \<in> io_targets M' (p_io pR) (initial M')\<close>
+        by blast
+    qed
+
+    ultimately have "io_targets M' (p_io pPQ) (initial M') \<inter> (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) ?R)) = {}"
+      by force
+
+    then show "(\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M')) \<noteq> (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))"
+      unfolding \<open>?RP = insert pPQ (R M q q' pP pM)\<close>
+      using \<open>io_targets M' (p_io pPQ) (FSM.initial M') = {target (FSM.initial M') pPQ'}\<close> by force
+  qed
+
+
+
+  
+       
 end (*
 
       have "t_target (pIO ! (length pR' - 1)) \<notin> io_targets M' (p_io pPQ) (FSM.initial M')"
