@@ -2989,7 +2989,7 @@ proof (rule ccontr)
 
   (* create a function that separates the additional entries for the preambles in the RP sets of nodes in (snd dM) *)
 
-  then obtain f where "\<And> q' . q' \<in> snd dM \<Longrightarrow> (RP M q q' pP pM prs M') = insert (f q') (R M q q' pP pM) \<and> (f q') \<notin> (R M q q' pP pM)"
+  then obtain f where f_def: "\<And> q' . q' \<in> snd dM \<Longrightarrow> (RP M q q' pP pM prs M') = insert (f q') (R M q q' pP pM) \<and> (f q') \<notin> (R M q q' pP pM)"
   proof -
     define f where f_def : "f = (\<lambda> q' . SOME p . (RP M q q' pP pM prs M') = insert p (R M q q' pP pM) \<and> p \<notin> (R M q q' pP pM))"
 
@@ -3089,6 +3089,81 @@ proof (rule ccontr)
     ultimately show ?thesis
       by simp
   qed
+
+
+  
+
+
+
+
+  have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M'))) \<ge> Suc m"
+  proof -
+
+    have "\<And> nds . finite nds \<Longrightarrow> nds \<subseteq> fst dM \<Longrightarrow> (\<Sum> q' \<in> nds . card (RP M q q' pP pM prs M')) \<ge> length (filter (\<lambda>t. t_target t \<in> nds) pM) + card (nds \<inter> snd dM)"
+    proof -
+      fix nds assume "finite nds" and "nds \<subseteq> fst dM"
+      then show "(\<Sum> q' \<in> nds . card (RP M q q' pP pM prs M')) \<ge> length (filter (\<lambda>t. t_target t \<in> nds) pM) + card (nds \<inter> snd dM)"
+      proof induction
+        case empty
+        then show ?case by auto
+      next
+        case (insert q' nds)
+        then have leq1: "length (filter (\<lambda>t. t_target t \<in> nds) pM) + card (nds \<inter> snd dM) \<le> (\<Sum>q'\<in>nds. card (RP M q q' pP pM prs M'))"
+          by blast
+
+        have p4: "(card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t = q') pM)" 
+        using \<open>path M q pM\<close> proof (induction pM rule: rev_induct)
+          case Nil
+          then show ?case unfolding R_def by auto
+        next
+          case (snoc t pM)
+          then have "path M q pM" and "card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)"
+            by auto
+
+          show ?case proof (cases "target q (pM @ [t]) = q'")
+            case True
+            then have "(R M q q' pP (pM @ [t])) = insert (pP @ pM @ [t]) (R M q q' pP pM)"
+              unfolding R_update[of M q q' pP pM t] by simp
+            moreover have "(pP @ pM @ [t]) \<notin> (R M q q' pP pM)"
+              unfolding R_def by auto
+            ultimately have "card (R M q q' pP (pM @ [t])) = Suc (card (R M q q' pP pM))"
+              using finite_R[OF \<open>path M q pM\<close>, of q' pP] by simp 
+            then show ?thesis 
+              using True unfolding \<open>card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)\<close> by auto
+          next
+            case False
+            then have "card (R M q q' pP (pM @ [t])) = card (R M q q' pP pM)"
+              unfolding R_update[of M q q' pP pM t] by simp
+            then show ?thesis 
+              using False unfolding \<open>card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)\<close> by auto
+          qed 
+        qed
+
+        show ?case proof (cases "q' \<in> snd dM")
+          case True
+          then have p0: "(RP M q q' pP pM prs M') = insert (f q') (R M q q' pP pM)" and "(f q') \<notin> (R M q q' pP pM)"
+            using f_def by blast+
+          then have "card (RP M q q' pP pM prs M') = Suc (card (R M q q' pP pM))"
+            by (simp add: \<open>path M q pM\<close> finite_R)
+          then have p1: "(\<Sum>q' \<in> (insert q' nds). card (RP M q q' pP pM prs M')) = (\<Sum>q'\<in>nds. card (RP M q q' pP pM prs M')) + Suc (card (R M q q' pP pM))"
+            by (simp add: insert.hyps(1) insert.hyps(2))
+
+          have p2: "length (filter (\<lambda>t. t_target t \<in> insert q' nds) pM) = length (filter (\<lambda>t. t_target t \<in> nds) pM) + length (filter (\<lambda>t. t_target t = q') pM)"
+            using \<open>q' \<notin> nds\<close> by (induction pM; auto)
+          have p3: "card ((insert q' nds) \<inter> snd dM) = Suc (card (nds \<inter> snd dM))"
+            using True \<open>finite nds\<close> \<open>q' \<notin> nds\<close> by simp
+
+          show ?thesis 
+            using leq1
+            unfolding  p1 p2 p3 p4 by simp
+        next
+          case False
+
+          
+
+          then show ?thesis sorry
+        qed
+      qed 
 
 end (*
 
