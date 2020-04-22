@@ -2825,7 +2825,7 @@ proof (rule ccontr)
 
   note \<open>(target (FSM.initial M) pP) = q\<close>
 
-  have "\<And> q' . q' \<in> snd dM \<Longrightarrow> (\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M')) \<noteq> (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))"
+  have snd_dM_prop: "\<And> q' . q' \<in> snd dM \<Longrightarrow> (\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M')) \<noteq> (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))"
   proof -
     fix q' assume "q' \<in> snd dM"
 
@@ -2987,52 +2987,109 @@ proof (rule ccontr)
       using \<open>io_targets M' (p_io pPQ) (FSM.initial M') = {target (FSM.initial M') pPQ'}\<close> by force
   qed
 
+  (* create a function that separates the additional entries for the preambles in the RP sets of nodes in (snd dM) *)
 
+  then obtain f where "\<And> q' . q' \<in> snd dM \<Longrightarrow> (RP M q q' pP pM prs M') = insert (f q') (R M q q' pP pM) \<and> (f q') \<notin> (R M q q' pP pM)"
+  proof -
+    define f where f_def : "f = (\<lambda> q' . SOME p . (RP M q q' pP pM prs M') = insert p (R M q q' pP pM) \<and> p \<notin> (R M q q' pP pM))"
 
-  
-       
-end (*
+    have "\<And> q' . q' \<in> snd dM \<Longrightarrow> (RP M q q' pP pM prs M') = insert (f q') (R M q q' pP pM) \<and> (RP M q q' pP pM prs M') \<noteq> (R M q q' pP pM)"
+    proof -
+      fix q' assume "q' \<in> snd dM"
 
-      have "t_target (pIO ! (length pR' - 1)) \<notin> io_targets M' (p_io pPQ) (FSM.initial M')"
-        using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles
-          [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM@pX) = butlast io\<close>
-              \<open>target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') pIO\<close> \<open>p_io pIO = io\<close> t2
-              \<open>?i < length (butlast io)\<close> \<open>(t_target ((pM @ pX) ! (length pR' - 1)), PQ') \<in> prs\<close>
-              \<open>path PQ' (initial PQ') pPQ\<close> \<open>target (FSM.initial PQ') pPQ = t_target ((pM @ pX) ! (length pR' - 1))\<close>]
+      have "(\<Union>pR\<in>RP M q q' pP pM prs M'. io_targets M' (p_io pR) (FSM.initial M')) \<noteq> (\<Union>pR\<in>R M q q' pP pM. io_targets M' (p_io pR) (FSM.initial M'))"
+        using snd_dM_prop[OF \<open>q' \<in> snd dM\<close>]
+        by assumption
+      then have "(RP M q q' pP pM prs M') \<noteq> (R M q q' pP pM)"
         by blast
+      then obtain x where "(RP M q q' pP pM prs M') = insert x (R M q q' pP pM)"
+        using RP_from_R[OF t2 pass1 \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close>, of prs "\<lambda> q P io x y y' . q" "\<lambda> q P io x y y' . y" q q' pP pM]
+        by force
+      then have "x \<notin> (R M q q' pP pM)"
+        using \<open>(RP M q q' pP pM prs M') \<noteq> (R M q q' pP pM)\<close>
+        by auto 
+      then have "\<exists> p . (RP M q q' pP pM prs M') = insert p (R M q q' pP pM) \<and> p \<notin> (R M q q' pP pM)"
+        using \<open>(RP M q q' pP pM prs M') = insert x (R M q q' pP pM)\<close> by blast
 
-      then show "False" 
+      show "(RP M q q' pP pM prs M') = insert (f q') (R M q q' pP pM) \<and> (RP M q q' pP pM prs M') \<noteq> (R M q q' pP pM)"
+        using someI_ex[OF \<open>\<exists> p . (RP M q q' pP pM prs M') = insert p (R M q q' pP pM) \<and> p \<notin> (R M q q' pP pM)\<close>]
+        unfolding f_def by auto 
+    qed
 
-      
-        
+    then show ?thesis using that by force
+  qed
 
-end (*
-"
-end (*
 
-      thm minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles
-          [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM@pX) = butlast io\<close>
-              \<open>target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') pIO\<close> \<open>p_io pIO = io\<close> t2
-          ]
-      show "False"
-      proof (cases "pPQ \<in> ?R")
-        case True
-        then show ?thesis sorry
+  have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))) \<ge> Suc (m - card (snd dM))"
+  proof -
+    note \<open>Suc (m - card (snd dM)) \<le> length (filter (\<lambda>t. t_target t \<in> fst dM) pM)\<close>
+
+    have "\<And> nds . finite nds \<Longrightarrow> nds \<subseteq> fst dM \<Longrightarrow> (\<Sum> q' \<in> nds . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
+    proof -
+      fix nds assume "finite nds" and "nds \<subseteq> fst dM"
+
+      then show "(\<Sum> q' \<in> nds . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
+      proof (induction)
+        case empty
+        then show ?case by auto
       next
-        case False
-        then show ?thesis sorry
-      qed 
+        case (insert q' nds)
+        then have ****: "(\<Sum>q'\<in>nds. card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
+          by blast
 
+        have *: "length (filter (\<lambda>t. t_target t \<in> insert q' nds) pM) = length (filter (\<lambda>t. t_target t \<in> nds) pM) + length (filter (\<lambda>t. t_target t = q') pM)"
+          using \<open>q' \<notin> nds\<close> by (induction pM; auto)
 
+        have **: "(\<Sum>q'\<in>insert q' nds. card (R M q q' pP pM)) = (\<Sum>q'\<in>nds. card (R M q q' pP pM)) + (card (R M q q' pP pM))"
+          using \<open>q' \<notin> nds\<close> \<open>finite nds\<close> by auto 
+
+        have ***: "(card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t = q') pM)" 
+        using \<open>path M q pM\<close> proof (induction pM rule: rev_induct)
+          case Nil
+          then show ?case unfolding R_def by auto
+        next
+          case (snoc t pM)
+          then have "path M q pM" and "card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)"
+            by auto
+
+          note R_update[of M q q' pP pM t]
+
+          show ?case proof (cases "target q (pM @ [t]) = q'")
+            case True
+            then have "(R M q q' pP (pM @ [t])) = insert (pP @ pM @ [t]) (R M q q' pP pM)"
+              unfolding R_update[of M q q' pP pM t] by simp
+            moreover have "(pP @ pM @ [t]) \<notin> (R M q q' pP pM)"
+              unfolding R_def by auto
+            ultimately have "card (R M q q' pP (pM @ [t])) = Suc (card (R M q q' pP pM))"
+              using finite_R[OF \<open>path M q pM\<close>, of q' pP] by simp 
+            then show ?thesis 
+              using True unfolding \<open>card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)\<close> by auto
+          next
+            case False
+            then have "card (R M q q' pP (pM @ [t])) = card (R M q q' pP pM)"
+              unfolding R_update[of M q q' pP pM t] by simp
+            then show ?thesis 
+              using False unfolding \<open>card (R M q q' pP pM) = length (filter (\<lambda>t. t_target t = q') pM)\<close> by auto
+          qed 
+        qed
+
+        show ?case 
+          unfolding * ** *** **** by simp
+      qed
+    qed
+    moreover have "finite (fst dM)"
+      using t7[OF \<open>dM \<in> set RepSets\<close>] fsm_nodes_finite[of M]
+      using rev_finite_subset by auto 
+    ultimately have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> fst dM) pM)"
+      by blast
 
 end (*
-    have "q' \<notin> io_targets M' (p_io pq) (FSM.initial M')"     
-      using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles[OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close>]
 
-    
-
-    
-
+    have "(\<Sum> q' \<in> fst dM . card (R M q q' pP pM)) \<ge> Suc (m - card (snd dM))"
+    proof -
+      
+      
+       
 
 end(*
 
@@ -3042,6 +3099,8 @@ end(*
   2) SUM q' \<in> fst d . (R M (target (FSM.initial M) pP) q' pP pM) \<ge> Suc (m - card (snd d))
 
   3) the (card (snd d)) elements of (1) are not contained in those considered in (2)
+
+  3b) sth sth finite blah
 
   4) overalls m+1 nodes must exist in M'
 
