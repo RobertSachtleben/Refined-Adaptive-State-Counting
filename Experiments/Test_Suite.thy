@@ -2424,10 +2424,80 @@ qed
 
 
 
-        
+(* TODO: move *)
+lemma distinct_union_union_card :
+  assumes "finite xs"
+  and     "\<And> x1 x2 . x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> x1 \<noteq> x2 \<Longrightarrow> \<Union> (g ` f x1) \<inter> \<Union> (g ` f x2) = {}"
+  and     "\<And> x1 y1 y2 . y1 \<in> f x1 \<Longrightarrow> y2 \<in> f x1 \<Longrightarrow> y1 \<noteq> y2 \<Longrightarrow> g y1 \<inter> g y2 = {}"
+  and     "\<And> x1 . finite (f x1)"
+  and     "\<And> y1 . finite (g y1)"
+  and     "\<And> y1 . g y1 \<subseteq> zs"
+  and     "finite zs"
+shows "(\<Sum> x \<in> xs . card (\<Union> y \<in> f x . g y)) \<le> card zs" 
 
+proof -
+  have "(\<Sum> x \<in> xs . card (\<Union> y \<in> f x . g y)) = card (\<Union> x \<in> xs . (\<Union> y \<in> f x . g y))"
+    using assms(1,2) proof induction
+    case empty
+    then show ?case by auto
+  next
+    case (insert x xs)
+    then have "(\<And>x1 x2. x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> x1 \<noteq> x2 \<Longrightarrow> \<Union> (g ` f x1) \<inter> \<Union> (g ` f x2) = {})" and "x \<in> insert x xs" by blast+
+    then have "(\<Sum>x\<in>xs. card (\<Union> (g ` f x))) = card (\<Union>x\<in>xs. \<Union> (g ` f x))" using insert.IH by blast
+
+    moreover have "(\<Sum>x\<in>(insert x xs). card (\<Union> (g ` f x))) = (\<Sum>x\<in>xs. card (\<Union> (g ` f x))) + card (\<Union> (g ` f x))"
+      using insert.hyps by auto
+
+    moreover have "card (\<Union>x\<in>(insert x xs). \<Union> (g ` f x)) = card (\<Union>x\<in>xs. \<Union> (g ` f x)) + card (\<Union> (g ` f x))"
+    proof -
+      have "((\<Union>x\<in>xs. \<Union> (g ` f x)) \<union> \<Union> (g ` f x)) = (\<Union>x\<in>(insert x xs). \<Union> (g ` f x))"
+        by blast
+
+      have *: "(\<Union>x\<in>xs. \<Union> (g ` f x)) \<inter> (\<Union> (g ` f x)) = {}"
+      proof (rule ccontr)
+        assume "(\<Union>x\<in>xs. \<Union> (g ` f x)) \<inter> \<Union> (g ` f x)\<noteq> {}"
+        then obtain z where "z \<in> \<Union> (g ` f x)" and "z \<in> (\<Union>x\<in>xs. \<Union> (g ` f x))" by blast
+        then obtain x' where "x' \<in> xs" and "z \<in> \<Union> (g ` f x')" by blast
+        then have "x' \<noteq> x" and "x' \<in> insert x xs" using insert.hyps by blast+
+
+        have "\<Union> (g ` f x') \<inter> \<Union> (g ` f x) = {}"
+          using insert.prems[OF \<open>x' \<in> insert x xs\<close> \<open>x \<in> insert x xs\<close> \<open>x' \<noteq> x\<close>] by assumption
+        then show "False"
+          using \<open>z \<in> \<Union> (g ` f x')\<close> \<open>z \<in> \<Union> (g ` f x)\<close> by blast
+      qed
+      have **: "finite (\<Union> (g ` f x))"
+        using assms(4) assms(5) by blast 
+      have ***: "finite (\<Union>x\<in>xs. \<Union> (g ` f x))"
+        by (simp add: assms(4) assms(5) insert.hyps(1))
+
+      have "card ((\<Union>x\<in>xs. \<Union> (g ` f x)) \<union> \<Union> (g ` f x)) = card (\<Union>x\<in>xs. \<Union> (g ` f x)) + card (\<Union> (g ` f x))" 
+        using card_Un_disjoint[OF *** ** *] by simp
 
       
+      then show ?thesis 
+        unfolding \<open>((\<Union>x\<in>xs. \<Union> (g ` f x)) \<union> \<Union> (g ` f x)) = (\<Union>x\<in>(insert x xs). \<Union> (g ` f x))\<close> by assumption
+    qed
+
+    ultimately show ?case by linarith
+  qed
+
+  moreover have "card (\<Union> x \<in> xs . (\<Union> y \<in> f x . g y)) \<le> card zs"
+  proof -
+    have "(\<Union> x \<in> xs . (\<Union> y \<in> f x . g y)) \<subseteq> zs"
+      using assms(6) by (simp add: UN_least) 
+    moreover have "finite (\<Union> x \<in> xs . (\<Union> y \<in> f x . g y))"
+      by (simp add: assms(1) assms(4) assms(5)) 
+    ultimately show ?thesis
+      using assms(7)
+      by (simp add: card_mono) 
+  qed
+
+  ultimately show ?thesis
+    by linarith 
+qed
+    
+
+
 
 
 
@@ -2440,6 +2510,7 @@ lemma passes_test_suite_exhaustiveness :
   and     "inputs M' = inputs M"
   and     "inputs M \<noteq> {}"
   and     "completely_specified M'"
+  and     "size M' \<le> m"
 shows     "L M' \<subseteq> L M"
 proof (rule ccontr)
   assume "\<not> L M' \<subseteq> L M"
@@ -2821,10 +2892,6 @@ proof (rule ccontr)
 
 
 
-
-
-  note \<open>(target (FSM.initial M) pP) = q\<close>
-
   have snd_dM_prop: "\<And> q' . q' \<in> snd dM \<Longrightarrow> (\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M')) \<noteq> (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))"
   proof -
     fix q' assume "q' \<in> snd dM"
@@ -3020,7 +3087,7 @@ proof (rule ccontr)
   qed
 
 
-  have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))) \<ge> Suc (m - card (snd dM))"
+  (*have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))) \<ge> Suc (m - card (snd dM))"
   proof -   
 
     have "\<And> nds . finite nds \<Longrightarrow> nds \<subseteq> fst dM \<Longrightarrow> (\<Sum> q' \<in> nds . card (R M q q' pP pM)) = length (filter (\<lambda>t. t_target t \<in> nds) pM)"
@@ -3088,7 +3155,7 @@ proof (rule ccontr)
       unfolding \<open>target (FSM.initial M) pP = q\<close> by auto
     ultimately show ?thesis
       by simp
-  qed
+  qed*)
 
 
   
@@ -3159,11 +3226,82 @@ proof (rule ccontr)
         next
           case False
 
-          
+          have "card (RP M q q' pP pM prs M') \<ge> (card (R M q q' pP pM))"
+          proof (cases "(RP M q q' pP pM prs M') = (R M q q' pP pM)")
+            case True
+            then show ?thesis using finite_R[OF \<open>path M q pM\<close>, of q' pP] by auto
+          next
+            case False
+            then obtain pX where "(RP M q q' pP pM prs M') = insert pX (R M q q' pP pM)"
+              using RP_from_R[OF t2 pass1 \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close>, of prs "\<lambda> q P io x y y' . q" "\<lambda> q P io x y y' . y" q q' pP pM] by force
+            then show ?thesis using finite_R[OF \<open>path M q pM\<close>, of q' pP]
+              by (simp add: card_insert_le) 
+          qed
+          then have p1: "(\<Sum>q' \<in> (insert q' nds). card (RP M q q' pP pM prs M')) \<ge> ((\<Sum>q'\<in>nds. card (RP M q q' pP pM prs M')) + (card (R M q q' pP pM)))"
+            by (simp add: insert.hyps(1) insert.hyps(2))
 
-          then show ?thesis sorry
+
+          have p2: "length (filter (\<lambda>t. t_target t \<in> insert q' nds) pM) = length (filter (\<lambda>t. t_target t \<in> nds) pM) + length (filter (\<lambda>t. t_target t = q') pM)"
+            using \<open>q' \<notin> nds\<close> by (induction pM; auto)
+          have p3: "card ((insert q' nds) \<inter> snd dM) = (card (nds \<inter> snd dM))"
+            using False \<open>finite nds\<close> \<open>q' \<notin> nds\<close> by simp
+
+          have "length (filter (\<lambda>t. t_target t \<in> nds) pM) + length (filter (\<lambda>t. t_target t = q') pM) + card (nds \<inter> snd dM) \<le> (\<Sum>q'\<in>nds. card (RP M q q' pP pM prs M')) + length (filter (\<lambda>t. t_target t = q') pM)"
+            using leq1 add_le_cancel_right by auto 
+
+          then show ?thesis 
+            using p1 
+            unfolding p2 p3 p4 by simp
         qed
       qed 
+    qed
+
+    moreover have "finite (fst dM)"
+      using t7[OF \<open>dM \<in> set RepSets\<close>] fsm_nodes_finite[of M]
+      using rev_finite_subset by auto 
+    ultimately have "(\<Sum> q' \<in> fst dM . card (RP M q q' pP pM prs M')) \<ge> length (filter (\<lambda>t. t_target t \<in> fst dM) pM) + card (fst dM \<inter> snd dM)"
+      by blast
+    have "(fst dM \<inter> snd dM) = (snd dM)"
+      using t8[OF \<open>dM \<in> set RepSets\<close>] by blast
+    have "(\<Sum> q' \<in> fst dM . card (RP M q q' pP pM prs M')) \<ge> length (filter (\<lambda>t. t_target t \<in> fst dM) pM) + card (snd dM)"
+      using \<open>(\<Sum> q' \<in> fst dM . card (RP M q q' pP pM prs M')) \<ge> length (filter (\<lambda>t. t_target t \<in> fst dM) pM) + card (fst dM \<inter> snd dM)\<close> unfolding \<open>(fst dM \<inter> snd dM) = (snd dM)\<close> by assumption
+    moreover have "(\<Sum>q'\<in>fst dM. card (\<Union>pR\<in>RP M q q' pP pM prs M'. io_targets M' (p_io pR) (FSM.initial M'))) = (\<Sum> q' \<in> fst dM . card (RP M q q' pP pM prs M'))"
+      using RP_card \<open>FSM.initial P = FSM.initial M\<close> \<open>target (FSM.initial P) pP = q\<close> by auto 
+    ultimately have "(\<Sum>q'\<in>fst dM. card (\<Union>pR\<in>RP M q q' pP pM prs M'. io_targets M' (p_io pR) (FSM.initial M'))) \<ge> length (filter (\<lambda>t. t_target t \<in> fst dM) pM) + card (snd dM)"
+      by linarith
+    moreover have "Suc m \<le> length (filter (\<lambda>t. t_target t \<in> fst dM) pM) + card (snd dM)"
+      using \<open>Suc (m - card (snd dM)) \<le> length (filter (\<lambda>t. t_target t \<in> fst dM) pM)\<close>
+      by linarith 
+    ultimately show ?thesis 
+      by linarith
+  qed
+
+
+  moreover have "(\<Sum> q' \<in> fst dM . card (\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M'))) \<le> card (nodes M')"
+  proof -
+    have "finite (fst dM)"
+      by (meson \<open>dM \<in> set RepSets\<close> fsm_nodes_finite rev_finite_subset t7) 
+    thm no_shared_targets_for_distinct_states
+    thm distinct_union_union_card
+        [OF \<open>finite (fst dM)\<close>
+        , of "\<lambda> pR . io_targets M' (p_io pR) (initial M')" "\<lambda> q' . (RP M q q' pP pM prs M')"
+        ]
+
+    have "\<And> xs f g zs. (\<And> x1 x2 . x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> f x1 \<inter> f x2 = {}) 
+                \<Longrightarrow> (\<And> x1 y1 y2 . y1 \<in> f x1 \<Longrightarrow> y2 \<in> f x1 \<Longrightarrow> y1 \<noteq> y2 \<Longrightarrow> g y1 \<inter> g y2 = {})
+                \<Longrightarrow> (\<And> x1 . finite (f x1))
+                \<Longrightarrow> (\<And> y1 . finite (g y1))
+                \<Longrightarrow> (\<And> y1 . g y1 \<subseteq> zs)
+                \<Longrightarrow> (finite zs)
+                \<Longrightarrow> (\<Sum> x \<in> xs . card (\<Union> y \<in> f x . g y)) \<le> card zs" 
+
+end (*
+
+    using RP_targets
+
+
+
+  
 
 end (*
 
