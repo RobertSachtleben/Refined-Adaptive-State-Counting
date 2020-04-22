@@ -353,16 +353,16 @@ qed
 
 
 lemma passes_test_suite_soundness :
-  assumes "observable M"
-  and     "completely_specified M"
-  and     "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
-  and     "L M' \<subseteq> L M"
+  assumes "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
+  and     "observable M"
   and     "observable M'"
   and     "inputs M' = inputs M"
+  and     "completely_specified M"
+  and     "L M' \<subseteq> L M"
 shows     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
 proof -
   obtain RepSets where RepSets_def: "is_sufficient_for_reduction_testing_for_RepSets (Test_Suite prs tps rd_targets atcs) M m RepSets"
-    using assms(3) unfolding is_sufficient_for_reduction_testing_def by blast
+    using assms(1) unfolding is_sufficient_for_reduction_testing_def by blast
 
 
   have t1: "(initial M, initial_preamble M) \<in> prs" 
@@ -415,10 +415,10 @@ proof -
       using \<open>(q,P) \<in> prs\<close> \<open>\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}\<close> by blast
 
     have "io@[(x,y')] \<in> L M"
-      using \<open>io@[(x,y')] \<in> L M'\<close> assms(4) by blast
+      using \<open>io@[(x,y')] \<in> L M'\<close> assms(6) by blast
 
     show "io@[(x,y')] \<in> L P"
-      using passes_test_suite_soundness_helper_1[OF \<open>is_preamble P M q\<close> assms(1) \<open>io@[(x,y)] \<in> L P\<close> \<open>io@[(x,y')] \<in> L M\<close>]
+      using passes_test_suite_soundness_helper_1[OF \<open>is_preamble P M q\<close> assms(2) \<open>io@[(x,y)] \<in> L P\<close> \<open>io@[(x,y')] \<in> L M\<close>]
       by assumption
   qed
   then have p1: "(\<forall> q P io x y y' . (q,P) \<in> prs \<longrightarrow> io@[(x,y)] \<in> L P \<longrightarrow> io@[(x,y')] \<in> L M' \<longrightarrow> io@[(x,y')] \<in> L P)"
@@ -451,7 +451,7 @@ proof -
     
 
     have "(p_io pP)@ioT@[(x',y')] \<in> L M"
-      using \<open>(p_io pP)@ioT@[(x',y')] \<in> L M'\<close> assms(4) by blast
+      using \<open>(p_io pP)@ioT@[(x',y')] \<in> L M'\<close> assms(6) by blast
     then obtain pM' where "path M (initial M) pM'" and "p_io pM' = (p_io pP)@ioT@[(x',y')]" 
       by auto
 
@@ -2503,13 +2503,13 @@ qed
 
 
 lemma passes_test_suite_exhaustiveness :
-  assumes "observable M"
-  and     "completely_specified M"
+  assumes "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
   and     "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
-  and     "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
+  and     "observable M" 
   and     "observable M'"
   and     "inputs M' = inputs M"
   and     "inputs M \<noteq> {}"
+  and     "completely_specified M"
   and     "completely_specified M'"
   and     "size M' \<le> m"
 shows     "L M' \<subseteq> L M"
@@ -2519,7 +2519,7 @@ proof (rule ccontr)
   (* sufficiency properties *)
 
   obtain RepSets where RepSets_def: "is_sufficient_for_reduction_testing_for_RepSets (Test_Suite prs tps rd_targets atcs) M m RepSets"
-    using assms(3) unfolding is_sufficient_for_reduction_testing_def by blast
+    using assms(2) unfolding is_sufficient_for_reduction_testing_def by blast
 
 
   have t1: "(initial M, initial_preamble M) \<in> prs" 
@@ -2626,7 +2626,7 @@ proof (rule ccontr)
   have "?xF \<in> inputs M'"
     using language_io(1)[OF \<open>((p_io pP) @ io) \<in> L M'\<close>, of ?xF ?yF] \<open>io \<noteq> []\<close> by auto 
   then have "?xF \<in> inputs M"
-    using assms(6) by simp
+    using \<open>inputs M' = inputs M\<close> by simp
 
   have "q \<in> fst ` prs"
     using \<open>(q,P) \<in> prs\<close> by force
@@ -3033,7 +3033,7 @@ proof (rule ccontr)
             using \<open>p_io pP' = p_io pP\<close> by auto
         qed
         ultimately have "io_targets M' (p_io (pP@pR')) (FSM.initial M') = {target (initial M') (pP' @ (take (length pR') pIO))}"
-          by (metis (mono_tags, lifting) assms(5) observable_path_io_target)
+          by (metis (mono_tags, lifting) assms(4) observable_path_io_target)
 
         then show ?thesis
           unfolding \<open>t_target (pIO ! ?i) = target (initial M') (pP' @ (take (length pR') pIO))\<close>
@@ -3243,5 +3243,24 @@ proof (rule ccontr)
 qed
 
 
+
+
+
+
+lemma passes_test_suite_completeness :
+  assumes "is_sufficient_for_reduction_testing T M m"
+  and     "observable M" 
+  and     "observable M'"
+  and     "inputs M' = inputs M"
+  and     "inputs M \<noteq> {}"
+  and     "completely_specified M"
+  and     "completely_specified M'"
+  and     "size M' \<le> m"
+shows     "(L M' \<subseteq> L M) \<longleftrightarrow> passes_test_suite M T M'"
+  using passes_test_suite_exhaustiveness[OF _ _ assms(2-8)]
+        passes_test_suite_soundness[OF _ assms(2,3,4,6)] 
+        assms(1) 
+        test_suite.exhaust[of T]
+  by metis
 
 end
