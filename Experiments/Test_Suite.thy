@@ -750,7 +750,12 @@ definition R :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 
 definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
   "RP M q q' pP p PS M' = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M') (R M q q' pP p) else (R M q q' pP p))" 
 
-
+(*
+definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
+  "RP M q q' pP p PS M' = (if \<exists> P' .  (q',P') \<in> PS \<and> (\<forall> pP'' . path P' (initial P') pP'' \<longrightarrow> target (initial P') pP'' = q' \<longrightarrow> pP'' \<notin> (R M q q' pP p))
+    then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> (\<forall> pP'' . path P' (initial P') pP'' \<longrightarrow> target (initial P') pP'' = q' \<longrightarrow> pP'' \<notin> (R M q q' pP p)) \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M') (R M q q' pP p) 
+    else (R M q q' pP p))" 
+*)
 
 
 
@@ -2815,6 +2820,174 @@ proof (rule ccontr)
     by blast+
 
 
+
+
+
+  note \<open>(target (FSM.initial M) pP) = q\<close>
+
+  have "\<And> q' . q' \<in> snd dM \<Longrightarrow> (\<Union> pR \<in> (RP M q q' pP pM prs M') . io_targets M' (p_io pR) (initial M')) \<noteq> (\<Union> pR \<in> (R M q q' pP pM) . io_targets M' (p_io pR) (initial M'))"
+  proof -
+    fix q' assume "q' \<in> snd dM"
+
+    let ?RP = "(RP M q q' pP pM prs M')"
+    let ?R  = "(R M q q' pP pM)"
+    let ?P  = "\<lambda> pP' . \<exists>P'. (q', P') \<in> prs \<and> path P' (FSM.initial P') pP' \<and> target (FSM.initial P') pP' = q' \<and> p_io pP' \<in> L M'"
+
+    
+    obtain PQ where "(q',PQ) \<in> prs"
+      using \<open>q' \<in> snd dM\<close> t8'[OF \<open>dM \<in> set RepSets\<close>] by auto
+    then have "is_preamble PQ M q'" and "\<exists>P'. (q', P') \<in> prs"
+      using t2 by blast+
+
+    obtain pq where "path PQ (initial PQ) pq" and "target (initial PQ) pq = q'" and "p_io pq \<in> L M'"
+      using preamble_pass_path[OF \<open>is_preamble PQ M q'\<close> pass1[OF \<open>(q',PQ) \<in> prs\<close>] \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close>] by force
+    then have "\<exists> pP' . ?P pP'"
+      using \<open>(q',PQ) \<in> prs\<close> by blast
+
+    define pPQ where pPQ_def: "pPQ = (SOME pP'. ?P pP')"
+
+    have "?P pPQ"
+      unfolding pPQ_def using someI_ex[OF \<open>\<exists> pP' . ?P pP'\<close>] by assumption
+    then obtain PQ' where "(q',PQ') \<in> prs" and "path PQ' (initial PQ') pPQ" and "target (initial PQ') pPQ = q'" and "p_io pPQ \<in> L M'"
+      by blast
+
+    have "?RP = insert pPQ (R M q q' pP pM)"
+      unfolding RP_def pPQ_def
+      using \<open>\<exists>P'. (q', P') \<in> prs\<close> by auto
+
+    obtain pPQ' where "path M' (initial M') pPQ'" and "p_io pPQ' = p_io pPQ"
+      using \<open>p_io pPQ \<in> L M'\<close> by auto
+
+    then have "io_targets M' (p_io pPQ) (initial M') = {target (initial M') pPQ'}"
+      using \<open>observable M'\<close> by (metis (mono_tags, lifting) observable_path_io_target) 
+    
+    have "target (initial M') pPQ' \<notin> (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) ?R))"
+    proof 
+      assume "target (initial M') pPQ' \<in> (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) ?R))"
+      then obtain pR where "pR \<in> ?R" and "target (initial M') pPQ' \<in> io_targets M' (p_io pR) (initial M')"
+        by blast
+
+      obtain pR' where "pR = pP@pR'"
+        using R_component_ob[OF \<open>pR \<in> ?R\<close>] by blast
+      then have "pP@pR' \<in> ?R"
+        using \<open>pR \<in> ?R\<close> by simp
+      have "pR' = take (length pR') pM" and "length pR' \<le> length pM" and "t_target (pM ! (length pR' - 1)) = q'" and "pR' \<noteq> []"
+        using R_component[OF \<open>pP@pR' \<in> ?R\<close>] by auto
+
+      
+      (* get the full path along (butlast io) in M, of which p is a (possibly proper) prefix *)
+
+      obtain pX where "path M (target (initial M) pP) (pM@pX)" and "p_io (pM@pX) = butlast io"
+      proof -
+        have "p_io pP @ p_io pM @ ioX \<in> L M"
+          using \<open>((p_io pP) @ butlast io) \<in> L M\<close> unfolding \<open>butlast io = p_io pM @ ioX\<close> by assumption
+    
+        obtain p1 p23 where "path M (FSM.initial M) p1" and "path M (target (FSM.initial M) p1) p23" and "p_io p1 = p_io pP" and "p_io p23 = p_io pM @ ioX"
+          using language_state_split[OF \<open>p_io pP @ p_io pM @ ioX \<in> L M\<close>] by blast
+    
+        have "p1 = pP"
+          using observable_path_unique[OF \<open>observable M\<close> \<open>path M (FSM.initial M) p1\<close> \<open>path M (FSM.initial M) pP\<close> \<open>p_io p1 = p_io pP\<close>] by assumption
+        then have "path M (target (FSM.initial M) pP) p23"
+          using \<open>path M (target (FSM.initial M) p1) p23\<close> by auto
+        then have "p_io pM @ ioX \<in> LS M (target (initial M) pP)"
+          using \<open>p_io p23 = p_io pM @ ioX\<close> language_state_containment by auto
+    
+        obtain p2 p3 where "path M (target (FSM.initial M) pP) p2" and "path M (target (target (FSM.initial M) pP) p2) p3" and "p_io p2 = p_io pM" and "p_io p3 = ioX"
+          using language_state_split[OF \<open>p_io pM @ ioX \<in> LS M (target (initial M) pP)\<close>] by blast
+    
+        have "p2 = pM"
+          using observable_path_unique[OF \<open>observable M\<close> \<open>path M (target (FSM.initial M) pP) p2\<close> \<open>path M (target (FSM.initial M) pP) pM\<close> \<open>p_io p2 = p_io pM\<close>] by assumption
+        then have "path M (target (FSM.initial M) pP) (pM@p3)"
+          using \<open>path M (target (FSM.initial M) pP) pM\<close> \<open>path M (target (target (FSM.initial M) pP) p2) p3\<close> by auto
+        moreover have "p_io (pM@p3) = butlast io"
+          unfolding \<open>butlast io = p_io pM @ ioX\<close> using \<open>p_io p3 = ioX\<close> by auto
+        ultimately show ?thesis using that[of p3] by simp
+      qed
+
+      obtain pP' pIO where "path M' (FSM.initial M') pP'" and "path M' (target (FSM.initial M') pP') pIO" and "p_io pP' = p_io pP" and "p_io pIO = io"
+        using language_state_split[OF \<open>((p_io pP) @ io) \<in> L M'\<close>] by blast
+  
+      have "target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')"
+        using \<open>path M' (FSM.initial M') pP'\<close> unfolding \<open>p_io pP' = p_io pP\<close>[symmetric] by auto
+
+      let ?i = "length pR' - 1"
+      have "?i < length pR'"
+        using \<open>pR' \<noteq> []\<close> by auto
+      have "?i < length (butlast io)"
+        using \<open>pR' = take (length pR') pM\<close> \<open>pR' \<noteq> []\<close>
+        unfolding \<open>p_io (pM@pX) = butlast io\<close>[symmetric] 
+        using leI by fastforce 
+
+      have "t_target ((pM @ pX) ! (length pR' - 1)) = q'"
+        by (metis \<open>length pR' - 1 < length pR'\<close> \<open>length pR' \<le> length pM\<close> \<open>t_target (pM ! (length pR' - 1)) = q'\<close> dual_order.strict_trans1 nth_append) 
+      then have "(t_target ((pM @ pX) ! (length pR' - 1)), PQ') \<in> prs"
+        using \<open>(q',PQ') \<in> prs\<close> by simp
+      have "target (FSM.initial PQ') pPQ = t_target ((pM @ pX) ! (length pR' - 1))"
+        using \<open>t_target ((pM @ pX) ! (length pR' - 1)) = q'\<close> \<open>target (FSM.initial PQ') pPQ = q'\<close> by blast
+
+
+      thm minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles
+          [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM@pX) = butlast io\<close>
+
+          ]
+end (*
+
+      have "t_target (pIO ! (length pR' - 1)) \<notin> io_targets M' (p_io pPQ) (FSM.initial M')"
+        using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles
+          [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM@pX) = butlast io\<close>
+              \<open>target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') pIO\<close> \<open>p_io pIO = io\<close> t2
+              \<open>?i < length (butlast io)\<close> \<open>(t_target ((pM @ pX) ! (length pR' - 1)), PQ') \<in> prs\<close>
+              \<open>path PQ' (initial PQ') pPQ\<close> \<open>target (FSM.initial PQ') pPQ = t_target ((pM @ pX) ! (length pR' - 1))\<close>]
+        by blast
+
+      then show "False" 
+
+      
+        
+
+end (*
+"
+end (*
+
+      thm minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles
+          [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM@pX) = butlast io\<close>
+              \<open>target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') pIO\<close> \<open>p_io pIO = io\<close> t2
+          ]
+      show "False"
+      proof (cases "pPQ \<in> ?R")
+        case True
+        then show ?thesis sorry
+      next
+        case False
+        then show ?thesis sorry
+      qed 
+
+
+
+end (*
+    have "q' \<notin> io_targets M' (p_io pq) (FSM.initial M')"     
+      using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles[OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close>]
+
+    
+
+    
+
+
+end(*
+
+  1) assign each q' in (snd dM) some p such that 
+    (RP M (target (FSM.initial M) pP) q' pP pM prs M') = insert p (R M (target (FSM.initial M) pP) q' pP pM)
+
+  2) SUM q' \<in> fst d . (R M (target (FSM.initial M) pP) q' pP pM) \<ge> Suc (m - card (snd d))
+
+  3) the (card (snd d)) elements of (1) are not contained in those considered in (2)
+
+  4) overalls m+1 nodes must exist in M'
+
+
+
+
+end (*
   have "\<And> t . t \<in> set pM \<Longrightarrow> t_target t \<notin> snd dM"
   proof -
     fix t assume "t \<in> set pM"
@@ -2879,6 +3052,7 @@ proof (rule ccontr)
       have "t_target (pIO ! i) \<notin> io_targets M' (p_io pPi) (FSM.initial M')"     
         using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles [OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>path M (target (initial M) pP) (pM@pX)\<close> \<open>p_io (pM @ pX) = butlast io\<close> \<open>target (initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') pIO\<close> \<open>p_io pIO = io\<close> t2 \<open>i < length (butlast io)\<close> \<open>(t_target ((pM @ pX) ! i), Pi) \<in> prs\<close> \<open>path Pi (initial Pi) pPi\<close> \<open>target (FSM.initial Pi) pPi = t_target ((pM @ pX) ! i)\<close>]
         by blast
+      then show "False"
           
 end (*
 thm passes_test_suite_exhaustiveness_helper_1[OF t2' pass1 \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close> \<open>observable M\<close> \<open>observable M'\<close> _ _ _ \<open>(pM,dM) \<in> m_traversal_paths_with_witness M q RepSets m\<close> ]
