@@ -1121,7 +1121,7 @@ lemma R_count :
   and     "observable M'"
   and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"
   and     "path M (target (initial M) pP) p"
-  and     "p_io p = butlast io"
+  and     "butlast io = p_io p @ ioX"
 shows "card (\<Union> (image (\<lambda> pR . io_targets M' (p_io pR) (initial M')) (R M (target (initial M) pP) q' pP p))) = card (R M (target (initial M) pP) q' pP p)"
   (is "card ?Tgts = card ?R")
 and   "\<And> pR . pR \<in> (R M (target (initial M) pP) q' pP p) \<Longrightarrow> \<exists> q . io_targets M' (p_io pR) (initial M') = {q}"
@@ -1166,6 +1166,38 @@ proof -
     using \<open>((p_io pP) @ butlast io) \<in> L M\<close> \<open>((p_io pP) @ io) \<notin> L M\<close> by auto
 
 
+  (* get the full path along (butlast io) in M, of which p is a (possibly proper) prefix *)
+
+  obtain pX where "path M (target (initial M) pP) (p@pX)" and "p_io (p@pX) = butlast io"
+  proof -
+    have "p_io pP @ p_io p @ ioX \<in> L M"
+      using \<open>((p_io pP) @ butlast io) \<in> L M\<close> unfolding \<open>butlast io = p_io p @ ioX\<close> by assumption
+
+    obtain p1 p23 where "path M (FSM.initial M) p1" and "path M (target (FSM.initial M) p1) p23" and "p_io p1 = p_io pP" and "p_io p23 = p_io p @ ioX"
+      using language_state_split[OF \<open>p_io pP @ p_io p @ ioX \<in> L M\<close>] by blast
+
+    have "p1 = pP"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M (FSM.initial M) p1\<close> \<open>path M (FSM.initial M) pP\<close> \<open>p_io p1 = p_io pP\<close>] by assumption
+    then have "path M (target (FSM.initial M) pP) p23"
+      using \<open>path M (target (FSM.initial M) p1) p23\<close> by auto
+    then have "p_io p @ ioX \<in> LS M (target (initial M) pP)"
+      using \<open>p_io p23 = p_io p @ ioX\<close> language_state_containment by auto
+
+    obtain p2 p3 where "path M (target (FSM.initial M) pP) p2" and "path M (target (target (FSM.initial M) pP) p2) p3" and "p_io p2 = p_io p" and "p_io p3 = ioX"
+      using language_state_split[OF \<open>p_io p @ ioX \<in> LS M (target (initial M) pP)\<close>] by blast
+
+    have "p2 = p"
+      using observable_path_unique[OF \<open>observable M\<close> \<open>path M (target (FSM.initial M) pP) p2\<close> \<open>path M (target (FSM.initial M) pP) p\<close> \<open>p_io p2 = p_io p\<close>] by assumption
+    then have "path M (target (FSM.initial M) pP) (p@p3)"
+      using \<open>path M (target (FSM.initial M) pP) p\<close> \<open>path M (target (target (FSM.initial M) pP) p2) p3\<close> by auto
+    moreover have "p_io (p@p3) = butlast io"
+      unfolding \<open>butlast io = p_io p @ ioX\<close> using \<open>p_io p3 = ioX\<close> by auto
+    ultimately show ?thesis using that[of p3] by simp
+  qed
+
+
+
+
   (* finiteness properties *)
 
   have "finite ?R"
@@ -1186,9 +1218,13 @@ proof -
     using language_state_split[OF \<open>((p_io pP) @ io) \<in> L M'\<close>]
     by blast
 
-  have "length p < length p'"
-    using \<open>io \<noteq> []\<close> 
-    unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] \<open>p_io p = butlast io\<close> \<open>p_io p' = io\<close> by auto
+  have "length p \<le> length (butlast io)"
+    using \<open>butlast io = p_io p @ ioX\<close> by auto
+  moreover have "length (butlast io) < length io"
+    using \<open>io \<noteq> []\<close> by auto
+  ultimately have "length p < length p'"
+    unfolding \<open>p_io p' = io\<close> length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] by simp
+
 
   let ?q = "(target (FSM.initial M') pP')"
 
@@ -1198,14 +1234,12 @@ proof -
     then have  "pR = take (length pR) p \<and> length pR \<le> length p"
       using R_component(1,2) by metis
     then have "p_io pR = take (length pR) (butlast io)"
-      using \<open>p_io p = butlast io\<close>
-      by (metis (no_types, lifting) take_map) 
+      unfolding \<open>butlast io = p_io p @ ioX\<close>
+      by (metis (no_types, lifting) length_map take_le take_map)
     moreover have "p_io (take (length pR) p') = take (length pR) io"
       by (metis (full_types) \<open>p_io p' = io\<close> take_map)
     moreover have "take (length pR) (butlast io) = take (length pR) io"
-      using \<open>pR = take (length pR) p \<and> length pR \<le> length p\<close>   
-      unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] \<open>p_io p = butlast io\<close>
-      using butlast_take_le[of "length (p_io pR)" io] by blast
+      by (meson \<open>length (butlast io) < length io\<close> \<open>length p \<le> length (butlast io)\<close> \<open>pR = take (length pR) p \<and> length pR \<le> length p\<close> dual_order.strict_trans2 take_butlast)
     ultimately have "p_io (take (length pR) p') = p_io pR"
       by simp 
     moreover have "path M' ?q (take (length pR) p')"
@@ -1280,9 +1314,7 @@ proof -
         using R_component[OF \<open>pP@pR2 \<in> ?R\<close>]
         by simp+
       then have "?j < length (butlast io)"
-        unfolding \<open>p_io p = butlast io\<close>[symmetric] 
-        unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric]
-        using \<open>length pR1 < length pR2\<close> by auto 
+        using \<open>length p \<le> length (butlast io)\<close> \<open>length pR1 < length pR2\<close> by linarith
 
 
       have "?q \<in> io_targets M' (p_io pP) (FSM.initial M')"
@@ -1291,9 +1323,13 @@ proof -
 
       have "t_target (p ! ?i) = t_target (p ! ?j)"
         using \<open>t_target (p ! ?i) = q'\<close> \<open>t_target (p ! ?j) = q'\<close> by simp
-      then have "t_target (p' ! ?i) \<noteq> t_target (p' ! ?j)"
-        using minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path[OF assms(1,2,5,6) \<open>?q \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') p'\<close> \<open>p_io p' = io\<close> \<open>?i < ?j\<close> \<open>?j < length (butlast io)\<close> assms(4)]
-        by blast
+      moreover have "(p @ pX) ! ?i = p ! ?i"
+        by (meson \<open>length pR1 < length pR2\<close> \<open>length pR2 \<le> length p\<close> less_imp_diff_less less_le_trans nth_append)
+      moreover have "(p @ pX) ! ?j = p ! ?j"
+        by (metis (no_types) \<open>length pR1 < length pR2\<close> \<open>pR2 = take (length pR2) p\<close> diff_less less_imp_diff_less less_nat_zero_code less_numeral_extra(1) not_le_imp_less not_less_iff_gr_or_eq nth_append take_all)
+      ultimately have "t_target (p' ! ?i) \<noteq> t_target (p' ! ?j)"
+        using minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path[OF assms(1,2) \<open>path M (target (initial M) pP) (p@pX)\<close> \<open>p_io (p @ pX) = butlast io\<close> \<open>?q \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') p'\<close> \<open>p_io p' = io\<close> \<open>?i < ?j\<close> \<open>?j < length (butlast io)\<close> assms(4)]
+        by auto
 
       have t1: "io_targets M' (p_io (pP@pR1)) (initial M') = {t_target (p' ! ?i)}"
       proof -
@@ -1529,7 +1565,7 @@ lemma RP_count :
   and     "observable M'"
   and     "\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q"
   and     "path M (target (initial M) pP) p"
-  and     "p_io p = butlast io"
+  and     "butlast io = p_io p @ ioX"
   and     "\<And> q P io x y y' . (q,P) \<in> PS \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
   and     "completely_specified M'"
   and     "inputs M' = inputs M"
@@ -1620,9 +1656,12 @@ proof -
       using language_state_split[OF \<open>((p_io pP) @ io) \<in> L M'\<close>]
       by blast
   
-    have "length p < length p'"
-      using \<open>io \<noteq> []\<close> 
-      unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] \<open>p_io p = butlast io\<close> \<open>p_io p' = io\<close> by auto
+    have "length p \<le> length (butlast io)"
+      using \<open>butlast io = p_io p @ ioX\<close> by auto
+    moreover have "length (butlast io) < length io"
+      using \<open>io \<noteq> []\<close> by auto
+    ultimately have "length p < length p'"
+      unfolding \<open>p_io p' = io\<close> length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] by simp
   
     let ?q = "(target (FSM.initial M') pP')"
   
@@ -1632,14 +1671,11 @@ proof -
       then have  "pR = take (length pR) p \<and> length pR \<le> length p"
         using R_component(1,2) by metis
       then have "p_io pR = take (length pR) (butlast io)"
-        using \<open>p_io p = butlast io\<close>
-        by (metis (no_types, lifting) take_map) 
+        by (metis (no_types, lifting) assms(6) length_map take_le take_map) 
       moreover have "p_io (take (length pR) p') = take (length pR) io"
         by (metis (full_types) \<open>p_io p' = io\<close> take_map)
       moreover have "take (length pR) (butlast io) = take (length pR) io"
-        using \<open>pR = take (length pR) p \<and> length pR \<le> length p\<close>   
-        unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] \<open>p_io p = butlast io\<close>
-        using butlast_take_le[of "length (p_io pR)" io] by blast
+        using \<open>length p \<le> length (butlast io)\<close> \<open>pR = take (length pR) p \<and> length pR \<le> length p\<close> butlast_take_le dual_order.trans by blast
       ultimately have "p_io (take (length pR) p') = p_io pR"
         by simp 
       moreover have "path M' ?q (take (length pR) p')"
@@ -1762,7 +1798,7 @@ proof -
           using \<open>length pR' \<le> length p\<close> \<open>pR' \<noteq> []\<close>
           using diff_less dual_order.strict_trans1 less_numeral_extra(1) by blast 
         then have "?i < length (butlast io)"
-          unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] \<open>p_io p = butlast io\<close> by assumption
+          using \<open>length p \<le> length (butlast io)\<close> less_le_trans by blast 
 
 
         have "io_targets M' (p_io pR1) (initial M') = {t_target (p' ! ?i)}"
@@ -1780,17 +1816,53 @@ proof -
 
         have "t_target (p' ! (length pR' - 1)) \<notin> io_targets M' (p_io pP'') (FSM.initial M')"
         proof -
+          (* get the full path along (butlast io) in M, of which p is a (possibly proper) prefix *)
+
+          obtain pX where "path M (target (initial M) pP) (p@pX)" and "p_io (p@pX) = butlast io"
+          proof -
+            have "p_io pP @ p_io p @ ioX \<in> L M"
+              using \<open>((p_io pP) @ butlast io) \<in> L M\<close> unfolding \<open>butlast io = p_io p @ ioX\<close> by assumption
+        
+            obtain p1 p23 where "path M (FSM.initial M) p1" and "path M (target (FSM.initial M) p1) p23" and "p_io p1 = p_io pP" and "p_io p23 = p_io p @ ioX"
+              using language_state_split[OF \<open>p_io pP @ p_io p @ ioX \<in> L M\<close>] by blast
+        
+            have "p1 = pP"
+              using observable_path_unique[OF \<open>observable M\<close> \<open>path M (FSM.initial M) p1\<close> \<open>path M (FSM.initial M) pP\<close> \<open>p_io p1 = p_io pP\<close>] by assumption
+            then have "path M (target (FSM.initial M) pP) p23"
+              using \<open>path M (target (FSM.initial M) p1) p23\<close> by auto
+            then have "p_io p @ ioX \<in> LS M (target (initial M) pP)"
+              using \<open>p_io p23 = p_io p @ ioX\<close> language_state_containment by auto
+        
+            obtain p2 p3 where "path M (target (FSM.initial M) pP) p2" and "path M (target (target (FSM.initial M) pP) p2) p3" and "p_io p2 = p_io p" and "p_io p3 = ioX"
+              using language_state_split[OF \<open>p_io p @ ioX \<in> LS M (target (initial M) pP)\<close>] by blast
+        
+            have "p2 = p"
+              using observable_path_unique[OF \<open>observable M\<close> \<open>path M (target (FSM.initial M) pP) p2\<close> \<open>path M (target (FSM.initial M) pP) p\<close> \<open>p_io p2 = p_io p\<close>] by assumption
+            then have "path M (target (FSM.initial M) pP) (p@p3)"
+              using \<open>path M (target (FSM.initial M) pP) p\<close> \<open>path M (target (target (FSM.initial M) pP) p2) p3\<close> by auto
+            moreover have "p_io (p@p3) = butlast io"
+              unfolding \<open>butlast io = p_io p @ ioX\<close> using \<open>p_io p3 = ioX\<close> by auto
+            ultimately show ?thesis using that[of p3] by simp
+          qed
+
+          (* get index properties *)
+
           have "target (FSM.initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')"
             using \<open>p_io pP' = p_io pP\<close> \<open>path M' (FSM.initial M') pP'\<close> observable_path_io_target by auto 
   
           have "(t_target (p ! (length pR' - 1)), P') \<in> PS"
             using \<open>(q',P') \<in> PS\<close> unfolding \<open>t_target (p ! (length pR' - 1)) = q'\<close> by assumption
+          then have "(t_target ((p @ pX) ! ?i), P') \<in> PS"
+            by (metis \<open>length pR' - 1 < length p\<close> nth_append)
   
           have "target (FSM.initial P') pP'' = t_target (p ! (length pR' - 1))"
             unfolding \<open>target (initial M) pP'' = q'\<close> \<open>t_target (p ! (length pR' - 1)) = q'\<close> \<open>initial P' = initial M\<close> by simp
+          then have "target (FSM.initial P') pP'' = t_target ((p @ pX) ! ?i)"
+            by (metis \<open>length pR' - 1 < length p\<close> nth_append)
+            
 
           show ?thesis
-            using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles[OF assms(1,2,5,6) \<open>target (FSM.initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') p'\<close> \<open>p_io p' = io\<close> assms(4) \<open>?i < length (butlast io)\<close> \<open>(t_target (p ! (length pR' - 1)), P') \<in> PS\<close> \<open>path P' (initial P') pP''\<close> \<open>target (FSM.initial P') pP'' = t_target (p ! (length pR' - 1))\<close>]
+            using minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles[OF assms(1,2) \<open>path M (target (initial M) pP) (p@pX)\<close> \<open>p_io (p@pX) = butlast io\<close>  \<open>target (FSM.initial M') pP' \<in> io_targets M' (p_io pP) (FSM.initial M')\<close> \<open>path M' (target (FSM.initial M') pP') p'\<close> \<open>p_io p' = io\<close> assms(4) \<open>?i < length (butlast io)\<close> \<open>(t_target ((p @ pX) ! ?i), P') \<in> PS\<close> \<open>path P' (initial P') pP''\<close> \<open>target (FSM.initial P') pP'' = t_target ((p @ pX) ! ?i)\<close>]
             by blast
         qed
         then show "io_targets M' (p_io pR1) (initial M') \<inter> io_targets M' (p_io pP'') (initial M') = {}"
@@ -2725,10 +2797,18 @@ proof (rule ccontr)
   then have "path M (target (FSM.initial M) pP) pM"
     unfolding \<open>(target (FSM.initial M) pP) = q\<close> by simp
 
+  obtain ioX where "butlast io = (p_io pM)@ioX"
+    using \<open>io = (p_io pM)@ioEx\<close>
+    by (simp add: \<open>ioEx \<noteq> []\<close> butlast_append) 
 
-  thm RP_count[OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>observable M'\<close> t2 \<open>path M (target (FSM.initial M) pP) pM\<close>]
+
+  have "\<And> q' . card (\<Union>pR\<in>RP M (target (FSM.initial M) pP) q' pP pM prs M'. io_targets M' (p_io pR) (FSM.initial M')) = card (RP M (target (FSM.initial M) pP) q' pP pM prs M')"
+  and  "\<And> q' pR . pR \<in> RP M (target (FSM.initial M) pP) q' pP pM prs M' \<Longrightarrow> \<exists>q. io_targets M' (p_io pR) (FSM.initial M') = {q}"
+  and  "\<And> q' pR1 pR2 . pR1 \<in> RP M (target (FSM.initial M) pP) q' pP pM prs M' \<Longrightarrow> pR2 \<in> RP M (target (FSM.initial M) pP) q' pP pM prs M' \<Longrightarrow> pR1 \<noteq> pR2 \<Longrightarrow> io_targets M' (p_io pR1) (FSM.initial M') \<inter> io_targets M' (p_io pR2) (FSM.initial M') = {}"
+    using RP_count[OF \<open>minimal_sequence_to_failure_extending_preamble_path M M' prs pP io\<close> \<open>observable M\<close> \<open>observable M'\<close> t2 \<open>path M (target (FSM.initial M) pP) pM\<close> \<open>butlast io = (p_io pM)@ioX\<close> pass1 \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close>, of "\<lambda> q P io x y y' . q" "\<lambda> q P io x y y' . y"]
+    by blast+
           
-
+end (*
 thm passes_test_suite_exhaustiveness_helper_1[OF t2' pass1 \<open>completely_specified M'\<close> \<open>inputs M' = inputs M\<close> \<open>observable M\<close> \<open>observable M'\<close> _ _ _ \<open>(pM,dM) \<in> m_traversal_paths_with_witness M q RepSets m\<close> ]
   thm passes_test_suite_exhaustiveness_helper_1[OF t2' pass1, of prs "\<lambda> q P io x y y' . q" "\<lambda> q P io x y y' . y", OF \<open>completely_specified M'\<close>]
   
