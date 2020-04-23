@@ -31,21 +31,6 @@ datatype ('a,'b,'c,'d) test_suite = Test_Suite "('a \<times> ('a,'b,'c) preamble
    this could be lifted by requiring that for every additional path the suite retains additional paths such that all "non-deadlock"
    (w.r.t. the set of all (tps q) paths) nodes are output complete for the inputs applied *)  
 (* TODO: generalise if necessary (and possible with acceptable effort) *)
-(*
-fun is_sufficient_for_reduction_testing :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> bool" where
-  "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m = 
-    ( (initial M,initial_preamble M) \<in> prs 
-    \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> (is_preamble P M q) \<and> (tps q) \<noteq> {})
-    \<and> (\<forall> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<longrightarrow> (A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2)
-    \<and> (\<exists> RepSets .  
-        ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set RepSets. q \<in> fst d))
-        \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d = fst d \<inter> fst ` prs) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
-        \<and> (\<forall> q . q \<in> image fst prs \<longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q) 
-        \<and> (\<forall> q p d . q \<in> image fst prs \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q RepSets m \<longrightarrow> 
-              ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q (p1@p2) \<in> fst d \<longrightarrow> target q p1 \<noteq> target q (p1@p2) \<longrightarrow> (p1 \<in> tps q \<and> (p1@p2) \<in> tps q \<and> target q p1 \<in> rd_targets (q,(p1@p2)) \<and> target q (p1@p2) \<in> rd_targets (q,p1)))
-              \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst prs \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))
-              \<and> (\<forall> q1 q2 . q1 \<noteq> q2 \<longrightarrow> q1 \<in> snd d \<longrightarrow> q2 \<in> snd d \<longrightarrow> ([] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2,[]) \<and> q2 \<in> rd_targets (q1,[]))))))
-  )"*)
 
 fun is_sufficient_for_reduction_testing_for_RepSets :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> bool" where
   "is_sufficient_for_reduction_testing_for_RepSets (Test_Suite prs tps rd_targets atcs) M m RepSets = 
@@ -102,51 +87,6 @@ proof-
 qed
 
 
-    
-    
-    
-    
-    
-    
-
-
-
-
-(* replaced (snd d \<subseteq> nodes M) by (snd d = fst d \<inter> fst ` prs) *)
-
-(* \<and> (\<forall> q1 q2 . q1 \<in> image fst prs \<longrightarrow> q2 \<in> image fst prs \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {} \<longrightarrow> ([] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2,[]) \<and> q2 \<in> rd_targets (q1,[]))) *)
-  \<comment> \<open>probably too restrictive, replaced by requirement that q1 q2 that are actually used in some dr are distinguished\<close>
-
-(*\<and> (\<forall> q p . q \<in> image fst prs \<longrightarrow> p \<in> tps q \<longrightarrow> path M q p) *) \<comment> \<open>obsolete due to stronger (tps q = {...}) requirement\<close>
-
-
-(*
-lemma test_suite_path :
-  assumes "(q,P) \<in> prs"
-  and     "path P q pp"
-  and     "target (initial P) pp = q"
-  and     "tp \<in> tps q"
-  and     "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
-shows "path M (initial M) (pp@tp)"
-proof -
-  have "(is_preamble P M q)"
-    using assms(1,5) by auto
-  then have "path M (initial M) pp"
-    using assms(2) 
-    unfolding is_preamble_def
-    by (metis deadlock_state.elims(2) fsm_initial path.simps) 
-  moreover have "target (initial M) pp = q"
-    using \<open>(is_preamble P M q)\<close> assms(3) unfolding is_preamble_def by auto
-  moreover have "path M q tp"
-  proof -
-    have "q \<in> image fst prs" using assms(1)
-      using image_iff by fastforce 
-    then show ?thesis
-      using assms(4,5) unfolding is_sufficient_for_reduction_testing.simps by blas
-  qed
-  ultimately show ?thesis by auto
-qed
-*)
     
 
   
@@ -750,12 +690,6 @@ definition R :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 
 definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
   "RP M q q' pP p PS M' = (if \<exists> P' .  (q',P') \<in> PS then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M') (R M q q' pP p) else (R M q q' pP p))" 
 
-(*
-definition RP :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a \<times> ('a,'b,'c) preamble) set \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list set" where
-  "RP M q q' pP p PS M' = (if \<exists> P' .  (q',P') \<in> PS \<and> (\<forall> pP'' . path P' (initial P') pP'' \<longrightarrow> target (initial P') pP'' = q' \<longrightarrow> pP'' \<notin> (R M q q' pP p))
-    then insert (SOME pP' . \<exists> P' .  (q',P') \<in> PS \<and> (\<forall> pP'' . path P' (initial P') pP'' \<longrightarrow> target (initial P') pP'' = q' \<longrightarrow> pP'' \<notin> (R M q q' pP p)) \<and> path P' (initial P') pP' \<and> target (initial P') pP' = q' \<and> p_io pP' \<in> L M') (R M q q' pP p) 
-    else (R M q q' pP p))" 
-*)
 
 
 
