@@ -94,7 +94,7 @@ qed
 
 subsection \<open>Pass Relation for Test Suites and Reduction Testing\<close>
 
-fun passes_test_suite :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> bool" where
+fun passes_test_suite :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('e,'b,'c) fsm \<Rightarrow> bool" where
   "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M' = (
     \<comment> \<open>Reduction on preambles: as the preambles contain all responses of M to their chosen inputs, M' must not exhibit any other response\<close>
     (\<forall> q P io x y y' . (q,P) \<in> prs \<longrightarrow> io@[(x,y)] \<in> L P \<longrightarrow> io@[(x,y')] \<in> L M' \<longrightarrow> io@[(x,y')] \<in> L P) 
