@@ -346,13 +346,16 @@ lemma preamble_prefix_tests_code[code]:
 
 subsubsection "Calculating Tests between m-Traversal-Paths Prefixes and Preambles"
 
+(*
 fun preamble_pair_tests' :: "'a list \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> ('a,'b,'c) test_path list" where
   "preamble_pair_tests' drs rds = map (\<lambda>(q1,q2) . (q1,[],q2)) (filter (\<lambda> qq . qq \<in> rds) (cartesian_product_list drs drs))"
 
 fun preamble_pair_tests :: "'a set \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> ('a,'b,'c) test_path set" where
   "preamble_pair_tests drs rds = image (\<lambda> (q1,q2) . (q1,[],q2)) ((drs \<times> drs) \<inter> rds)"
+*)
 
-
+fun preamble_pair_tests :: "'a set set \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> ('a,'b,'c) test_path set" where
+  "preamble_pair_tests drss rds = (\<Union> drs \<in> drss . (\<lambda> (q1,q2) . (q1,[],q2)) ` ((drs \<times> drs) \<inter> rds))"
 
 
 
@@ -403,14 +406,14 @@ definition calculate_test_paths ::
     (let
          paths_with_witnesses 
               = (image (\<lambda> q . (q,m_traversal_paths_with_witness M q repetition_sets m)) d_reachable_nodes);
-         get_paths  
+         get_paths                        
               = m2f (set_as_map paths_with_witnesses);
          PrefixPairTests                    
               = \<Union> q \<in> d_reachable_nodes . \<Union> mrsps \<in> get_paths q . prefix_pair_tests q mrsps;
          PreamblePrefixTests
               = \<Union> q \<in> d_reachable_nodes . \<Union> mrsps \<in> get_paths q . preamble_prefix_tests q mrsps d_reachable_nodes;
          PreamblePairTests
-              = preamble_pair_tests d_reachable_nodes r_distinguishable_pairs;
+              = preamble_pair_tests (\<Union> (q,pw) \<in> paths_with_witnesses . ((\<lambda> (p,(rd,dr)) . dr) ` pw)) r_distinguishable_pairs;
          tests
               = PrefixPairTests \<union> PreamblePrefixTests \<union> PreamblePairTests; 
          tps'  
@@ -425,6 +428,9 @@ definition calculate_test_paths ::
   in ( tps, rd_targets))"
 
 
+(* old: 
+  PreamblePairTests = preamble_pair_tests d_reachable_nodes r_distinguishable_pairs;
+*)
 definition combine_test_suite ::
   "('a,'b,'c) fsm
   \<Rightarrow> nat
@@ -504,19 +510,28 @@ proof -
   obtain nodes_with_preambles tps rd_targets atcs where "calculate_test_suite_example M m = Test_Suite nodes_with_preambles tps rd_targets atcs"
     using test_suite.exhaust by blast
 
+  have "\<And> a b c d . Test_Suite nodes_with_preambles tps rd_targets atcs = Test_Suite a b c d \<Longrightarrow> tps = b"
+    by blast
 
   have nodes_with_preambles_def : "nodes_with_preambles = d_reachable_states_with_preambles M"
-  and  tps_def                  : "tps = (\<lambda> q . (m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q
-                                                \<union> (m2f (set_as_map (image (\<lambda> (q,p,q') . (q,p)) ((\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . prefix_pair_tests q mrsps) 
-                                                        \<union> (\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . preamble_prefix_tests q mrsps (image fst (d_reachable_states_with_preambles M))) 
-                                                        \<union> (preamble_pair_tests (image fst (d_reachable_states_with_preambles M)) (image fst (image (\<lambda>((q1,q2),A) . ((q1,q2),A,(Inr q1) :: 'a \<times> 'a + 'a, (Inr q2) :: 'a \<times> 'a + 'a)) (r_distinguishable_state_pairs_with_separators M)))))))) q))"
-  and  rd_targets_def           : "rd_targets = m2f (set_as_map (image (\<lambda> (q,p,q') . ((q,p),q')) 
-                                                        ((\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . prefix_pair_tests q mrsps) 
-                                                        \<union> (\<Union> q \<in> (image fst (d_reachable_states_with_preambles M)) . \<Union> mrsps \<in> (m2f (set_as_map (image (\<lambda> q . (q,m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) (image fst (d_reachable_states_with_preambles M))))) q . preamble_prefix_tests q mrsps (image fst (d_reachable_states_with_preambles M))) 
-                                                        \<union> (preamble_pair_tests (image fst (d_reachable_states_with_preambles M)) (image fst (image (\<lambda>((q1,q2),A) . ((q1,q2),A,(Inr q1) :: 'a \<times> 'a + 'a, (Inr q2) :: 'a \<times> 'a + 'a)) (r_distinguishable_state_pairs_with_separators M)))))))"          
+    
+  
+  and tps_def                   : "tps = (\<lambda>q. (m2f_by \<Union> (set_as_map ((\<lambda>(q, p). (q, fst ` p)) ` (\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M))) q
+                                            \<union> (m2f (set_as_map ((\<lambda>(q, p, q'). (q, p)) `
+                                                ((\<Union>q\<in>fst ` d_reachable_states_with_preambles M. \<Union> (prefix_pair_tests q ` (m2f (set_as_map ((\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M)) q))) 
+                                                \<union> (\<Union>q\<in>fst ` d_reachable_states_with_preambles M. \<Union>mrsps\<in> m2f (set_as_map ((\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M)) q . preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) 
+                                                \<union> preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))))) q)"
+  and rd_targets_def            : "rd_targets = m2f (set_as_map
+                                              ((\<lambda>(q, p, y). ((q, p), y)) `
+                                               ((\<Union>q\<in>fst ` d_reachable_states_with_preambles M. \<Union> (prefix_pair_tests q ` (m2f (set_as_map ((\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M)) q))) 
+                                               \<union> (\<Union>q\<in>fst ` d_reachable_states_with_preambles M. \<Union>mrsps\<in> m2f (set_as_map ((\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M)) q . preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) 
+                                               \<union> preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))))"
   and  atcs_def                 : "atcs = m2f (set_as_map ((\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M))"
     using \<open>calculate_test_suite_example M m = Test_Suite nodes_with_preambles tps rd_targets atcs\<close>[symmetric]
-    unfolding calculate_test_suite_example_def combine_test_suite_def Let_def calculate_test_paths_def  by force+
+    unfolding calculate_test_suite_example_def combine_test_suite_def Let_def calculate_test_paths_def fst_conv snd_conv by force+
+  
+
+
 
 
   have tps_alt_def: "\<And> q . q \<in> fst ` d_reachable_states_with_preambles M \<Longrightarrow> 
@@ -527,7 +542,7 @@ proof -
                         (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                             \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                                preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                        preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}"
+                        preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}"
   and rd_targets_alt_def: "\<And> q p . q \<in> fst ` d_reachable_states_with_preambles M \<Longrightarrow> 
           rd_targets (q,p) = {z. ((q, p), z)
                    \<in> (\<lambda>(q, p, y). ((q, p), y)) `
@@ -535,7 +550,7 @@ proof -
                        (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                            \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                               preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                       preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}"
+                       preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}"
   proof -
     fix q p assume "q \<in> fst ` d_reachable_states_with_preambles M"
 
@@ -604,7 +619,7 @@ proof -
                         (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                             \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                                preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                        preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}"
+                        preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}"
       unfolding tps_def 
       unfolding scheme0 scheme1 scheme2 scheme3 scheme4
       unfolding set_as_map_def
@@ -621,14 +636,14 @@ proof -
                         (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                             \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                                preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                        preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}
+                        preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}
           = {z. (q, z)
                     \<in> (\<lambda>(q, p, q'). (q, p)) `
                        ((prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) \<union>
                         (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                             \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                                preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                        preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}" 
+                        preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}" 
       (is "{z. (q, z) \<in> ?S1} = {z. (q, z) \<in> ?S2}")
     proof -
       have "\<And> z . (q, z) \<in> ?S1 \<Longrightarrow> (q, z) \<in> ?S2"
@@ -639,7 +654,7 @@ proof -
                     | "(q,z) \<in> (\<lambda>(q, p, q'). (q, p)) `  (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                             \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                                preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
-                    | "(q,z) \<in> (\<lambda>(q, p, q'). (q, p)) ` (preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))"
+                    | "(q,z) \<in> (\<lambda>(q, p, q'). (q, p)) ` (preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))"
           by blast
         then show "(q, z) \<in> ?S2" proof cases
           case 1
@@ -687,7 +702,7 @@ proof -
                         (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                             \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                                preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                        preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}"
+                        preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}"
      using * unfolding ** by assumption
 
 
@@ -700,7 +715,7 @@ proof -
                        (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                            \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                               preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                       preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}"
+                       preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}"
       unfolding rd_targets_def
       unfolding scheme1 scheme2 scheme3 scheme4
       unfolding set_as_map_def
@@ -714,14 +729,14 @@ proof -
                        (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                            \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                               preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                       preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}
+                       preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}
           = {z. ((q, p), z)
                    \<in> (\<lambda>(q, p, y). ((q, p), y)) `
                       ((prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) \<union>
                        (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                            \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                               preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                       preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}" 
+                       preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}" 
       (is "{z. ((q, p), z) \<in> ?S1} = {z. ((q, p), z) \<in> ?S2}")
     proof -
       have "\<And> z . ((q, p), z) \<in> ?S1 \<Longrightarrow> ((q, p), z) \<in> ?S2"
@@ -732,7 +747,7 @@ proof -
                     | "((q, p), z) \<in> (\<lambda>(q, p, y). ((q, p), y)) `  (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                             \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                                preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
-                    | "((q, p), z) \<in> (\<lambda>(q, p, y). ((q, p), y)) ` (preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))"
+                    | "((q, p), z) \<in> (\<lambda>(q, p, y). ((q, p), y)) ` (preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))"
           by blast
         then show "((q, p), z) \<in> ?S2" proof cases
           case 1
@@ -780,7 +795,7 @@ proof -
                        (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                            \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                               preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
-                       preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))}"
+                       preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))}"
       using ***  unfolding **** by assumption
   qed
 
