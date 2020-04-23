@@ -801,6 +801,79 @@ proof -
 
 
 
+  have preamble_pair_tests_alt :
+    "preamble_pair_tests (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y) (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M)
+     = {(q1,[],q2) | q1 q2 . \<exists> q p rd dr . q \<in> fst ` d_reachable_states_with_preambles M \<and> (p,(rd,dr)) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m \<and> q1 \<in> dr \<and> q2 \<in> dr \<and> (q1,q2) \<in> fst  ` r_distinguishable_state_pairs_with_separators M}"
+    (is "?PP1 = ?PP2")
+  proof -
+    have "\<And> x . x \<in> ?PP1 \<Longrightarrow> x \<in> ?PP2"
+    proof -
+      fix x assume "x \<in> ?PP1"
+      then obtain drs where "drs \<in> (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y)"
+                      and   "x \<in> (\<lambda>(q1, q2). (q1, [], q2)) ` (drs \<times> drs \<inter> fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)"
+        unfolding preamble_pair_tests.simps by force
+
+      obtain q y where "(q,y) \<in> (\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M"
+                 and   "drs \<in> (\<lambda>(p, rd, dr). dr) ` y"
+        using \<open>drs \<in> (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y)\<close>
+        by force
+
+      have "q \<in> fst ` d_reachable_states_with_preambles M"
+      and  "y = m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m"
+        using \<open>(q,y) \<in> (\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M\<close>
+        by force+
+
+      obtain p rd where "(p,(rd,drs)) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m"
+        using \<open>drs \<in> (\<lambda>(p, rd, dr). dr) ` y\<close> unfolding \<open>y = m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m\<close>
+        by force
+
+
+      obtain q1 q2 where "(q1,q2) \<in> (drs \<times> drs \<inter> fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)"
+                   and   "x = (q1, [], q2)"
+        using \<open>x \<in> (\<lambda>(q1, q2). (q1, [], q2)) ` (drs \<times> drs \<inter> fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)\<close>
+        by force
+
+      have "q1 \<in> drs \<and> q2 \<in> drs \<and> (q1,q2) \<in> fst  ` r_distinguishable_state_pairs_with_separators M"
+        using \<open>(q1,q2) \<in> (drs \<times> drs \<inter> fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)\<close>
+        by force
+
+      then show "x \<in> ?PP2"
+        unfolding \<open>x = (q1, [], q2)\<close>
+        using \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close> \<open>(p,(rd,drs)) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m\<close>
+        by blast
+    qed
+
+    moreover have "\<And> x . x \<in> ?PP2 \<Longrightarrow> x \<in> ?PP1" 
+    proof -
+      fix x assume "x \<in> ?PP2"
+      then obtain q1 q2 where "x = (q1,[],q2)"
+        by auto
+      then obtain q p rd dr where "q \<in> fst ` d_reachable_states_with_preambles M" 
+                            and   "(p,(rd,dr)) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m" 
+                            and   "q1 \<in> dr \<and> q2 \<in> dr \<and> (q1,q2) \<in> fst  ` r_distinguishable_state_pairs_with_separators M"
+        using \<open>x \<in> ?PP2\<close> by blast
+
+      have "dr \<in> (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) ` fst ` d_reachable_states_with_preambles M. (\<lambda>(p, rd, dr). dr) ` y)"
+        using \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close> \<open>(p,(rd,dr)) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m\<close> by force
+
+      moreover have "x \<in> (\<lambda>(q1, q2). (q1, [], q2)) ` (dr \<times> dr \<inter> fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)"
+        unfolding \<open>x = (q1,[],q2)\<close> using \<open>q1 \<in> dr \<and> q2 \<in> dr \<and> (q1,q2) \<in> fst  ` r_distinguishable_state_pairs_with_separators M\<close> by force
+
+      ultimately show "x \<in> ?PP1"
+        unfolding preamble_pair_tests.simps by force
+    qed
+
+    ultimately show ?thesis by blast
+  qed
+
+
+  
+
+
+
+
+
+
 
   have p1: "(initial M,initial_preamble M) \<in> nodes_with_preambles"
     using fsm_initial[of M]
@@ -883,67 +956,82 @@ proof -
     by blast
 
 
-  have p4_witness: " 
-        ((\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set (maximal_repetition_sets_from_separators_list M). q \<in> fst d))
-        \<and> (\<forall> d . d \<in> set (maximal_repetition_sets_from_separators_list M) \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
-        \<and> (\<forall> q . q \<in> image fst nodes_with_preambles \<longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m} \<and> fst ` (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<subseteq> tps q) 
-        \<and> (\<forall> q p d . q \<in> image fst nodes_with_preambles \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m \<longrightarrow> 
-              ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q (p1@p2) \<in> fst d \<longrightarrow> target q p1 \<noteq> target q (p1@p2) \<longrightarrow> (p1 \<in> tps q \<and> (p1@p2) \<in> tps q \<and> target q p1 \<in> rd_targets (q,(p1@p2)) \<and> target q (p1@p2) \<in> rd_targets (q,p1)))
-              \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst nodes_with_preambles \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))))"
+
+
+  let ?RepSets = "(maximal_repetition_sets_from_separators_list M)"
+
+  have p4: "\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists>d \<in> set ?RepSets. q \<in> fst d)"
   proof -
-    let ?RepSets = "(maximal_repetition_sets_from_separators_list M)"
+    fix q assume "q \<in> nodes M"
 
-    have p4a: "\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists>d \<in> set ?RepSets. q \<in> fst d)"
+    have *: "image fst (set ?RepSets) = set (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M)"
+      unfolding maximal_repetition_sets_from_separators_list_def
+      by force
+    have "(\<exists>d \<in> image fst (set ?RepSets). q \<in> d)"
+      unfolding * maximal_pairwise_r_distinguishable_state_sets_from_separators_code[symmetric]
+      using maximal_pairwise_r_distinguishable_state_sets_from_separators_cover[OF \<open>q \<in> nodes M\<close>]
+      by assumption
+    then show "(\<exists>d \<in> set ?RepSets. q \<in> fst d)"
+      by auto
+  qed
+
+      
+  have p5: "\<And> d . d \<in> set ?RepSets \<Longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d = fst d \<inter> fst ` nodes_with_preambles) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {}))"
+  proof -
+    fix d assume "d \<in> set ?RepSets"
+    then have "d \<in> maximal_repetition_sets_from_separators M"
+      unfolding maximal_repetition_sets_from_separators_code_alt[symmetric] 
+      by assumption
+    
+
+
+    have "fst d \<subseteq> nodes M" and "(snd d = fst d \<inter> fst ` nodes_with_preambles)" and "\<And> q1 q2 . q1\<in>fst d \<Longrightarrow> q2\<in>fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
+      using \<open>d \<in> maximal_repetition_sets_from_separators M\<close>
+      unfolding maximal_repetition_sets_from_separators_def 
+                maximal_pairwise_r_distinguishable_state_sets_from_separators_def
+                pairwise_r_distinguishable_state_sets_from_separators_def 
+                nodes_with_preambles_def
+      by force+
+
+
+    moreover have "\<And> q1 q2 . q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1,q2) \<noteq> {}"
     proof -
-      fix q assume "q \<in> nodes M"
-
-      have *: "image fst (set ?RepSets) = set (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M)"
-        unfolding maximal_repetition_sets_from_separators_list_def
-        by force
-      have "(\<exists>d \<in> image fst (set ?RepSets). q \<in> d)"
-        unfolding * maximal_pairwise_r_distinguishable_state_sets_from_separators_code[symmetric]
-        using maximal_pairwise_r_distinguishable_state_sets_from_separators_cover[OF \<open>q \<in> nodes M\<close>]
-        by assumption
-      then show "(\<exists>d \<in> set ?RepSets. q \<in> fst d)"
+      fix q1 q2 assume "q1 \<in> fst d" and "q2 \<in> fst d" and "q1 \<noteq> q2"
+      then have "(q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
+        using \<open>\<And> q1 q2 . q1\<in>fst d \<Longrightarrow> q2\<in>fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M\<close>
+        by blast
+      then obtain A where "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
         by auto
-    qed
-      
-    have p4b: "\<And> d . d \<in> set ?RepSets \<Longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {}))"
-    proof -
-      fix d assume "d \<in> set ?RepSets"
-      then have "d \<in> maximal_repetition_sets_from_separators M"
-        unfolding maximal_repetition_sets_from_separators_code_alt[symmetric] 
-        by assumption
-      
-
-
-      have "fst d \<subseteq> nodes M" and "(snd d \<subseteq> fst d)" and "\<And> q1 q2 . q1\<in>fst d \<Longrightarrow> q2\<in>fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
-        using \<open>d \<in> maximal_repetition_sets_from_separators M\<close>
-        unfolding maximal_repetition_sets_from_separators_def 
-                  maximal_pairwise_r_distinguishable_state_sets_from_separators_def
-                  pairwise_r_distinguishable_state_sets_from_separators_def 
-        by force+
-
-      moreover have "\<And> q1 q2 . q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1,q2) \<noteq> {}"
-      proof -
-        fix q1 q2 assume "q1 \<in> fst d" and "q2 \<in> fst d" and "q1 \<noteq> q2"
-        then have "(q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
-          using \<open>\<And> q1 q2 . q1\<in>fst d \<Longrightarrow> q2\<in>fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M\<close>
-          by blast
-        then obtain A where "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
-          by auto
-        then have "(A,Inr q1,Inr q2) \<in> atcs (q1,q2)"
-          unfolding atcs_def set_as_map_def 
-          by force
-        then show "atcs (q1,q2) \<noteq> {}"
-          by blast
-      qed
-      ultimately show "((fst d \<subseteq> nodes M) \<and> (snd d \<subseteq> fst d) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {}))"
+      then have "(A,Inr q1,Inr q2) \<in> atcs (q1,q2)"
+        unfolding atcs_def set_as_map_def 
+        by force
+      then show "atcs (q1,q2) \<noteq> {}"
         by blast
     qed
+    ultimately show "((fst d \<subseteq> nodes M) \<and> (snd d = fst d \<inter> fst ` nodes_with_preambles) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {}))"
+      by blast
+  qed
 
 
-    have p4c : "\<And> q . q \<in> image fst nodes_with_preambles \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m} \<and> fst ` (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<subseteq> tps q"
+(*
+
+"is_sufficient_for_reduction_testing_for_RepSets (Test_Suite prs tps rd_targets atcs) M m RepSets = 
+    ( (initial M,initial_preamble M) \<in> prs 
+    \<and> (\<forall> q P . (q,P) \<in> prs \<longrightarrow> (is_preamble P M q) \<and> (tps q) \<noteq> {})
+    \<and> (\<forall> q1 q2 A d1 d2 . (A,d1,d2) \<in> atcs (q1,q2) \<longrightarrow> (A,d2,d1) \<in> atcs (q2,q1) \<and> is_separator M q1 q2 A d1 d2)
+    \<and> (\<forall> q . q \<in> nodes M \<longrightarrow> (\<exists>d \<in> set RepSets. q \<in> fst d))
+    \<and> (\<forall> d . d \<in> set RepSets \<longrightarrow> ((fst d \<subseteq> nodes M) \<and> (snd d = fst d \<inter> fst ` prs) \<and> (\<forall> q1 q2 . q1 \<in> fst d \<longrightarrow> q2 \<in> fst d \<longrightarrow> q1 \<noteq> q2 \<longrightarrow> atcs (q1,q2) \<noteq> {})))
+    \<and> (\<forall> q . q \<in> image fst prs \<longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q) 
+    \<and> (\<forall> q p d . q \<in> image fst prs \<longrightarrow> (p,d) \<in> m_traversal_paths_with_witness M q RepSets m \<longrightarrow> 
+          ( (\<forall> p1 p2 p3 . p=p1@p2@p3 \<longrightarrow> p2 \<noteq> [] \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> target q (p1@p2) \<in> fst d \<longrightarrow> target q p1 \<noteq> target q (p1@p2) \<longrightarrow> (p1 \<in> tps q \<and> (p1@p2) \<in> tps q \<and> target q p1 \<in> rd_targets (q,(p1@p2)) \<and> target q (p1@p2) \<in> rd_targets (q,p1)))
+          \<and> (\<forall> p1 p2 q' . p=p1@p2 \<longrightarrow> q' \<in> image fst prs \<longrightarrow> target q p1 \<in> fst d \<longrightarrow> q' \<in> fst d \<longrightarrow> target q p1 \<noteq> q' \<longrightarrow> (p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q',[]) \<and> q' \<in> rd_targets (q,p1))))
+          \<and> (\<forall> q1 q2 . q1 \<noteq> q2 \<longrightarrow> q1 \<in> snd d \<longrightarrow> q2 \<in> snd d \<longrightarrow> ([] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2,[]) \<and> q2 \<in> rd_targets (q1,[]))))
+  )"
+
+
+*)
+
+    have p6 : "\<And> q . q \<in> image fst nodes_with_preambles \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m} \<and> fst ` (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<subseteq> tps q"
     proof 
       fix q assume "q \<in> image fst nodes_with_preambles"
       then have "q \<in> fst ` d_reachable_states_with_preambles M"
@@ -960,11 +1048,10 @@ proof -
 
 
         have * : "(\<And> q . q \<in> nodes M \<Longrightarrow> (\<exists>d \<in> set (maximal_repetition_sets_from_separators_list M). q \<in> fst d))" 
-          using p4a by blast
+          using p4 by blast
 
         have  **: "(\<And> d . d \<in> set (maximal_repetition_sets_from_separators_list M) \<Longrightarrow> (snd d \<subseteq> fst d))"
-          using p4b by simp
-
+          using p5 by simp
 
         from \<open>p \<in> tps q\<close> consider 
           (a) "p \<in> fst ` m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m" |
@@ -972,8 +1059,12 @@ proof -
           (c) "(q, p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                   \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                      preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))" |
-          (d) "(q, p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (preamble_pair_tests (fst ` d_reachable_states_with_preambles M) (fst ` r_distinguishable_state_pairs_with_separators M))"  
-          unfolding tps_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] by blast
+          (d) "(q, p) \<in> (\<lambda>(q, p, q'). (q, p)) ` (preamble_pair_tests
+         (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
+                   fst ` d_reachable_states_with_preambles M.
+             (\<lambda>(p, rd, dr). dr) ` y)
+         (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1 :: 'a \<times> 'a + 'a, Inr q2 :: 'a \<times> 'a + 'a)) ` r_distinguishable_state_pairs_with_separators M))"  
+          unfolding tps_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] 
         then show "p \<in> {p1. \<exists>p2 d. (p1 @ p2, d) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}"
         proof cases
           case a
