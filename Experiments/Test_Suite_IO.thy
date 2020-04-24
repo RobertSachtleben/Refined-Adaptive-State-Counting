@@ -254,7 +254,7 @@ qed
 
 
 
-end (*
+
 
 lemma minimal_io_seq_to_failure :
   assumes "\<not> (L M' \<subseteq> L M)"
@@ -412,6 +412,8 @@ proof -
     using assms(1) unfolding is_sufficient_for_reduction_testing_def by blast
   then have "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
     unfolding is_sufficient_for_reduction_testing_def by blast
+  then have test_suite_language_prop: "test_suite_to_io M (Test_Suite prs tps rd_targets atcs) \<subseteq> L M"
+    using test_suite_to_io_language by blast
 
 
   have t1: "(initial M, initial_preamble M) \<in> prs" 
@@ -513,34 +515,34 @@ proof -
         then obtain q P io x y y' where "(q, P) \<in> prs" and "io @ [(x, y)] \<in> L P" and "io @ [(x, y')] \<in> L M'" and "io @ [(x, y')] \<notin> L P"
           by blast
 
+        have "is_preamble P M q"
+          using t2[OF \<open>(q, P) \<in> prs\<close>] by assumption
+        
+
         have "io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
           unfolding test_suite_to_io.simps using \<open>(q, P) \<in> prs\<close> \<open>io @ [(x, y)] \<in> L P\<close> by force
 
         have "io @ [(x, y')] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
-          using pass_io_prop[OF \<open>io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> \<open>io @ [(x, y')] \<in> L M'\<close>] 
+          using pass_io_prop[OF \<open>io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> \<open>io @ [(x, y')] \<in> L M'\<close>] by assumption
+
+        then have "io @ [(x, y')] \<in> L M"
+          using test_suite_language_prop by blast
+
+        have "io @ [(x, y')] \<in> L P"
+          using passes_test_suite_soundness_helper_1[OF \<open>is_preamble P M q\<close> \<open>observable M\<close> \<open>io @ [(x, y)] \<in> L P\<close> \<open>io @ [(x, y')] \<in> L M\<close>] by assumption
+        then show "False"
+          using \<open>io @ [(x, y')] \<notin> L P\<close> by blast
+
+      next
+        case b
+
 
 end (*
-
-        have "is_preamble P M q"
-          using t2[OF \<open>(q, P) \<in> prs\<close>] by assumption
-        then have "True"
-          unfolding is_preamble_def
-
-        (* TODO: requires some shared between Ps \<longrightarrow> if io @ [(x, y')] is in some L P' then it is also in L P \<longrightarrow> requires preamble prop*)
-
-        show "False"
-          using pass_io_prop[OF \<open>io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> \<open>io @ [(x, y')] \<in> L M'\<close>] 
-        
-end (*
-
-then show ?thesis sorry
-next
-  case b
-  then show ?thesis sorry
-next
-  case c
-  then show ?thesis sorry
-qed
+        then show ?thesis sorry
+      next
+        case c
+        then show ?thesis sorry
+      qed
     
 
 
