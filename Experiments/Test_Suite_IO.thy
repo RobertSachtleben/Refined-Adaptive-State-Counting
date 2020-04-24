@@ -752,10 +752,6 @@ proof -
                 pass_separator_pass_io_set_iff[OF \<open>is_separator M (target q pT) q' A d1 d2\<close> \<open>observable M\<close> \<open>observable M'\<close> path_target_is_node[OF \<open>path M q pT\<close>] \<open>qT \<in> nodes M'\<close> \<open>inputs M' = inputs M\<close> \<open>completely_specified M\<close>]
           by simp
 
-        then have "True"
-          unfolding pass_io_set_def 
-
-end (*
 
         have "pass_io_set (FSM.from_FSM M' qT) (atc_to_io_set (FSM.from_FSM M (target q pT)) A)"
         proof -
@@ -818,36 +814,29 @@ end (*
               unfolding from_FSM_language[OF path_target_is_node[OF \<open>path M q pT\<close>]] by assumption
 
             moreover have "io @ [(x, y')] \<in> L A"
-              using \<open>io @ [(x, y')] \<in> LS M' qT\<close>
-            proof -
+              by (metis Int_iff \<open>io @ [(x, y')] \<in> LS M (target q pT)\<close> \<open>io @ [(x, y)] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A\<close> \<open>is_separator M (target q pT) q' A d1 d2\<close> atc_to_io_set.simps is_separator_simps(9))
               
-
-end (*
-            show "io @ [(x, y')] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A"
+            ultimately show "io @ [(x, y')] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A"
+              unfolding atc_to_io_set.simps by blast
+          qed
               
-
-end (*
-
-
-              using \<open>io @ [(x, y')] \<in> L (FSM.from_FSM M' qT)\<close> \<open>qT \<in> io_targets M' (p_io pP @ p_io pT) (FSM.initial M')\<close> 
-             
-
-end (*
-            sorry
           then show ?thesis unfolding pass_io_set_def by blast
         qed
-          
 
-
-
-end (*
-
-
-        thm pass_separator_from_pass_io_set[OF \<open>is_separator M (target q pT) q' A d1 d2\<close> _ \<open>observable M\<close> \<open>observable M'\<close> path_target_is_node[OF \<open>path M q pT\<close>] \<open>qT \<in> nodes M'\<close> \<open>inputs M' = inputs M\<close> \<open>completely_specified M\<close>]
-
-        then show ?thesis sorry
+        then show "False"
+          using pass_separator_from_pass_io_set[OF \<open>is_separator M (target q pT) q' A d1 d2\<close> _ \<open>observable M\<close> \<open>observable M'\<close> path_target_is_node[OF \<open>path M q pT\<close>] \<open>qT \<in> nodes M'\<close> \<open>inputs M' = inputs M\<close> \<open>completely_specified M\<close>]
+                \<open>\<not>pass_separator_ATC M' A qT d2\<close>
+          by simp
       qed
-    
+    qed
+  qed
+
+  moreover have "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M' \<Longrightarrow> pass_io_set M' (test_suite_to_io M (Test_Suite prs tps rd_targets atcs))"
+    sorry
+
+  ultimately show ?thesis 
+    unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> by blast
+qed
 
 
 end (*
