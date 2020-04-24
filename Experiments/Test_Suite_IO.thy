@@ -861,6 +861,16 @@ proof -
                             and   "io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
         unfolding pass_io_set_def by blast
 
+
+      have preamble_prop: "\<And> q P . (q, P) \<in> prs \<Longrightarrow> io @ [(x, y)] \<in> L P \<Longrightarrow> False"
+      proof - 
+        fix q P assume "(q, P)\<in>prs" and "io @ [(x, y)] \<in> L P" 
+        have "io @ [(x, y')] \<in> L P" using pass1[OF \<open>(q, P)\<in>prs\<close> \<open>io @ [(x, y)] \<in> L P\<close> \<open>io @ [(x, y')] \<in> L M'\<close> ] by assumption
+        then have "io @ [(x, y')] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+          unfolding test_suite_to_io.simps using \<open>(q, P)\<in>prs\<close> by blast
+        then show "False" using \<open>io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> by simp
+      qed
+
       consider (a) "io @ [(x, y)] \<in> (\<Union>(q, P)\<in>prs. L P)" |
                (b) "io @ [(x, y)] \<in> (\<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q})" |
                (c) "io @ [(x, y)] \<in> (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A.
@@ -871,15 +881,72 @@ proof -
         unfolding test_suite_to_io.simps by blast
 
       then show "False" proof cases
-        case a
-        then obtain q P where "(q, P)\<in>prs" and "io @ [(x, y)] \<in> L P" by blast
-        have "io @ [(x, y')] \<in> L P" using pass1[OF \<open>(q, P)\<in>prs\<close> \<open>io @ [(x, y)] \<in> L P\<close> \<open>io @ [(x, y')] \<in> L M'\<close> ] by assumption
-        then have "io @ [(x, y')] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
-          unfolding test_suite_to_io.simps using \<open>(q, P)\<in>prs\<close> by blast
-        then show "False" using \<open>io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> by simp
+        case a 
+        then show ?thesis using preamble_prop by blast
       next
         case b
-        then show ?thesis sorry
+        then obtain pP pt q P where "io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt))"
+                             and   "(q, P) \<in> prs" 
+                             and   "path P (FSM.initial P) pP"
+                             and   "target (FSM.initial P) pP = q"
+                             and   "pt \<in> tps q"
+          by blast
+
+        obtain io' io'' where "io @ [(x, y)] = (p_io pP) @ io'" and "io'@io'' = p_io pt"
+          using \<open>io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt))\<close> unfolding prefixes_set
+          by blast 
+
+
+        have "is_submachine P M"
+          using t2[OF \<open>(q, P) \<in> prs\<close>] unfolding is_preamble_def by blast
+        then have "initial P = initial M" by auto
+    
+        have "path M (initial M) pP"
+          using submachine_path[OF \<open>is_submachine P M\<close> \<open>path P (initial P) pP\<close>] unfolding \<open>initial P = initial M\<close> by assumption
+        have "target (initial M) pP = q"
+          using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+        have "q \<in> nodes M"
+          using is_preamble_is_node[OF t2[OF \<open>(q, P) \<in> prs\<close>]] by assumption
+
+        have "q \<in> fst ` prs" 
+          using \<open>(q, P) \<in> prs\<close> by force
+
+
+        show "False" proof (cases io' rule: rev_cases)
+          case Nil
+          then have "p_io pP = io @ [(x, y)]" using \<open>io @ [(x, y)] = (p_io pP) @ io'\<close> by auto
+          show ?thesis
+            using preamble_prop[OF \<open>(q,P) \<in> prs\<close> language_state_containment[OF \<open>path P (FSM.initial P) pP\<close> \<open>p_io pP = io @ [(x, y)]\<close>]] by assumption
+        next
+          case (snoc ioI xy)
+          then have "xy = (x,y)" and "io = (p_io pP) @ ioI"
+            using \<open>io @ [(x, y)] = (p_io pP) @ io'\<close> by auto 
+          then have "p_io pP @ ioI @ [(x, y')] \<in> L M'"
+            using \<open>io @ [(x, y')] \<in> L M'\<close> by simp
+
+          have "ioI @ [(x, y)] \<in> set (prefixes (p_io pt))"
+            unfolding prefixes_set
+            using \<open>io' @ io'' = p_io pt\<close> \<open>xy = (x, y)\<close> snoc by auto 
+
+          obtain pT' where "pT' \<in> tps q" and "ioI @ [(x, y')] \<in> set (prefixes (p_io pT'))"
+            using pass2[OF \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pt \<in> tps q\<close> \<open>ioI @ [(x, y)] \<in> set (prefixes (p_io pt))\<close> \<open>p_io pP @ ioI @ [(x, y')] \<in> L M'\<close>] by blast
+
+          have "io @ [(x, y')] \<in> (@) (p_io pP) ` set (prefixes (p_io pT'))"
+            using \<open>ioI @ [(x, y')] \<in> set (prefixes (p_io pT'))\<close> unfolding \<open>io = (p_io pP) @ ioI\<close>
+            by simp
+
+          
+          have "io @ [(x, y')] \<in> (\<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q})"
+            using \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pT' \<in> tps q\<close> \<open>io @ [(x, y')] \<in> (@) (p_io pP) ` set (prefixes (p_io pT'))\<close> by blast
+          then have "io @ [(x, y')] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+            unfolding test_suite_to_io.simps by blast
+
+          then show "False"
+            using \<open>io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> by blast
+        qed
+
+
       next
         case c
         then show ?thesis sorry
