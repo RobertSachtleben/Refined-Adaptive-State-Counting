@@ -1928,6 +1928,19 @@ proof -
     using \<open>io2 \<in> LS M (target q1 p1)\<close> by auto
 qed
 
+
+lemma io_targets_language_append :
+  assumes "q1 \<in> io_targets M io1 q"
+  and     "io2 \<in> LS M q1"
+shows "io1@io2 \<in> LS M q" 
+proof -
+  obtain p1 where "path M q p1" and "p_io p1 = io1" and "target q p1 = q1" using assms(1) by auto
+  moreover obtain p2 where "path M q1 p2" and "p_io p2 = io2" using assms(2) by auto
+  ultimately have "path M q (p1@p2)" and "p_io (p1@p2) = io1@io2" by auto
+  then show ?thesis using language_state_containment[of M q "p1@p2" "io1@io2"] by simp
+qed
+
+
 lemma io_targets_next :
   assumes "t \<in> transitions M"
   shows "io_targets M io (t_target t) \<subseteq> io_targets M (p_io [t] @ io) (t_source t)"

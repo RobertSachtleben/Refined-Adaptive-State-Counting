@@ -707,18 +707,7 @@ proof -
                                              and   "\<not>pass_separator_ATC M' A qT d2"
           by blast
 
-        (* subsets of test_suite_to_io *)
-        define tmp where tmp_def : "tmp = (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A. \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')})"
-        define tmp2 where tmp2_def : "tmp2 = \<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q}"
-
-        have "\<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) pP \<and> target (FSM.initial P) pP = q \<and> pT \<in> tps q \<and> q' \<in> rd_targets (q, pT) \<and> (A, t1, t2) \<in> atcs (target q pT, q')"
-          using \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pT \<in> tps q\<close> \<open>q' \<in> rd_targets (q, pT)\<close> \<open>(A, d1, d2) \<in> atcs (target q pT, q')\<close> by blast
-        then have "(\<lambda>io_atc. p_io pP @ p_io pT @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pT)) A \<subseteq> tmp"
-          unfolding tmp_def by blast
-
-        then have "(\<lambda>io_atc. p_io pP @ p_io pT @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pT)) A \<subseteq> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
-          unfolding test_suite_to_io.simps tmp_def[symmetric] tmp2_def[symmetric] by blast
-
+        
         have "is_separator M (target q pT) q' A d1 d2"
           using  t3[OF \<open>(A, d1, d2) \<in> atcs (target q pT, q')\<close>] by blast
 
@@ -757,6 +746,82 @@ proof -
 
 
         have "pass_io_set (FSM.from_FSM M' qT) (atc_to_io_set (FSM.from_FSM M (target q pT)) A)"
+        proof -
+          have "\<And> io x y y' . io @ [(x, y)] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A \<Longrightarrow>
+                               io @ [(x, y')] \<in> L (FSM.from_FSM M' qT) \<Longrightarrow> 
+                                io @ [(x, y')] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A"
+          proof -
+            fix io x y y' assume "io @ [(x, y)] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A"
+                          and    "io @ [(x, y')] \<in> L (FSM.from_FSM M' qT)"
+
+
+            (* subsets of test_suite_to_io *)
+            define tmp where tmp_def : "tmp = (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A. \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')})"
+            define tmp2 where tmp2_def : "tmp2 = \<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q}"
+            have "\<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) pP \<and> target (FSM.initial P) pP = q \<and> pT \<in> tps q \<and> q' \<in> rd_targets (q, pT) \<and> (A, t1, t2) \<in> atcs (target q pT, q')"
+              using \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pT \<in> tps q\<close> \<open>q' \<in> rd_targets (q, pT)\<close> \<open>(A, d1, d2) \<in> atcs (target q pT, q')\<close> by blast
+            then have "(\<lambda>io_atc. p_io pP @ p_io pT @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pT)) A \<subseteq> tmp"
+              unfolding tmp_def by blast
+            then have "(\<lambda>io_atc. p_io pP @ p_io pT @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pT)) A \<subseteq> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+              unfolding test_suite_to_io.simps tmp_def[symmetric] tmp2_def[symmetric] by blast
+            moreover have "(p_io pP @ p_io pT @ (io @ [(x, y)])) \<in> (\<lambda>io_atc. p_io pP @ p_io pT @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pT)) A"
+              using \<open>io @ [(x, y)] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A\<close> by auto
+            ultimately have "(p_io pP @ p_io pT @ (io @ [(x, y)])) \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+              by blast
+            then have *: "(p_io pP @ p_io pT @ io) @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+              by simp
+
+            have **: "(p_io pP @ p_io pT @ io) @ [(x, y')] \<in> L M'"
+            proof -
+              have "io @ [(x, y')] \<in> LS M' qT"
+                using \<open>io @ [(x, y')] \<in> L (FSM.from_FSM M' qT)\<close> \<open>qT \<in> nodes M'\<close>
+                by (metis from_FSM_language) 
+              show ?thesis 
+                using io_targets_language_append[OF \<open>qT \<in> io_targets M' (p_io pP @ p_io pT) (FSM.initial M')\<close> \<open>io @ [(x, y')] \<in> LS M' qT\<close>] by simp
+            qed
+
+            
+            have "(p_io pP @ p_io pT) @ (io @ [(x, y')]) \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+              using pass_io_prop[OF * ** ] by simp
+            then have "(p_io pP @ p_io pT) @ (io @ [(x, y')]) \<in> L M"
+              using test_suite_language_prop by blast
+
+            moreover have "target q pT \<in> io_targets M (p_io pP @ p_io pT) (initial M)"
+            proof -
+              have "target (initial M) (pP@pT) = target q pT"
+                unfolding \<open>target (initial M) pP = q\<close>[symmetric] by auto
+              moreover have "path M (initial M) (pP@pT)"
+                using \<open>path M (initial M) pP\<close> \<open>path M q pT\<close> unfolding \<open>target (initial M) pP = q\<close>[symmetric] by auto
+              moreover have "p_io (pP@pT) = (p_io pP @ p_io pT)" 
+                by auto
+              ultimately show ?thesis
+                unfolding io_targets.simps
+                by (metis (mono_tags, lifting) mem_Collect_eq) 
+            qed
+
+            ultimately have "io @ [(x, y')] \<in> LS M (target q pT)"
+              using observable_io_targets_language[OF _ \<open>observable M\<close>, of "(p_io pP @ p_io pT)" "(io @ [(x, y')])" "initial M" "target q pT"] by blast
+
+
+            
+            then have "io @ [(x, y')] \<in> L (FSM.from_FSM M (target q pT))"
+              unfolding from_FSM_language[OF path_target_is_node[OF \<open>path M q pT\<close>]] by assumption
+
+end (*
+            show "io @ [(x, y')] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A"
+              
+
+end (*
+
+
+              using \<open>io @ [(x, y')] \<in> L (FSM.from_FSM M' qT)\<close> \<open>qT \<in> io_targets M' (p_io pP @ p_io pT) (FSM.initial M')\<close> 
+             
+
+end (*
+            sorry
+          then show ?thesis unfolding pass_io_set_def by blast
+        qed
+          
 
 
 
