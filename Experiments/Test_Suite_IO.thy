@@ -101,7 +101,7 @@ fun test_suite_to_io :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \
   "test_suite_to_io M (Test_Suite prs tps rd_targets atcs) =
     (\<Union> (q,P) \<in> prs . L P)
     \<union> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})
-    \<union> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (q,q') })"
+    \<union> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"
 
 
 
@@ -143,7 +143,7 @@ proof
   from \<open>io \<in> test_suite_to_io M T\<close> consider
     (a) "io \<in> (\<Union> (q,P) \<in> prs . L P)" |
     (b) "io \<in> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})" |
-    (c) "io \<in> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (q,q') })"
+    (c) "io \<in> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"
     unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> test_suite_to_io.simps
     by blast
 
@@ -212,7 +212,7 @@ proof
                                     and   "target (initial P) p = q"
                                     and   "pt \<in> tps q"
                                     and   "q' \<in> rd_targets (q,pt)" 
-                                    and   "(A,t1,t2) \<in> atcs (q,q')"
+                                    and   "(A,t1,t2) \<in> atcs (target q pt,q')"
       by blast
 
     obtain ioA where "io = p_io p @ p_io pt @ ioA"
@@ -696,7 +696,74 @@ proof -
       next
         case c
 
+        then obtain q P pP pT q' A d1 d2 qT  where "(q, P) \<in> prs"
+                                             and   "path P (FSM.initial P) pP"
+                                             and   "target (FSM.initial P) pP = q"
+                                             and   "pT \<in> tps q"
+                                             and   "p_io pP @ p_io pT \<in> L M'"
+                                             and   "q' \<in> rd_targets (q, pT)"
+                                             and   "(A, d1, d2) \<in> atcs (target q pT, q')"
+                                             and   "qT \<in> io_targets M' (p_io pP @ p_io pT) (FSM.initial M')"
+                                             and   "\<not>pass_separator_ATC M' A qT d2"
+          by blast
 
+        (* subsets of test_suite_to_io *)
+        define tmp where tmp_def : "tmp = (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A. \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')})"
+        define tmp2 where tmp2_def : "tmp2 = \<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q}"
+
+        have "\<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) pP \<and> target (FSM.initial P) pP = q \<and> pT \<in> tps q \<and> q' \<in> rd_targets (q, pT) \<and> (A, t1, t2) \<in> atcs (target q pT, q')"
+          using \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pT \<in> tps q\<close> \<open>q' \<in> rd_targets (q, pT)\<close> \<open>(A, d1, d2) \<in> atcs (target q pT, q')\<close> by blast
+        then have "(\<lambda>io_atc. p_io pP @ p_io pT @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pT)) A \<subseteq> tmp"
+          unfolding tmp_def by blast
+
+        then have "(\<lambda>io_atc. p_io pP @ p_io pT @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pT)) A \<subseteq> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+          unfolding test_suite_to_io.simps tmp_def[symmetric] tmp2_def[symmetric] by blast
+
+        have "is_separator M (target q pT) q' A d1 d2"
+          using  t3[OF \<open>(A, d1, d2) \<in> atcs (target q pT, q')\<close>] by blast
+
+
+
+        have "is_submachine P M"
+          using t2[OF \<open>(q, P) \<in> prs\<close>] unfolding is_preamble_def by blast
+        then have "initial P = initial M" by auto
+    
+        have "path M (initial M) pP"
+          using submachine_path[OF \<open>is_submachine P M\<close> \<open>path P (initial P) pP\<close>] unfolding \<open>initial P = initial M\<close> by assumption
+        have "target (initial M) pP = q"
+          using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+        have "q \<in> nodes M"
+          using is_preamble_is_node[OF t2[OF \<open>(q, P) \<in> prs\<close>]] by assumption
+
+        have "q \<in> fst ` prs" 
+          using \<open>(q, P) \<in> prs\<close> by force
+
+        obtain pT' d' where "(pT @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m"
+          using t6[OF \<open>q \<in> fst ` prs\<close>] \<open>pT \<in> tps q\<close> by blast
+
+        then have "path M q (pT @ pT')"
+             and  "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (pT @ pT'))) RepSets = Some d'"
+             and  "\<And> p' p''. (pT @ pT') = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
+          using m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m]
+          by blast+
+        then have "path M q pT"
+          by auto
+
+        have "qT \<in> nodes M'"
+          using \<open>qT \<in> io_targets M' (p_io pP @ p_io pT) (FSM.initial M')\<close> io_targets_nodes
+          using subset_iff by fastforce 
+
+
+
+        have "pass_io_set (FSM.from_FSM M' qT) (atc_to_io_set (FSM.from_FSM M (target q pT)) A)"
+
+
+
+end (*
+
+
+        thm pass_separator_from_pass_io_set[OF \<open>is_separator M (target q pT) q' A d1 d2\<close> _ \<open>observable M\<close> \<open>observable M'\<close> path_target_is_node[OF \<open>path M q pT\<close>] \<open>qT \<in> nodes M'\<close> \<open>inputs M' = inputs M\<close> \<open>completely_specified M\<close>]
 
         then show ?thesis sorry
       qed

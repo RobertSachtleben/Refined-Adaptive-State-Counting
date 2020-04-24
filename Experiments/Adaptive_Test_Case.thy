@@ -674,7 +674,6 @@ lemma separator_is_ATC :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "observable M"
   and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
   shows "is_ATC A"
 unfolding is_ATC_def 
   using is_separator_simps(1,2,3)[OF assms(1)] by blast
@@ -698,7 +697,7 @@ proof (rule ccontr)
     by auto
 
   have "is_ATC A"
-    using separator_is_ATC[OF assms(4,1,2,3)] by assumption
+    using separator_is_ATC[OF assms(4,1,2)] by assumption
 
   have "initial A \<notin> {t2}"
     using separator_initial(2)[OF assms(4)] by blast
@@ -775,7 +774,7 @@ proof -
     using \<open>pass_separator_ATC S A s1 t2\<close> by auto
 
   have "is_ATC A"
-    using separator_is_ATC[OF assms(7,3,5,6)] by assumption
+    using separator_is_ATC[OF assms(7,3,5)] by assumption
 
   have "observable (from_FSM S s1)"
     using from_FSM_observable[OF assms(2)] by assumption
@@ -867,7 +866,7 @@ proof
   assume "LS S s1 \<subseteq> LS M q1"
 
   have "is_ATC A"
-    using separator_is_ATC[OF assms(6,2,4,5)] by assumption
+    using separator_is_ATC[OF assms(6,2,4)] by assumption
 
   have *: "(inputs A) \<subseteq> (inputs (from_FSM M q1))"
     using is_separator_simps(16)[OF assms(6)]
@@ -963,7 +962,7 @@ proof -
     using assms(9) by auto
 
   have p2: "is_ATC A"
-    using separator_is_ATC[OF assms(6,2,4,5)] by assumption
+    using separator_is_ATC[OF assms(6,2,4)] by assumption
 
   have p3: "observable (from_FSM S s1)"
     using from_FSM_observable[OF assms(1)] by assumption
@@ -1151,7 +1150,7 @@ shows "LS S s1 - LS M q1 \<noteq> {}"
 proof -
   
   have p1: "is_ATC A"
-    using separator_is_ATC[OF assms(4,1,6,7)] by assumption
+    using separator_is_ATC[OF assms(4,1,6)] by assumption
 
   have p2: "observable (from_FSM S s1)"
     using from_FSM_observable[OF assms(2)] by assumption
@@ -1445,7 +1444,6 @@ lemma pass_io_set_from_pass_separator :
   and     "observable M"
   and     "observable S"
   and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
   and     "s1 \<in> nodes S"
   and     "(inputs S) = (inputs M)"
 shows "pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)"
@@ -1455,13 +1453,13 @@ proof (rule ccontr)
     unfolding pass_io_set_def by blast
 
   have "is_ATC A"
-    using separator_is_ATC[OF assms(1,3,5,6)]  by assumption
+    using separator_is_ATC[OF assms(1,3,5)]  by assumption
   then have "acyclic A" 
     unfolding is_ATC_def by auto
   have "observable (from_FSM S s1)"
     using from_FSM_observable[OF \<open>observable S\<close>] by assumption
   have "(inputs A) \<subseteq> (inputs (from_FSM S s1))"
-    by (metis (no_types) assms(1) assms(7) assms(8) from_FSM_simps(2) is_separator_simps(16))
+    by (metis (no_types) assms(1) assms(6) assms(7) from_FSM_simps(2) is_separator_simps(16))
 
   obtain y'' where "io @ [(x, y'')] \<in> LS A (initial A)"
     using \<open>io@[(x,y)] \<in> (atc_to_io_set (from_FSM M q1) A)\<close> unfolding atc_to_io_set.simps by blast
@@ -1546,7 +1544,6 @@ lemma pass_separator_from_pass_io_set :
   and     "observable M"
   and     "observable S"
   and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
   and     "s1 \<in> nodes S"
   and     "(inputs S) = (inputs M)"
   and     "completely_specified M"
@@ -1556,13 +1553,13 @@ proof (rule ccontr)
   then have "\<not> pass_ATC (from_FSM S s1) A {t2}" by auto
 
   have "is_ATC A"
-    using separator_is_ATC[OF assms(1,3,5,6)]  by assumption
+    using separator_is_ATC[OF assms(1,3,5)]  by assumption
   then have "acyclic A" 
     unfolding is_ATC_def by auto
   have "observable (from_FSM S s1)"
     using from_FSM_observable[OF \<open>observable S\<close>] by assumption
   have "(inputs A) \<subseteq> (inputs (from_FSM S s1))"
-    using assms(1) assms(7) assms(8) is_separator_simps(16) by fastforce
+    using assms(1) assms(6) assms(7) is_separator_simps(16) by fastforce
 
   obtain io x y y' where "io @ [(x,y)] \<in> L A"
                          "io @ [(x,y')] \<in> L (from_FSM S s1)"
@@ -1589,7 +1586,7 @@ proof (rule ccontr)
     then have "io @ [(x,y')] \<notin> LS M q1" by blast
 
     obtain y'' where "io @ [(x, y'')] \<in> LS M q1 \<inter> L A"
-      using separator_language_last_left[OF assms(1,9,5) \<open>io @ [(x,y)] \<in> L A\<close>] by blast
+      using separator_language_last_left[OF assms(1,8,5) \<open>io @ [(x,y)] \<in> L A\<close>] by blast
     then have "io @ [(x, y')] \<in> LS M q1 \<inter> LS A (initial A)"
       using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
       using \<open>io @ [(x,y')] \<in> L (from_FSM S s1)\<close> 
@@ -1605,7 +1602,7 @@ proof (rule ccontr)
       by blast
 
     obtain y'' where "io @ [(x, y'')] \<in> LS M q1 \<inter> L A"
-      using separator_language_last_left[OF assms(1,9,5) \<open>io @ [(x,y)] \<in> L A\<close>] by blast
+      using separator_language_last_left[OF assms(1,8,5) \<open>io @ [(x,y)] \<in> L A\<close>] by blast
     then have "io @ [(x, y')] \<in> L A"
       using \<open>pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)\<close>
       using \<open>io @ [(x,y')] \<in> L (from_FSM S s1)\<close> 
@@ -1623,13 +1620,12 @@ lemma pass_separator_pass_io_set_iff:
   and     "observable M"
   and     "observable S"
   and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
   and     "s1 \<in> nodes S"
   and     "(inputs S) = (inputs M)"
   and     "completely_specified M"
 shows "pass_separator_ATC S A s1 t2 \<longleftrightarrow> pass_io_set (from_FSM S s1) (atc_to_io_set (from_FSM M q1) A)"
-  using pass_separator_from_pass_io_set[OF assms(1) _ assms(2-8)]
-        pass_io_set_from_pass_separator[OF assms(1) _ assms(2-7)] by blast
+  using pass_separator_from_pass_io_set[OF assms(1) _ assms(2-7)]
+        pass_io_set_from_pass_separator[OF assms(1) _ assms(2-6)] by blast
 
 
 
@@ -1668,7 +1664,6 @@ lemma pass_separator_pass_io_set_maximal_iff:
   and     "observable M"
   and     "observable S"
   and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
   and     "s1 \<in> nodes S"
   and     "(inputs S) = (inputs M)"
   and     "completely_specified M"
@@ -1676,7 +1671,7 @@ shows "pass_separator_ATC S A s1 t2 \<longleftrightarrow> pass_io_set_maximal (f
 proof -
 
   have "is_ATC A"
-    using separator_is_ATC[OF assms(1,2,4,5)]  by assumption
+    using separator_is_ATC[OF assms(1,2,4)]  by assumption
   then have "acyclic A" 
     unfolding is_ATC_def by auto
   then have "finite (L A)"
