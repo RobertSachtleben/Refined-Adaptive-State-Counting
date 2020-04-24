@@ -708,9 +708,8 @@ proof -
           by blast
 
         
-        have "is_separator M (target q pT) q' A d1 d2"
-          using  t3[OF \<open>(A, d1, d2) \<in> atcs (target q pT, q')\<close>] by blast
-
+        
+        
 
 
         have "is_submachine P M"
@@ -745,6 +744,19 @@ proof -
 
 
 
+        have "is_separator M (target q pT) q' A d1 d2"
+          using  t3[OF \<open>(A, d1, d2) \<in> atcs (target q pT, q')\<close>] by blast
+
+        have "\<not> pass_io_set (FSM.from_FSM M' qT) (atc_to_io_set (FSM.from_FSM M (target q pT)) A)"
+          using \<open>\<not>pass_separator_ATC M' A qT d2\<close>
+                pass_separator_pass_io_set_iff[OF \<open>is_separator M (target q pT) q' A d1 d2\<close> \<open>observable M\<close> \<open>observable M'\<close> path_target_is_node[OF \<open>path M q pT\<close>] \<open>qT \<in> nodes M'\<close> \<open>inputs M' = inputs M\<close> \<open>completely_specified M\<close>]
+          by simp
+
+        then have "True"
+          unfolding pass_io_set_def 
+
+end (*
+
         have "pass_io_set (FSM.from_FSM M' qT) (atc_to_io_set (FSM.from_FSM M (target q pT)) A)"
         proof -
           have "\<And> io x y y' . io @ [(x, y)] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A \<Longrightarrow>
@@ -771,15 +783,13 @@ proof -
             then have *: "(p_io pP @ p_io pT @ io) @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
               by simp
 
-            have **: "(p_io pP @ p_io pT @ io) @ [(x, y')] \<in> L M'"
-            proof -
-              have "io @ [(x, y')] \<in> LS M' qT"
-                using \<open>io @ [(x, y')] \<in> L (FSM.from_FSM M' qT)\<close> \<open>qT \<in> nodes M'\<close>
-                by (metis from_FSM_language) 
-              show ?thesis 
-                using io_targets_language_append[OF \<open>qT \<in> io_targets M' (p_io pP @ p_io pT) (FSM.initial M')\<close> \<open>io @ [(x, y')] \<in> LS M' qT\<close>] by simp
-            qed
 
+            have "io @ [(x, y')] \<in> LS M' qT"
+              using \<open>io @ [(x, y')] \<in> L (FSM.from_FSM M' qT)\<close> \<open>qT \<in> nodes M'\<close>
+              by (metis from_FSM_language) 
+            have **: "(p_io pP @ p_io pT @ io) @ [(x, y')] \<in> L M'" 
+              using io_targets_language_append[OF \<open>qT \<in> io_targets M' (p_io pP @ p_io pT) (FSM.initial M')\<close> \<open>io @ [(x, y')] \<in> LS M' qT\<close>] by simp
+            
             
             have "(p_io pP @ p_io pT) @ (io @ [(x, y')]) \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
               using pass_io_prop[OF * ** ] by simp
@@ -806,6 +816,11 @@ proof -
             
             then have "io @ [(x, y')] \<in> L (FSM.from_FSM M (target q pT))"
               unfolding from_FSM_language[OF path_target_is_node[OF \<open>path M q pT\<close>]] by assumption
+
+            moreover have "io @ [(x, y')] \<in> L A"
+              using \<open>io @ [(x, y')] \<in> LS M' qT\<close>
+            proof -
+              
 
 end (*
             show "io @ [(x, y')] \<in> atc_to_io_set (FSM.from_FSM M (target q pT)) A"
