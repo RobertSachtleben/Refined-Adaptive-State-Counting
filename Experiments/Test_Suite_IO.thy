@@ -832,7 +832,61 @@ proof -
   qed
 
   moreover have "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M' \<Longrightarrow> pass_io_set M' (test_suite_to_io M (Test_Suite prs tps rd_targets atcs))"
-    sorry
+  proof -
+    assume "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
+
+    (* pass properties *)
+  
+    have pass1: "\<And> q P io x y y' . (q,P) \<in> prs \<Longrightarrow> io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P" 
+      using \<open>passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'\<close>
+      unfolding passes_test_suite.simps
+      by meson 
+  
+    have pass2: "\<And> q P pP ioT pT x y y' . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> ioT@[(x,y)] \<in> set (prefixes (p_io pT)) \<Longrightarrow> (p_io pP)@ioT@[(x,y')] \<in> L M' \<Longrightarrow> (\<exists> pT' . pT' \<in> tps q \<and> ioT@[(x,y')] \<in> set (prefixes (p_io pT')))"
+      using \<open>passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'\<close>
+      unfolding passes_test_suite.simps by blast
+  
+    have pass3: "\<And> q P pP pT q' A d1 d2 qT . (q,P) \<in> prs \<Longrightarrow> path P (initial P) pP \<Longrightarrow> target (initial P) pP = q \<Longrightarrow> pT \<in> tps q \<Longrightarrow> (p_io pP)@(p_io pT) \<in> L M' \<Longrightarrow> q' \<in> rd_targets (q,pT) \<Longrightarrow> (A,d1,d2) \<in> atcs (target q pT, q') \<Longrightarrow> qT \<in> io_targets M' ((p_io pP)@(p_io pT)) (initial M') \<Longrightarrow> pass_separator_ATC M' A qT d2"  
+      using \<open>passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'\<close>
+      unfolding passes_test_suite.simps by blast
+
+
+
+    show "pass_io_set M' (test_suite_to_io M (Test_Suite prs tps rd_targets atcs))"
+    proof (rule ccontr)
+      assume "\<not> pass_io_set M' (test_suite_to_io M (Test_Suite prs tps rd_targets atcs))"
+
+      then obtain io x y y' where "io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+                            and   "io @ [(x, y')] \<in> L M'" 
+                            and   "io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+        unfolding pass_io_set_def by blast
+
+      consider (a) "io @ [(x, y)] \<in> (\<Union>(q, P)\<in>prs. L P)" |
+               (b) "io @ [(x, y)] \<in> (\<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q})" |
+               (c) "io @ [(x, y)] \<in> (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A.
+                                           \<exists>P q' t1 t2.
+                                              (q, P) \<in> prs \<and>
+                                              path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')})"
+        using \<open>io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close>
+        unfolding test_suite_to_io.simps by blast
+
+      then show "False" proof cases
+        case a
+        then obtain q P where "(q, P)\<in>prs" and "io @ [(x, y)] \<in> L P" by blast
+        have "io @ [(x, y')] \<in> L P" using pass1[OF \<open>(q, P)\<in>prs\<close> \<open>io @ [(x, y)] \<in> L P\<close> \<open>io @ [(x, y')] \<in> L M'\<close> ] by assumption
+        then have "io @ [(x, y')] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+          unfolding test_suite_to_io.simps using \<open>(q, P)\<in>prs\<close> by blast
+        then show "False" using \<open>io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> by simp
+      next
+        case b
+        then show ?thesis sorry
+      next
+        case c
+        then show ?thesis sorry
+      qed 
+        
+
+end (*
 
   ultimately show ?thesis 
     unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> by blast
