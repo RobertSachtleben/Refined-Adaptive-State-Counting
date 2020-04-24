@@ -106,16 +106,9 @@ fun test_suite_to_io :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \
 
 
 
-(* TODO: remove assumptions *)
-lemma test_suite_to_io_pass :
+
+lemma test_suite_to_io_language :
   assumes "is_sufficient_for_reduction_testing T M m"
-  and     "observable M" 
-  and     "observable M'"
-  and     "inputs M' = inputs M"
-  and     "inputs M \<noteq> {}"
-  and     "completely_specified M"
-  and     "completely_specified M'"
-  and     "size M' \<le> m"
 shows "(test_suite_to_io M T) \<subseteq> L M"
 proof 
   fix io assume "io \<in> test_suite_to_io M T"
@@ -131,13 +124,8 @@ proof
     unfolding is_sufficient_for_reduction_testing_def by blast
 
 
-  have t1: "(initial M, initial_preamble M) \<in> prs" 
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(1)[OF RepSets_def] by assumption
-  (*have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}"*)
   have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q"
     using is_sufficient_for_reduction_testing_for_RepSets_simps(2)[OF RepSets_def] by blast
-  have t3: "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(3)[OF RepSets_def] by assumption
   
   have t5: "\<And>q. q \<in> FSM.nodes M \<Longrightarrow> (\<exists>d\<in>set RepSets. q \<in> fst d)"
     using is_sufficient_for_reduction_testing_for_RepSets_simps(4)[OF RepSets_def] by assumption
@@ -145,44 +133,11 @@ proof
   have t6: "\<And> q. q \<in> fst ` prs \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q"
     using is_sufficient_for_reduction_testing_for_RepSets_simps(7)[OF RepSets_def] by assumption
 
-  have t7: "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M"
-  and  t8: "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d \<subseteq> fst d"
-  and  t8':  "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d = fst d \<inter> fst ` prs"
-  and  t9: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
+  have t8: "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d \<subseteq> fst d"
     using is_sufficient_for_reduction_testing_for_RepSets_simps(5,6)[OF RepSets_def] 
-    by blast+
+    by blast
 
-  have t10: "\<And> q p d p1 p2 p3.
-              q \<in> fst ` prs \<Longrightarrow>
-              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
-              p = p1 @ p2 @ p3 \<Longrightarrow>
-              p2 \<noteq> [] \<Longrightarrow>
-              target q p1 \<in> fst d \<Longrightarrow>
-              target q (p1 @ p2) \<in> fst d \<Longrightarrow>
-              target q p1 \<noteq> target q (p1 @ p2) \<Longrightarrow>
-              p1 \<in> tps q \<and> p1 @ p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q, p1 @ p2) \<and> target q (p1 @ p2) \<in> rd_targets (q, p1)"
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(8)[OF RepSets_def] by assumption
-
-  have t11: "\<And> q p d p1 p2 q'.
-              q \<in> fst ` prs \<Longrightarrow>
-              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
-              p = p1 @ p2 \<Longrightarrow>
-              q' \<in> fst ` prs \<Longrightarrow>
-              target q p1 \<in> fst d \<Longrightarrow>
-              q' \<in> fst d \<Longrightarrow> 
-              target q p1 \<noteq> q' \<Longrightarrow> 
-              p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1)"
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(9)[OF RepSets_def] by assumption
   
-  have t12: "\<And> q p d q1 q2.
-              q \<in> fst ` prs \<Longrightarrow>
-              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
-              q1 \<noteq> q2 \<Longrightarrow>
-              q1 \<in> snd d \<Longrightarrow> 
-              q2 \<in> snd d \<Longrightarrow> 
-              [] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2, []) \<and> q2 \<in> rd_targets (q1, [])"
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(10)[OF RepSets_def] by assumption
-
 
 
   from \<open>io \<in> test_suite_to_io M T\<close> consider
@@ -233,7 +188,7 @@ proof
       unfolding \<open>io = p_io p @ p_io pt\<close> by assumption
   next
     case c
-
+                                                                                                                      
     then obtain p pt q A P q' t1 t2 where "io \<in> (\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (maximal_contained_lists (atc_to_io_set (from_FSM M (target q pt)) A))"
                                     and   "(q,P) \<in> prs" 
                                     and   "path P (initial P) p"
@@ -243,8 +198,56 @@ proof
                                     and   "(A,t1,t2) \<in> atcs (q,q')"
       by blast
 
-    then show ?thesis sorry
-  qed 
+    obtain ioA where "io = p_io p @ p_io pt @ ioA"
+               and   "ioA \<in> (maximal_contained_lists (atc_to_io_set (from_FSM M (target q pt)) A))"
+      using \<open>io \<in> (\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (maximal_contained_lists (atc_to_io_set (from_FSM M (target q pt)) A))\<close>
+      by blast
+    then have "ioA \<in> L (from_FSM M (target q pt))"
+      unfolding maximal_contained_lists_def atc_to_io_set.simps by blast
+
+
+    have "q \<in> fst ` prs"
+      using \<open>(q,P) \<in> prs\<close> by force
+    
+
+    have "is_submachine P M"
+      using t2[OF \<open>(q, P) \<in> prs\<close>] unfolding is_preamble_def by blast
+    then have "initial P = initial M" by auto
+
+    have "path M (initial M) p"
+      using submachine_path[OF \<open>is_submachine P M\<close> \<open>path P (initial P) p\<close>] unfolding \<open>initial P = initial M\<close> by assumption
+    have "target (initial M) p = q"
+      using \<open>target (initial P) p = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+
+    obtain p2 d where "(pt @ p2, d) \<in> m_traversal_paths_with_witness M q RepSets m"
+      using t6[OF \<open>q \<in> fst ` prs\<close>] \<open>pt \<in> tps q\<close> by blast
+
+    then have "path M q (pt @ p2)"
+      using m_traversal_paths_with_witness_set[OF t5 t8 path_target_is_node[OF \<open>path M (initial M) p\<close>], of m]
+      unfolding \<open>target (initial M) p = q\<close> by blast
+    then have "path M (initial M) (p@pt)"
+      using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q\<close> by auto
+
+    moreover have "(target q pt) = target (initial M) (p@pt)"
+      using \<open>target (initial M) p = q\<close> by auto
+
+    ultimately have "(target q pt) \<in> nodes M"
+      using path_target_is_node by metis
+
+    have "ioA \<in> LS M (target q pt)"
+      using from_FSM_language[OF \<open>(target q pt) \<in> nodes M\<close>] \<open>ioA \<in> L (from_FSM M (target q pt))\<close> by blast
+    then obtain pA where "path M (target q pt) pA" and "p_io pA = ioA"
+      by auto
+
+    then have "path M (initial M) (p @ pt @ pA)"
+      using \<open>path M (initial M) (p@pt)\<close>  unfolding \<open>(target q pt) = target (initial M) (p@pt)\<close> by auto
+    then have "p_io p @ p_io pt @ ioA \<in> L M"
+      unfolding \<open>p_io pA = ioA\<close>[symmetric]
+      using language_intro by fastforce
+    then show "io \<in> L M"
+      unfolding \<open>io = p_io p @ p_io pt @ ioA\<close> by assumption
+  qed
+qed
 
   
   
