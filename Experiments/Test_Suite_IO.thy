@@ -949,6 +949,26 @@ proof -
 
       next
         case c
+
+        then obtain p pt q A P q' t1 t2 where "io @ [(x, y)] \<in> (\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A"
+                                          and "(q, P) \<in> prs"
+                                          and "path P (FSM.initial P) p"
+                                          and "target (FSM.initial P) p = q" 
+                                          and "pt \<in> tps q" 
+                                          and "q' \<in> rd_targets (q, pt)" 
+                                          and "(A, t1, t2) \<in> atcs (target q pt, q')"
+          by blast
+
+        show "False" proof (cases "p_io p @ p_io pt \<in> L M'")
+          case False
+          then show ?thesis sorry
+        next
+          case True
+          then show ?thesis sorry
+        qed
+
+        thm pass3[OF \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) p\<close> \<open>target (FSM.initial P) p = q\<close> \<open>pt \<in> tps q\<close> ]
+
         then show ?thesis sorry
       qed 
         
