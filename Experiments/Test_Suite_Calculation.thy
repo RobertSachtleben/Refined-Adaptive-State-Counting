@@ -275,6 +275,23 @@ qed
 
 
 
+(* TODO: move *)
+lemma finite_snd_helper: 
+  assumes "finite xs" 
+  shows "finite {z. ((q, p), z) \<in> xs}" 
+
+proof -
+  have "{z. ((q, p), z) \<in> xs} \<subseteq> (\<lambda>((a,b),c) . c) ` xs" 
+  proof 
+    fix x assume "x \<in> {z. ((q, p), z) \<in> xs}"
+    then have "((q,p),x) \<in> xs" by auto
+    then show "x \<in> (\<lambda>((a,b),c) . c) ` xs" by force
+  qed
+  then show ?thesis using assms
+    using finite_surj by blast 
+qed
+
+
 
 
 
@@ -1203,8 +1220,68 @@ proof -
                         fst ` d_reachable_states_with_preambles M.
                   (\<lambda>(p, rd, dr). dr) ` y)
               (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M))"
-          sorry
+        proof -
+
+          have "finite (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
+                        fst ` d_reachable_states_with_preambles M.
+                  (\<lambda>(p, rd, dr). dr) ` y)"
+          proof -
+
+            have *: "(\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
+                        fst ` d_reachable_states_with_preambles M.
+                  (\<lambda>(p, rd, dr). dr) ` y) =
+                  (\<Union> q \<in> fst ` d_reachable_states_with_preambles M . \<Union> (p, rd, dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . {dr})"
+              by force
+
+            have "finite (\<Union> q \<in> fst ` d_reachable_states_with_preambles M . \<Union> (p, rd, dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . {dr})"
+            proof -
+              have "finite (fst ` d_reachable_states_with_preambles M)"
+                using \<open>finite nodes_with_preambles\<close> unfolding nodes_with_preambles_def by auto
+
+              moreover have "\<And>q . q \<in> fst ` d_reachable_states_with_preambles M \<Longrightarrow> finite (\<Union> (p, rd, dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . {dr})"
+              proof -
+                fix q assume "q \<in> fst ` d_reachable_states_with_preambles M"
+
+                have "finite (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)"
+                  using  m_traversal_paths_with_witness_finite by metis 
+                moreover have "\<And> p rd dr . (p, rd, dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m \<Longrightarrow> finite {dr}"
+                  by simp
+                ultimately show "finite (\<Union> (p, rd, dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . {dr})"
+                  by force
+              qed
+              ultimately show ?thesis by blast
+            qed
+            then show ?thesis unfolding * by assumption
+          qed
+          moreover have "finite (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)"
+          proof - 
+            have "(fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M) \<subseteq> nodes M \<times> nodes M"
+              unfolding r_distinguishable_state_pairs_with_separators_def by auto
+            moreover have "finite (nodes M \<times> nodes M)"
+              using fsm_nodes_finite by auto
+            ultimately show ?thesis using infinite_super by blast
+          qed
+          ultimately show ?thesis
+            unfolding preamble_pair_tests.simps by blast
+        qed
+
         ultimately show ?thesis by simp
+      qed
+
+      
+
+end (*
+
+      then show "finite (rd_targets (q, p))"
+        unfolding rd_targets_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] 
+        sorry
+
+      
+
+end (*
+
+      then show "finite (rd_targets (q, p))"
+        unfolding rd_targets_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] 
 end (*
 
 
