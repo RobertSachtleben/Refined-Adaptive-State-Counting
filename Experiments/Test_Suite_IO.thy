@@ -413,14 +413,27 @@ lemma is_preamble_is_node :
   using assms unfolding is_preamble_def
   by (meson nil path_nil_elim reachable_node_is_node submachine_path) 
 
+(* TODO: move *)
 lemma prefixes_set_ob :
   assumes "xs \<in> set (prefixes xss)"
   obtains xs' where "xss = xs@xs'"
   using assms unfolding prefixes_set
   by auto 
 
+(* TODO: move *)
+lemma language_finite: "finite {io . io \<in> L M \<and> length io \<le> k}"
+proof -
+  have "{io . io \<in> L M \<and> length io \<le> k} \<subseteq> p_io  ` {p. path M (FSM.initial M) p \<and> length p \<le> k}"
+    by auto
+  then show ?thesis
+    using paths_finite[of M "initial M" k]
+    using finite_surj by auto 
+qed
+
+
 
 (* TODO: remove assumptions *)
+(* TODO: remove superfluous tX *)
 lemma test_suite_to_io_pass :
   assumes "is_sufficient_for_reduction_testing T M m"
   and     "observable M" 
@@ -428,8 +441,7 @@ lemma test_suite_to_io_pass :
   and     "inputs M' = inputs M"
   and     "inputs M \<noteq> {}"
   and     "completely_specified M"
-  and     "completely_specified M'"
-  and     "size M' \<le> m"
+  and     "completely_specified M'"  
 shows "pass_io_set M' (test_suite_to_io M T) = passes_test_suite M T M'"
 proof -
   obtain prs tps rd_targets atcs where "T = Test_Suite prs tps rd_targets atcs"
@@ -447,7 +459,6 @@ proof -
 
   have t1: "(initial M, initial_preamble M) \<in> prs" 
     using is_sufficient_for_reduction_testing_for_RepSets_simps(1)[OF RepSets_def] by assumption
-  (*have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q \<and> tps q \<noteq> {}"*)
   have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q"
     using is_sufficient_for_reduction_testing_for_RepSets_simps(2)[OF RepSets_def] by blast
   have t3: "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
@@ -465,39 +476,6 @@ proof -
   and  t9: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
     using is_sufficient_for_reduction_testing_for_RepSets_simps(5,6)[OF RepSets_def] 
     by blast+
-
-  have t10: "\<And> q p d p1 p2 p3.
-              q \<in> fst ` prs \<Longrightarrow>
-              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
-              p = p1 @ p2 @ p3 \<Longrightarrow>
-              p2 \<noteq> [] \<Longrightarrow>
-              target q p1 \<in> fst d \<Longrightarrow>
-              target q (p1 @ p2) \<in> fst d \<Longrightarrow>
-              target q p1 \<noteq> target q (p1 @ p2) \<Longrightarrow>
-              p1 \<in> tps q \<and> p1 @ p2 \<in> tps q \<and> target q p1 \<in> rd_targets (q, p1 @ p2) \<and> target q (p1 @ p2) \<in> rd_targets (q, p1)"
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(8)[OF RepSets_def] by assumption
-
-  have t11: "\<And> q p d p1 p2 q'.
-              q \<in> fst ` prs \<Longrightarrow>
-              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
-              p = p1 @ p2 \<Longrightarrow>
-              q' \<in> fst ` prs \<Longrightarrow>
-              target q p1 \<in> fst d \<Longrightarrow>
-              q' \<in> fst d \<Longrightarrow> 
-              target q p1 \<noteq> q' \<Longrightarrow> 
-              p1 \<in> tps q \<and> [] \<in> tps q' \<and> target q p1 \<in> rd_targets (q', []) \<and> q' \<in> rd_targets (q, p1)"
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(9)[OF RepSets_def] by assumption
-  
-  have t12: "\<And> q p d q1 q2.
-              q \<in> fst ` prs \<Longrightarrow>
-              (p, d) \<in> m_traversal_paths_with_witness M q RepSets m \<Longrightarrow>
-              q1 \<noteq> q2 \<Longrightarrow>
-              q1 \<in> snd d \<Longrightarrow> 
-              q2 \<in> snd d \<Longrightarrow> 
-              [] \<in> tps q1 \<and> [] \<in> tps q2 \<and> q1 \<in> rd_targets (q2, []) \<and> q2 \<in> rd_targets (q1, [])"
-    using is_sufficient_for_reduction_testing_for_RepSets_simps(10)[OF RepSets_def] by assumption
-
-
     
 
   have "pass_io_set M' (test_suite_to_io M (Test_Suite prs tps rd_targets atcs)) \<Longrightarrow> passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
@@ -511,14 +489,6 @@ proof -
     show "passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
     proof (rule ccontr)
       assume "\<not> passes_test_suite M (Test_Suite prs tps rd_targets atcs) M'"
-
-
-      (*
-      then have "\<not> (L M' \<subseteq> L M)"
-        using passes_test_suite_soundness[OF \<open>is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m\<close> assms(2,3,4,6)] by blast
-
-      *)
-
 
 
       then consider (a) "\<not> (\<forall>q P io x y y'. (q, P) \<in> prs \<longrightarrow> io @ [(x, y)] \<in> L P \<longrightarrow> io @ [(x, y')] \<in> L M' \<longrightarrow> io @ [(x, y')] \<in> L P)" |
@@ -549,7 +519,7 @@ proof -
         
 
         have "io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
-          unfolding test_suite_to_io.simps using \<open>(q, P) \<in> prs\<close> \<open>io @ [(x, y)] \<in> L P\<close> by force
+          unfolding test_suite_to_io.simps using \<open>(q, P) \<in> prs\<close> \<open>io @ [(x, y)] \<in> L P\<close> by fastforce
 
         have "io @ [(x, y')] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
           using pass_io_prop[OF \<open>io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> \<open>io @ [(x, y')] \<in> L M'\<close>] by assumption
@@ -707,10 +677,6 @@ proof -
                                              and   "\<not>pass_separator_ATC M' A qT d2"
           by blast
 
-        
-        
-        
-
 
         have "is_submachine P M"
           using t2[OF \<open>(q, P) \<in> prs\<close>] unfolding is_preamble_def by blast
@@ -855,12 +821,12 @@ proof -
     show "pass_io_set M' (test_suite_to_io M (Test_Suite prs tps rd_targets atcs))"
     proof (rule ccontr)
       assume "\<not> pass_io_set M' (test_suite_to_io M (Test_Suite prs tps rd_targets atcs))"
-
       then obtain io x y y' where "io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
                             and   "io @ [(x, y')] \<in> L M'" 
                             and   "io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
         unfolding pass_io_set_def by blast
-
+          
+       
 
       have preamble_prop: "\<And> q P . (q, P) \<in> prs \<Longrightarrow> io @ [(x, y)] \<in> L P \<Longrightarrow> False"
       proof - 
@@ -871,26 +837,13 @@ proof -
         then show "False" using \<open>io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> by simp
       qed
 
-      consider (a) "io @ [(x, y)] \<in> (\<Union>(q, P)\<in>prs. L P)" |
-               (b) "io @ [(x, y)] \<in> (\<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q})" |
-               (c) "io @ [(x, y)] \<in> (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A.
-                                           \<exists>P q' t1 t2.
-                                              (q, P) \<in> prs \<and>
-                                              path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')})"
-        using \<open>io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close>
-        unfolding test_suite_to_io.simps by blast
-
-      then show "False" proof cases
-        case a 
-        then show ?thesis using preamble_prop by blast
-      next
-        case b
-        then obtain pP pt q P where "io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt))"
-                             and   "(q, P) \<in> prs" 
-                             and   "path P (FSM.initial P) pP"
-                             and   "target (FSM.initial P) pP = q"
-                             and   "pt \<in> tps q"
-          by blast
+      have traversal_path_prop : "\<And> pP pt q P .  io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt)) \<Longrightarrow> (q, P) \<in> prs \<Longrightarrow> path P (FSM.initial P) pP \<Longrightarrow> target (FSM.initial P) pP = q \<Longrightarrow> pt \<in> tps q \<Longrightarrow> False"
+      proof -
+        fix pP pt q P assume "io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt))"
+                       and   "(q, P) \<in> prs" 
+                       and   "path P (FSM.initial P) pP"
+                       and   "target (FSM.initial P) pP = q"
+                       and   "pt \<in> tps q"
 
         obtain io' io'' where "io @ [(x, y)] = (p_io pP) @ io'" and "io'@io'' = p_io pt"
           using \<open>io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt))\<close> unfolding prefixes_set
@@ -945,35 +898,144 @@ proof -
           then show "False"
             using \<open>io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> by blast
         qed
+      qed
 
 
+
+
+      consider (a) "io @ [(x, y)] \<in> (\<Union>(q, P)\<in>prs. L P)" |
+               (b) "io @ [(x, y)] \<in> (\<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q})" |
+               (c) "io @ [(x, y)] \<in> (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A.
+                                           \<exists>P q' t1 t2.
+                                              (q, P) \<in> prs \<and>
+                                              path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')})"
+        using \<open>io @ [(x, y)] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close>
+        unfolding test_suite_to_io.simps by blast
+
+      then show "False" proof cases
+        case a 
+        then show ?thesis using preamble_prop by blast
+      next
+        case b
+        then show ?thesis using traversal_path_prop by blast
       next
         case c
 
-        then obtain p pt q A P q' t1 t2 where "io @ [(x, y)] \<in> (\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A"
+        then obtain pP pt q A P q' t1 t2 where "io @ [(x, y)] \<in> (\<lambda>io_atc. p_io pP @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A"
                                           and "(q, P) \<in> prs"
-                                          and "path P (FSM.initial P) p"
-                                          and "target (FSM.initial P) p = q" 
+                                          and "path P (FSM.initial P) pP"
+                                          and "target (FSM.initial P) pP = q" 
                                           and "pt \<in> tps q" 
                                           and "q' \<in> rd_targets (q, pt)" 
                                           and "(A, t1, t2) \<in> atcs (target q pt, q')"
           by blast
 
-        show "False" proof (cases "p_io p @ p_io pt \<in> L M'")
-          case False
-          then show ?thesis sorry
+        obtain ioA where "io @ [(x, y)] = p_io pP @ p_io pt @ ioA"
+          using \<open>io @ [(x, y)] \<in> (\<lambda>io_atc. p_io pP @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A\<close> unfolding prefixes_set
+          by blast 
+
+
+
+        show "False" proof (cases ioA rule: rev_cases)
+          case Nil
+          then have "io @ [(x, y)] = p_io pP @ p_io pt"
+            using \<open>io @ [(x, y)] = p_io pP @ p_io pt @ ioA\<close> by simp
+          then have "io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt))"
+            unfolding prefixes_set by blast
+          show ?thesis 
+            using traversal_path_prop[OF \<open>io @ [(x, y)] \<in> (@) (p_io pP) ` set (prefixes (p_io pt))\<close> \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pt \<in> tps q\<close>]
+            by assumption
         next
-          case True
-          then show ?thesis sorry
+          case (snoc ioAI xy)
+          then have "xy = (x,y)" and "io = p_io pP @ p_io pt @ ioAI"
+            using \<open>io @ [(x, y)] = p_io pP @ p_io pt @ ioA\<close> by simp+
+          then have "p_io pP @ p_io pt @ ioAI @ [(x,y)] \<in> (\<lambda>io_atc. p_io pP @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A"
+            using \<open>io @ [(x, y)] \<in> (\<lambda>io_atc. p_io pP @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A\<close> by auto
+          then have "ioAI @ [(x,y)] \<in> atc_to_io_set (FSM.from_FSM M (target q pt)) A" 
+            by auto
+
+
+          have "p_io pP @ p_io pt \<in> L M'"
+            using \<open>io @ [(x,y')] \<in> L M'\<close> language_prefix[of "p_io pP @ p_io pt" "ioAI @ [(x, y')]" M' "initial M'"] unfolding \<open>io = p_io pP @ p_io pt @ ioAI\<close>
+            by simp
+          then obtain pt' where "path M' (initial M') pt'" and "p_io pt' = p_io pP @ p_io pt"
+            by auto
+          then have  "target (initial M') pt' \<in> io_targets M' (p_io pP @ p_io pt) (FSM.initial M')"
+            by fastforce
+              
+            
+          have "pass_separator_ATC M' A (target (FSM.initial M') pt') t2"
+            using pass3[OF \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pt \<in> tps q\<close> \<open>p_io pP @ p_io pt \<in> L M'\<close> \<open>q' \<in> rd_targets (q, pt)\<close> \<open>(A, t1, t2) \<in> atcs (target q pt, q')\<close> \<open>target (initial M') pt' \<in> io_targets M' (p_io pP @ p_io pt) (FSM.initial M')\<close>]
+            by assumption
+
+          have "is_separator M (target q pt) q' A t1 t2"
+            using  t3[OF \<open>(A, t1, t2) \<in> atcs (target q pt, q')\<close>] by blast
+
+
+          have "is_submachine P M"
+            using t2[OF \<open>(q, P) \<in> prs\<close>] unfolding is_preamble_def by blast
+          then have "initial P = initial M" by auto
+      
+          have "path M (initial M) pP"
+            using submachine_path[OF \<open>is_submachine P M\<close> \<open>path P (initial P) pP\<close>] unfolding \<open>initial P = initial M\<close> by assumption
+          have "target (initial M) pP = q"
+            using \<open>target (initial P) pP = q\<close> unfolding \<open>initial P = initial M\<close> by assumption
+  
+          have "q \<in> nodes M"
+            using is_preamble_is_node[OF t2[OF \<open>(q, P) \<in> prs\<close>]] by assumption
+  
+          have "q \<in> fst ` prs" 
+            using \<open>(q, P) \<in> prs\<close> by force
+  
+          obtain pT' d' where "(pt @ pT', d') \<in> m_traversal_paths_with_witness M q RepSets m"
+            using t6[OF \<open>q \<in> fst ` prs\<close>] \<open>pt \<in> tps q\<close> by blast
+  
+          then have "path M q (pt @ pT')"
+               and  "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (pt @ pT'))) RepSets = Some d'"
+               and  "\<And> p' p''. (pt @ pT') = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) RepSets = None"
+            using m_traversal_paths_with_witness_set[OF t5 t8 \<open>q \<in> nodes M\<close>, of m]
+            by blast+
+          then have "path M q pt"
+            by auto
+  
+          have "target (initial M') pt' \<in> nodes M'"
+            using \<open>target (initial M') pt' \<in> io_targets M' (p_io pP @ p_io pt) (FSM.initial M')\<close> io_targets_nodes
+            using subset_iff by fastforce 
+
+
+          have "pass_io_set (FSM.from_FSM M' (target (FSM.initial M') pt')) (atc_to_io_set (FSM.from_FSM M (target q pt)) A)"
+            using  pass_io_set_from_pass_separator[OF \<open>is_separator M (target q pt) q' A t1 t2\<close> \<open>pass_separator_ATC M' A (target (FSM.initial M') pt') t2\<close> \<open>observable M\<close> \<open>observable M'\<close> path_target_is_node[OF \<open>path M q pt\<close>] \<open>target (FSM.initial M') pt' \<in> FSM.nodes M'\<close> \<open>inputs M' = inputs M\<close>]
+            by assumption
+          moreover note \<open>ioAI @ [(x,y)] \<in> atc_to_io_set (FSM.from_FSM M (target q pt)) A\<close>
+          moreover have "ioAI @ [(x, y')] \<in> L (FSM.from_FSM M' (target (FSM.initial M') pt'))" 
+            using \<open>io @ [(x,y')] \<in> L M'\<close>   unfolding \<open>io = p_io pP @ p_io pt @ ioAI\<close>
+            by (metis (no_types, lifting) \<open>target (FSM.initial M') pt' \<in> FSM.nodes M'\<close> \<open>target (FSM.initial M') pt' \<in> io_targets M' (p_io pP @ p_io pt) (FSM.initial M')\<close> append_assoc assms(3) from_FSM_language observable_io_targets_language)
+
+          ultimately have "ioAI @ [(x,y')] \<in> atc_to_io_set (FSM.from_FSM M (target q pt)) A"
+            unfolding pass_io_set_def by blast
+
+
+          (* subsets of test_suite_to_io *)
+          define tmp where tmp_def : "tmp = (\<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A. \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')})"
+          define tmp2 where tmp2_def : "tmp2 = \<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q}"
+          have "\<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) pP \<and> target (FSM.initial P) pP = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')"
+            using \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> \<open>pt \<in> tps q\<close> \<open>q' \<in> rd_targets (q, pt)\<close> \<open>(A, t1, t2) \<in> atcs (target q pt, q')\<close> by blast
+          then have "(\<lambda>io_atc. p_io pP @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A \<subseteq> tmp"
+            unfolding tmp_def by blast
+          then have "(\<lambda>io_atc. p_io pP @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A \<subseteq> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+            unfolding test_suite_to_io.simps tmp_def[symmetric] tmp2_def[symmetric] by blast
+          moreover have "(p_io pP @ p_io pt @ (ioAI @ [(x, y')])) \<in> (\<lambda>io_atc. p_io pP @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A"
+            using \<open>ioAI @ [(x, y')] \<in> atc_to_io_set (FSM.from_FSM M (target q pt)) A\<close> by auto
+          ultimately have "(p_io pP @ p_io pt @ (ioAI @ [(x, y')])) \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+            by blast
+          then have "io @ [(x, y')] \<in> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)"
+            unfolding \<open>io = p_io pP @ p_io pt @ ioAI\<close> by auto
+          then show "False"
+            using \<open>io @ [(x, y')] \<notin> test_suite_to_io M (Test_Suite prs tps rd_targets atcs)\<close> by blast
         qed
-
-        thm pass3[OF \<open>(q, P) \<in> prs\<close> \<open>path P (FSM.initial P) p\<close> \<open>target (FSM.initial P) p = q\<close> \<open>pt \<in> tps q\<close> ]
-
-        then show ?thesis sorry
-      qed 
-        
-
-end (*
+      qed
+    qed
+  qed
 
   ultimately show ?thesis 
     unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> by blast
