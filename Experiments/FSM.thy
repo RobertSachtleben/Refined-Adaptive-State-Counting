@@ -2766,7 +2766,19 @@ next
 qed
 
 
+lemma paths_up_to_length_or_condition_with_witness_finite : "finite (paths_up_to_length_or_condition_with_witness M P k q)"
+proof -
+  have "paths_up_to_length_or_condition_with_witness M P k q \<subseteq> {(p, the (P p)) | p . path M q p \<and> length p \<le> k}"
+    unfolding paths_up_to_length_or_condition_with_witness_def
+    by auto 
+  moreover have "finite {(p, the (P p)) | p . path M q p \<and> length p \<le> k}" 
+    using paths_finite[of M q k]
+    by simp 
+  ultimately show ?thesis
+    using rev_finite_subset by auto 
+qed
 
+  
 
 
 subsection \<open>More Acyclicity Properties\<close>

@@ -21,7 +21,10 @@ value "m_traversal_paths_with_witness m_ex_H 4 (maximal_repetition_sets_from_sep
 
 
 
-
+lemma m_traversal_paths_with_witness_up_to_length_finite : "finite (m_traversal_paths_with_witness M q D m)"
+  unfolding m_traversal_paths_with_witness_def m_traversal_paths_with_witness_up_to_length_def
+  by (simp add: paths_up_to_length_or_condition_with_witness_finite) 
+  
 
 
 lemma m_traversal_paths_with_witness_up_to_length_max_length :

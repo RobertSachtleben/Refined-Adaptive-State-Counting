@@ -1042,6 +1042,197 @@ proof -
 qed
 
 
+(*
+  
+fun test_suite_to_io :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+  "test_suite_to_io M (Test_Suite prs tps rd_targets atcs) =
+    (\<Union> (q,P) \<in> prs . L P)
+    \<union> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})
+    \<union> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"
+
+
+
+
+*)
+
+(* (tps q) must already be finite for a sufficient test suite due to being a subset of the maximal m-traversal paths *)
+fun is_finite_test_suite :: "('a,'b,'c,'d) test_suite \<Rightarrow> bool" where
+  "is_finite_test_suite (Test_Suite prs tps rd_targets atcs) = 
+    ((finite prs) \<and> (\<forall> q . finite (rd_targets q)) \<and> (\<forall> q q' . finite (atcs (q,q'))))" 
+
+
+
+lemma test_suite_to_io_finite :
+  assumes "is_sufficient_for_reduction_testing T M m"
+  and     "is_finite_test_suite T"
+  and     "observable M" 
+  and     "observable M'"
+  and     "inputs M' = inputs M"
+  and     "inputs M \<noteq> {}"
+  and     "completely_specified M"
+  and     "completely_specified M'"  
+shows "finite (test_suite_to_io M T)"
+proof -
+  obtain prs tps rd_targets atcs where "T = Test_Suite prs tps rd_targets atcs"
+    by (meson test_suite.exhaust)
+
+
+
+  then obtain RepSets where RepSets_def: "is_sufficient_for_reduction_testing_for_RepSets (Test_Suite prs tps rd_targets atcs) M m RepSets"
+    using assms(1) unfolding is_sufficient_for_reduction_testing_def by blast
+  then have "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
+    unfolding is_sufficient_for_reduction_testing_def by blast
+  then have test_suite_language_prop: "test_suite_to_io M (Test_Suite prs tps rd_targets atcs) \<subseteq> L M"
+    using test_suite_to_io_language by blast
+
+
+  have f1: "(finite prs)" 
+  and  f2: "\<And> q . finite (rd_targets q)" 
+  and  f3: "\<And> q q' . finite (atcs (q,q'))"
+    using assms(2) unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> is_finite_test_suite.simps by blast+
+
+
+
+  have t1: "(initial M, initial_preamble M) \<in> prs" 
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(1)[OF RepSets_def] by assumption
+  have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(2)[OF RepSets_def] by blast
+  have t3: "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(3)[OF RepSets_def] by assumption
+  
+  have t5: "\<And>q. q \<in> FSM.nodes M \<Longrightarrow> (\<exists>d\<in>set RepSets. q \<in> fst d)"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(4)[OF RepSets_def] by assumption
+
+  have t6: "\<And> q. q \<in> fst ` prs \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(7)[OF RepSets_def] by assumption
+
+  have t7: "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M"
+  and  t8: "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d \<subseteq> fst d"
+  and  t8':  "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d = fst d \<inter> fst ` prs"
+  and  t9: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(5,6)[OF RepSets_def] 
+    by blast+
+
+
+  have f4: "\<And> q . q \<in> fst ` prs \<Longrightarrow> finite (tps q)"
+  proof -
+    fix q assume "q \<in> fst ` prs"
+    then have "tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m}"
+      using t6 by blast
+    moreover have "{p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<subseteq> (\<Union> p2 \<in> fst ` m_traversal_paths_with_witness M q RepSets m . set (prefixes p2))"
+    proof 
+      fix p1 assume "p1 \<in> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m}"
+      then obtain p2 d where "(p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m" by blast
+      then have "p1@p2 \<in> fst ` m_traversal_paths_with_witness M q RepSets m" by force
+      moreover have "p1 \<in> set (prefixes (p1@p2))" unfolding prefixes_set by blast
+      ultimately show "p1 \<in> (\<Union> p2 \<in> fst ` m_traversal_paths_with_witness M q RepSets m . set (prefixes p2))" by blast
+    qed
+    ultimately have "tps q \<subseteq> (\<Union> p2 \<in> fst ` m_traversal_paths_with_witness M q RepSets m . set (prefixes p2))"
+      by simp
+    moreover have "finite (\<Union> p2 \<in> fst ` m_traversal_paths_with_witness M q RepSets m . set (prefixes p2))"
+    proof -
+      have "finite (fst ` m_traversal_paths_with_witness M q RepSets m)"
+        using m_traversal_paths_with_witness_up_to_length_finite[of M q RepSets m] by auto
+      moreover have "\<And> p2 . finite (set (prefixes p2))" by auto
+      ultimately show ?thesis by blast
+    qed
+    ultimately show "finite (tps q)"
+      using finite_subset by blast 
+  qed
+  then have f4' : "\<And> q P . (q,P) \<in> prs \<Longrightarrow> finite (tps q)"
+    by force
+
+
+
+
+
+  define T1 where T1_def : "T1 = (\<Union>(q, P)\<in>prs. L P)"
+  define T2 where T2_def : "T2 = \<Union>{(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q}"
+  define T3 where T3_def : "T3 = \<Union> {(\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A |p pt q A.
+        \<exists>P q' t1 t2.
+           (q, P) \<in> prs \<and>
+           path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')}"
+  
+  have "test_suite_to_io M T = T1 \<union> T2 \<union> T3"
+    unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> test_suite_to_io.simps T1_def T2_def T3_def by simp
+
+  moreover have "finite T1" 
+  proof -
+    have "\<And> q P . (q, P)\<in>prs \<Longrightarrow> finite (L P)"
+    proof -
+      fix q P assume "(q, P)\<in>prs"
+      have "acyclic P" using t2[OF \<open>(q, P)\<in>prs\<close>] unfolding is_preamble_def by blast 
+      then show "finite (L P)" using acyclic_alt_def by blast
+    qed
+    then show ?thesis using f1 unfolding T1_def
+      by auto 
+  qed
+
+  moreover have "finite T2"
+  proof -
+    have *: "T2 = (\<Union> (p,pt) \<in> {(p,pt) | p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q} . ((@) (p_io p) ` set (prefixes (p_io pt))))"
+      unfolding T2_def by auto
+
+
+    have "\<And> p pt . finite ((@) (p_io p) ` set (prefixes (p_io pt)))"
+      by auto
+    moreover have "finite {(p,pt) | p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q}"
+    proof -
+      have "{(p,pt) | p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q} \<subseteq> (\<Union> (q,P) \<in> prs . {p . path P (initial P) p} \<times> (tps q))"
+        by auto
+      moreover have "finite (\<Union> (q,P) \<in> prs . {p . path P (initial P) p} \<times> (tps q))"
+      proof -
+        note \<open>finite prs\<close>
+        moreover have "\<And> q P . (q,P) \<in> prs \<Longrightarrow> finite ({p . path P (initial P) p} \<times> (tps q))"
+        proof -
+          fix q P assume "(q,P) \<in> prs"
+
+          have "acyclic P" using t2[OF \<open>(q, P)\<in>prs\<close>] unfolding is_preamble_def by blast
+          then have "finite {p . path P (initial P) p}" using acyclic_paths_finite[of P "initial P"] unfolding acyclic.simps
+            by (metis (no_types, lifting) Collect_cong) 
+          then show "finite ({p . path P (initial P) p} \<times> (tps q))"
+            using f4'[OF \<open>(q,P) \<in> prs\<close>] by simp
+        qed
+        ultimately show ?thesis by force
+      qed
+      ultimately show ?thesis
+        by (meson rev_finite_subset) 
+    qed
+    ultimately show ?thesis unfolding * by auto 
+  qed
+
+  
+
+end (*
+
+  moreover have "finite T3"
+    sorry
+
+  ultimately show ?thesis
+    by simp 
+qed
+
+end (*
+
+
+(* TODO: remove assumptions *)
+(* TODO: name *)
+lemma test_suite_to_io_pass_maximal :
+  assumes "is_sufficient_for_reduction_testing T M m"
+  and     "observable M" 
+  and     "observable M'"
+  and     "inputs M' = inputs M"
+  and     "inputs M \<noteq> {}"
+  and     "completely_specified M"
+  and     "completely_specified M'"  
+shows "pass_io_set M' (test_suite_to_io M T) = pass_io_set_maximal M' {io' \<in> (test_suite_to_io M T) . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> (test_suite_to_io M T))}"
+proof -
+
+  have "finite (test_suite_to_io M T)"
+
+thm pass_io_set_maximal_from_pass_io_set
+
+
 end (*
 fun test_suite_to_io_code :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
   "test_suite_to_io (Test_Suite prs tps rd_targets atcs) = 
