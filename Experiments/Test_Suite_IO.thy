@@ -1262,13 +1262,18 @@ proof -
     by simp 
 qed
 
-end (*
+
+
+
+
+
 
 
 (* TODO: remove assumptions *)
 (* TODO: name *)
 lemma test_suite_to_io_pass_maximal :
   assumes "is_sufficient_for_reduction_testing T M m"
+  and     "is_finite_test_suite T"
   and     "observable M" 
   and     "observable M'"
   and     "inputs M' = inputs M"
@@ -1279,27 +1284,16 @@ shows "pass_io_set M' (test_suite_to_io M T) = pass_io_set_maximal M' {io' \<in>
 proof -
 
   have "finite (test_suite_to_io M T)"
+    using test_suite_to_io_finite[OF assms] by assumption
 
-thm pass_io_set_maximal_from_pass_io_set
+  thm pass_io_set_maximal_from_pass_io_set[OF \<open>finite (test_suite_to_io M T)\<close>]
 
 
-end (*
-fun test_suite_to_io_code :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
-  "test_suite_to_io (Test_Suite prs tps rd_targets atcs) = 
-  (let
-    preamble_ios = (\<lambda> (q,P) . maximal_contained_lists (LS_acyclic P (initial P))) ` prs;
-    
-  in
-    {})"
-  
+ 
 
 
 
-end (*
-fun test_suite_to_io :: "('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
-  "test_suite_to_io (Test_Suite prs tps rd_targets atcs) = 
-   (\<Union> (q,P) \<in> prs . maximal_contained_lists (LS_acyclic P (initial P)))  
-"
+
   
 
 end

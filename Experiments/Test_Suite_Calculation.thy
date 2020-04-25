@@ -1287,13 +1287,13 @@ proof -
       next
         case (Some a)
         then have "atcs (q, q') = a" unfolding atcs_def by auto
-        then have "atcs (q, q') = {z. ((q, q'), z) \<in> (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1:: ('a \<times> 'a) + 'a, Inr q2:: ('a \<times> 'a) + 'a)) ` r_distinguishable_state_pairs_with_separators M}" using Some unfolding set_as_map_def
+        then have *: "atcs (q, q') = {z. ((q, q'), z) \<in> (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1:: ('a \<times> 'a) + 'a, Inr q2:: ('a \<times> 'a) + 'a)) ` r_distinguishable_state_pairs_with_separators M}" using Some unfolding set_as_map_def
           by (metis (no_types, lifting) option.distinct(1) option.inject) 
 
 
         have "finite (r_distinguishable_state_pairs_with_separators M)"
         proof -
-          have "r_distinguishable_state_pairs_with_separators M \<subseteq> (\<Union> q1 \<in> nodes M . \<Union> q2 \<in> nodes M . {((q1,q2), the (state_separator_from_s_states M q1 q2)), ((q2,q1), the (state_separator_from_s_states M q2 q1))})"
+          have "r_distinguishable_state_pairs_with_separators M \<subseteq> (\<Union> q1 \<in> nodes M . \<Union> q2 \<in> nodes M . {((q1,q2), the (state_separator_from_s_states M q1 q2)), ((q1,q2), the (state_separator_from_s_states M q2 q1))})"
           proof 
             fix x assume "x \<in> r_distinguishable_state_pairs_with_separators M"
             then obtain q1 q2 Sep where "x = ((q1,q2),Sep)"
@@ -1301,29 +1301,27 @@ proof -
                                     and "q2 \<in> nodes M"
                                     and "(q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some Sep) \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some Sep)"
               unfolding r_distinguishable_state_pairs_with_separators_def by blast
-            
+            then consider "state_separator_from_s_states M q1 q2 = Some Sep" | "state_separator_from_s_states M q2 q1 = Some Sep" by blast
 
+            then show "x \<in> (\<Union> q1 \<in> nodes M . \<Union> q2 \<in> nodes M . {((q1,q2), the (state_separator_from_s_states M q1 q2)), ((q1,q2), the (state_separator_from_s_states M q2 q1))})"
+              using \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> unfolding \<open>x = ((q1,q2),Sep)\<close> by (cases; force)
+          qed
 
-        (* TODO: 
-            \<rightarrow> only defined for node x node pairs
-            \<rightarrow> each pair has exactly one atc
-        *)
+          moreover have "finite (\<Union> q1 \<in> nodes M . \<Union> q2 \<in> nodes M . {((q1,q2), the (state_separator_from_s_states M q1 q2)), ((q1,q2), the (state_separator_from_s_states M q2 q1))})"
+            using fsm_nodes_finite[of M] by force
 
-        then show ?thesis sorry
+          ultimately show ?thesis using infinite_super by blast
+        qed
+        then show ?thesis unfolding * by (simp add: finite_snd_helper)
       qed
-      unfolding atcs_def 
-end (*
-      
+    qed
 
 
-    show ?thesis
+    ultimately show ?thesis 
       unfolding \<open>calculate_test_suite_example M m = Test_Suite nodes_with_preambles tps rd_targets atcs\<close>
-              is_finite_test_suite.simps
-end (*
-    
-
-
-
+                is_finite_test_suite.simps 
+      by blast
+  qed
 qed
 
 
@@ -1342,7 +1340,7 @@ lemma calculate_test_suite_example_completeness :
   and     "completely_specified M'"
   and     "size M' \<le> m"
 shows     "(L M' \<subseteq> L M) \<longleftrightarrow> passes_test_suite M (calculate_test_suite_example M m) M'"
-using passes_test_suite_completeness[OF calculate_test_suite_example_sufficient[OF \<open>observable M\<close> \<open>completely_specified M\<close> \<open>inputs M \<noteq> {}\<close>, of m] assms]
+using passes_test_suite_completeness[OF calculate_test_suite_example_sufficient_and_finite(1)[OF \<open>observable M\<close> \<open>completely_specified M\<close> \<open>inputs M \<noteq> {}\<close>, of m] assms]
 by assumption
 
 end
