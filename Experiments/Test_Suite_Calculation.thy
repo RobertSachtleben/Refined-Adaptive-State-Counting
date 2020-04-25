@@ -1167,7 +1167,37 @@ proof -
         moreover have "finite (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                  \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                     preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
-          sorry
+        proof -
+          have "finite (fst ` d_reachable_states_with_preambles M)" using \<open>finite nodes_with_preambles\<close> unfolding nodes_with_preambles_def by auto
+          moreover have "\<And> q . q\<in>fst ` d_reachable_states_with_preambles M \<Longrightarrow> finite (\<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}. preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
+          proof -
+            fix q assume "q\<in>fst ` d_reachable_states_with_preambles M"
+
+            have "finite {m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}" by simp
+            moreover have "\<And> mrsps . mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m} \<Longrightarrow> finite (preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
+            proof -
+              fix mrsps assume "mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}"
+              then have *: "mrsps = m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m" by simp
+
+
+              have "preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M) 
+                      \<subseteq> (\<Union> (p,rd,dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . \<Union> q2 \<in> (fst ` d_reachable_states_with_preambles M) . (\<Union> p1 \<in> set (prefixes p) . {(q,p1,q2), (q2,[],(target q p1))}))"              
+                unfolding preamble_prefix_tests_def * prefixes_set by blast
+              moreover have "finite (\<Union> (p,rd,dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . \<Union> q2 \<in> (fst ` d_reachable_states_with_preambles M) . (\<Union> p1 \<in> set (prefixes p) . {(q,p1,q2), (q2,[],(target q p1))}))"
+              proof -
+                have "finite (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)"
+                  using m_traversal_paths_with_witness_finite by metis
+                moreover have "\<And> p rd dr . (p,rd,dr) \<in> m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m \<Longrightarrow> finite (\<Union> q2 \<in> (fst ` d_reachable_states_with_preambles M) . (\<Union> p1 \<in> set (prefixes p) . {(q,p1,q2), (q2,[],(target q p1))}))"
+                  using \<open>finite (fst ` d_reachable_states_with_preambles M)\<close> by blast
+                ultimately show ?thesis by force
+              qed
+              ultimately show "finite (preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))" using infinite_super by blast
+            qed
+            ultimately show "finite (\<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}. preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))" by force
+          qed
+          ultimately show ?thesis by blast
+        qed
+
         moreover have "finite (preamble_pair_tests
               (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
                         fst ` d_reachable_states_with_preambles M.
