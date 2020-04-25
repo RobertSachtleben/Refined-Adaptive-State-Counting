@@ -1058,7 +1058,7 @@ fun test_suite_to_io :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \
 (* (tps q) must already be finite for a sufficient test suite due to being a subset of the maximal m-traversal paths *)
 fun is_finite_test_suite :: "('a,'b,'c,'d) test_suite \<Rightarrow> bool" where
   "is_finite_test_suite (Test_Suite prs tps rd_targets atcs) = 
-    ((finite prs) \<and> (\<forall> q . finite (rd_targets q)) \<and> (\<forall> q q' . finite (atcs (q,q'))))" 
+    ((finite prs) \<and> (\<forall> q p . finite (rd_targets (q,p))) \<and> (\<forall> q q' . finite (atcs (q,q'))))" 
 
 
 
@@ -1087,7 +1087,7 @@ proof -
 
 
   have f1: "(finite prs)" 
-  and  f2: "\<And> q . finite (rd_targets q)" 
+  and  f2: "\<And> q p . finite (rd_targets (q,p))" 
   and  f3: "\<And> q q' . finite (atcs (q,q'))"
     using assms(2) unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> is_finite_test_suite.simps by blast+
 
@@ -1201,12 +1201,75 @@ proof -
     ultimately show ?thesis unfolding * by auto 
   qed
 
-  
-
-end (*
 
   moreover have "finite T3"
-    sorry
+  proof -
+    have scheme: "\<And> f P . (\<Union> {f a b c d | a b c d . P a b c d}) = (\<Union> (a,b,c,d) \<in> {(a,b,c,d) | a b c d . P a b c d} . f a b c d)" by blast
+
+    have *: "T3 = (\<Union> (p,pt,q,A) \<in> {(p, pt, q, A) | p pt q A . \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')}
+                       . (\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A)"
+      unfolding T3_def scheme by blast
+
+    have "{(p, pt, q, A) | p pt q A . \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')}
+            \<subseteq> (\<Union> (q,P) \<in> prs . \<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
+      by blast
+    moreover have "finite (\<Union> (q,P) \<in> prs . \<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
+    proof -
+      note \<open>finite prs\<close>
+      moreover have "\<And> q P . (q,P) \<in> prs \<Longrightarrow> finite (\<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
+      proof -
+        fix q P assume "(q,P) \<in> prs"
+
+        have "finite (tps q)" using f4'[OF \<open>(q,P) \<in> prs\<close>] by assumption
+        moreover have "\<And> pt . pt \<in> tps q \<Longrightarrow> finite (\<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
+        proof -
+          fix pt assume "pt \<in> tps q"
+          
+          have "finite (rd_targets (q,pt))" using f2 by blast
+          moreover have "\<And> q' . q' \<in> rd_targets (q, pt) \<Longrightarrow> finite (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A})"
+          proof -
+            fix q' assume "q' \<in> rd_targets (q, pt)"
+            have "finite (atcs (target q pt, q'))" using f3 by blast
+            moreover have "finite {p . path P (initial P) p}"
+            proof -
+              have "acyclic P" using t2[OF \<open>(q, P)\<in>prs\<close>] unfolding is_preamble_def by blast
+              then show ?thesis using acyclic_paths_finite[of P "initial P"] unfolding acyclic.simps by (metis (no_types, lifting) Collect_cong) 
+            qed
+            ultimately show "finite (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A})"
+              by force
+          qed
+          ultimately show "finite (\<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
+            by force
+        qed
+        ultimately show "finite (\<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
+          by force
+      qed
+      ultimately show ?thesis by force
+    qed
+    ultimately have "finite {(p, pt, q, A) | p pt q A . \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')}"
+      by (meson rev_finite_subset) 
+
+
+    moreover have "\<And> p pt q A . (p,pt,q,A) \<in> {(p, pt, q, A) | p pt q A . \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')}
+                       \<Longrightarrow> finite ((\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A)"
+    proof -
+      fix p pt q A assume "(p,pt,q,A) \<in> {(p, pt, q, A) | p pt q A . \<exists>P q' t1 t2. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q, pt) \<and> (A, t1, t2) \<in> atcs (target q pt, q')}"
+      then obtain P q' t1 t2 where "(q, P) \<in> prs" and "path P (FSM.initial P) p" and "target (FSM.initial P) p = q" and "pt \<in> tps q" and "q' \<in> rd_targets (q, pt)" and "(A, t1, t2) \<in> atcs (target q pt, q')" by blast
+
+      have "is_separator M (target q pt) q' A t1 t2"
+        using t3[OF \<open>(A, t1, t2) \<in> atcs (target q pt, q')\<close>] by blast
+      then have "acyclic A"
+        using is_separator_simps(2) by simp
+      then have "finite (L A)"
+        unfolding acyclic_alt_def by assumption
+      then have "finite (atc_to_io_set (FSM.from_FSM M (target q pt)) A)"
+        unfolding atc_to_io_set.simps by blast
+      then show "finite ((\<lambda>io_atc. p_io p @ p_io pt @ io_atc) ` atc_to_io_set (FSM.from_FSM M (target q pt)) A)"
+        by blast
+    qed
+
+    ultimately show ?thesis unfolding * by force
+  qed
 
   ultimately show ?thesis
     by simp 
