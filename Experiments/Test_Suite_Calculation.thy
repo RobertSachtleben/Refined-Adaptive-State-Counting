@@ -1146,12 +1146,12 @@ proof -
 
     
 
-    have "\<And> q p. q \<in> fst ` nodes_with_preambles \<Longrightarrow> finite (rd_targets (q, p))"
+    moreover have "\<And> q p. q \<in> fst ` nodes_with_preambles \<Longrightarrow> finite (rd_targets (q, p))"
     proof -
       fix q p assume "q \<in> fst ` nodes_with_preambles"
       then have "q \<in> fst ` d_reachable_states_with_preambles M" unfolding nodes_with_preambles_def by assumption
 
-      have "finite (prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<union>
+      have *: "finite ((\<lambda>(q, p, y). ((q, p), y)) ` (prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<union>
              (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                  \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
                     preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
@@ -1159,13 +1159,14 @@ proof -
               (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
                         fst ` d_reachable_states_with_preambles M.
                   (\<lambda>(p, rd, dr). dr) ` y)
-              (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M))"
+              (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)))"
       proof -
-        have * : "\<And> a b c d . finite (a \<union> b \<union> c \<union> d) = (finite a \<and> finite b \<and> finite c \<and> finite d)" by auto
+        have * : "\<And> a b c f . finite (f ` (a \<union> b \<union> c)) = (finite (f`a) \<and> finite (f`b) \<and> finite (f`c))"
+          by (simp add: image_Un) 
 
 
 
-        have "finite (prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m))"
+        have "finite ((\<lambda>(q, p, y). ((q, p), y)) ` (prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)))"
         proof -
           have "prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<subseteq> 
                     (\<Union> (p, rd, dr)\<in>m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . \<Union> (p1, p2) \<in> set (prefix_pairs p) .{(q, p1, target q p2), (q, p2, target q p1)})"
@@ -1181,9 +1182,9 @@ proof -
           ultimately show ?thesis using infinite_super by blast
         qed
 
-        moreover have "finite (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
+        moreover have "finite ((\<lambda>(q, p, y). ((q, p), y)) ` (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
                  \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
-                    preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
+                    preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)))"
         proof -
           have "finite (fst ` d_reachable_states_with_preambles M)" using \<open>finite nodes_with_preambles\<close> unfolding nodes_with_preambles_def by auto
           moreover have "\<And> q . q\<in>fst ` d_reachable_states_with_preambles M \<Longrightarrow> finite (\<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}. preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
@@ -1215,11 +1216,11 @@ proof -
           ultimately show ?thesis by blast
         qed
 
-        moreover have "finite (preamble_pair_tests
+        moreover have "finite ((\<lambda>(q, p, y). ((q, p), y)) ` (preamble_pair_tests
               (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
                         fst ` d_reachable_states_with_preambles M.
                   (\<lambda>(p, rd, dr). dr) ` y)
-              (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M))"
+              (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M)))"
         proof -
 
           have "finite (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
@@ -1265,33 +1266,41 @@ proof -
             unfolding preamble_pair_tests.simps by blast
         qed
 
-        ultimately show ?thesis by simp
+        ultimately show ?thesis 
+          unfolding * by blast
+          
       qed
 
-      
-
-end (*
-
-      then show "finite (rd_targets (q, p))"
-        unfolding rd_targets_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] 
-        sorry
-
-      
-
-end (*
-
-      then show "finite (rd_targets (q, p))"
-        unfolding rd_targets_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] 
-end (*
-
-
-            thm using m_traversal_paths_with_witness_finite[of M q "maximal_repetition_sets_from_separators_list M" m]
-
-end (*
-
       show "finite (rd_targets (q, p))"
-        unfolding rd_targets_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>]
+        unfolding rd_targets_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>] 
+        using finite_snd_helper[of _ q p, OF *] by assumption
+    qed
+
+    
+    moreover have "\<And> q q'. finite (atcs (q, q'))"
+    proof -
+      fix q q' 
+      show "finite (atcs (q,q'))" proof (cases "set_as_map ((\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1:: ('a \<times> 'a) + 'a, Inr q2 :: ('a \<times> 'a) + 'a)) ` r_distinguishable_state_pairs_with_separators M) (q, q')")
+        case None
+        then have "atcs (q, q') = {}" unfolding atcs_def by auto
+        then show ?thesis by auto
+      next
+        case (Some a)
+        then have "atcs (q, q') = a" unfolding atcs_def by auto
+        then have "atcs (q, q') = {z. ((q, q'), z) \<in> (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1:: ('a \<times> 'a) + 'a, Inr q2:: ('a \<times> 'a) + 'a)) ` r_distinguishable_state_pairs_with_separators M}" using Some unfolding set_as_map_def
+          by (metis (no_types, lifting) option.distinct(1) option.inject) 
+
+        (* TODO: 
+            \<rightarrow> only defined for node x node pairs
+            \<rightarrow> each pair has exactly one atc
+        *)
+
+        then show ?thesis sorry
+      qed
+      unfolding atcs_def 
 end (*
+      
+
 
     show ?thesis
       unfolding \<open>calculate_test_suite_example M m = Test_Suite nodes_with_preambles tps rd_targets atcs\<close>
