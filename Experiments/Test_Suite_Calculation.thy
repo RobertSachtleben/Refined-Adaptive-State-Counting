@@ -1290,6 +1290,20 @@ proof -
         then have "atcs (q, q') = {z. ((q, q'), z) \<in> (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1:: ('a \<times> 'a) + 'a, Inr q2:: ('a \<times> 'a) + 'a)) ` r_distinguishable_state_pairs_with_separators M}" using Some unfolding set_as_map_def
           by (metis (no_types, lifting) option.distinct(1) option.inject) 
 
+
+        have "finite (r_distinguishable_state_pairs_with_separators M)"
+        proof -
+          have "r_distinguishable_state_pairs_with_separators M \<subseteq> (\<Union> q1 \<in> nodes M . \<Union> q2 \<in> nodes M . {((q1,q2), the (state_separator_from_s_states M q1 q2)), ((q2,q1), the (state_separator_from_s_states M q2 q1))})"
+          proof 
+            fix x assume "x \<in> r_distinguishable_state_pairs_with_separators M"
+            then obtain q1 q2 Sep where "x = ((q1,q2),Sep)"
+                                    and "q1 \<in> nodes M"
+                                    and "q2 \<in> nodes M"
+                                    and "(q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some Sep) \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some Sep)"
+              unfolding r_distinguishable_state_pairs_with_separators_def by blast
+            
+
+
         (* TODO: 
             \<rightarrow> only defined for node x node pairs
             \<rightarrow> each pair has exactly one atc
