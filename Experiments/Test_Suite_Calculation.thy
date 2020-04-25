@@ -1,5 +1,5 @@
 theory Test_Suite_Calculation
-imports Test_Suite
+imports Test_Suite_IO
 begin
 
 section \<open>Test Suites\<close>
@@ -237,15 +237,7 @@ definition calculate_test_suite_example :: "('a::linorder,'b::linorder,'c) fsm \
          repetition_sets = maximal_repetition_sets_from_separators_list M
   in combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets)" 
 
-(* TODO: move *)
-value "calculate_test_suite_example m_ex_H 4"
-value "case (calculate_test_suite_example m_ex_H 4) of
-        (Test_Suite a b c d) \<Rightarrow>
-          (image fst a,
-           image b (image fst a))"
-value "case (calculate_test_suite_example m_ex_H 4) of
-        (Test_Suite a b c d) \<Rightarrow>
-          (image (\<lambda> (x,_) . image (\<lambda> xy . (xy, c xy)) (image (Pair x) (b x))) a)"
+
 
 (* TODO: move *)
 lemma set_as_map_containment :
@@ -1341,6 +1333,52 @@ lemma calculate_test_suite_example_completeness :
   and     "size M' \<le> m"
 shows     "(L M' \<subseteq> L M) \<longleftrightarrow> passes_test_suite M (calculate_test_suite_example M m) M'"
 using passes_test_suite_completeness[OF calculate_test_suite_example_sufficient_and_finite(1)[OF \<open>observable M\<close> \<open>completely_specified M\<close> \<open>inputs M \<noteq> {}\<close>, of m] assms]
-by assumption
+  by assumption
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+subsection \<open>Examples\<close>
+
+(* TODO: move *)
+value "calculate_test_suite_example m_ex_H 4"
+value "case (calculate_test_suite_example m_ex_H 4) of
+        (Test_Suite a b c d) \<Rightarrow>
+          (image fst a,
+           image b (image fst a))"
+value "case (calculate_test_suite_example m_ex_H 4) of
+        (Test_Suite a b c d) \<Rightarrow>
+          (image (\<lambda> (x,_) . image (\<lambda> xy . (xy, c xy)) (image (Pair x) (b x))) a)"
+                
+value "test_suite_to_io_code m_ex_H (calculate_test_suite_example m_ex_H 4)"
+value "(remove_proper_prefixes (test_suite_to_io_code m_ex_H (calculate_test_suite_example m_ex_H 4)))"
+value "card (remove_proper_prefixes (test_suite_to_io_code m_ex_H (calculate_test_suite_example m_ex_H 4)))"
+value "card (remove_proper_prefixes (test_suite_to_io_code m_ex_H (calculate_test_suite_example m_ex_H 5)))"
+value "card (remove_proper_prefixes (test_suite_to_io_code m_ex_H (calculate_test_suite_example m_ex_H 6)))"
+
+
+
+value "(remove_proper_prefixes (test_suite_to_io_code m_ex_9 (calculate_test_suite_example m_ex_9 4)))"
+value "card (remove_proper_prefixes (test_suite_to_io_code m_ex_9 (calculate_test_suite_example m_ex_9 4)))"
+value "card (remove_proper_prefixes (test_suite_to_io_code m_ex_9 (calculate_test_suite_example m_ex_9 5)))"
+value "card (remove_proper_prefixes (test_suite_to_io_code m_ex_9 (calculate_test_suite_example m_ex_9 6)))"
+
+
+
+definition example_calc :: "(integer\<times>integer) list set" where "example_calc = (remove_proper_prefixes (test_suite_to_io_code m_ex_DR (calculate_test_suite_example m_ex_DR (size m_ex_DR))))"
+
+export_code example_calc in Haskell module_name FSM
 
 end

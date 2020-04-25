@@ -1,5 +1,5 @@
 theory Test_Suite_IO
-imports Test_Suite
+imports Test_Suite Maximal_Path_Trie
 begin
 
 
@@ -1425,6 +1425,44 @@ qed
 
 
 
-  
+
+subsection \<open>Calculating the Sets of Sequences\<close>
+
+(*
+fun test_suite_to_io :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+  "test_suite_to_io M (Test_Suite prs tps rd_targets atcs) =
+    (\<Union> (q,P) \<in> prs . L P)
+    \<union> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})
+    \<union> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"
+*)
+
+
+abbreviation "L_acyclic M \<equiv> LS_acyclic M (initial M)"
+
+
+fun test_suite_to_io_code :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+  "test_suite_to_io_code M (Test_Suite prs tps rd_targets atcs) = (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
+
+fun test_suite_to_io_maximal_code :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+  "test_suite_to_io_maximal_code M T = remove_proper_prefixes (test_suite_to_io_code M T)"
+
+
+
+(*fun test_suite_to_io_code :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+  "test_suite_to_io_code M (Test_Suite prs tps rd_targets atcs) =
+    (\<Union> (q,P) \<in> prs . L_acyclic P)
+    \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . (\<lambda> pt . ioP @ p_io pt) ` (tps q))
+    \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))"
+
+lemma "(\<Union> (q,P) \<in> prs . L_acyclic P)
+    \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . (\<lambda> pt . ioP @ p_io pt) ` (tps q))
+    \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))
+    = (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
+  by force
+*)
+
+
+
+
 
 end
