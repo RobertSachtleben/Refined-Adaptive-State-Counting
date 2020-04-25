@@ -280,12 +280,13 @@ qed
 
 subsection \<open>Sufficiency of the Calculated Test Suite\<close>
 
-lemma calculate_test_suite_example_sufficient :
+lemma calculate_test_suite_example_sufficient_and_finite :
   fixes M :: "('a::linorder,'b::linorder,'c) fsm"
   assumes "observable M"
   and     "completely_specified M"
   and     "inputs M \<noteq> {}"
 shows "is_sufficient_for_reduction_testing (calculate_test_suite_example M m) M m"
+and   "is_finite_test_suite (calculate_test_suite_example M m)"
 proof -
   obtain nodes_with_preambles tps rd_targets atcs where "calculate_test_suite_example M m = Test_Suite nodes_with_preambles tps rd_targets atcs"
     using test_suite.exhaust by blast
@@ -1114,10 +1115,85 @@ proof -
     using p1 p2 p3 p4 p5 p6 p7
     by force
 
-  then show ?thesis
+  then show "is_sufficient_for_reduction_testing (calculate_test_suite_example M m) M m"
     unfolding \<open>calculate_test_suite_example M m = Test_Suite nodes_with_preambles tps rd_targets atcs\<close>
               is_sufficient_for_reduction_testing_def
     by blast
+
+
+  show "is_finite_test_suite (calculate_test_suite_example M m)"
+  proof -
+    have "finite nodes_with_preambles"
+      unfolding nodes_with_preambles_def d_reachable_states_with_preambles_def 
+      using fsm_nodes_finite[of M] by simp
+
+    
+
+    have "\<And> q p. q \<in> fst ` nodes_with_preambles \<Longrightarrow> finite (rd_targets (q, p))"
+    proof -
+      fix q p assume "q \<in> fst ` nodes_with_preambles"
+      then have "q \<in> fst ` d_reachable_states_with_preambles M" unfolding nodes_with_preambles_def by assumption
+
+      have "finite (prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<union>
+             (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
+                 \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
+                    preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M)) \<union>
+             preamble_pair_tests
+              (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
+                        fst ` d_reachable_states_with_preambles M.
+                  (\<lambda>(p, rd, dr). dr) ` y)
+              (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M))"
+      proof -
+        have * : "\<And> a b c d . finite (a \<union> b \<union> c \<union> d) = (finite a \<and> finite b \<and> finite c \<and> finite d)" by auto
+
+
+
+        have "finite (prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m))"
+        proof -
+          have "prefix_pair_tests q (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m) \<subseteq> 
+                    (\<Union> (p, rd, dr)\<in>m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . \<Union> (p1, p2) \<in> set (prefix_pairs p) .{(q, p1, target q p2), (q, p2, target q p1)})"
+            unfolding prefix_pair_tests.simps by blast
+          moreover have "finite (\<Union> (p, rd, dr)\<in>m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m . \<Union> (p1, p2) \<in> set (prefix_pairs p) .{(q, p1, target q p2), (q, p2, target q p1)})"
+          proof -
+            have "finite (m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)"
+              using m_traversal_paths_with_witness_finite[of M q "maximal_repetition_sets_from_separators_list M" m] by assumption
+            moreover have "\<And> p rd dr . finite (\<Union> (p1, p2) \<in> set (prefix_pairs p) .{(q, p1, target q p2), (q, p2, target q p1)})"
+              by auto
+            ultimately show ?thesis by force
+          qed
+          ultimately show ?thesis using infinite_super by blast
+        qed
+
+        moreover have "finite (\<Union>q\<in>fst ` d_reachable_states_with_preambles M.
+                 \<Union>mrsps\<in>{m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m}.
+                    preamble_prefix_tests q mrsps (fst ` d_reachable_states_with_preambles M))"
+          sorry
+        moreover have "finite (preamble_pair_tests
+              (\<Union>(q, y)\<in>(\<lambda>q. (q, m_traversal_paths_with_witness M q (maximal_repetition_sets_from_separators_list M) m)) `
+                        fst ` d_reachable_states_with_preambles M.
+                  (\<lambda>(p, rd, dr). dr) ` y)
+              (fst ` (\<lambda>((q1, q2), A). ((q1, q2), A, Inr q1, Inr q2)) ` r_distinguishable_state_pairs_with_separators M))"
+          sorry
+        ultimately show ?thesis by simp
+end (*
+
+
+            thm using m_traversal_paths_with_witness_finite[of M q "maximal_repetition_sets_from_separators_list M" m]
+
+end (*
+
+      show "finite (rd_targets (q, p))"
+        unfolding rd_targets_alt_def[OF \<open>q \<in> fst ` d_reachable_states_with_preambles M\<close>]
+end (*
+
+    show ?thesis
+      unfolding \<open>calculate_test_suite_example M m = Test_Suite nodes_with_preambles tps rd_targets atcs\<close>
+              is_finite_test_suite.simps
+end (*
+    
+
+
+
 qed
 
 

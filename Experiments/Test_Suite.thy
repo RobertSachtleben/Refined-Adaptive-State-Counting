@@ -3197,4 +3197,15 @@ shows     "(L M' \<subseteq> L M) \<longleftrightarrow> passes_test_suite M T M'
         test_suite.exhaust[of T]
   by metis
 
+
+
+
+subsection \<open>Additional Test Suite Properties\<close>
+
+(* Whether a (sufficient) test suite can be represented as a finite set of IO sequences *)
+(* (tps q) must already be finite for a sufficient test suite due to being a subset of the maximal m-traversal paths *)
+fun is_finite_test_suite :: "('a,'b,'c,'d) test_suite \<Rightarrow> bool" where
+  "is_finite_test_suite (Test_Suite prs tps rd_targets atcs) = 
+    ((finite prs) \<and> (\<forall> q p . q \<in> fst ` prs \<longrightarrow> finite (rd_targets (q,p))) \<and> (\<forall> q q' . finite (atcs (q,q'))))" 
+
 end

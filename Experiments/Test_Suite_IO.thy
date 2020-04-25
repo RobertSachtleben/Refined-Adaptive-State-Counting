@@ -1042,23 +1042,9 @@ proof -
 qed
 
 
-(*
-  
-fun test_suite_to_io :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
-  "test_suite_to_io M (Test_Suite prs tps rd_targets atcs) =
-    (\<Union> (q,P) \<in> prs . L P)
-    \<union> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})
-    \<union> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"
 
 
-
-
-*)
-
-(* (tps q) must already be finite for a sufficient test suite due to being a subset of the maximal m-traversal paths *)
-fun is_finite_test_suite :: "('a,'b,'c,'d) test_suite \<Rightarrow> bool" where
-  "is_finite_test_suite (Test_Suite prs tps rd_targets atcs) = 
-    ((finite prs) \<and> (\<forall> q p . finite (rd_targets (q,p))) \<and> (\<forall> q q' . finite (atcs (q,q'))))" 
+subsubsection \<open>Using Maximal Sequences Only\<close>
 
 
 
@@ -1087,7 +1073,7 @@ proof -
 
 
   have f1: "(finite prs)" 
-  and  f2: "\<And> q p . finite (rd_targets (q,p))" 
+  and  f2: "\<And> q p . q \<in> fst ` prs \<Longrightarrow> finite (rd_targets (q,p))" 
   and  f3: "\<And> q q' . finite (atcs (q,q'))"
     using assms(2) unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> is_finite_test_suite.simps by blast+
 
@@ -1132,7 +1118,7 @@ proof -
     moreover have "finite (\<Union> p2 \<in> fst ` m_traversal_paths_with_witness M q RepSets m . set (prefixes p2))"
     proof -
       have "finite (fst ` m_traversal_paths_with_witness M q RepSets m)"
-        using m_traversal_paths_with_witness_up_to_length_finite[of M q RepSets m] by auto
+        using m_traversal_paths_with_witness_finite[of M q RepSets m] by auto
       moreover have "\<And> p2 . finite (set (prefixes p2))" by auto
       ultimately show ?thesis by blast
     qed
@@ -1219,13 +1205,14 @@ proof -
       moreover have "\<And> q P . (q,P) \<in> prs \<Longrightarrow> finite (\<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
       proof -
         fix q P assume "(q,P) \<in> prs"
+        then have "q \<in> fst ` prs" by force
 
         have "finite (tps q)" using f4'[OF \<open>(q,P) \<in> prs\<close>] by assumption
         moreover have "\<And> pt . pt \<in> tps q \<Longrightarrow> finite (\<Union> q' \<in> rd_targets (q, pt) . (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A}))"
         proof -
           fix pt assume "pt \<in> tps q"
           
-          have "finite (rd_targets (q,pt))" using f2 by blast
+          have "finite (rd_targets (q,pt))" using f2[OF \<open>q \<in> fst ` prs\<close>] by blast
           moreover have "\<And> q' . q' \<in> rd_targets (q, pt) \<Longrightarrow> finite (\<Union> (A, t1, t2) \<in> atcs (target q pt, q') . {p . path P (initial P) p} \<times> {pt} \<times> {q} \<times> {A})"
           proof -
             fix q' assume "q' \<in> rd_targets (q, pt)"
