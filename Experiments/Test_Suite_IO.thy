@@ -1433,11 +1433,11 @@ subsection \<open>Calculating the Sets of Sequences\<close>
 
 abbreviation "L_acyclic M \<equiv> LS_acyclic M (initial M)"
 
-(* TODO: the (\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) intermediate-calculation should be removed in the maximal-sequence version of the algorithm *)
+(* collect the prefix-closed IO-sequence representation of a test suite for some reference FSM *)
 fun test_suite_to_io' :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
   "test_suite_to_io' M (Test_Suite prs tps rd_targets atcs) = (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
 
-(* TODO: see comment above *)
+(* slightly optimized calculation of the test suite representation using only maximal IO-sequences *)
 fun test_suite_to_io'_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
   "test_suite_to_io'_maximal M (Test_Suite prs tps rd_targets atcs) = 
       remove_proper_prefixes (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (remove_proper_prefixes (acyclic_language_intersection (from_FSM M (target q pt)) A)))))"
@@ -1805,19 +1805,31 @@ proof -
   qed
 qed
 
-end (*
 
 
-  show "{io' \<in> test_suite_to_io M T. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> test_suite_to_io M T} \<subseteq> test_suite_to_io'_maximal M T"
-  proof 
-    fix io assume "io \<in> {io' \<in> test_suite_to_io M T. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> test_suite_to_io M T}"
-    then have "io \<in> test_suite_to_io M T" and "\<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> test_suite_to_io M T" 
-      by blast+
 
-    obtain q P where "(q,P) \<in> prs"
-               and   "io \<in> (L_acyclic P \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
-      using \<open>io \<in> test_suite_to_io M T\<close>  unfolding t_def t1_def
-      by force 
+
+
+
+lemma passes_test_suite_as_maximal_sequences_completeness :
+  assumes "is_sufficient_for_reduction_testing T M m"
+  and     "is_finite_test_suite T"
+  and     "observable M" 
+  and     "observable M'"
+  and     "inputs M' = inputs M"
+  and     "inputs M \<noteq> {}"
+  and     "completely_specified M"
+  and     "completely_specified M'"
+  and     "size M' \<le> m"
+shows     "(L M' \<subseteq> L M) \<longleftrightarrow> pass_io_set_maximal M' (test_suite_to_io'_maximal M T)"
+  unfolding passes_test_suite_completeness[OF assms(1,3-9)]
+  unfolding test_suite_to_io_pass[OF assms(1,3-8),symmetric]
+  unfolding test_suite_to_io_pass_maximal[OF assms(1,2)]
+  unfolding test_suite_to_io'_maximal_code[OF assms(1,2,3)]
+  by simp
+
+
+
 
 
 end
