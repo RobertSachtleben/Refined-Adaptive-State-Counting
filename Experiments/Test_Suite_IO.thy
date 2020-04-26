@@ -1627,7 +1627,7 @@ lemma test_suite_to_io'_maximal_code :
   and     "is_finite_test_suite T"  
   and     "observable M"
 shows  "{io' \<in> (test_suite_to_io M T) . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> (test_suite_to_io M T))} = test_suite_to_io'_maximal M T"
-proof 
+proof -
 
   obtain prs tps rd_targets atcs where "T = Test_Suite prs tps rd_targets atcs"
     by (meson test_suite.exhaust)
@@ -1639,10 +1639,12 @@ proof
   have t1_def : "test_suite_to_io' M T = (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
     unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> by simp
 
-  have t2_def : "test_suite_to_io'_maximal M T = remove_proper_prefixes (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (remove_proper_prefixes (acyclic_language_intersection (from_FSM M (target q pt)) A)))))"
-    unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> by simp
+  define tmax where tmax_def: "tmax = (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (remove_proper_prefixes (acyclic_language_intersection (from_FSM M (target q pt)) A)))))"
+  have t2_def : "test_suite_to_io'_maximal M T = remove_proper_prefixes tmax"
+    unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> tmax_def by simp
 
-  have "(\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (remove_proper_prefixes (acyclic_language_intersection (from_FSM M (target q pt)) A))))) \<subseteq> (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
+  have tmax_sub: "tmax \<subseteq> (test_suite_to_io M T)"
+    unfolding tmax_def t_def t1_def
   proof 
     fix io assume "io \<in> (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (remove_proper_prefixes (acyclic_language_intersection (from_FSM M (target q pt)) A)))))"
     then obtain q P where "(q,P) \<in> prs"
@@ -1680,7 +1682,129 @@ proof
       qed 
     qed
   qed
-                  
+
+
+  have tmax_max: "\<And> io . io \<in> test_suite_to_io M T \<Longrightarrow> io \<notin> tmax \<Longrightarrow> \<exists> io'' . io'' \<noteq> [] \<and> io@io'' \<in> (test_suite_to_io M T)"
+  proof -
+    fix io assume "io \<in> test_suite_to_io M T" and "io \<notin> tmax"
+
+    then have "io \<in> (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
+      unfolding t_def t1_def by blast
+    then obtain q P where "(q,P) \<in> prs"
+                    and   "io \<in> (L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
+      by force
+    then consider (a) "io \<in> L_acyclic P" |
+                  (b) "io \<in> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A)))"
+      by blast
+    then show "\<exists> io'' . io'' \<noteq> [] \<and> io@io'' \<in> (test_suite_to_io M T)" proof cases
+      case a
+      then have "io \<in> tmax"
+        using \<open>(q,P) \<in> prs\<close> unfolding tmax_def by blast
+      then show ?thesis 
+        using \<open>io \<notin> tmax\<close> by simp
+    next
+      case b
+      then obtain ioP pt where "ioP \<in> remove_proper_prefixes (L_acyclic P)"
+                         and   "pt \<in> tps q"
+                         and   "io \<in> ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))"
+        by blast
+      then consider (b1) "io \<in> (\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))" |
+                    (b2) "io \<in> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))"
+        by blast
+      then show ?thesis proof cases
+        case b1
+        then obtain pt1 pt2 where "io = ioP @ pt1" and "p_io pt = pt1@pt2"
+          by (metis (no_types, lifting) b1 image_iff prefixes_set_ob) 
+
+        have "ioP @ (p_io pt) \<in> tmax"
+          using \<open>io \<notin> tmax\<close> \<open>(q,P) \<in> prs\<close> \<open>ioP \<in> remove_proper_prefixes (L_acyclic P)\<close> \<open>pt \<in> tps q\<close> unfolding tmax_def by force
+        then have "io \<noteq> ioP @ (p_io pt)"
+          using \<open>io \<notin> tmax\<close> by blast
+        then have "pt2 \<noteq> []" 
+          using \<open>io = ioP @ pt1\<close> unfolding \<open>p_io pt = pt1@pt2\<close> by auto
+
+        have "ioP @ (p_io pt) \<in> test_suite_to_io M T"
+          using \<open>ioP @ (p_io pt) \<in> tmax\<close> tmax_sub by blast
+        then show ?thesis 
+          unfolding \<open>io = ioP @ pt1\<close> append.assoc \<open>p_io pt = pt1@pt2\<close>
+          using \<open>pt2 \<noteq> []\<close> by blast
+      next
+        case b2
+        then obtain q' A t1 t2 where "q' \<in> rd_targets (q,pt)"
+                               and   "(A,t1,t2) \<in> atcs (target q pt,q')"
+                               and   "io \<in> (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A)"
+          by blast
+
+        then obtain ioA where "io = ioP @ p_io pt @ ioA" 
+                        and   "ioA \<in> acyclic_language_intersection (from_FSM M (target q pt)) A"
+          by blast
+
+        moreover have "ioA \<notin> (remove_proper_prefixes (acyclic_language_intersection (from_FSM M (target q pt)) A))"
+        proof 
+          assume "ioA \<in> remove_proper_prefixes (acyclic_language_intersection (FSM.from_FSM M (target q pt)) A)"
+          then have "io \<in> tmax"
+            using \<open>(q,P) \<in> prs\<close> \<open>ioP \<in> remove_proper_prefixes (L_acyclic P)\<close> \<open>pt \<in> tps q\<close> \<open>q' \<in> rd_targets (q,pt)\<close> \<open>(A,t1,t2) \<in> atcs (target q pt,q')\<close> unfolding tmax_def \<open>io = ioP @ p_io pt @ ioA\<close> by force
+          then show False
+            using \<open>io \<notin> tmax\<close> by simp
+        qed
+        ultimately obtain ioA2 where "ioA @ ioA2 \<in> acyclic_language_intersection (from_FSM M (target q pt)) A" 
+                               and   "ioA2 \<noteq> []"
+          unfolding remove_proper_prefixes_def by blast
+        then have "io@ioA2 \<in> test_suite_to_io M T"
+          using \<open>(q,P) \<in> prs\<close> \<open>ioP \<in> remove_proper_prefixes (L_acyclic P)\<close> \<open>pt \<in> tps q\<close> \<open>q' \<in> rd_targets (q,pt)\<close> \<open>(A,t1,t2) \<in> atcs (target q pt,q')\<close> \<open>ioA @ ioA2 \<in> acyclic_language_intersection (from_FSM M (target q pt)) A\<close> unfolding t_def t1_def \<open>io = ioP @ p_io pt @ ioA\<close> by force
+        
+        then show ?thesis 
+          using \<open>ioA2 \<noteq> []\<close> by blast
+      qed
+    qed 
+  qed
+
+
+  show ?thesis unfolding t2_def
+  proof 
+    show "{io' \<in> test_suite_to_io M T. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> test_suite_to_io M T} \<subseteq> remove_proper_prefixes tmax"
+    proof 
+      fix io assume "io \<in> {io' \<in> test_suite_to_io M T. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> test_suite_to_io M T}"
+      then have "io \<in> test_suite_to_io M T" and "\<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> test_suite_to_io M T" 
+        by blast+
+      show "io \<in> remove_proper_prefixes tmax"
+        using \<open>\<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> test_suite_to_io M T\<close>
+        using tmax_sub tmax_max[OF \<open>io \<in> test_suite_to_io M T\<close>] unfolding remove_proper_prefixes_def
+        by auto 
+    qed
+    show "remove_proper_prefixes tmax \<subseteq> {io' \<in> test_suite_to_io M T. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> test_suite_to_io M T}"
+    proof 
+      fix io assume "io \<in> remove_proper_prefixes tmax"
+      then have "io \<in> tmax" and "\<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> remove_proper_prefixes tmax"
+        unfolding remove_proper_prefixes_def by blast+
+      then have "io \<in> test_suite_to_io M T"
+        using tmax_sub by blast
+      moreover have "\<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> test_suite_to_io M T"
+      proof 
+        assume "\<exists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> test_suite_to_io M T"
+        then obtain io'' where "io'' \<noteq> []" and "io @ io'' \<in> test_suite_to_io M T"
+          by blast
+        then obtain io''' where "(io @ io'') @ io''' \<in> test_suite_to_io M T" 
+                          and   "(\<nexists>zs. zs \<noteq> [] \<and> (io @ io'') @ io''' @ zs \<in> test_suite_to_io M T)"
+          using finite_set_elem_maximal_extension_ex[OF \<open>io @ io'' \<in> test_suite_to_io M T\<close> test_suite_to_io_finite[OF assms(1,2)]] by blast
+
+        have "io @ (io'' @ io''') \<in> tmax"
+          using tmax_max[OF \<open>(io @ io'') @ io''' \<in> test_suite_to_io M T\<close>] \<open>(\<nexists>zs. zs \<noteq> [] \<and> (io @ io'') @ io''' @ zs \<in> test_suite_to_io M T)\<close> by force
+        moreover have "io''@io''' \<noteq> []"
+          using \<open>io'' \<noteq> []\<close> by auto
+
+        ultimately show "False" 
+          using \<open>\<nexists>io''. io'' \<noteq> [] \<and> io @ io'' \<in> remove_proper_prefixes tmax\<close> 
+          by (metis (mono_tags, lifting) \<open>io \<in> remove_proper_prefixes tmax\<close> mem_Collect_eq remove_proper_prefixes_def) 
+      qed
+          
+
+      ultimately show "io \<in> {io' \<in> test_suite_to_io M T. \<nexists>io''. io'' \<noteq> [] \<and> io' @ io'' \<in> test_suite_to_io M T}"
+        by blast
+    qed
+  qed
+qed
+
 end (*
 
 
