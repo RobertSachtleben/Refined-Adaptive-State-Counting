@@ -1439,13 +1439,159 @@ fun test_suite_to_io :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \
 
 abbreviation "L_acyclic M \<equiv> LS_acyclic M (initial M)"
 
+(* TODO: the (\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) part can be removed in the maximal version of the algorithm *)
+fun test_suite_to_io' :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+  "test_suite_to_io' M (Test_Suite prs tps rd_targets atcs) = (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))) \<union> (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
 
-fun test_suite_to_io_code :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
-  "test_suite_to_io_code M (Test_Suite prs tps rd_targets atcs) = (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))))"
+(* TODO: see comment above *)
+fun test_suite_to_io'_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+  "test_suite_to_io'_maximal M T = remove_proper_prefixes (test_suite_to_io' M T)"
 
-fun test_suite_to_io_maximal_code :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
-  "test_suite_to_io_maximal_code M T = remove_proper_prefixes (test_suite_to_io_code M T)"
 
+lemma test_suite_to_io_code :
+  assumes "is_sufficient_for_reduction_testing T M m"
+  and     "is_finite_test_suite T"  
+  and     "observable M"
+shows "test_suite_to_io M T = test_suite_to_io' M T"
+proof -
+
+  obtain prs tps rd_targets atcs where "T = Test_Suite prs tps rd_targets atcs"
+    by (meson test_suite.exhaust)
+
+
+
+  then obtain RepSets where RepSets_def: "is_sufficient_for_reduction_testing_for_RepSets (Test_Suite prs tps rd_targets atcs) M m RepSets"
+    using assms(1) unfolding is_sufficient_for_reduction_testing_def by blast
+  then have "is_sufficient_for_reduction_testing (Test_Suite prs tps rd_targets atcs) M m"
+    unfolding is_sufficient_for_reduction_testing_def by blast
+  then have test_suite_language_prop: "test_suite_to_io M (Test_Suite prs tps rd_targets atcs) \<subseteq> L M"
+    using test_suite_to_io_language by blast
+
+
+  have f1: "(finite prs)" 
+  and  f2: "\<And> q p . q \<in> fst ` prs \<Longrightarrow> finite (rd_targets (q,p))" 
+  and  f3: "\<And> q q' . finite (atcs (q,q'))"
+    using assms(2) unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> is_finite_test_suite.simps by blast+
+
+
+
+  have t1: "(initial M, initial_preamble M) \<in> prs" 
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(1)[OF RepSets_def] by assumption
+  have t2: "\<And> q P. (q, P) \<in> prs \<Longrightarrow> is_preamble P M q"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(2)[OF RepSets_def] by blast
+  have t3: "\<And> q1 q2 A d1 d2. (A, d1, d2) \<in> atcs (q1, q2) \<Longrightarrow> (A, d2, d1) \<in> atcs (q2, q1) \<and> is_separator M q1 q2 A d1 d2"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(3)[OF RepSets_def] by assumption
+  
+  have t5: "\<And>q. q \<in> FSM.nodes M \<Longrightarrow> (\<exists>d\<in>set RepSets. q \<in> fst d)"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(4)[OF RepSets_def] by assumption
+
+  have t6: "\<And> q. q \<in> fst ` prs \<Longrightarrow> tps q \<subseteq> {p1 . \<exists> p2 d . (p1@p2,d) \<in> m_traversal_paths_with_witness M q RepSets m} \<and> fst ` (m_traversal_paths_with_witness M q RepSets m) \<subseteq> tps q"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(7)[OF RepSets_def] by assumption
+
+  have t7: "\<And> d. d \<in> set RepSets \<Longrightarrow> fst d \<subseteq> FSM.nodes M"
+  and  t8: "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d \<subseteq> fst d"
+  and  t8':  "\<And> d. d \<in> set RepSets \<Longrightarrow> snd d = fst d \<inter> fst ` prs"
+  and  t9: "\<And> d q1 q2. d \<in> set RepSets \<Longrightarrow> q1 \<in> fst d \<Longrightarrow> q2 \<in> fst d \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> atcs (q1, q2) \<noteq> {}"
+    using is_sufficient_for_reduction_testing_for_RepSets_simps(5,6)[OF RepSets_def] 
+    by blast+
+
+
+
+  have test_suite_to_io'_alt_def: "test_suite_to_io' M T  = (\<Union> (q,P) \<in> prs . L_acyclic P)
+    \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt))))) 
+    \<union> (\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A))"
+    unfolding test_suite_to_io'.simps \<open>T = Test_Suite prs tps rd_targets atcs\<close> 
+    by force
+
+  have test_suite_to_io_alt_def: "test_suite_to_io M T =
+    (\<Union> (q,P) \<in> prs . L P)
+    \<union> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})
+    \<union> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"
+    unfolding \<open>T = Test_Suite prs tps rd_targets atcs\<close> test_suite_to_io.simps
+    by force
+
+
+  have preamble_language_prop: "\<And> q P . (q,P) \<in> prs \<Longrightarrow> L_acyclic P = L P"
+  proof -
+    fix q P assume "(q,P) \<in> prs"
+    have "acyclic P" using t2[OF \<open>(q, P)\<in>prs\<close>] unfolding is_preamble_def by blast 
+    then show "L_acyclic P = L P" using LS_from_LS_acyclic by blast
+  qed
+
+  have preamble_path_prop: "\<And> q P ioP . (q,P) \<in> prs \<Longrightarrow> ioP \<in> remove_proper_prefixes (L_acyclic P) \<longleftrightarrow> (\<exists> p . path P (initial P) p \<and> target (initial P) p = q \<and> p_io p = ioP)"
+  proof -
+    fix q P ioP assume "(q,P) \<in> prs"
+    have "is_preamble P M q" using t2[OF \<open>(q, P)\<in>prs\<close>] by assumption
+
+    have "ioP \<in> remove_proper_prefixes (L_acyclic P) \<Longrightarrow> (\<exists> p . path P (initial P) p \<and> target (initial P) p = q \<and> p_io p = ioP)"
+    proof -
+      assume "ioP \<in> remove_proper_prefixes (L_acyclic P)"
+      then have "ioP \<in> L P"  and "\<nexists>x'. x' \<noteq> [] \<and> ioP @ x' \<in> L P"
+        unfolding preamble_language_prop[OF \<open>(q,P) \<in> prs\<close>] remove_proper_prefixes_def by blast+
+      show "(\<exists> p . path P (initial P) p \<and> target (initial P) p = q \<and> p_io p = ioP)"
+        using preamble_maximal_io_paths_rev[OF \<open>is_preamble P M q\<close> \<open>observable M\<close> \<open>ioP \<in> L P\<close> \<open>\<nexists>x'. x' \<noteq> [] \<and> ioP @ x' \<in> L P\<close>] by blast
+    qed
+    moreover have "(\<exists> p . path P (initial P) p \<and> target (initial P) p = q \<and> p_io p = ioP) \<Longrightarrow> ioP \<in> remove_proper_prefixes (L_acyclic P)"
+    proof -
+      assume "(\<exists> p . path P (initial P) p \<and> target (initial P) p = q \<and> p_io p = ioP)"
+      then obtain p where "path P (initial P) p" and "target (initial P) p = q" and "p_io p = ioP"
+        by blast
+      then have "\<nexists>io'. io' \<noteq> [] \<and> p_io p @ io' \<in> L P"
+        using preamble_maximal_io_paths[OF \<open>is_preamble P M q\<close> \<open>observable M\<close>] by blast
+      then show "ioP \<in> remove_proper_prefixes (L_acyclic P)"
+        using language_state_containment[OF \<open>path P (initial P) p\<close> \<open>p_io p = ioP\<close>] unfolding preamble_language_prop[OF \<open>(q,P) \<in> prs\<close>] remove_proper_prefixes_def \<open>p_io p = ioP\<close> by blast
+    qed
+    ultimately show "ioP \<in> remove_proper_prefixes (L_acyclic P) \<longleftrightarrow> (\<exists> p . path P (initial P) p \<and> target (initial P) p = q \<and> p_io p = ioP)"
+      by blast
+  qed
+    
+
+  have eq1: "(\<Union> (q,P) \<in> prs . L_acyclic P) = (\<Union> (q,P) \<in> prs . L P)"
+    using preamble_language_prop by blast
+
+  have eq2: "(\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt))))) = (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})"
+  proof 
+    show "(\<Union>(q, P)\<in>prs. \<Union>ioP\<in>remove_proper_prefixes (L_acyclic P). \<Union>pt\<in>tps q. (@) ioP ` set (prefixes (p_io pt))) \<subseteq> \<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q}"
+    proof 
+      fix io assume "io \<in> (\<Union> (q,P) \<in> prs . (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt))))))"
+      then obtain q P where "(q,P) \<in> prs"
+                      and   "io \<in> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))))"
+        by blast
+      then obtain ioP where "ioP \<in> remove_proper_prefixes (L_acyclic P)"
+                      and   "io \<in> (\<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))))"
+        by blast
+
+      obtain p where "path P (initial P) p" and "target (initial P) p = q" and "ioP = p_io p"
+        using preamble_path_prop[OF \<open>(q,P) \<in> prs\<close>, of ioP] \<open>ioP \<in> remove_proper_prefixes (L_acyclic P)\<close> by auto 
+
+      obtain pt where "pt \<in> tps q" and "io \<in> ((\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))))"
+        using \<open>io \<in> (\<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt)))))\<close> unfolding \<open>ioP = p_io p\<close> by blast
+      
+      show "io \<in> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})"
+        using \<open>io \<in> ((\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))))\<close> \<open>(q,P) \<in> prs\<close> \<open>path P (initial P) p\<close> \<open>target (initial P) p = q\<close> \<open>pt \<in> tps q\<close> by blast
+    qed
+
+    show "\<Union> {(@) (p_io p) ` set (prefixes (p_io pt)) |p pt. \<exists>q P. (q, P) \<in> prs \<and> path P (FSM.initial P) p \<and> target (FSM.initial P) p = q \<and> pt \<in> tps q} \<subseteq> (\<Union>(q, P)\<in>prs. \<Union>ioP\<in>remove_proper_prefixes (L_acyclic P). \<Union>pt\<in>tps q. (@) ioP ` set (prefixes (p_io pt)))"
+    proof 
+      fix io assume "io \<in> (\<Union>{(\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt))) | p pt . \<exists> q P . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q})"
+      then obtain p pt q P where "io \<in> (\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt)))"
+                           and   "(q,P) \<in> prs" and "path P (initial P) p" and "target (initial P) p = q" and "pt \<in> tps q" 
+        by blast
+
+      then obtain ioP where "ioP \<in> remove_proper_prefixes (L_acyclic P)"
+                      and   "p_io p = ioP"
+        using preamble_path_prop[OF \<open>(q,P) \<in> prs\<close>, of "p_io p"] by blast
+      
+      
+      show "io \<in> (\<Union> (q,P) \<in> prs . (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . ((\<lambda> io' . ioP @ io') ` (set (prefixes (p_io pt))))))"
+        using \<open>(q,P) \<in> prs\<close> \<open>ioP \<in> remove_proper_prefixes (L_acyclic P)\<close> \<open>pt \<in> tps q\<close> \<open>io \<in> (\<lambda> io' . p_io p @ io') ` (set (prefixes (p_io pt)))\<close>  unfolding \<open>p_io p = ioP\<close> by blast
+    qed
+  qed
+
+  have eq3: "(\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A)) = (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"
+  proof
+    show "(\<Union> (q,P) \<in> prs . \<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . \<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (acyclic_language_intersection (from_FSM M (target q pt)) A)) \<subseteq> (\<Union>{(\<lambda> io_atc . p_io p @ p_io pt @ io_atc) ` (atc_to_io_set (from_FSM M (target q pt)) A) | p pt q A . \<exists> P q' t1 t2 . (q,P) \<in> prs \<and> path P (initial P) p \<and> target (initial P) p = q \<and> pt \<in> tps q \<and> q' \<in> rd_targets (q,pt) \<and> (A,t1,t2) \<in> atcs (target q pt,q') })"    
+    proof 
 
 
 (*fun test_suite_to_io_code :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c,'d) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
