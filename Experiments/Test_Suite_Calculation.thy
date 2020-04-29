@@ -229,7 +229,7 @@ in (Test_Suite nodes_with_preambles (fst tps_and_targets) (snd tps_and_targets) 
 
 
 
-definition calculate_test_suite_example :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c, ('a \<times> 'a) + 'a) test_suite" where
+definition calculate_test_suite_example :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> nat \<Rightarrow> ('a,'b,'c, ('a \<times> 'a) + 'a) test_suite" where
   "calculate_test_suite_example M m = 
     (let
          nodes_with_preambles = d_reachable_states_with_preambles M;
@@ -290,7 +290,7 @@ qed
 subsection \<open>Sufficiency of the Calculated Test Suite\<close>
 
 lemma calculate_test_suite_example_sufficient_and_finite :
-  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
+  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
   assumes "observable M"
   and     "completely_specified M"
   and     "inputs M \<noteq> {}"
@@ -1323,7 +1323,7 @@ qed
 subsection \<open>Completeness of the Calculated Test Suite\<close>
 
 lemma calculate_test_suite_example_completeness :
-  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
+  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
   assumes "observable M" 
   and     "observable M'"
   and     "inputs M' = inputs M"
@@ -1339,11 +1339,11 @@ using passes_test_suite_completeness[OF calculate_test_suite_example_sufficient_
 
 
 
-definition calculate_test_suite_example_as_io_sequences :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> ('b \<times> 'c) list set" where
+definition calculate_test_suite_example_as_io_sequences :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> nat \<Rightarrow> ('b \<times> 'c) list set" where
   "calculate_test_suite_example_as_io_sequences M m = test_suite_to_io'_maximal M (calculate_test_suite_example M m)"
 
 lemma calculate_test_suite_example_as_io_sequences_completeness :
-  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
+  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
   assumes "observable M" 
   and     "observable M'"
   and     "inputs M' = inputs M"
@@ -1383,6 +1383,13 @@ value "case (calculate_test_suite_example m_ex_H 4) of
 value "calculate_test_suite_example_as_io_sequences m_ex_H 4"
 value "calculate_test_suite_example_as_io_sequences m_ex_H 6"
 
-export_code calculate_test_suite_example_as_io_sequences in Haskell module_name FSM
+definition ex01 where "ex01 = calculate_test_suite_example_as_io_sequences m_ex_H 4"
+definition ex02 where "ex02 = calculate_test_suite_example_as_io_sequences m_ex_H 6"
+definition ex03 where "ex03 = calculate_test_suite_example_as_io_sequences m_ex_H 10"
+definition ex04 where "ex04 = calculate_test_suite_example_as_io_sequences m_ex_DR 4"
+definition ex05 where "ex05 = calculate_test_suite_example_as_io_sequences m_ex_DR 10"
+definition ex06 where "ex06 = calculate_test_suite_example_as_io_sequences m_ex_DR (size m_ex_DR)"
+
+export_code ex01 ex02 ex03 ex04 ex05 ex06 in Haskell module_name FSM
 
 end

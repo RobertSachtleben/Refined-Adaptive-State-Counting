@@ -4,7 +4,7 @@ begin
 
 subsection \<open>Calculating r-distinguishable State Pairs with Separators\<close>
 
-definition r_distinguishable_state_pairs_with_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b,'c) fsm) set" where
+definition r_distinguishable_state_pairs_with_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b,'c) fsm) set" where
   "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M 
                                                                                 \<and> q2 \<in> nodes M 
                                                                                 \<and> ((q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some Sep)
@@ -123,10 +123,10 @@ qed
 subsection \<open>Pairwise r-distinguishable Sets of States\<close>
 
 
-definition pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
+definition pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
   "pairwise_r_distinguishable_state_sets_from_separators M = { S . S \<subseteq> nodes M \<and> (\<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M))}" 
 
-definition pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
+definition pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set list" where
   "pairwise_r_distinguishable_state_sets_from_separators_list M = (let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
                                                                     in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
                                                                            (map set (pow_list (nodes_as_list M))))"
@@ -153,11 +153,11 @@ lemma pairwise_r_distinguishable_state_sets_from_separators_cover :
 
 
 
-definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
   "maximal_pairwise_r_distinguishable_state_sets_from_separators M = { S . S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> (\<nexists> S' . S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> S \<subset> S')}"
 
 
-definition maximal_pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set list" where
   "maximal_pairwise_r_distinguishable_state_sets_from_separators_list M = remove_subsets (pairwise_r_distinguishable_state_sets_from_separators_list M)"
       
 (*
@@ -214,7 +214,7 @@ subsection \<open>Calculating d-reachable States with Preambles\<close>
 
 
 (* calculate d-reachable states and a fixed assignment of preambles *)
-definition d_reachable_states_with_preambles :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set" where
+definition d_reachable_states_with_preambles :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a \<times> ('a,'b,'c::linorder) fsm) set" where
   "d_reachable_states_with_preambles M = image (\<lambda> qp . (fst qp, the (snd qp))) (Set.filter (\<lambda> qp . snd qp \<noteq> None) (image (\<lambda> q . (q, calculate_state_preamble_from_input_choices M q)) (nodes M)))"
 
 
@@ -236,10 +236,10 @@ lemma d_reachable_states_with_preambles_soundness :
   unfolding d_reachable_states_with_preambles_def
   using imageE by auto
 
-definition maximal_repetition_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) set" where
+definition maximal_repetition_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets_from_separators M = {(S, S \<inter> (image fst (d_reachable_states_with_preambles M))) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}"
 
-definition maximal_repetition_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
+definition maximal_repetition_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
   "maximal_repetition_sets_from_separators_list M = (let DR = (image fst (d_reachable_states_with_preambles M))
     in  map (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M))"
 
@@ -282,7 +282,7 @@ value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [2,3,4,5
 
 
 
-definition sub_optimal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
+definition sub_optimal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
   "sub_optimal_pairwise_r_distinguishable_state_sets_from_separators M = 
     (let pwrds = image fst (r_distinguishable_state_pairs_with_separators M);
          k     = size M;
