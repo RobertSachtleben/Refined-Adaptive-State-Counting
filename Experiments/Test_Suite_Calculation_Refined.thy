@@ -211,42 +211,82 @@ subsection \<open>Finiteness and Cardinality Instantiations for FSMs\<close>
 (* class to encode the constraint that the types used for FSM elements in the following sections are to be infinite to reduce the
    effort required for instance proofs *)
 (* this is not the best idea, see for example https://lists.cam.ac.uk/pipermail/cl-isabelle-users/2013-July/msg00104.html *)
-class infinite =
+class infinite_UNIV =
   assumes infinite_UNIV: "infinite (UNIV :: 'a set)"
 begin
 end
 
+instantiation integer :: infinite_UNIV begin
+instance apply intro_classes
+  by (simp add: infinite_UNIV_char_0) 
+end
+
+(* too restrictive *)
+instantiation sum :: (infinite_UNIV,infinite_UNIV) infinite_UNIV begin
+instance apply intro_classes
+  by (simp add: infinite_UNIV)
+end
+
+(* too restrictive *)
+instantiation prod :: (infinite_UNIV,infinite_UNIV) infinite_UNIV begin
+instance apply intro_classes
+  by (simp add: finite_prod infinite_UNIV)  
+end
 
 
 
-instantiation fsm :: (finite_UNIV,finite_UNIV,finite_UNIV) finite_UNIV begin
-definition "finite_UNIV = Phantom(('a,'b,'c)fsm) ((of_phantom (finite_UNIV :: 'a finite_UNIV)) \<and> of_phantom (finite_UNIV :: 'b finite_UNIV) \<and> of_phantom (finite_UNIV :: 'c finite_UNIV))"
+instantiation fsm :: (infinite_UNIV,type,type) finite_UNIV begin
+definition "finite_UNIV = Phantom(('a::infinite_UNIV,'b,'c)fsm) False"
+
+
+lemma finite_UNIV_fsm : 
+  shows "infinite (UNIV :: ('a :: infinite_UNIV,'b,'c) fsm set)"
+proof -
+  (* if infinitely many states exist, then infinitely many distinct singleton fsms can be created *)
+  define f :: "'a \<Rightarrow> ('a,'b,'c) fsm" where f_def: "f = (\<lambda> q . fsm_from_list q [])"
+  have "inj f" 
+  proof 
+    fix x y assume "x \<in> (UNIV :: 'a set)" and "y \<in> UNIV" and "f x = f y" 
+    then show "x = y" unfolding f_def by (transfer; auto)
+  qed
+  moreover have "infinite (UNIV :: 'a set)"
+    using infinite_UNIV by auto
+  ultimately show ?thesis
+    by (meson finite_imageD infinite_iff_countable_subset top_greatest) 
+qed
+
+instance by (intro_classes)
+            (simp add: finite_UNIV_fsm_def finite_UNIV_fsm) 
+end
+
 
 
 (* in each case: use singletons for the remaining sets and exploit that isabelle types are nonempty *)
 lemma f1: 
-  assumes "\<not> of_phantom (finite_UNIV :: 'a finite_UNIV)"
+  assumes "finite (UNIV :: ('a :: infinite_UNIV) set)"
   shows "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
   sorry (* TODO: show that (\<lambda> <node> \<rightarrow> <FSM using that node as initial state>) is inj on the UNIV of FSMs *)
 
 lemma f2: 
-  assumes "\<not> of_phantom (finite_UNIV :: 'b finite_UNIV)"
+  assumes "finite (UNIV :: 'b set)"
   shows "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
   sorry (* TODO: show that (\<lambda> <input> \<rightarrow> <FSM using that input in a single transition from initial as nodes>) is inj on the UNIV of FSMs *)
 
 lemma f3: 
-  assumes "\<not> of_phantom (finite_UNIV :: 'c finite_UNIV)"
+  assumes "finite (UNIV :: 'c set)"
   shows "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
   sorry (* TODO: show that (\<lambda> <output> \<rightarrow> <FSM using that output in a single transition from initial as nodes>) is inj on the UNIV of FSMs *)
 
 lemma f4:
-  assumes "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
-  shows "\<not> of_phantom (finite_UNIV :: 'a finite_UNIV)" (* or any of the other two types is finite *)
-  sorry (* ewwww *)
-
+  assumes "finite (UNIV :: ('a::infinite_UNIV,'b,'c) fsm set)"
+  shows "False"         
+proof -
+  have "finite (UNIV :: 'a set)"
+    using f1 assms 
+  using f1 infinite_UNIV unfolding finite_UNIV
 
 instance 
-  apply intro_classes unfolding finite_UNIV_fsm_def  finite_UNIV using f1 f2 f3 f4
+  apply intro_classes unfolding finite_UNIV_fsm_def  finite_UNIV  using f1 f2 f3 infinite_UNIV 
 proof -
 have "Phantom(('a, 'b, 'c) fsm) (of_phantom (finite_UNIV::('a, bool) phantom) \<and> of_phantom (finite_UNIV::('b, bool) phantom) \<and> of_phantom (finite_UNIV::('c, bool) phantom)) = (Phantom(('a, 'b, 'c) fsm) (finite (UNIV::('a, 'b, 'c) fsm set))::(('a, 'b, 'c) fsm, bool) phantom)"
   using f1 f2 f3 f4(1) by blast
