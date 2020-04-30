@@ -578,6 +578,37 @@ qed
 
 
 
+subsection \<open>Some Manual Common Subexpression Elimination\<close>
+
+lemma[code] :
+  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
+  shows 
+  "calculate_test_suite_example M m = undefined"
+
+
+  unfolding calculate_test_suite_example_def 
+            Let_def 
+            combine_test_suite_def
+            d_reachable_states_with_preambles_def
+            calculate_state_preamble_from_input_choices.simps
+            calculate_test_paths_def
+            m_traversal_paths_with_witness_def
+            m_traversal_paths_with_witness_up_to_length_def
+            paths_up_to_length_or_condition_with_witness_code
+            d_states.simps
+            maximal_repetition_sets_from_separators_list_def
+            reachable_nodes_as_list.simps
+            reachable_nodes_code
+            acyclic_paths_up_to_length_code
+maximal_pairwise_r_distinguishable_state_sets_from_separators_code
+maximal_pairwise_r_distinguishable_state_sets_from_separators_list_def
+pairwise_r_distinguishable_state_sets_from_separators_list_def
+preamble_pair_tests.simps
+preamble_prefix_tests_code
+prefix_pair_tests_code
+
+end (*
+
 
 subsection \<open>Exports\<close>
 
