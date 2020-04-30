@@ -618,11 +618,11 @@ fun calculate_state_preamble_from_input_choices :: "('a::linorder,'b::linorder,'
     else 
       (let DS = (d_states M q);
            DSS = set DS 
-        in (case length DS of
-            0 \<Rightarrow> None |
-            _ \<Rightarrow> if fst (last DS) = initial M
-                  then Some (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> DSS))
-                  else None)))"
+        in (case DS of
+            [] \<Rightarrow> None |
+            _  \<Rightarrow> if fst (last DS) = initial M
+                    then Some (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> DSS))
+                    else None)))"
 
 
 value "calculate_state_preamble_from_input_choices m_ex_H 1"
@@ -650,7 +650,7 @@ next
   then have "S = (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M q)))"
        and  "length (d_states M q) \<noteq> 0"
        and  "fst (last (d_states M q)) = initial M"
-    using assms by (cases "length (d_states M q)"; cases "fst (last (d_states M q)) = initial M"; simp)+
+    using assms by (cases "(d_states M q)"; cases "fst (last (d_states M q)) = initial M"; simp)+
 
   then have "\<exists> qx \<in> set (d_states M q) . fst qx = initial M"
     by auto
@@ -723,13 +723,14 @@ next
     by auto 
 
 
-  
-  obtain k where "length (d_states M q) = Suc k" 
-    using \<open>length (d_states M q) > 0\<close> gr0_conv_Suc by blast 
-  have "(fst (last (d_states M q)) = FSM.initial M) = True" using \<open>fst (last (d_states M q)) = FSM.initial M\<close> by simp
-
-  show ?thesis
-    unfolding calculate_state_preamble_from_input_choices.simps Let_def \<open>length (d_states M q) = Suc k\<close> \<open>(fst (last (d_states M q)) = FSM.initial M) = True\<close> 
+  have "(d_states M q) \<noteq> []"
+    using \<open>length (d_states M q) > 0\<close> by auto
+  then obtain dl dl' where "(d_states M q) = dl # dl'"
+    using list.exhaust by blast
+  then have "(fst (last (dl#dl')) = FSM.initial M) = True" using \<open>fst (last (d_states M q)) = FSM.initial M\<close> by simp
+  then show ?thesis
+    using False
+    unfolding calculate_state_preamble_from_input_choices.simps Let_def \<open>(d_states M q) = dl # dl'\<close>  
     by auto
 qed
 

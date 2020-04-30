@@ -580,6 +580,62 @@ qed
 
 subsection \<open>Some Manual Common Subexpression Elimination\<close>
 
+
+lemma d_states_refined[code] :
+  "d_states M q = (if q = initial M 
+                      then [] 
+                      else (let hM = (h M); iList = (inputs_as_list M); rnList = (removeAll (initial M) (reachable_nodes_as_list M)) in select_inputs hM (initial M) iList (removeAll q rnList) {q} []))"
+  unfolding d_states.simps Let_def by simp
+
+lemma d_reachable_states_with_preambles_refined[code] :
+  "d_reachable_states_with_preambles M = 
+    (let hM = h M; iList = inputs_as_list M; rnList = removeAll (FSM.initial M) (reachable_nodes_as_list M)
+      in ((\<lambda>qp. (fst qp, the (snd qp))) ` Set.filter (\<lambda>qp. snd qp \<noteq> None) ((\<lambda>q. (q, if q = FSM.initial M then Some (initial_preamble M) else let DS = select_inputs hM (FSM.initial M) iList (removeAll q rnList) {q} []; DSS = set DS in case DS of [] \<Rightarrow> None | _ \<Rightarrow> if fst (last DS) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>t. (t_source t, t_input t) \<in> DSS)) else None)) ` FSM.nodes M)))"
+  unfolding d_reachable_states_with_preambles_def
+            calculate_state_preamble_from_input_choices.simps
+            d_states_refined
+            Let_def
+proof -
+  have "(\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M) = (\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M) \<or> (\<forall>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None) = (a, if a = FSM.initial M then Some (initial_preamble M) else case select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None))"
+    by presburger
+  then show "(\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M) = (\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M)"
+    by meson
+qed 
+
+
+lemma ref_01:
+  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
+  shows
+  "calculate_test_suite_example M m = 
+    (let
+         hM = h M; 
+         iList = inputs_as_list M; 
+         rnList = removeAll (FSM.initial M) (reachable_nodes_as_list M);
+         nodes_with_preambles = ((\<lambda>qp. (fst qp, the (snd qp))) ` Set.filter (\<lambda>qp. snd qp \<noteq> None) ((\<lambda>q. (q, if q = FSM.initial M then Some (initial_preamble M) else let DS = select_inputs hM (FSM.initial M) iList (removeAll q rnList) {q} []; DSS = set DS in case DS of [] \<Rightarrow> None | _ \<Rightarrow> if fst (last DS) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>t. (t_source t, t_input t) \<in> DSS)) else None)) ` FSM.nodes M));
+         d_reachable_nodes    = fst ` nodes_with_preambles;
+         pairs_with_separators = image (\<lambda>((q1,q2),A) . ((q1,q2),A,Inr q1 :: ('a\<times>'a)+'a,Inr q2 :: ('a\<times>'a)+'a)) (r_distinguishable_state_pairs_with_separators M);
+         repetition_sets = map (\<lambda> S . (S, S \<inter> d_reachable_nodes)) (remove_subsets ((let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
+                                                                    in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
+                                                                           (map set (pow_list (nodes_as_list M))))))
+  in combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets)" 
+  unfolding calculate_test_suite_example_def
+            d_reachable_states_with_preambles_refined
+            maximal_repetition_sets_from_separators_list_def
+            maximal_pairwise_r_distinguishable_state_sets_from_separators_list_def
+            pairwise_r_distinguishable_state_sets_from_separators_list_def
+            Let_def 
+  by simp
+  
+
+
+definition maximal_repetition_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
+  "maximal_repetition_sets_from_separators_list M = (let DR = (image fst (d_reachable_states_with_preambles M))
+    in  map (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M))"
+
+
+
+
+
 lemma[code] :
   fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
   shows 
@@ -587,15 +643,15 @@ lemma[code] :
 
 
   unfolding calculate_test_suite_example_def 
-            Let_def 
+            
             combine_test_suite_def
-            d_reachable_states_with_preambles_def
-            calculate_state_preamble_from_input_choices.simps
+            d_reachable_states_with_preambles_refined
+            
             calculate_test_paths_def
             m_traversal_paths_with_witness_def
             m_traversal_paths_with_witness_up_to_length_def
             paths_up_to_length_or_condition_with_witness_code
-            d_states.simps
+            
             maximal_repetition_sets_from_separators_list_def
             reachable_nodes_as_list.simps
             reachable_nodes_code
@@ -606,6 +662,9 @@ pairwise_r_distinguishable_state_sets_from_separators_list_def
 preamble_pair_tests.simps
 preamble_prefix_tests_code
 prefix_pair_tests_code
+
+  unfolding calculate_state_preamble_from_input_choices.simps 
+            d_states_refined
 
 end (*
 
