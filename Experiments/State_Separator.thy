@@ -3639,14 +3639,14 @@ subsubsection \<open>Calculating a State Separator by Backwards Reachability Ana
 
 (* TODO: improvement idea: do not calculate the full canonical separator first *)
 
-definition s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b) list" where
+definition s_states :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b) list" where
   "s_states M q1 q2 = (let C = canonical_separator M q1 q2
    in select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list C)))) {Inr q1, Inr q2} [])"
 
 value "s_states m_ex_H 1 3"
 
 
-definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm option" where
+definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm option" where
   "state_separator_from_s_states M q1 q2 = 
     (let cs = s_states M q1 q2 
       in (case length cs of

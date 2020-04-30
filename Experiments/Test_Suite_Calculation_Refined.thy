@@ -4,12 +4,13 @@ theory Test_Suite_Calculation_Refined
           HOL.Record
           Deriving.Compare
           Containers.Containers
+          Containers.Card_Datatype
 begin
 
 subsection \<open>New Instances\<close>
 
 
-
+(*
 
 (* TODO: linear order on FSMs can be created using set_less_aux or similar functions, as all
          contained sets are finite - but this is probably not that efficient/necessary,
@@ -180,21 +181,121 @@ definition ccompare_fsm :: "(('a, 'b, 'c) fsm \<Rightarrow> ('a, 'b, 'c) fsm \<R
 
 instance by (intro_classes; simp add: ccompare_fsm_def comparator_compare)
 end
-
+*)
 
 
 subsubsection \<open>Derived Instances\<close>
 
-
+(* TODO: experiment with different set-impls for fsms *)
 derive (eq) ceq fsm
 
-derive (rbt) set_impl fsm
-derive (rbt) mapping_impl fsm
+derive (dlist) set_impl fsm
+derive (assoclist) mapping_impl fsm
+
+derive (no) cenum fsm
 
 print_derives
+derive (no) ccompare fsm
 (*derive (rbt) set_impl sum*)
-(*derive (no) cenum fsm*)
+
 (*derive (no) cproper_interval sum*)
+
+thm finite_UNIV_axioms
+
+
+
+
+subsection \<open>Finiteness and Cardinality Instantiations for FSMs\<close>
+
+
+(* class to encode the constraint that the types used for FSM elements in the following sections are to be infinite to reduce the
+   effort required for instance proofs *)
+(* this is not the best idea, see for example https://lists.cam.ac.uk/pipermail/cl-isabelle-users/2013-July/msg00104.html *)
+class infinite =
+  assumes infinite_UNIV: "infinite (UNIV :: 'a set)"
+begin
+end
+
+
+
+
+instantiation fsm :: (finite_UNIV,finite_UNIV,finite_UNIV) finite_UNIV begin
+definition "finite_UNIV = Phantom(('a,'b,'c)fsm) ((of_phantom (finite_UNIV :: 'a finite_UNIV)) \<and> of_phantom (finite_UNIV :: 'b finite_UNIV) \<and> of_phantom (finite_UNIV :: 'c finite_UNIV))"
+
+
+(* in each case: use singletons for the remaining sets and exploit that isabelle types are nonempty *)
+lemma f1: 
+  assumes "\<not> of_phantom (finite_UNIV :: 'a finite_UNIV)"
+  shows "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
+  sorry (* TODO: show that (\<lambda> <node> \<rightarrow> <FSM using that node as initial state>) is inj on the UNIV of FSMs *)
+
+lemma f2: 
+  assumes "\<not> of_phantom (finite_UNIV :: 'b finite_UNIV)"
+  shows "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
+  sorry (* TODO: show that (\<lambda> <input> \<rightarrow> <FSM using that input in a single transition from initial as nodes>) is inj on the UNIV of FSMs *)
+
+lemma f3: 
+  assumes "\<not> of_phantom (finite_UNIV :: 'c finite_UNIV)"
+  shows "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
+  sorry (* TODO: show that (\<lambda> <output> \<rightarrow> <FSM using that output in a single transition from initial as nodes>) is inj on the UNIV of FSMs *)
+
+lemma f4:
+  assumes "\<not> finite (UNIV :: ('a,'b,'c) fsm set)"
+  shows "\<not> of_phantom (finite_UNIV :: 'a finite_UNIV)" (* or any of the other two types is finite *)
+  sorry (* ewwww *)
+
+
+instance 
+  apply intro_classes unfolding finite_UNIV_fsm_def  finite_UNIV using f1 f2 f3 f4
+proof -
+have "Phantom(('a, 'b, 'c) fsm) (of_phantom (finite_UNIV::('a, bool) phantom) \<and> of_phantom (finite_UNIV::('b, bool) phantom) \<and> of_phantom (finite_UNIV::('c, bool) phantom)) = (Phantom(('a, 'b, 'c) fsm) (finite (UNIV::('a, 'b, 'c) fsm set))::(('a, 'b, 'c) fsm, bool) phantom)"
+  using f1 f2 f3 f4(1) by blast
+  then show "Phantom(('a, 'b, 'c) fsm) (of_phantom (Phantom('a) (finite (UNIV::'a set))::('a, bool) phantom) \<and> of_phantom (Phantom('b) (finite (UNIV::'b set))::('b, bool) phantom) \<and> of_phantom (Phantom('c) (finite (UNIV::'c set))::('c, bool) phantom)) = (Phantom(('a, 'b, 'c) fsm) (finite (UNIV::('a, 'b, 'c) fsm set))::(('a, 'b, 'c) fsm, bool) phantom)"
+    by (simp add: finite_UNIV_class.finite_UNIV)
+  qed 
+end
+
+
+
+print_classes 
+
+instantiation prod :: (card_UNIV, card_UNIV) card_UNIV begin
+definition "card_UNIV = Phantom('a \<times> 'b) 
+  (of_phantom (card_UNIV :: 'a card_UNIV) * of_phantom (card_UNIV :: 'b card_UNIV))"
+instance by intro_classes (simp add: card_UNIV_prod_def card_UNIV)
+end
+
+instantiation fsm :: (card_UNIV,card_UNIV,card_UNIV) card_UNIV begin
+definition "finite_UNIV = Phantom(('a,'b,'c)fsm) ((of_phantom (finite_UNIV :: 'a finite_UNIV)) \<and> of_phantom (finite_UNIV :: 'b finite_UNIV) \<and> of_phantom (finite_UNIV :: 'c finite_UNIV))"
+definition "card_UNIV = Phantom(XY) 1"
+
+lemma card_univ_XY_props: shows "finite (UNIV :: XY set)" and "card (UNIV :: XY set) = 1"
+proof -
+  have "UNIV = {X}"
+    by (metis (full_types) UNIV_eq_I XY.exhaust insertI1) 
+  then show "finite (UNIV :: XY set)"
+    using finite.simps by auto 
+  show "card (UNIV :: XY set) = 1"
+    using \<open>UNIV = {X}\<close>
+    using card_eq_1_iff by auto
+    
+qed
+
+instance 
+  by intro_classes 
+  (simp_all add: card_univ_XY_props finite_UNIV_XY_def card_UNIV_XY_def)
+end
+
+
+instantiation XY :: cproper_interval begin
+definition cproper_interval_XY :: "XY proper_interval"
+  where "cproper_interval_XY _ _ = False"
+
+instance apply intro_classes unfolding cproper_interval_XY_def
+  by (simp add: ID_None ccompare_XY_def)
+end
+
+
 
 
 subsection \<open>Updating Code Equations\<close>
@@ -363,9 +464,11 @@ qed
 
 subsubsection \<open>New Code Generation for r_distinguishable_state_pairs_with_separators\<close>
 
+(*
 declare [[show_types]]
   declare [[show_sorts]]
   declare [[show_consts]]
+*)
 
 declare [[code drop: r_distinguishable_state_pairs_with_separators]]
 
@@ -373,13 +476,128 @@ value "{(Inr (1::integer,2::integer), Some m_ex_H),(Inr (1,2),Some m_ex_H)} \<un
 
 lemma r_distinguishable_state_pairs_with_separators_refined[code] :
   fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
-  shows  "r_distinguishable_state_pairs_with_separators M = (\<Union> q \<in> nodes m_ex_H . {}::(('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b,'c) fsm) set)"
+  shows  "r_distinguishable_state_pairs_with_separators M = (\<Union> q \<in> {True} . {}::(('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b,'c) fsm) set)"
   sorry
 
+code_deps r_distinguishable_state_pairs_with_separators
 
+
+
+definition test_ccompare :: "'a::ccompare \<Rightarrow> bool" where 
+  "test_ccompare x = (case ID CCOMPARE('a) of Some _ \<Rightarrow> True | None \<Rightarrow> False)"
+definition test_cenum :: "'a::cenum \<Rightarrow> bool" where 
+  "test_cenum x = (case ID CENUM('a) of Some _ \<Rightarrow> True | None \<Rightarrow> False)"
+definition test_ceq :: "'a::ceq \<Rightarrow> bool" where 
+  "test_ceq x = (case ID CEQ('a) of Some _ \<Rightarrow> True | None \<Rightarrow> False)"
+
+value "test_ccompare m_ex_H"
+value "test_cenum m_ex_H"
+value "test_ceq m_ex_H"
+
+
+
+definition m_X :: "((integer\<times>integer)+integer,integer,integer) fsm" where
+  "m_X = fsm_from_list (Inl (1,1)) [(Inl (1,1), 2, 3, Inr 4)]"
+
+
+value "test_ccompare m_X"
+value "test_cenum m_X"
+value "test_ceq m_X"
+
+declare pretty_sets[code_post del]
+value "{((1::integer,1::integer), m_X)}"
+value "{((1::integer,1::integer), m_X)} \<union> {((1::integer,1::integer), m_X)}"
+
+value "(1::integer,2::integer) < (2::integer,1::integer)"
+
+
+
+datatype XY = X
+
+print_derives 
+derive (eq) equality XY
+derive (eq) ceq XY
+derive (no) cenum XY
+derive (linorder) comparator XY
+derive (linorder) linorder XY
+derive (compare) ccompare XY
+derive (dlist) set_impl XY
+derive (assoclist) mapping_impl XY
+
+
+
+
+instantiation XY :: card_UNIV begin
+definition "finite_UNIV = Phantom(XY) True"
+definition "card_UNIV = Phantom(XY) 1"
+
+lemma card_univ_XY_props: shows "finite (UNIV :: XY set)" and "card (UNIV :: XY set) = 1"
+proof -
+  have "UNIV = {X}"
+    by (metis (full_types) UNIV_eq_I XY.exhaust insertI1) 
+  then show "finite (UNIV :: XY set)"
+    using finite.simps by auto 
+  show "card (UNIV :: XY set) = 1"
+    using \<open>UNIV = {X}\<close>
+    using card_eq_1_iff by auto
+    
+qed
+
+instance 
+  by intro_classes 
+  (simp_all add: card_univ_XY_props finite_UNIV_XY_def card_UNIV_XY_def)
+end
+
+
+instantiation XY :: cproper_interval begin
+definition cproper_interval_XY :: "XY proper_interval"
+  where "cproper_interval_XY _ _ = False"
+
+instance apply intro_classes unfolding cproper_interval_XY_def
+  by (simp add: ID_None ccompare_XY_def)
+end
+
+
+definition x where "x = finite {X}"
+
+code_deps x
+code_thms x
+
+value "{X}"
+value "finite ({} :: XY set)
+
+
+value "(\<lambda> q . {m_ex_H}) {True}"
+value "{m_ex_H}"
+
+fun test_dlist :: "'a set \<Rightarrow> nat" where "test_dlist n = 0"
+lemma[code] : "test_dlist (DList_set k) = 1" sorry
+lemma[code] : "test_dlist (RBT_set k) = 2" sorry
+
+value "test_dlist {m_ex_H}"
+value "test_dlist {1::integer}"
+
+
+
+value "finite {m_ex_H}"
+
+(* seems to use Collect_set version of finite ? *)
+value "\<Union> {{m_ex_H}}"
+value "\<Union> q \<in> {True} . {m_ex_H}"
+
+end (*
+
+print_classes
 
 declare pretty_sets[code_post del]
 value "\<Union> q \<in> nodes m_ex_H . nodes m_ex_H"
+value "state_separator_from_s_states m_ex_H 1 3"
+value "{state_separator_from_s_states m_ex_H 1 3, state_separator_from_s_states m_ex_H 1 3}"
+value "{state_separator_from_s_states m_ex_H 1 3, state_separator_from_s_states m_ex_H 1 3} \<union> {state_separator_from_s_states m_ex_H 1 3, state_separator_from_s_states m_ex_H 1 3}"
+value "\<Union> q \<in> {True} . {1::nat}"
+value "\<Union> q \<in> {True} . {m_ex_H}"
+value "\<Union> q \<in> {True} . {state_separator_from_s_states m_ex_H 1 3, state_separator_from_s_states m_ex_H 1 3}"
+value "(\<lambda> q . {state_separator_from_s_states m_ex_H 1 3, state_separator_from_s_states m_ex_H 1 3}) ` {True}"
 value "r_distinguishable_state_pairs_with_separators m_ex_H"
 
 value "{1::integer}"
