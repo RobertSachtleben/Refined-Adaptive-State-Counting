@@ -1384,12 +1384,13 @@ value "calculate_test_suite_example_as_io_sequences m_ex_H 4"
 value "calculate_test_suite_example_as_io_sequences m_ex_H 6"
 
 definition ex01 where "ex01 = calculate_test_suite_example_as_io_sequences m_ex_H 4"
-definition ex02 where "ex02 = calculate_test_suite_example_as_io_sequences m_ex_H 6"
+definition ex02 where "ex02 = calculate_test_suite_example_as_io_sequences m_ex_H 8"
+definition ex02b where "ex02b = calculate_test_suite_example_as_io_sequences m_ex_H 7"
 definition ex03 where "ex03 = calculate_test_suite_example_as_io_sequences m_ex_H 10"
 definition ex04 where "ex04 = calculate_test_suite_example_as_io_sequences m_ex_DR 4"
-definition ex05 where "ex05 = calculate_test_suite_example_as_io_sequences m_ex_DR 10"
+definition ex05 where "ex05 = calculate_test_suite_example_as_io_sequences m_ex_DR 8"
 definition ex06 where "ex06 = calculate_test_suite_example_as_io_sequences m_ex_DR (size m_ex_DR)"
 
-export_code ex01 ex02 ex03 ex04 ex05 ex06 in Haskell module_name FSM
+export_code ex01 ex02 ex02b ex03 ex04 ex05 ex06 in Haskell module_name FSM4o
 
 end

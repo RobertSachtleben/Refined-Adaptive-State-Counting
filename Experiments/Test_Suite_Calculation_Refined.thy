@@ -575,6 +575,83 @@ qed
 
 
 
+subsection \<open>New Code Equation for m_traversal_paths_with_witness_up_to_length\<close>
+
+
+
+definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
+  "generate_test_suite M m = calculate_test_suite_example_as_io_sequences M (nat_of_integer m)"
+
+
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM4a
+
+
+(* IDEA: combine the count-update and the search for a satisfying rep-set into one pass over the affected sets 
+thm foldr.simps (*f x \<circ> foldr f xs*)  (*foldl f (f a x) xs*)
+fun find_foldl :: "('a \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b \<Rightarrow> 'a + 'b" where
+  "find_foldr f P [] b = Inr b" |
+  "find_foldr f P (x#xs) b = (let f x = fx in if P x fx then 
+
+*)
+    
+    
+
+
+
+fun m_traversal_paths_calc' :: "('a \<Rightarrow> ('b \<times> 'c \<times> 'a) set) \<Rightarrow> ('a set \<times> 'a set, nat) mapping \<Rightarrow> ('a \<Rightarrow> ('a set \<times> 'a set) list) \<Rightarrow>  ('a,'b,'c) path \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> ('a set \<times> 'a set)) set" where
+  "m_traversal_paths_calc' f goal_cnts affected_sets prev 0 q = (case find (\<lambda>w . Mapping.lookup goal_cnts w = Some 0) (affected_sets q) of Some w \<Rightarrow> {(prev,w)} | None \<Rightarrow> {})" |
+  "m_traversal_paths_calc' f goal_cnts affected_sets prev (Suc k) q = (case find (\<lambda>w . Mapping.lookup goal_cnts w = Some 0) (affected_sets q) of 
+    Some w \<Rightarrow> {(prev,w)} | 
+    None \<Rightarrow> (\<Union>(image (\<lambda>(x,y,q') . m_traversal_paths_calc' f (foldr (\<lambda> w qoal_cnts'' . Mapping.update w ((Mapping.lookup_default 0 qoal_cnts'' w) - 1) qoal_cnts'') (affected_sets q') goal_cnts) affected_sets (prev@[(q,x,y,q')]) k q') (f q))))"
+
+fun m_traversal_paths_calc :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> ('a set \<times> 'a set)) set" where
+  "m_traversal_paths_calc M D k m q = 
+  (let 
+    nList     = nodes_as_list M;
+    hFromM    = h_from M;
+    goal_cnts = foldr (\<lambda>d mp . Mapping.update d (Suc (m - (card (snd d)))) mp) D Mapping.empty;
+    affected_sets' = foldr (\<lambda> q m . Mapping.update q (filter (\<lambda> d . q \<in> fst d) D) m) nList Mapping.empty;
+    affected_sets = Mapping.lookup_default [] affected_sets'
+  in
+    m_traversal_paths_calc' hFromM goal_cnts affected_sets [] k q)"
+
+
+
+(*value "card (m_traversal_paths_with_witness m_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 14)"*)
+(*value "m_traversal_paths_with_witness m_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 7 "
+value "m_traversal_paths_with_witness m_ex_H 3 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
+value "m_traversal_paths_with_witness m_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
+
+value "m_traversal_paths_with_witness m_ex_H 4 (maximal_repetition_sets_from_separators_list m_ex_H) 4"*)
+
+lemma m_traversal_paths_with_witness_up_to_length_refined[code] :
+  "m_traversal_paths_with_witness_up_to_length M q D m k = (if q \<in> nodes M then m_traversal_paths_calc M D k m q
+                                                                          else {})"
+  sorry
+
+
+(*
+value "m_traversal_paths_with_witness m_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 7 "
+value "m_traversal_paths_with_witness m_ex_H 3 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
+value "m_traversal_paths_with_witness m_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
+
+value "m_traversal_paths_with_witness m_ex_H 4 (maximal_repetition_sets_from_separators_list m_ex_H) 4"*)
+
+
+(*
+
+lemma paths_up_to_length_or_condition_with_witness_code[code] :
+  "paths_up_to_length_or_condition_with_witness M P k q = (if q \<in> nodes M then paths_up_to_length_or_condition_with_witness' (h_from M) P [] k q
+                                                                          else {})" 
+*)
+
+
+(*
+  "paths_up_to_length_or_condition_with_witness' f P prev 0 q = (case P prev of Some w \<Rightarrow> {(prev,w)} | None \<Rightarrow> {})" |
+  "paths_up_to_length_or_condition_with_witness' f P prev (Suc k) q = (case P prev of 
+    Some w \<Rightarrow> {(prev,w)} | 
+    None \<Rightarrow> (\<Union>(image (\<lambda>(x,y,q') . paths_up_to_length_or_condition_with_witness' f P (prev@[(q,x,y,q')]) k q') (f q))))"
+*)
 
 
 
@@ -610,13 +687,15 @@ lemma ref_01:
     (let
          hM = h M; 
          iList = inputs_as_list M; 
+         nList = nodes_as_list M;
          rnList = removeAll (FSM.initial M) (reachable_nodes_as_list M);
          nodes_with_preambles = ((\<lambda>qp. (fst qp, the (snd qp))) ` Set.filter (\<lambda>qp. snd qp \<noteq> None) ((\<lambda>q. (q, if q = FSM.initial M then Some (initial_preamble M) else let DS = select_inputs hM (FSM.initial M) iList (removeAll q rnList) {q} []; DSS = set DS in case DS of [] \<Rightarrow> None | _ \<Rightarrow> if fst (last DS) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>t. (t_source t, t_input t) \<in> DSS)) else None)) ` FSM.nodes M));
          d_reachable_nodes    = fst ` nodes_with_preambles;
-         pairs_with_separators = image (\<lambda>((q1,q2),A) . ((q1,q2),A,Inr q1 :: ('a\<times>'a)+'a,Inr q2 :: ('a\<times>'a)+'a)) (r_distinguishable_state_pairs_with_separators M);
-         repetition_sets = map (\<lambda> S . (S, S \<inter> d_reachable_nodes)) (remove_subsets ((let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
+         r_dist_pairs_with_seps = r_distinguishable_state_pairs_with_separators M;
+         pairs_with_separators = image (\<lambda>((q1,q2),A) . ((q1,q2),A,Inr q1,Inr q2)) (r_dist_pairs_with_seps);
+         repetition_sets = map (\<lambda> S . (S, S \<inter> d_reachable_nodes)) (remove_subsets ((let RDS = image fst (r_dist_pairs_with_seps)
                                                                     in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
-                                                                           (map set (pow_list (nodes_as_list M))))))
+                                                                           (map set (pow_list nList)))))
   in combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets)" 
   unfolding calculate_test_suite_example_def
             d_reachable_states_with_preambles_refined
@@ -625,6 +704,73 @@ lemma ref_01:
             pairwise_r_distinguishable_state_sets_from_separators_list_def
             Let_def 
   by simp
+
+
+
+
+
+definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
+  "generate_test_suite M m = calculate_test_suite_example_as_io_sequences M (nat_of_integer m)"
+
+
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM4b
+
+
+
+
+
+
+
+
+
+
+
+
+
+(*
+  where
+  "combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets =
+    (let drs = image fst nodes_with_preambles;
+        rds = image fst pairs_with_separators;
+        tps_and_targets = calculate_test_paths M m drs rds repetition_sets;
+        atcs = m2f (set_as_map pairs_with_separators) 
+in (Test_Suite nodes_with_preambles (fst tps_and_targets) (snd tps_and_targets) atcs))"
+*)
+
+lemma ref_02 : 
+fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
+  shows
+  "combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets = undefined"
+  unfolding combine_test_suite_def
+            calculate_test_paths_def
+            m_traversal_paths_with_witness_def
+            m_traversal_paths_with_witness_up_to_length_def
+            
+
+
+
+
+end (*
+lemma ref_12:
+  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
+  shows
+  "calculate_test_suite_example M m = 
+    (let
+         hM = h M; 
+         iList = inputs_as_list M; 
+         nList = nodes_as_list M;
+         rnList = removeAll (FSM.initial M) (reachable_nodes_as_list M);
+         nodes_with_preambles = ((\<lambda>qp. (fst qp, the (snd qp))) ` Set.filter (\<lambda>qp. snd qp \<noteq> None) ((\<lambda>q. (q, if q = FSM.initial M then Some (initial_preamble M) else let DS = select_inputs hM (FSM.initial M) iList (removeAll q rnList) {q} []; DSS = set DS in case DS of [] \<Rightarrow> None | _ \<Rightarrow> if fst (last DS) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>t. (t_source t, t_input t) \<in> DSS)) else None)) ` FSM.nodes M));
+         d_reachable_nodes    = fst ` nodes_with_preambles;
+         r_dist_pairs_with_seps = r_distinguishable_state_pairs_with_separators M;
+         pairs_with_separators = image (\<lambda>((q1,q2),A) . ((q1,q2),A,Inr q1,Inr q2)) (r_dist_pairs_with_seps);
+         repetition_sets = map (\<lambda> S . (S, S \<inter> d_reachable_nodes)) (remove_subsets ((let RDS = image fst (r_dist_pairs_with_seps)
+                                                                    in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
+                                                                           (map set (pow_list nList)))))
+  in combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets)" 
+  unfolding ref_01 
+  unfolding combine_test_suite_def
+  
   
 
 
