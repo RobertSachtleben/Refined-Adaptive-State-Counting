@@ -5,6 +5,8 @@ theory Test_Suite_Calculation_Refined
           Deriving.Compare
           Containers.Containers
           "HOL-Library.Code_Target_Nat"
+          (*"HOL-Library.Code_Target_Int"*)
+          (*"HOL-Library.Code_Binary_Nat"*)
 begin
 
 
@@ -213,6 +215,16 @@ begin
 end
 
 instantiation integer :: infinite_UNIV begin
+instance apply intro_classes
+  by (simp add: infinite_UNIV_char_0) 
+end
+
+instantiation nat :: infinite_UNIV begin
+instance apply intro_classes
+  by (simp add: infinite_UNIV_char_0) 
+end
+
+instantiation int :: infinite_UNIV begin
 instance apply intro_classes
   by (simp add: infinite_UNIV_char_0) 
 end
@@ -543,6 +555,10 @@ qed
 
 
 
+
+
+
+
 subsubsection \<open>New Code Generation for remove_proper_prefixes\<close>
 
 declare [[code drop: remove_proper_prefixes]]
@@ -575,16 +591,100 @@ qed
 
 
 
-subsection \<open>New Code Equation for m_traversal_paths_with_witness_up_to_length\<close>
 
 
+
+
+subsection \<open>Export Test Suite Generator\<close>
 
 definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
   "generate_test_suite M m = calculate_test_suite_example_as_io_sequences M (nat_of_integer m)"
 
 
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM4a
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5a
 
+
+
+
+
+subsubsection \<open>Dual set_as_map With Image\<close>
+
+definition dual_set_as_map_image :: "('a1 \<times> 'a2) set \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('b1 \<times> 'b2)) \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('c1 \<times> 'c2)) \<Rightarrow> (('b1 \<Rightarrow> 'b2 set option) \<times> ('c1 \<Rightarrow> 'c2 set option))" where 
+  "dual_set_as_map_image xs f1 f2 = (set_as_map (image f1 xs), set_as_map (image f2 xs))"
+
+
+lemma set_as_map_image  :
+  fixes t :: "('a1 ::ccompare \<times> 'a2 :: ccompare) set_rbt" 
+  and   f1 :: "('a1 \<times> 'a2) \<Rightarrow> ('b1 :: ccompare \<times> 'b2 ::ccompare)"
+shows "set_as_map (image f1 (RBT_set t)) = (case ID CCOMPARE(('a1 \<times> 'a2)) of
+           Some _ \<Rightarrow> Mapping.lookup 
+                      (RBT_Set2.fold (\<lambda> kv m1 .
+                        ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)))
+                      t
+                      Mapping.empty) |
+           None   \<Rightarrow> Code.abort (STR ''set_as_map RBT_set: ccompare = None'') 
+                                (\<lambda>_. set_as_map (image f1 (RBT_set t))))"
+  using Set_image_code
+  sorry
+
+
+
+lemma dual_set_as_map_image_code[code] :
+  fixes t :: "('a1 ::ccompare \<times> 'a2 :: ccompare) set_rbt" 
+  and   f1 :: "('a1 \<times> 'a2) \<Rightarrow> ('b1 :: ccompare \<times> 'b2 ::ccompare)"
+  and   f2 :: "('a1 \<times> 'a2) \<Rightarrow> ('c1 :: ccompare \<times> 'c2 ::ccompare)"
+  shows "dual_set_as_map_image (RBT_set t) f1 f2 = (case ID CCOMPARE(('a1 \<times> 'a2)) of
+           Some _ \<Rightarrow> let mm = (RBT_Set2.fold (\<lambda> kv (m1,m2) .
+                        ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)
+                        , case f2 kv of (x,z) \<Rightarrow> (case Mapping.lookup m2 (x) of None \<Rightarrow> Mapping.update (x) {z} m2 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m2)))
+                      t
+                      (Mapping.empty,Mapping.empty))
+                     in (Mapping.lookup (fst mm), Mapping.lookup (snd mm)) |
+           None   \<Rightarrow> Code.abort (STR ''set_as_map RBT_set: ccompare = None'') 
+                                (\<lambda>_. (set_as_map (image f1 (RBT_set t)), set_as_map (image f2 (RBT_set t)))))"
+  sorry
+
+
+lemma calculate_test_paths_refined[code] : 
+  "calculate_test_paths M m d_reachable_nodes r_distinguishable_pairs repetition_sets =
+    (let
+         paths_with_witnesses 
+              = (image (\<lambda> q . (q,m_traversal_paths_with_witness M q repetition_sets m)) d_reachable_nodes);
+         get_paths                        
+              = m2f (set_as_map paths_with_witnesses);
+         PrefixPairTests                    
+              = \<Union> q \<in> d_reachable_nodes . \<Union> mrsps \<in> get_paths q . prefix_pair_tests q mrsps;
+         PreamblePrefixTests
+              = \<Union> q \<in> d_reachable_nodes . \<Union> mrsps \<in> get_paths q . preamble_prefix_tests q mrsps d_reachable_nodes;
+         PreamblePairTests
+              = preamble_pair_tests (\<Union> (q,pw) \<in> paths_with_witnesses . ((\<lambda> (p,(rd,dr)) . dr) ` pw)) r_distinguishable_pairs;
+         tests
+              = PrefixPairTests \<union> PreamblePrefixTests \<union> PreamblePairTests; 
+         tps'  
+              = m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) paths_with_witnesses));
+         dual_maps 
+              =  dual_set_as_map_image tests (\<lambda> (q,p,q') . (q,p)) (\<lambda> (q,p,q') . ((q,p),q'));
+         tps''  
+              = m2f (fst dual_maps);
+         tps  
+              = (\<lambda> q . tps' q \<union> tps'' q);
+         rd_targets 
+              = m2f (snd dual_maps)     
+    in ( tps, rd_targets))"
+
+  unfolding calculate_test_paths_def Let_def dual_set_as_map_image_def fst_conv snd_conv by simp
+
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual
+
+
+
+
+subsection \<open>New Code Equation for m_traversal_paths_with_witness_up_to_length\<close>
+
+
+
+
+value "size m_ex_DR"
 
 (* IDEA: combine the count-update and the search for a satisfying rep-set into one pass over the affected sets 
 thm foldr.simps (*f x \<circ> foldr f xs*)  (*foldl f (f a x) xs*)
@@ -709,15 +809,14 @@ lemma ref_01:
 
 
 
-definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
-  "generate_test_suite M m = calculate_test_suite_example_as_io_sequences M (nat_of_integer m)"
-
-
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM4b
 
 
 
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5b
 
+
+
+value "(1::nat,(2::nat,3::nat))"
 
 
 
