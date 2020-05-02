@@ -609,14 +609,23 @@ export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM
 
 subsubsection \<open>Dual set_as_map With Image\<close>
 
+definition set_as_map_image :: "('a1 \<times> 'a2) set \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('b1 \<times> 'b2)) \<Rightarrow> ('b1 \<Rightarrow> 'b2 set option)" where 
+  "set_as_map_image xs f = (set_as_map (image f xs))"
+
 definition dual_set_as_map_image :: "('a1 \<times> 'a2) set \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('b1 \<times> 'b2)) \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('c1 \<times> 'c2)) \<Rightarrow> (('b1 \<Rightarrow> 'b2 set option) \<times> ('c1 \<Rightarrow> 'c2 set option))" where 
   "dual_set_as_map_image xs f1 f2 = (set_as_map (image f1 xs), set_as_map (image f2 xs))"
 
 
-lemma set_as_map_image  :
+
+
+
+
+
+
+lemma set_as_map_image_code[code]  :
   fixes t :: "('a1 ::ccompare \<times> 'a2 :: ccompare) set_rbt" 
   and   f1 :: "('a1 \<times> 'a2) \<Rightarrow> ('b1 :: ccompare \<times> 'b2 ::ccompare)"
-shows "set_as_map (image f1 (RBT_set t)) = (case ID CCOMPARE(('a1 \<times> 'a2)) of
+shows "set_as_map_image (RBT_set t) f1 = (case ID CCOMPARE(('a1 \<times> 'a2)) of
            Some _ \<Rightarrow> Mapping.lookup 
                       (RBT_Set2.fold (\<lambda> kv m1 .
                         ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)))
@@ -626,7 +635,6 @@ shows "set_as_map (image f1 (RBT_set t)) = (case ID CCOMPARE(('a1 \<times> 'a2))
                                 (\<lambda>_. set_as_map (image f1 (RBT_set t))))"
   using Set_image_code
   sorry
-
 
 
 lemma dual_set_as_map_image_code[code] :
@@ -645,6 +653,33 @@ lemma dual_set_as_map_image_code[code] :
   sorry
 
 
+(* use set_as_map_image wherever a set_as_map (image ... ) occurs *)
+
+declare [[code drop: h]]
+lemma h_refined[code] : "h M (q,x) = (let m = set_as_map_image (transitions M) (\<lambda>(q,x,y,q') . ((q,x),y,q')) in (case m (q,x) of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+  unfolding h_code set_as_map_image_def by simp
+
+lemma canonical_separator'_refined[code] : 
+  fixes M :: "('a,'b,'c) fsm_impl"
+  shows
+"FSM_Impl.canonical_separator' M P q1 q2 = (if FSM_Impl.fsm_impl.initial P = (q1,q2) 
+  then
+    (let f'  = set_as_map_image (FSM_Impl.fsm_impl.transitions M) (\<lambda>(q,x,y,q') . ((q,x),y));
+         f   = (\<lambda>qx . (case f' qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}));
+         shifted_transitions' = shifted_transitions (FSM_Impl.fsm_impl.transitions P);
+         distinguishing_transitions_lr = distinguishing_transitions f q1 q2 (FSM_Impl.fsm_impl.nodes P) (FSM_Impl.fsm_impl.inputs P);
+         ts = shifted_transitions' \<union> distinguishing_transitions_lr
+     in 
+  
+      \<lparr> FSM_Impl.fsm_impl.initial = Inl (q1,q2)
+      , FSM_Impl.fsm_impl.nodes = (image Inl (FSM_Impl.fsm_impl.nodes P)) \<union> {Inr q1, Inr q2}
+      , FSM_Impl.fsm_impl.inputs = FSM_Impl.fsm_impl.inputs M \<union> FSM_Impl.fsm_impl.inputs P
+      , FSM_Impl.fsm_impl.outputs = FSM_Impl.fsm_impl.outputs M \<union> FSM_Impl.fsm_impl.outputs P
+      , FSM_Impl.fsm_impl.transitions = ts \<rparr>)
+  else \<lparr> FSM_Impl.fsm_impl.initial = Inl (q1,q2), FSM_Impl.fsm_impl.nodes = {Inl (q1,q2)}, FSM_Impl.fsm_impl.inputs = {}, FSM_Impl.fsm_impl.outputs = {}, FSM_Impl.fsm_impl.transitions = {}\<rparr>)"
+  unfolding set_as_map_image_def by simp
+
+
 lemma calculate_test_paths_refined[code] : 
   "calculate_test_paths M m d_reachable_nodes r_distinguishable_pairs repetition_sets =
     (let
@@ -661,7 +696,7 @@ lemma calculate_test_paths_refined[code] :
          tests
               = PrefixPairTests \<union> PreamblePrefixTests \<union> PreamblePairTests; 
          tps'  
-              = m2f_by \<Union> (set_as_map (image (\<lambda> (q,p) . (q, image fst p)) paths_with_witnesses));
+              = m2f_by \<Union> (set_as_map_image paths_with_witnesses (\<lambda> (q,p) . (q, image fst p)));
          dual_maps 
               =  dual_set_as_map_image tests (\<lambda> (q,p,q') . (q,p)) (\<lambda> (q,p,q') . ((q,p),q'));
          tps''  
@@ -672,9 +707,11 @@ lemma calculate_test_paths_refined[code] :
               = m2f (snd dual_maps)     
     in ( tps, rd_targets))"
 
-  unfolding calculate_test_paths_def Let_def dual_set_as_map_image_def fst_conv snd_conv by simp
+  unfolding calculate_test_paths_def Let_def dual_set_as_map_image_def fst_conv snd_conv set_as_map_image_def by simp
 
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual
+
+
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual2
 
 
 
@@ -812,7 +849,7 @@ lemma ref_01:
 
 
 
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5b
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dualTrav
 
 
 
