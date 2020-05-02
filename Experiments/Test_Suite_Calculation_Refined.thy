@@ -711,6 +711,25 @@ lemma calculate_test_paths_refined[code] :
 
 
 
+
+fun target' :: "'state \<Rightarrow> ('state, 'input, 'output) path \<Rightarrow> 'state" where
+  "target' q [] = q" |
+  "target' q p = t_target (last p)"
+
+lemma target_refined[code] :
+  "target q p = target' q p" 
+proof (cases p rule: rev_cases)
+  case Nil
+  then show ?thesis by auto
+next
+  case (snoc p' t)
+  then have "p \<noteq> []" by auto
+  then show ?thesis unfolding snoc target.simps visited_nodes.simps
+    by (metis (no_types, lifting) last_ConsR last_map list.map_disc_iff target'.elims) 
+qed
+
+
+
 export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual2
 
 
