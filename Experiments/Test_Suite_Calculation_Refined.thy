@@ -297,7 +297,7 @@ subsubsection \<open>New Code Generation for set_as_map\<close>
 
 declare [[code drop: set_as_map]]
 
-lemma set_as_map_code_refined[code] :
+lemma set_as_map_refined[code] :
   fixes t :: "('a :: ccompare \<times> 'c :: ccompare) set_rbt" 
   and   xs:: "('b :: ceq \<times> 'd :: ceq) set_dlist"
   shows "set_as_map (RBT_set t) = (case ID CCOMPARE(('a \<times> 'c)) of
@@ -631,9 +631,137 @@ shows "set_as_map_image (RBT_set t) f1 = (case ID CCOMPARE(('a1 \<times> 'a2)) o
                         ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)))
                       t
                       Mapping.empty) |
-           None   \<Rightarrow> Code.abort (STR ''set_as_map RBT_set: ccompare = None'') 
-                                (\<lambda>_. set_as_map (image f1 (RBT_set t))))"
-  using Set_image_code
+           None   \<Rightarrow> Code.abort (STR ''set_as_map_image RBT_set: ccompare = None'') 
+                                (\<lambda>_. set_as_map_image (RBT_set t) f1))"
+proof (cases "ID CCOMPARE(('a1 \<times> 'a2))")
+  case None
+  then show ?thesis by auto
+next
+  case (Some a)
+  then have *: "f1 ` RBT_set t = RBT_Set2.fold (Set.insert \<circ> f1) t {}"
+    using Set_image_code(5)[of f1 t] by simp
+
+
+  have "set_as_map_image (RBT_set t) f1 = (\<lambda>x. if \<exists>z. (x, z) \<in> f1 ` RBT_set t then Some {z. (x, z) \<in> f1 ` RBT_set t} else None)"
+    unfolding set_as_map_image_def set_as_map_def by blast
+
+  let ?f' = "\<lambda> t . (RBT_Set2.fold (\<lambda> kv m1 .
+                        ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)))
+                      t
+                      Mapping.empty)"
+
+  let ?f = "\<lambda> xs . (fold (\<lambda> kv m1 . case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1))
+                            xs Mapping.empty)"
+  have "\<And> xs :: ('a1 \<times> 'a2) list . Mapping.lookup (?f xs) = (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None)"
+  proof -
+    fix xs :: "('a1 \<times> 'a2) list"
+    show "Mapping.lookup (?f xs) = (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None)"
+    proof (induction xs rule: rev_induct)
+      case Nil
+      then show ?case 
+        by (simp add: Mapping.empty.abs_eq Mapping.lookup.abs_eq) 
+    next
+      case (snoc xz xs)
+      then obtain x z where "f1  xz = (x,z)" 
+        by (metis (mono_tags, hide_lams) surj_pair)
+  
+      then have *: "(?f (xs@[xz])) = (case Mapping.lookup (?f xs) x of
+                                  None \<Rightarrow> Mapping.update x {z} (?f xs) |
+                                  Some zs \<Rightarrow> Mapping.update x (Set.insert z zs) (?f xs))"
+        by auto
+  
+      then show ?case proof (cases "Mapping.lookup (?f xs) x")
+        case None
+        then have **: "Mapping.lookup (?f (xs@[xz])) = Mapping.lookup (Mapping.update x {z} (?f xs))" using * by auto
+  
+        have scheme: "\<And> m k v . Mapping.lookup (Mapping.update k v m) = (\<lambda>k' . if k' = k then Some v else Mapping.lookup m k')"
+          by (metis lookup_update')
+  
+  
+        have m1: "Mapping.lookup (?f (xs@[xz])) = (\<lambda> x' . if x' = x then Some {z} else Mapping.lookup (?f xs) x')"
+          unfolding ** 
+          unfolding scheme by force
+  
+        have "(\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None) x = None"
+        using None snoc by auto
+        then have "\<not>(\<exists> z . (x,z) \<in> f1 ` set xs)"
+          by (metis (mono_tags, lifting) option.distinct(1))
+        then have "(\<exists> z' . (x,z') \<in> f1 ` set (xs@[xz]))" and "{z' . (x,z') \<in> f1 ` set (xs@[xz])} = {z}"
+          using \<open>f1  xz = (x,z)\<close> by fastforce+
+        then have m2: "(\<lambda> x' . if (\<exists> z' . (x',z') \<in> f1 ` set (xs@[xz])) then Some {z' . (x',z') \<in> f1 ` set (xs@[xz])} else None)
+                     = (\<lambda> x' . if x' = x then Some {z} else (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None) x')"
+          using \<open>f1  xz = (x,z)\<close> by fastforce
+        
+        show ?thesis using m1 m2 snoc
+          using \<open>f1 xz = (x, z)\<close> by presburger
+      next
+        case (Some zs)
+        then have **: "Mapping.lookup (?f (xs@[xz])) = Mapping.lookup (Mapping.update x (Set.insert z zs) (?f xs))" using * by auto
+        have scheme: "\<And> m k v . Mapping.lookup (Mapping.update k v m) = (\<lambda>k' . if k' = k then Some v else Mapping.lookup m k')"
+          by (metis lookup_update')
+  
+        have m1: "Mapping.lookup (?f (xs@[xz])) = (\<lambda> x' . if x' = x then Some (Set.insert z zs) else Mapping.lookup (?f xs) x')"
+          unfolding ** 
+          unfolding scheme by force
+  
+  
+        have "(\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None) x = Some zs"
+          using Some snoc by auto
+        then have "(\<exists> z' . (x,z') \<in> f1 ` set xs)"
+          unfolding case_prod_conv using  option.distinct(2) by metis
+        then have "(\<exists> z' . (x,z') \<in> f1 ` set (xs@[xz]))" by fastforce
+  
+        have "{z' . (x,z') \<in> f1 ` set (xs@[xz])} = Set.insert z zs"
+        proof -
+          have "Some {z . (x,z) \<in> f1 ` set xs} = Some zs"
+            using \<open>(\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None) x = Some zs\<close>
+            unfolding case_prod_conv using  option.distinct(2) by metis
+          then have "{z . (x,z) \<in> f1 ` set xs} = zs" by auto
+          then show ?thesis 
+            using \<open>f1 xz = (x, z)\<close> by auto
+        qed
+  
+        have "\<And> a  . (\<lambda> x' . if (\<exists> z' . (x',z') \<in> f1 ` set (xs@[xz])) then Some {z' . (x',z') \<in> f1 ` set (xs@[xz])} else None) a
+                   = (\<lambda> x' . if x' = x then Some (Set.insert z zs) else (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None) x') a" 
+        proof -
+          fix a show "(\<lambda> x' . if (\<exists> z' . (x',z') \<in> f1 ` set (xs@[xz])) then Some {z' . (x',z') \<in> f1 ` set (xs@[xz])} else None) a
+                     = (\<lambda> x' . if x' = x then Some (Set.insert z zs) else (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None) x') a"
+          using \<open>{z' . (x,z') \<in> f1 ` set (xs@[xz])} = Set.insert z zs\<close> \<open>(\<exists> z' . (x,z') \<in> f1 ` set (xs@[xz]))\<close> \<open>f1 xz = (x, z)\<close>
+          by (cases "a = x"; auto)
+        qed
+
+        then have m2: "(\<lambda> x' . if (\<exists> z' . (x',z') \<in> f1 ` set (xs@[xz])) then Some {z' . (x',z') \<in> f1 ` set (xs@[xz])} else None)
+                     = (\<lambda> x' . if x' = x then Some (Set.insert z zs) else (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set xs) then Some {z . (x,z) \<in> f1 ` set xs} else None) x')"
+          by auto
+  
+  
+        show ?thesis using m1 m2 snoc
+          using \<open>f1 xz = (x, z)\<close> by presburger
+      qed
+    qed
+  qed
+
+
+  
+  then have "Mapping.lookup (?f' t) = (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` set (RBT_Set2.keys t)) then Some {z . (x,z) \<in> f1 ` set (RBT_Set2.keys t)} else None)"
+    unfolding fold_conv_fold_keys by metis
+  moreover have "set (RBT_Set2.keys t) = (RBT_set t)" 
+    using Some by (simp add: RBT_set_conv_keys) 
+  ultimately have "Mapping.lookup (?f' t) = (\<lambda> x . if (\<exists> z . (x,z) \<in> f1 ` (RBT_set t)) then Some {z . (x,z) \<in> f1 ` (RBT_set t)} else None)"
+    by force
+  then show ?thesis 
+    using Some unfolding set_as_map_image_def set_as_map_def by simp
+qed
+
+end (*
+  thm set_as_map_refined(1)
+  
+  thm fold_conv_fold_keys
+
+  show ?thesis sorry
+qed
+  unfolding set_as_map_image_def set_as_map_refined
+  using Set_image_code(5)
   sorry
 
 
@@ -648,7 +776,7 @@ lemma dual_set_as_map_image_code[code] :
                       t
                       (Mapping.empty,Mapping.empty))
                      in (Mapping.lookup (fst mm), Mapping.lookup (snd mm)) |
-           None   \<Rightarrow> Code.abort (STR ''set_as_map RBT_set: ccompare = None'') 
+           None   \<Rightarrow> Code.abort (STR ''dual_set_as_map_image RBT_set: ccompare = None'') 
                                 (\<lambda>_. (set_as_map (image f1 (RBT_set t)), set_as_map (image f2 (RBT_set t)))))"
   sorry
 
