@@ -735,6 +735,38 @@ export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM
 
 
 
+declare [[code drop: prefix_pair_tests]]
+lemma prefix_pair_tests_refined[code] :
+fixes t :: "(('a ::ccompare,'b::ccompare,'c::ccompare) traversal_Path \<times> ('a set \<times> 'a set)) set_rbt" 
+shows "prefix_pair_tests q (RBT_set t) = set 
+  (concat (map (\<lambda> (p,(rd,dr)) . 
+                    (concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))])
+                                  (filter (\<lambda> (p1,p2) . (target q p1) \<noteq> (target q p2) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd) (prefix_pairs p)))))
+               (RBT_Set2.keys t)))"
+  sorry
+
+
+declare [[code drop: preamble_prefix_tests]]
+lemma preamble_prefix_tests_refined[code] :
+  fixes t1 :: "(('a ::ccompare,'b::ccompare,'c::ccompare) traversal_Path \<times> ('a set \<times> 'a set)) set_rbt"  
+  and   t2 :: "'a set_rbt"
+shows "preamble_prefix_tests q (RBT_set t1) (RBT_set t2) = set
+  (concat (map (\<lambda> (p,(rd,dr)) . 
+                 (concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))])     
+                             (filter (\<lambda> (p1,q2) . (target q p1) \<noteq> q2 \<and> (target q p1) \<in> rd \<and> q2 \<in> rd) 
+                                     (cartesian_product_list (prefixes p) (RBT_Set2.keys t2))))))
+                 (RBT_Set2.keys t1)))"
+  sorry
+
+
+export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual3
+
+
+
+end (*
+(\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) pds))"
+
+
 subsection \<open>New Code Equation for m_traversal_paths_with_witness_up_to_length\<close>
 
 
