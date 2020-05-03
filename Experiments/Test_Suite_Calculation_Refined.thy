@@ -600,9 +600,9 @@ subsection \<open>Export Test Suite Generator\<close>
 definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
   "generate_test_suite M m = calculate_test_suite_example_as_io_sequences M (nat_of_integer m)"
 
-
+(*
 export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5a
-
+*)
 
 
 
@@ -894,9 +894,9 @@ next
 qed
 
 
-
+(*
 export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual2
-
+*)
 
 
 
@@ -909,15 +909,14 @@ shows "prefix_pair_tests q (RBT_set t) = (case ID CCOMPARE((('a,'b,'c) traversal
                       (concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))])
                                     (filter (\<lambda> (p1,p2) . (target q p1) \<noteq> (target q p2) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd) (prefix_pairs p)))))
                  (RBT_Set2.keys t))) |
-  None   \<Rightarrow> Code.abort (STR ''dual_set_as_map_image RBT_set: ccompare = None'') 
+  None   \<Rightarrow> Code.abort (STR ''prefix_pair_tests RBT_set: ccompare = None'') 
                                   (\<lambda>_. (prefix_pair_tests q (RBT_set t))))"
   (is "prefix_pair_tests q (RBT_set t) = ?C")
 proof (cases "ID CCOMPARE((('a ::ccompare,'b::ccompare,'c::ccompare) traversal_Path \<times> ('a set \<times> 'a set)))")
   case None
   then show ?thesis by auto
 next
-  case (Some a)
-  
+  case (Some a) 
   
 
   have *: "?C = (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) (set (RBT_Set2.keys t))))"
@@ -988,24 +987,125 @@ declare [[code drop: preamble_prefix_tests]]
 lemma preamble_prefix_tests_refined[code] :
   fixes t1 :: "(('a ::ccompare,'b::ccompare,'c::ccompare) traversal_Path \<times> ('a set \<times> 'a set)) set_rbt"  
   and   t2 :: "'a set_rbt"
-shows "preamble_prefix_tests q (RBT_set t1) (RBT_set t2) = set
-  (concat (map (\<lambda> (p,(rd,dr)) . 
+shows "preamble_prefix_tests q (RBT_set t1) (RBT_set t2) = (case ID CCOMPARE((('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set))) of
+Some _ \<Rightarrow> (case ID CCOMPARE('a) of
+  Some _ \<Rightarrow> set (concat (map (\<lambda> (p,(rd,dr)) . 
                  (concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))])     
                              (filter (\<lambda> (p1,q2) . (target q p1) \<noteq> q2 \<and> (target q p1) \<in> rd \<and> q2 \<in> rd) 
                                      (cartesian_product_list (prefixes p) (RBT_Set2.keys t2))))))
-                 (RBT_Set2.keys t1)))"
-  sorry
+                 (RBT_Set2.keys t1))) |
+  None \<Rightarrow> Code.abort (STR ''prefix_pair_tests RBT_set: ccompare = None'') (\<lambda>_. (preamble_prefix_tests q (RBT_set t1) (RBT_set t2)))) |
+None \<Rightarrow> Code.abort (STR ''prefix_pair_tests RBT_set: ccompare = None'') (\<lambda>_. (preamble_prefix_tests q (RBT_set t1) (RBT_set t2))))"
+  (is "preamble_prefix_tests q (RBT_set t1) (RBT_set t2) = ?C")
+proof (cases "ID CCOMPARE((('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set)))")
+  case None
+  then show ?thesis by auto
+next
+  case (Some a)
+  then have k1: "(RBT_set t1) = set (RBT_Set2.keys t1)" 
+    by (simp add: RBT_set_conv_keys)
+  
+  show ?thesis proof (cases "ID CCOMPARE('a)")
+    case None
+    then show ?thesis using Some by auto
+  next
+    case (Some b)
+    then have k2: "(RBT_set t2) = set (RBT_Set2.keys t2)" 
+      by (simp add: RBT_set_conv_keys)
+
+    have "preamble_prefix_tests q (RBT_set t1) (RBT_set t2) = (\<Union>(p, rd, dr)\<in> set (RBT_Set2.keys t1). \<Union>(p1, q2)\<in>Set.filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (set (prefixes p) \<times> (set (RBT_Set2.keys t2))). {(q, p1, q2), (q2, [], target q p1)})"
+      unfolding preamble_prefix_tests_code  k1 k2 by simp
+      
+
+    moreover have "?C = (\<Union>(p, rd, dr)\<in> set (RBT_Set2.keys t1). \<Union>(p1, q2)\<in>Set.filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (set (prefixes p) \<times> (set (RBT_Set2.keys t2))). {(q, p1, q2), (q2, [], target q p1)})"
+    proof -
+      let ?S1 = "set (concat (map (\<lambda> (p,(rd,dr)) . (concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))]) (filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))))) (RBT_Set2.keys t1)))"
+      let ?S2 = "(\<Union>(p, rd, dr)\<in> set (RBT_Set2.keys t1). \<Union>(p1, q2)\<in>Set.filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (set (prefixes p) \<times> (set (RBT_Set2.keys t2))). {(q, p1, q2), (q2, [], target q p1)})"
+  
+      have *: "?C = ?S1" 
+      proof -
+        have *: "\<And> rd p . (filter (\<lambda> (p1,q2) . (target q p1) \<noteq> q2 \<and> (target q p1) \<in> rd \<and> q2 \<in> rd) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2))) = (filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))"
+          by meson
+        have "?C = set (concat (map (\<lambda> (p,(rd,dr)) . (concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))]) (filter (\<lambda> (p1,q2) . (target q p1) \<noteq> q2 \<and> (target q p1) \<in> rd \<and> q2 \<in> rd) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))))) (RBT_Set2.keys t1)))"
+          using Some \<open>ID ccompare = Some a\<close> by auto
+        then show ?thesis 
+          unfolding * by presburger
+      qed
+  
+      have union_filter_helper: "\<And> xs f x1 x2  y . y \<in> f (x1,x2) \<Longrightarrow> (x1,x2) \<in> set xs \<Longrightarrow> y \<in> \<Union> (set (map f xs))"
+        by auto 
+      have concat_set_helper : "\<And> xss xs x . x \<in> set xs \<Longrightarrow> xs \<in> set xss \<Longrightarrow> x \<in> set (concat xss)" 
+        by auto
+  
+      have "\<And> x . x \<in> ?S1 \<Longrightarrow> x \<in> ?S2" 
+      proof -
+        fix x assume "x \<in> ?S1"
+        
+        obtain prddr where "prddr \<in> set (RBT_Set2.keys t1)"
+                            and   "x \<in> set ((\<lambda> (p,(rd,dr)) . (concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))]) (filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))))) prddr)"
+          using concat_map_elem[OF \<open>x \<in> ?S1\<close>] by blast
+
+        moreover obtain p rd dr where "prddr = (p,(rd,dr))"
+          using prod_cases3 by blast 
+        
+        ultimately have "(p,(rd,dr)) \<in> set (RBT_Set2.keys t1)"
+                   and  "x \<in> set ((concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))]) (filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2))))))"
+          by auto
+        then obtain p1 q2 where "(p1,q2) \<in> set ((filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2))))"
+                          and   "x \<in> set [(q,p1,q2), (q2,[],(target q p1))]"
+          by auto
+
+        then have "x \<in> {(q,p1,q2), (q2,[],(target q p1))}"
+          by auto
+        then have "x \<in> \<Union> (set (map (\<lambda>(p1, q2). {(q, p1, q2), (q2, [], target q p1)}) (filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))))"
+          using union_filter_helper[OF _ \<open>(p1,q2) \<in> set ((filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2))))\<close>, of x "(\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))})"] by simp
+        then have "x \<in> (\<Union>(p1, q2)\<in>Set.filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (set (prefixes p) \<times> (set (RBT_Set2.keys t2))). {(q, p1, q2), (q2, [], target q p1)})"
+          by auto
+        then show "x \<in> ?S2"
+          using \<open>(p,(rd,dr)) \<in> set (RBT_Set2.keys t1)\<close> by blast
+      qed
+
+      moreover have "\<And> x . x \<in> ?S2 \<Longrightarrow> x \<in> ?S1"
+      proof -
+        fix x assume "x \<in> ?S2"
+        then obtain p rd dr p1 q2 where "(p, rd, dr)\<in> set (RBT_Set2.keys t1)"
+                                  and   "(p1, q2)\<in>Set.filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (set (prefixes p) \<times> (set (RBT_Set2.keys t2)))"
+                                  and   "x \<in> {(q, p1, q2), (q2, [], target q p1)}"
+          by blast
+
+        then have *:"x \<in> set [(q, p1, q2), (q2, [], target q p1)]"
+          by auto
+
+        have "(p1,q2) \<in> set (filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))"
+          using \<open>(p1, q2)\<in>Set.filter (\<lambda>(p1, q2). target q p1 \<in> rd \<and> q2 \<in> rd \<and> target q p1 \<noteq> q2) (set (prefixes p) \<times> (set (RBT_Set2.keys t2)))\<close>
+          using cartesian_product_list_set
+          by auto 
+        then have **:"[(q, p1, q2), (q2, [], target q p1)] \<in> set ((map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))]) (filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))))"
+          by force
+        
+          
+        have ***: "(concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))]) (filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2))))) \<in> set (map (\<lambda> (p,(rd,dr)) . (concat (map (\<lambda> (p1,q2) . [(q,p1,q2), (q2,[],(target q p1))]) (filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) (cartesian_product_list (prefixes p) (RBT_Set2.keys t2)))))) (RBT_Set2.keys t1))"
+          using \<open>(p, rd, dr)\<in> set (RBT_Set2.keys t1)\<close> by force
+
+        
+        show "x \<in> ?S1"
+          using concat_set_helper[OF concat_set_helper[OF * **] ***] by assumption
+      qed
+
+      ultimately show ?thesis unfolding * by blast
+    qed
+
+    ultimately show ?thesis by simp
+  qed
+qed
 
 
-end (*
+
 
 export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual3
 
 
-
 end (*
-(\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union>(image (\<lambda> (p1,q2) . {(q,p1,q2), (q2,[],(target q p1))}) (Set.filter (\<lambda> (p1,q2) . (target q p1) \<in> rd \<and> q2 \<in> rd \<and> (target q p1) \<noteq> q2) ((set (prefixes p)) \<times> drs)))) pds))"
-
 
 subsection \<open>New Code Equation for m_traversal_paths_with_witness_up_to_length\<close>
 

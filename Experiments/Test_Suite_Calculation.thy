@@ -1391,6 +1391,8 @@ definition ex04 where "ex04 = calculate_test_suite_example_as_io_sequences m_ex_
 definition ex05 where "ex05 = calculate_test_suite_example_as_io_sequences m_ex_DR 8"
 definition ex06 where "ex06 = calculate_test_suite_example_as_io_sequences m_ex_DR (size m_ex_DR)"
 
+(*
 export_code ex01 ex02 ex02b ex03 ex04 ex05 ex06 in Haskell module_name FSM4o
+*)
 
 end
