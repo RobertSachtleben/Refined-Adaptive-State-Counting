@@ -607,7 +607,9 @@ export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM
 
 
 
-subsubsection \<open>Dual set_as_map With Image\<close>
+subsubsection \<open>Special Handling for set_as_map With Image\<close>
+
+text \<open>Avoid creating an intermediate set (image f xs) when evaluating (set_as_map (image f xs)).\<close>
 
 definition set_as_map_image :: "('a1 \<times> 'a2) set \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('b1 \<times> 'b2)) \<Rightarrow> ('b1 \<Rightarrow> 'b2 set option)" where 
   "set_as_map_image xs f = (set_as_map (image f xs))"
@@ -638,12 +640,6 @@ proof (cases "ID CCOMPARE(('a1 \<times> 'a2))")
   then show ?thesis by auto
 next
   case (Some a)
-  then have *: "f1 ` RBT_set t = RBT_Set2.fold (Set.insert \<circ> f1) t {}"
-    using Set_image_code(5)[of f1 t] by simp
-
-
-  have "set_as_map_image (RBT_set t) f1 = (\<lambda>x. if \<exists>z. (x, z) \<in> f1 ` RBT_set t then Some {z. (x, z) \<in> f1 ` RBT_set t} else None)"
-    unfolding set_as_map_image_def set_as_map_def by blast
 
   let ?f' = "\<lambda> t . (RBT_Set2.fold (\<lambda> kv m1 .
                         ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)))
@@ -753,16 +749,15 @@ next
     using Some unfolding set_as_map_image_def set_as_map_def by simp
 qed
 
-end (*
-  thm set_as_map_refined(1)
-  
-  thm fold_conv_fold_keys
 
-  show ?thesis sorry
-qed
-  unfolding set_as_map_image_def set_as_map_refined
-  using Set_image_code(5)
-  sorry
+
+
+
+
+
+
+lemma fold_dual : "fold (\<lambda> x (a1,a2) . (g1 x a1, g2 x a2)) xs (a1,a2) = (fold g1 xs a1, fold g2 xs a2)"
+  by (induction xs arbitrary: a1 a2; auto)
 
 
 lemma dual_set_as_map_image_code[code] :
@@ -777,8 +772,50 @@ lemma dual_set_as_map_image_code[code] :
                       (Mapping.empty,Mapping.empty))
                      in (Mapping.lookup (fst mm), Mapping.lookup (snd mm)) |
            None   \<Rightarrow> Code.abort (STR ''dual_set_as_map_image RBT_set: ccompare = None'') 
-                                (\<lambda>_. (set_as_map (image f1 (RBT_set t)), set_as_map (image f2 (RBT_set t)))))"
-  sorry
+                                (\<lambda>_. (dual_set_as_map_image (RBT_set t) f1 f2)))"
+proof (cases "ID CCOMPARE(('a1 \<times> 'a2))")
+  case None
+  then show ?thesis by auto
+next
+  case (Some a)
+
+  let ?f1 = "\<lambda> xs . (fold (\<lambda> kv m . case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m (x) of None \<Rightarrow> Mapping.update (x) {z} m | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m)) xs Mapping.empty)"
+  let ?f2 = "\<lambda> xs . (fold (\<lambda> kv m . case f2 kv of (x,z) \<Rightarrow> (case Mapping.lookup m (x) of None \<Rightarrow> Mapping.update (x) {z} m | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m)) xs Mapping.empty)"
+
+  let ?f12 = "\<lambda> xs . fold (\<lambda> kv (m1,m2) .
+                        ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)
+                        , case f2 kv of (x,z) \<Rightarrow> (case Mapping.lookup m2 (x) of None \<Rightarrow> Mapping.update (x) {z} m2 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m2)))
+                      xs
+                      (Mapping.empty,Mapping.empty)"
+
+  let ?f1' = "\<lambda> t . (RBT_Set2.fold (\<lambda> kv m . case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m (x) of None \<Rightarrow> Mapping.update (x) {z} m | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m)) t Mapping.empty)"
+  let ?f2' = "\<lambda> t . (RBT_Set2.fold (\<lambda> kv m . case f2 kv of (x,z) \<Rightarrow> (case Mapping.lookup m (x) of None \<Rightarrow> Mapping.update (x) {z} m | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m)) t Mapping.empty)"
+
+  let ?f12' = "\<lambda> t . RBT_Set2.fold (\<lambda> kv (m1,m2) .
+                        ( case f1 kv of (x,z) \<Rightarrow> (case Mapping.lookup m1 (x) of None \<Rightarrow> Mapping.update (x) {z} m1 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m1)
+                        , case f2 kv of (x,z) \<Rightarrow> (case Mapping.lookup m2 (x) of None \<Rightarrow> Mapping.update (x) {z} m2 | Some zs \<Rightarrow> Mapping.update (x) (Set.insert z zs) m2)))
+                      t
+                      (Mapping.empty,Mapping.empty)"
+
+  have "\<And>xs . ?f12 xs = (?f1 xs, ?f2 xs)"
+    unfolding fold_dual[symmetric] by simp
+  then have "?f12 (RBT_Set2.keys t) = (?f1 (RBT_Set2.keys t), ?f2 (RBT_Set2.keys t))"
+    by simp
+  then have "?f12' t = (?f1' t, ?f2' t)"
+    unfolding fold_conv_fold_keys by metis
+
+  have "Mapping.lookup (fst (?f12' t)) = set_as_map (f1 ` (RBT_set t))" 
+    unfolding \<open>?f12' t = (?f1' t, ?f2' t)\<close> fst_conv set_as_map_image_def[symmetric]
+    using set_as_map_image_code[of t f1] Some by simp
+  moreover have "Mapping.lookup (snd (?f12' t)) = set_as_map (f2 ` (RBT_set t))" 
+    unfolding \<open>?f12' t = (?f1' t, ?f2' t)\<close> snd_conv set_as_map_image_def[symmetric]
+    using set_as_map_image_code[of t f2] Some by simp
+  ultimately show ?thesis
+    unfolding dual_set_as_map_image_def Let_def using Some by simp
+qed
+
+
+
 
 
 (* use set_as_map_image wherever a set_as_map (image ... ) occurs *)
