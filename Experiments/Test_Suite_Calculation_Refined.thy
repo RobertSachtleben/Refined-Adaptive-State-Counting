@@ -903,12 +903,85 @@ export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM
 declare [[code drop: prefix_pair_tests]]
 lemma prefix_pair_tests_refined[code] :
 fixes t :: "(('a ::ccompare,'b::ccompare,'c::ccompare) traversal_Path \<times> ('a set \<times> 'a set)) set_rbt" 
-shows "prefix_pair_tests q (RBT_set t) = set 
-  (concat (map (\<lambda> (p,(rd,dr)) . 
-                    (concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))])
-                                  (filter (\<lambda> (p1,p2) . (target q p1) \<noteq> (target q p2) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd) (prefix_pairs p)))))
-               (RBT_Set2.keys t)))"
-  sorry
+shows "prefix_pair_tests q (RBT_set t) = (case ID CCOMPARE((('a,'b,'c) traversal_Path \<times> ('a set \<times> 'a set))) of
+  Some _ \<Rightarrow> set 
+    (concat (map (\<lambda> (p,(rd,dr)) . 
+                      (concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))])
+                                    (filter (\<lambda> (p1,p2) . (target q p1) \<noteq> (target q p2) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd) (prefix_pairs p)))))
+                 (RBT_Set2.keys t))) |
+  None   \<Rightarrow> Code.abort (STR ''dual_set_as_map_image RBT_set: ccompare = None'') 
+                                  (\<lambda>_. (prefix_pair_tests q (RBT_set t))))"
+  (is "prefix_pair_tests q (RBT_set t) = ?C")
+proof (cases "ID CCOMPARE((('a ::ccompare,'b::ccompare,'c::ccompare) traversal_Path \<times> ('a set \<times> 'a set)))")
+  case None
+  then show ?thesis by auto
+next
+  case (Some a)
+  
+  
+
+  have *: "?C = (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) (set (RBT_Set2.keys t))))"
+  proof -
+    let ?S1 = "set (concat (map (\<lambda> (p,(rd,dr)) . (concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))]) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) (RBT_Set2.keys t)))"
+    let ?S2 = "(\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) (set (RBT_Set2.keys t))))"
+
+    have *: "?C = ?S1"
+    proof -
+      have *: "\<And> rd p . (filter (\<lambda> (p1,p2) . (target q p1) \<noteq> (target q p2) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd) (prefix_pairs p)) = (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))"
+        by meson
+      have "?C = set (concat (map (\<lambda> (p,(rd,dr)) . (concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))]) (filter (\<lambda> (p1,p2) . (target q p1) \<noteq> (target q p2) \<and> (target q p1) \<in> rd \<and> (target q p2) \<in> rd) (prefix_pairs p))))) (RBT_Set2.keys t)))"
+        using Some by auto
+      then show ?thesis 
+        unfolding * by presburger
+    qed
+
+    have union_filter_helper: "\<And> xs f x1 x2  y . y \<in> f (x1,x2) \<Longrightarrow> (x1,x2) \<in> set xs \<Longrightarrow> y \<in> \<Union> (set (map f xs))"
+      by auto 
+    have concat_set_helper : "\<And> xss xs x . x \<in> set xs \<Longrightarrow> xs \<in> set xss \<Longrightarrow> x \<in> set (concat xss)" 
+      by auto
+
+    have "\<And> x . x \<in> ?S1 \<Longrightarrow> x \<in> ?S2" 
+    proof -
+      fix x assume "x \<in> ?S1"
+      then obtain p rd dr p1 p2 where "(p,(rd,dr)) \<in> set (RBT_Set2.keys t)"
+                                and   "(p1,p2) \<in> set ((filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p)))"
+                                and   "x \<in> set [(q,p1,(target q p2)), (q,p2,(target q p1))]"
+        by auto
+      then have "x \<in> {(q,p1,(target q p2)), (q,p2,(target q p1))}"
+        by auto
+      then have "x \<in> \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))"
+        using union_filter_helper[OF _ \<open>(p1,p2) \<in> set ((filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p)))\<close>, of x "(\<lambda>(p1, p2). {(q, p1, target q p2), (q, p2, target q p1)})"] by simp
+      then show "x \<in> ?S2"
+        using \<open>(p,(rd,dr)) \<in> set (RBT_Set2.keys t)\<close> by blast
+    qed
+
+    moreover have "\<And> x . x \<in> ?S2 \<Longrightarrow> x \<in> ?S1" 
+    proof -
+      fix x assume "x \<in> ?S2"
+      then obtain p rd dr p1 p2 where "(p,(rd,dr)) \<in> set (RBT_Set2.keys t)"
+                                and   "(p1,p2) \<in> set ((filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p)))"
+                                and   "x \<in> {(q,p1,(target q p2)), (q,p2,(target q p1))}"
+        by auto
+      
+      then have *: "x \<in> set [(q,p1,(target q p2)), (q,p2,(target q p1))]" by auto
+      have **: "[(q,p1,(target q p2)), (q,p2,(target q p1))] \<in> set (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))]) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p)))"
+        using \<open>(p1,p2) \<in> set ((filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p)))\<close> by force
+      have ***: "(concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))]) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p)))) \<in> set ((map (\<lambda> (p,(rd,dr)) . (concat (map (\<lambda> (p1,p2) . [(q,p1,(target q p2)), (q,p2,(target q p1))]) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) (RBT_Set2.keys t)))"
+        using \<open>(p,(rd,dr)) \<in> set (RBT_Set2.keys t)\<close> by force
+      
+      show "x \<in> ?S1"
+        using concat_set_helper[OF concat_set_helper[OF * **] ***] by assumption
+    qed
+  
+    ultimately show ?thesis unfolding * by blast
+  qed
+
+  show ?thesis
+    unfolding * unfolding prefix_pair_tests_code 
+    using Some by (simp add: RBT_set_conv_keys)
+qed
+
+
 
 
 declare [[code drop: preamble_prefix_tests]]
@@ -923,6 +996,8 @@ shows "preamble_prefix_tests q (RBT_set t1) (RBT_set t2) = set
                  (RBT_Set2.keys t1)))"
   sorry
 
+
+end (*
 
 export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual3
 
