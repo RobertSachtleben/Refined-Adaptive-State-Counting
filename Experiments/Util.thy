@@ -378,7 +378,8 @@ value "cartesian_product_list [1,2,3::nat] [10,20,30::nat]"
 lemma cartesian_product_list_set : "set (cartesian_product_list xs ys) = {(x,y) | x y . x \<in> set xs \<and> y \<in> set ys}"
   by auto
 
-
+lemma cartesian_product_list_set' : "set (cartesian_product_list xs ys) = (set xs) \<times> (set ys)"
+  by auto
 
 subsection \<open>Filter\<close>
 

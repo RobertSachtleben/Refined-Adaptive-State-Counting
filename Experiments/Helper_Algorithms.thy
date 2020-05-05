@@ -10,7 +10,7 @@ definition r_distinguishable_state_pairs_with_separators :: "('a::linorder,'b::l
                                                                                 \<and> ((q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some Sep)
                                                                                   \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some Sep)) }"
 
-lemma r_distinguishable_state_pairs_with_separators_code[code] :
+lemma r_distinguishable_state_pairs_with_separators_code :
   "r_distinguishable_state_pairs_with_separators M = 
     \<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
   (is "?P1 = ?P2")
@@ -80,9 +80,104 @@ proof -
 qed
 
 
+lemma r_distinguishable_state_pairs_with_separators_refined[code] :
+  "r_distinguishable_state_pairs_with_separators M = 
+    set (concat (map 
+                  (\<lambda> ((q1,q2),A) . [((q1,q2),the A),((q2,q1),the A)]) 
+                  (filter (\<lambda> (qq,A) . A \<noteq> None) 
+                          (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                               (filter (\<lambda> (q1,q2) . q1 < q2) 
+                                       (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))))"
+  (is "r_distinguishable_state_pairs_with_separators M = ?C2")
+proof -
+  let ?C1 = "\<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
+
+  have "r_distinguishable_state_pairs_with_separators M = \<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
+    using r_distinguishable_state_pairs_with_separators_code by assumption
+  also have "\<dots> = ?C2"
+  proof 
+    show "?C1 \<subseteq> ?C2"
+    proof 
+      fix x assume "x \<in> ?C1"
+      then obtain q1 q2 A where "x = ((q1,q2),A)"
+        by (metis eq_snd_iff)
+      then have "((q1,q2),A) \<in> ?C1" using \<open>x \<in> ?C1\<close> by auto
+      then obtain q1' q2' A' where "((q1,q2),A) \<in> {((q1',q2'),the A'),((q2',q1'),the A')}"
+                             and   "A' \<noteq> None"
+                             and   "((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))"
+        by force
+      
+      then have "A' = Some A"
+        by (metis (no_types, lifting) empty_iff insert_iff old.prod.inject option.collapse)  
+      
+      moreover have "A' = state_separator_from_s_states M q1' q2'"
+               and  "q1' < q2'"
+               and  "q1' \<in> nodes M"
+               and  "q2' \<in> nodes M"
+        using \<open>((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))\<close> 
+        by force+
+      ultimately have "state_separator_from_s_states M q1' q2' = Some A" 
+                 and  "(q1',q2') \<in> set (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))"
+        using cartesian_product_list_set' unfolding nodes_as_list_set[symmetric] by auto
+
+      then have "((q1',q2'),A') \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
+        using \<open>A' = state_separator_from_s_states M q1' q2'\<close> \<open>A' = Some A\<close> by force
+
+      have scheme1: "\<And> f xs x . x \<in> set xs \<Longrightarrow> f x \<in> set (map f xs)" by auto
+      have scheme2: "\<And> x xs xss . xs \<in> set xss \<Longrightarrow> x \<in> set xs \<Longrightarrow> x \<in> set (concat xss)" by auto
+      have *:"[((q1',q2'),the A'),((q2',q1'),the A')] \<in> set (map (\<lambda> ((q1,q2),A) . [((q1,q2),the A),((q2,q1),the A)]) (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M))))))"
+        using scheme1[OF \<open>((q1',q2'),A') \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))\<close>, of "\<lambda> ((q1', q2'), A') . [((q1',q2'),the A'),((q2',q1'),the A')]"] by force
+      have **: "((q1,q2),A) \<in> set [((q1',q2'),the A'),((q2',q1'),the A')]"
+        using \<open>((q1,q2),A) \<in> {((q1',q2'),the A'),((q2',q1'),the A')}\<close> by auto
+      
+      show "x \<in> ?C2"
+        unfolding \<open>x = ((q1,q2),A)\<close> using scheme2[OF * **] by assumption
+    qed
+
+    show "?C2 \<subseteq> ?C1"
+    proof 
+      fix x assume "x \<in> ?C2"
+      obtain q1q2A where "x \<in>  set ((\<lambda> ((q1', q2'), A') . [((q1',q2'),the A'),((q2',q1'),the A')]) q1q2A)"
+                   and   "q1q2A \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
+        using concat_map_elem[OF \<open>x \<in> ?C2\<close>] by blast
+
+      moreover obtain q1 q2 A where "q1q2A = ((q1,q2),A)"
+        by (metis prod.collapse)
+        
+      ultimately have "x \<in> set [((q1,q2),the A),((q2,q1),the A)]"
+                 and  "((q1,q2),A) \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
+        by force+
+
+      then have "A = state_separator_from_s_states M q1 q2"
+           and  "A \<noteq> None"
+           and  "(q1,q2) \<in> set (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))"
+        by auto
+
+      then have "q1 < q2" and "q1 \<in> nodes M" and "q2 \<in> nodes M"
+        using cartesian_product_list_set' unfolding nodes_as_list_set[symmetric] by auto
+      then have "(q1,q2) \<in> Set.filter (\<lambda>(q1, q2). q1 < q2) (FSM.nodes M \<times> FSM.nodes M)"
+        by auto
+      then have "((q1,q2),A) \<in> (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M))))"
+        using \<open>A \<noteq> None\<close> unfolding \<open>A = state_separator_from_s_states M q1 q2\<close> by auto
+      then have "{((q1,q2),the A),((q2,q1),the A)} \<in> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
+        by (metis (no_types, lifting) \<open>q1q2A = ((q1, q2), A)\<close> case_prod_conv image_iff)
+      then show "x \<in> ?C1"
+        using \<open>x \<in> set [((q1,q2),the A),((q2,q1),the A)]\<close>
+        by (metis (no_types, lifting) UnionI list.simps(15) set_empty2) 
+    qed
+  qed
+         
+  finally show ?thesis .
+qed
+  
+
+
+
+
 
 value "r_distinguishable_state_pairs_with_separators m_ex_H"
 value "r_distinguishable_state_pairs_with_separators m_ex_9"
+
 
 
 
