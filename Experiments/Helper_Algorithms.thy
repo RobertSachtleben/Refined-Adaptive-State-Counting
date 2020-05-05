@@ -239,8 +239,8 @@ lemma d_reachable_states_with_preambles_soundness :
 definition maximal_repetition_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) set" where
   "maximal_repetition_sets_from_separators M = {(S, S \<inter> (image fst (d_reachable_states_with_preambles M))) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}"
 
-definition maximal_repetition_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
-  "maximal_repetition_sets_from_separators_list M = (let DR = (image fst (d_reachable_states_with_preambles M))
+definition maximal_repetition_sets_from_separators_list_naive :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
+  "maximal_repetition_sets_from_separators_list_naive M = (let DR = (image fst (d_reachable_states_with_preambles M))
     in  map (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M))"
 
 
@@ -251,8 +251,8 @@ lemma maximal_repetition_sets_from_separators_code[code]:
 
 (* TODO: decide which code equation to use *)
 lemma maximal_repetition_sets_from_separators_code_alt: 
-  "maximal_repetition_sets_from_separators M = set (maximal_repetition_sets_from_separators_list M)" 
-  unfolding maximal_repetition_sets_from_separators_def maximal_repetition_sets_from_separators_list_def Let_def maximal_pairwise_r_distinguishable_state_sets_from_separators_code by force
+  "maximal_repetition_sets_from_separators M = set (maximal_repetition_sets_from_separators_list_naive M)" 
+  unfolding maximal_repetition_sets_from_separators_def maximal_repetition_sets_from_separators_list_naive_def Let_def maximal_pairwise_r_distinguishable_state_sets_from_separators_code by force
 
 
 value "maximal_repetition_sets_from_separators m_ex_H"
@@ -370,12 +370,16 @@ qed
 
 
 (* Greedy algorithm that finds one maximal pairwise r-distinguishable set for each state *)
-definition greedy_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
+definition greedy_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set list" where
   "greedy_pairwise_r_distinguishable_state_sets_from_separators M = 
     (let pwrds = image fst (r_distinguishable_state_pairs_with_separators M);
          k     = size M;
          nL    = nodes_as_list M
-     in image (\<lambda>q . set (extend_until_conflict pwrds (remove1 q nL) [q] k)) (nodes M))"
+     in map (\<lambda>q . set (extend_until_conflict pwrds (remove1 q nL) [q] k)) nL)"
+
+definition maximal_repetition_sets_from_separators_list_greedy :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
+  "maximal_repetition_sets_from_separators_list_greedy M = (let DR = (image fst (d_reachable_states_with_preambles M))
+    in  map (\<lambda> S . (S, S \<inter> DR)) (greedy_pairwise_r_distinguishable_state_sets_from_separators M))"
 
 
 
@@ -385,7 +389,7 @@ value "greedy_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
 
 lemma greedy_pairwise_r_distinguishable_state_sets_from_separators_cover :
   assumes "q \<in> nodes M"
-shows "\<exists> S \<in> (greedy_pairwise_r_distinguishable_state_sets_from_separators M). q \<in> S"
+shows "\<exists> S \<in> set (greedy_pairwise_r_distinguishable_state_sets_from_separators M). q \<in> S"
   using assms extend_until_conflict_retainment[of q "[q]"]
   unfolding nodes_as_list_set[symmetric] greedy_pairwise_r_distinguishable_state_sets_from_separators_def Let_def
   by auto
@@ -397,12 +401,12 @@ lemma r_distinguishable_state_pairs_with_separators_sym :
 
 
 lemma greedy_pairwise_r_distinguishable_state_sets_from_separators_soundness :
-  "(greedy_pairwise_r_distinguishable_state_sets_from_separators M) \<subseteq> (pairwise_r_distinguishable_state_sets_from_separators M)"
+  "set (greedy_pairwise_r_distinguishable_state_sets_from_separators M) \<subseteq> (pairwise_r_distinguishable_state_sets_from_separators M)"
 proof 
-  fix S assume "S \<in> (greedy_pairwise_r_distinguishable_state_sets_from_separators M)"
+  fix S assume "S \<in> set (greedy_pairwise_r_distinguishable_state_sets_from_separators M)"
   then obtain q' where "q' \<in> nodes M"
                  and   *: "S = set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
-    unfolding greedy_pairwise_r_distinguishable_state_sets_from_separators_def Let_def by auto
+    unfolding greedy_pairwise_r_distinguishable_state_sets_from_separators_def Let_def nodes_as_list_set[symmetric] by auto
 
 
   have "S \<subseteq> nodes M"
