@@ -268,13 +268,12 @@ subsubsection \<open>Calculating Sub-Optimal Repetition Sets\<close>
 text \<open>Finding maximal pairwise r-distinguishable subsets of the node set of some FSM is likely too expensive
       for FSMs containing a large number of r-distinguishable pairs of states\<close>
 
-
-
 fun extend_until_conflict :: "('a \<times> 'a) set \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> 'a list" where
   "extend_until_conflict non_confl_set candidates xs 0 = xs" |
-  "extend_until_conflict non_confl_set candidates xs (Suc k) = (case find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates of
-    Some (x,c') \<Rightarrow> extend_until_conflict non_confl_set c' (x#xs) k |
-    None   \<Rightarrow> xs)"
+  "extend_until_conflict non_confl_set candidates xs (Suc k) = (case dropWhile (\<lambda> x . find (\<lambda> y . (x,y) \<notin> non_confl_set) xs \<noteq> None) candidates of
+    [] \<Rightarrow> xs |
+    (c#cs) \<Rightarrow> extend_until_conflict non_confl_set cs (c#xs) k)"
+
 
 value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [3,2,5,4] [1] 5"
 value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [2,3,4,5] [1] 5"
@@ -287,7 +286,15 @@ using assms proof (induction k arbitrary: candidates xs)
   then show ?case by auto
 next
   case (Suc k)
-  then show ?case by (cases "find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates" ; auto)
+  then show ?case proof (cases "dropWhile (\<lambda> x . find (\<lambda> y . (x,y) \<notin> non_confl_set) xs \<noteq> None) candidates")
+    case Nil
+    then show ?thesis
+      by (metis Suc.prems extend_until_conflict.simps(2) list.simps(4)) 
+  next
+    case (Cons c cs)
+    then show ?thesis
+      by (simp add: Suc.IH Suc.prems) 
+  qed
 qed
 
 lemma extend_until_conflict_elem :
@@ -298,21 +305,20 @@ using assms proof (induction k arbitrary: candidates xs)
   then show ?case by auto
 next
   case (Suc k)
-  then show ?case proof (cases "find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates")
-    case None
-    then have "extend_until_conflict non_confl_set candidates xs (Suc k) = xs" by auto
-    then show ?thesis using Suc.prems by auto
+  then show ?case proof (cases "dropWhile (\<lambda> x . find (\<lambda> y . (x,y) \<notin> non_confl_set) xs \<noteq> None) candidates")
+    case Nil
+    then show ?thesis 
+      by (metis Suc.prems extend_until_conflict.simps(2) list.simps(4)) 
   next
-    case (Some a)
-    then obtain x' c' where *: "find_remove (\<lambda>x. list_all (\<lambda>y. (x, y) \<in> non_confl_set) xs) candidates = Some (x',c')"
-      by force 
-    then have "x \<in> set (extend_until_conflict non_confl_set c' (x'#xs) k)"
-      using Suc.prems by auto
-    then have "x \<in> set (x'#xs) \<or> x \<in> set c'"
-      using Suc.IH by blast
-    then show ?thesis
-      using find_remove_set(2,3)[OF *]
-      by auto 
+    case (Cons c cs)
+    then have "extend_until_conflict non_confl_set candidates xs (Suc k) = extend_until_conflict non_confl_set cs (c#xs) k"
+      by auto
+    then have "x \<in> set (c # xs) \<or> x \<in> set cs"
+      using Suc.IH[of cs "(c#xs)"] Suc.prems by auto
+    moreover have "set (c#cs) \<subseteq> set candidates"
+      using Cons by (metis set_dropWhileD subsetI) 
+    ultimately show ?thesis
+      using set_ConsD by auto 
   qed
 qed
 
@@ -327,37 +333,38 @@ using assms proof (induction k arbitrary: candidates xs)
   then show ?case by auto
 next
   case (Suc k)
-  then show ?case proof (cases "find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates")
-    case None
-    then have "extend_until_conflict non_confl_set candidates xs (Suc k) = xs" by auto
-    then show ?thesis using Suc.prems by auto
+  then show ?case proof (cases "dropWhile (\<lambda> x . find (\<lambda> y . (x,y) \<notin> non_confl_set) xs \<noteq> None) candidates")
+    case Nil
+    then have "extend_until_conflict non_confl_set candidates xs (Suc k) = xs"
+      by (metis extend_until_conflict.simps(2) list.simps(4)) 
+    then show ?thesis 
+      using Suc.prems by auto
   next
-    case (Some a)
-    then obtain x' c' where *: "find_remove (\<lambda>x. list_all (\<lambda>y. (x, y) \<in> non_confl_set) xs) candidates = Some (x',c')"
-      by force 
-    then have xk: "x \<in> set (extend_until_conflict non_confl_set c' (x'#xs) k)"
-         and  yk: "y \<in> set (extend_until_conflict non_confl_set c' (x'#xs) k)"
+    case (Cons c cs)
+    then have "extend_until_conflict non_confl_set candidates xs (Suc k) = extend_until_conflict non_confl_set cs (c#xs) k"
+      by auto
+    then have xk: "x \<in> set (extend_until_conflict non_confl_set cs (c#xs) k)"
+         and  yk: "y \<in> set (extend_until_conflict non_confl_set cs (c#xs) k)"
       using Suc.prems by auto
 
-    have **: "x \<in> set (x'#xs) \<Longrightarrow> y \<in> set (x'#xs) \<Longrightarrow> (x,y) \<in> non_confl_set \<or> (y,x) \<in> non_confl_set"
+    
+
+    have **: "x \<in> set (c#xs) \<Longrightarrow> y \<in> set (c#xs) \<Longrightarrow> (x,y) \<in> non_confl_set \<or> (y,x) \<in> non_confl_set"
     proof -
-      assume "x \<in> set (x'#xs)" and "y \<in> set (x'#xs)"
-      then consider (a1) "x = x' \<and> y \<in> set xs" |
-                    (a2) "y = x' \<and> x \<in> set xs" |
+      have scheme: "\<And> P xs x xs' . dropWhile P xs = (x#xs') \<Longrightarrow> \<not> P x"
+        by (simp add: dropWhile_eq_Cons_conv) 
+      have "find (\<lambda> y . (c,y) \<notin> non_confl_set) xs = None" 
+        using scheme[OF Cons] by simp
+      then have *: "\<And> y . y \<in> set xs \<Longrightarrow> (c,y) \<in> non_confl_set"
+        unfolding find_None_iff by blast
+
+      assume "x \<in> set (c#xs)" and "y \<in> set (c#xs)"
+      then consider (a1) "x = c \<and> y \<in> set xs" |
+                    (a2) "y = c \<and> x \<in> set xs" |
                     (a3) "x \<in> set xs \<and> y \<in> set xs" 
         using \<open>x \<noteq> y\<close> by auto
-      then show ?thesis proof cases
-        case a1
-        then show ?thesis using find_remove_set(1)[OF *]
-          by (metis in_set_conv_decomp_last list.pred_inject(2) list_all_append) 
-      next
-        case a2
-        then show ?thesis using find_remove_set(1)[OF *]
-          by (metis in_set_conv_decomp_last list.pred_inject(2) list_all_append) 
-      next
-        case a3
-        then show ?thesis using Suc.prems(3) by blast
-      qed 
+      then show ?thesis 
+        using * Suc.prems(3) by (cases; auto)
     qed
 
     show ?thesis using Suc.IH[OF xk yk ** Suc.prems(4)] by blast
@@ -379,7 +386,7 @@ definition greedy_pairwise_r_distinguishable_state_sets_from_separators :: "('a:
 
 definition maximal_repetition_sets_from_separators_list_greedy :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
   "maximal_repetition_sets_from_separators_list_greedy M = (let DR = (image fst (d_reachable_states_with_preambles M))
-    in  map (\<lambda> S . (S, S \<inter> DR)) (greedy_pairwise_r_distinguishable_state_sets_from_separators M))"
+    in remdups (map (\<lambda> S . (S, S \<inter> DR)) (greedy_pairwise_r_distinguishable_state_sets_from_separators M)))"
 
 
 

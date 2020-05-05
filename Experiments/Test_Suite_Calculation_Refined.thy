@@ -1115,7 +1115,7 @@ definition count_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarro
 export_code generate_test_suite_naive generate_test_suite_greedy 
             count_test_suite_naive count_maximal_repetition_sets_from_separators_naive 
             count_test_suite_greedy count_maximal_repetition_sets_from_separators_greedy
-            fsm_from_list in Haskell module_name FSMopt
+            fsm_from_list size integer_of_nat in Haskell module_name FSMopt
 
 
 end (*
