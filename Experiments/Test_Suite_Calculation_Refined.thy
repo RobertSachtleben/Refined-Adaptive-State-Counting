@@ -597,12 +597,14 @@ qed
 
 subsection \<open>Export Test Suite Generator\<close>
 
-definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
-  "generate_test_suite M m = calculate_test_suite_example_as_io_sequences M (nat_of_integer m)"
+definition generate_test_suite_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
+  "generate_test_suite_naive M m = calculate_test_suite_naive_as_io_sequences M (nat_of_integer m)"
 
-(*
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5a
-*)
+definition generate_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
+  "generate_test_suite_greedy M m = calculate_test_suite_greedy_as_io_sequences M (nat_of_integer m)"
+
+
+
 
 
 
@@ -614,14 +616,9 @@ text \<open>Avoid creating an intermediate set (image f xs) when evaluating (set
 definition set_as_map_image :: "('a1 \<times> 'a2) set \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('b1 \<times> 'b2)) \<Rightarrow> ('b1 \<Rightarrow> 'b2 set option)" where 
   "set_as_map_image xs f = (set_as_map (image f xs))"
 
+(* combine two separate set_as_map_image calls on the same set *)
 definition dual_set_as_map_image :: "('a1 \<times> 'a2) set \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('b1 \<times> 'b2)) \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('c1 \<times> 'c2)) \<Rightarrow> (('b1 \<Rightarrow> 'b2 set option) \<times> ('c1 \<Rightarrow> 'c2 set option))" where 
   "dual_set_as_map_image xs f1 f2 = (set_as_map (image f1 xs), set_as_map (image f2 xs))"
-
-
-
-
-
-
 
 
 lemma set_as_map_image_code[code]  :
@@ -894,9 +891,7 @@ next
 qed
 
 
-(*
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual2
-*)
+
 
 
 
@@ -1101,19 +1096,26 @@ qed
 
 
 
-(*
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual3
-*)
 
 
 (* integer specialization of maximal_repetition_sets_from_separators_list *)
-definition count_maximal_repetition_sets_from_separators :: "(integer,integer,integer) fsm \<Rightarrow> integer" where
-  "count_maximal_repetition_sets_from_separators M = integer_of_nat (length (maximal_repetition_sets_from_separators_list M))"
+definition count_maximal_repetition_sets_from_separators_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer" where
+  "count_maximal_repetition_sets_from_separators_naive M = integer_of_nat (length (maximal_repetition_sets_from_separators_list_naive M))"
 
-definition count_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> integer" where
-  "count_test_suite M m = integer_of_nat (card (generate_test_suite M m))"
+definition count_test_suite_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> integer" where
+  "count_test_suite_naive M m = integer_of_nat (card (generate_test_suite_naive M m))"
 
-export_code generate_test_suite count_test_suite count_maximal_repetition_sets_from_separators fsm_from_list in Haskell module_name FSMopt
+definition count_maximal_repetition_sets_from_separators_greedy :: "(integer,integer,integer) fsm \<Rightarrow> integer" where
+  "count_maximal_repetition_sets_from_separators_greedy M = integer_of_nat (length (maximal_repetition_sets_from_separators_list_greedy M))"
+
+definition count_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> integer" where
+  "count_test_suite_greedy M m = integer_of_nat (card (generate_test_suite_greedy M m))"
+
+
+export_code generate_test_suite_naive generate_test_suite_greedy 
+            count_test_suite_naive count_maximal_repetition_sets_from_separators_naive 
+            count_test_suite_greedy count_maximal_repetition_sets_from_separators_greedy
+            fsm_from_list in Haskell module_name FSMopt
 
 
 end (*
