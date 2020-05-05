@@ -268,7 +268,7 @@ subsubsection \<open>Calculating Sub-Optimal Repetition Sets\<close>
 text \<open>Finding maximal pairwise r-distinguishable subsets of the node set of some FSM is likely too expensive
       for FSMs containing a large number of r-distinguishable pairs of states\<close>
 
-(* TODO: implement some (approximation?) algorithm based on https://en.wikipedia.org/wiki/Clique_problem#Listing_all_maximal_cliques *)
+
 
 fun extend_until_conflict :: "('a \<times> 'a) set \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> 'a list" where
   "extend_until_conflict non_confl_set candidates xs 0 = xs" |
@@ -279,18 +279,159 @@ fun extend_until_conflict :: "('a \<times> 'a) set \<Rightarrow> 'a list \<Right
 value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [3,2,5,4] [1] 5"
 value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [2,3,4,5] [1] 5"
 
+lemma extend_until_conflict_retainment :
+  assumes "x \<in> set xs"
+  shows "x \<in> set (extend_until_conflict non_confl_set candidates xs k)" 
+using assms proof (induction k arbitrary: candidates xs)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+  then show ?case by (cases "find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates" ; auto)
+qed
+
+lemma extend_until_conflict_elem :
+  assumes "x \<in> set (extend_until_conflict non_confl_set candidates xs k)"
+  shows "x \<in> set xs \<or> x \<in> set candidates"
+using assms proof (induction k arbitrary: candidates xs)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+  then show ?case proof (cases "find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates")
+    case None
+    then have "extend_until_conflict non_confl_set candidates xs (Suc k) = xs" by auto
+    then show ?thesis using Suc.prems by auto
+  next
+    case (Some a)
+    then obtain x' c' where *: "find_remove (\<lambda>x. list_all (\<lambda>y. (x, y) \<in> non_confl_set) xs) candidates = Some (x',c')"
+      by force 
+    then have "x \<in> set (extend_until_conflict non_confl_set c' (x'#xs) k)"
+      using Suc.prems by auto
+    then have "x \<in> set (x'#xs) \<or> x \<in> set c'"
+      using Suc.IH by blast
+    then show ?thesis
+      using find_remove_set(2,3)[OF *]
+      by auto 
+  qed
+qed
+
+lemma extend_until_conflict_no_conflicts :
+  assumes "x \<in> set (extend_until_conflict non_confl_set candidates xs k)"
+  and     "y \<in> set (extend_until_conflict non_confl_set candidates xs k)"
+  and     "x \<in> set xs \<Longrightarrow> y \<in> set xs \<Longrightarrow> (x,y) \<in> non_confl_set \<or> (y,x) \<in> non_confl_set"  
+  and     "x \<noteq> y"  
+shows "(x,y) \<in> non_confl_set \<or> (y,x) \<in> non_confl_set" 
+using assms proof (induction k arbitrary: candidates xs)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+  then show ?case proof (cases "find_remove (\<lambda> x . list_all (\<lambda> y . (x,y) \<in> non_confl_set) xs) candidates")
+    case None
+    then have "extend_until_conflict non_confl_set candidates xs (Suc k) = xs" by auto
+    then show ?thesis using Suc.prems by auto
+  next
+    case (Some a)
+    then obtain x' c' where *: "find_remove (\<lambda>x. list_all (\<lambda>y. (x, y) \<in> non_confl_set) xs) candidates = Some (x',c')"
+      by force 
+    then have xk: "x \<in> set (extend_until_conflict non_confl_set c' (x'#xs) k)"
+         and  yk: "y \<in> set (extend_until_conflict non_confl_set c' (x'#xs) k)"
+      using Suc.prems by auto
+
+    have **: "x \<in> set (x'#xs) \<Longrightarrow> y \<in> set (x'#xs) \<Longrightarrow> (x,y) \<in> non_confl_set \<or> (y,x) \<in> non_confl_set"
+    proof -
+      assume "x \<in> set (x'#xs)" and "y \<in> set (x'#xs)"
+      then consider (a1) "x = x' \<and> y \<in> set xs" |
+                    (a2) "y = x' \<and> x \<in> set xs" |
+                    (a3) "x \<in> set xs \<and> y \<in> set xs" 
+        using \<open>x \<noteq> y\<close> by auto
+      then show ?thesis proof cases
+        case a1
+        then show ?thesis using find_remove_set(1)[OF *]
+          by (metis in_set_conv_decomp_last list.pred_inject(2) list_all_append) 
+      next
+        case a2
+        then show ?thesis using find_remove_set(1)[OF *]
+          by (metis in_set_conv_decomp_last list.pred_inject(2) list_all_append) 
+      next
+        case a3
+        then show ?thesis using Suc.prems(3) by blast
+      qed 
+    qed
+
+    show ?thesis using Suc.IH[OF xk yk ** Suc.prems(4)] by blast
+  qed
+qed
 
 
 
-definition sub_optimal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
-  "sub_optimal_pairwise_r_distinguishable_state_sets_from_separators M = 
+
+
+
+(* Greedy algorithm that finds one maximal pairwise r-distinguishable set for each state *)
+definition greedy_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
+  "greedy_pairwise_r_distinguishable_state_sets_from_separators M = 
     (let pwrds = image fst (r_distinguishable_state_pairs_with_separators M);
          k     = size M;
          nL    = nodes_as_list M
      in image (\<lambda>q . set (extend_until_conflict pwrds (remove1 q nL) [q] k)) (nodes M))"
 
-value "sub_optimal_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
-value "sub_optimal_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
+
+
+
+value "greedy_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
+value "greedy_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
+
+lemma greedy_pairwise_r_distinguishable_state_sets_from_separators_cover :
+  assumes "q \<in> nodes M"
+shows "\<exists> S \<in> (greedy_pairwise_r_distinguishable_state_sets_from_separators M). q \<in> S"
+  using assms extend_until_conflict_retainment[of q "[q]"]
+  unfolding nodes_as_list_set[symmetric] greedy_pairwise_r_distinguishable_state_sets_from_separators_def Let_def
+  by auto
+
+lemma r_distinguishable_state_pairs_with_separators_sym :
+  assumes "(q1,q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
+  shows "(q2,q1) \<in> fst ` r_distinguishable_state_pairs_with_separators M" 
+  using assms unfolding r_distinguishable_state_pairs_with_separators_def by force
+
+
+lemma greedy_pairwise_r_distinguishable_state_sets_from_separators_soundness :
+  "(greedy_pairwise_r_distinguishable_state_sets_from_separators M) \<subseteq> (pairwise_r_distinguishable_state_sets_from_separators M)"
+proof 
+  fix S assume "S \<in> (greedy_pairwise_r_distinguishable_state_sets_from_separators M)"
+  then obtain q' where "q' \<in> nodes M"
+                 and   *: "S = set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
+    unfolding greedy_pairwise_r_distinguishable_state_sets_from_separators_def Let_def by auto
+
+
+  have "S \<subseteq> nodes M"
+  proof 
+    fix q assume "q \<in> S"
+    then have "q \<in> set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
+      using * by auto
+    then show "q \<in> nodes M"
+      using extend_until_conflict_elem[of q "image fst (r_distinguishable_state_pairs_with_separators M)" "(remove1 q' (nodes_as_list M))" "[q']" "size M"]
+      using nodes_as_list_set \<open>q' \<in> nodes M\<close> by auto
+  qed
+
+  moreover have "\<And> q1 q2 . q1 \<in> S \<Longrightarrow> q2 \<in> S \<Longrightarrow> q1 \<noteq> q2 \<Longrightarrow> (q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M)"  
+  proof -
+    fix q1 q2 assume "q1 \<in> S" and "q2 \<in> S" and "q1 \<noteq> q2"
+    then have e1: "q1 \<in> set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
+         and  e2: "q2 \<in> set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
+      unfolding * by simp+
+    have e3: "(q1 \<in> set [q'] \<Longrightarrow> q2 \<in> set [q'] \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M \<or> (q2, q1) \<in> fst ` r_distinguishable_state_pairs_with_separators M)"
+      using \<open>q1 \<noteq> q2\<close> by auto
+
+    show "(q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M)"
+      using extend_until_conflict_no_conflicts[OF e1 e2 e3 \<open>q1 \<noteq> q2\<close>]
+            r_distinguishable_state_pairs_with_separators_sym[of q2 q1 M] by blast
+  qed
+
+  ultimately show "S \<in> (pairwise_r_distinguishable_state_sets_from_separators M)"
+    unfolding pairwise_r_distinguishable_state_sets_from_separators_def by blast
+qed
 
 
 end

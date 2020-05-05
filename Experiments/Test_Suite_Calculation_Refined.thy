@@ -1101,8 +1101,19 @@ qed
 
 
 
-
+(*
 export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dual3
+*)
+
+
+(* integer specialization of maximal_repetition_sets_from_separators_list *)
+definition count_maximal_repetition_sets_from_separators :: "(integer,integer,integer) fsm \<Rightarrow> integer" where
+  "count_maximal_repetition_sets_from_separators M = integer_of_nat (length (maximal_repetition_sets_from_separators_list M))"
+
+definition count_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> integer" where
+  "count_test_suite M m = integer_of_nat (card (generate_test_suite M m))"
+
+export_code generate_test_suite count_test_suite count_maximal_repetition_sets_from_separators fsm_from_list in Haskell module_name FSMopt
 
 
 end (*
