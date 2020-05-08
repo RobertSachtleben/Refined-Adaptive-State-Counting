@@ -3763,7 +3763,7 @@ proof -
     using \<open>FSM.initial S = Inl (q1, q2)\<close> by auto 
 
   have "fst (last (s_states M q1 q2)) = Inl (q1,q2)" and "length (s_states M q1 q2) > 0"
-    using select_inputs_from_submachine[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S ?CSep\<close> p1 p2 p3 p4]
+    using select_inputs_from_submachine_reachable'[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S ?CSep\<close> p1 p2 p3 p4]
     unfolding s_states_def submachine_simps[OF \<open>is_submachine S ?CSep\<close>] Let_def canonical_separator_simps(1)[OF assms(2,3)]
     by auto 
 
@@ -3785,7 +3785,7 @@ subsection \<open>State Separators and R-Distinguishability\<close>
 
 lemma state_separator_r_distinguishes_k :
   assumes "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 S"
-      and "q1 \<in> nodes M" and "q2 \<in> nodes M"
+      and "q1 \<in> nodes M" and "q2 \<in> nodes M" 
   shows "\<exists> k . r_distinguishable_k M q1 q2 k"
 proof -
   let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
@@ -3833,7 +3833,7 @@ proof -
       have "Inl (q1',q2') \<in> reachable_nodes ?C"
         using reachable_node(1) unfolding  \<open>q = Inl (q1',q2')\<close> reachable_nodes_def
         using submachine_path_initial[OF \<open>is_submachine S (canonical_separator M q1 q2)\<close>] 
-        unfolding canonical_separator_simps[OF assms(2,3)] is_state_separator_from_canonical_separator_initial[OF assms] by fast
+        unfolding canonical_separator_simps[OF assms(2,3)] is_state_separator_from_canonical_separator_initial[OF assms(1-3)] by fast
       then obtain p where "path ?C (initial ?C) p"
                       and "target (initial ?C) p = Inl (q1',q2')"
         unfolding reachable_nodes_def by auto 
@@ -3843,8 +3843,9 @@ proof -
         using canonical_separator_path_from_shift[OF \<open>path ?C (initial ?C) p\<close>]
         using assms(2) assms(3) by blast  
 
-      have "(q1',q2') \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))"
-        using reachable_node_is_node[OF \<open>Inl (q1',q2') \<in> reachable_nodes ?C\<close>] unfolding canonical_separator_simps[OF assms(2,3)] by fast
+      have "(q1',q2') \<in> nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))"
+        using reachable_node_is_node[OF \<open>Inl (q1',q2') \<in> reachable_nodes ?C\<close>] unfolding canonical_separator_simps[OF assms(2,3)]
+        by auto 
 
 
       have "path (from_FSM M q1) (initial (from_FSM M q1)) (left_path p')"
@@ -3903,7 +3904,7 @@ proof -
           
 
         then have "shift_Inl ?t \<in> transitions ?C"
-          using \<open>(q1',q2') \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))\<close>
+          using \<open>(q1',q2') \<in> nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))\<close>
           unfolding \<open>t_source t1 = q1'\<close> \<open>t_source t2 = q2'\<close> canonical_separator_transitions_def[OF assms(2,3)] by fastforce
         moreover have "t_source (shift_Inl ?t) = q"
           using \<open>t_source t1 = q1'\<close> \<open>t_source t2 = q2'\<close> \<open>q = Inl (q1',q2')\<close> by auto
@@ -3979,7 +3980,7 @@ proof -
   moreover have "Inl (q1,q2) \<in> nodes S" 
     using \<open>is_submachine S ?C\<close> canonical_separator_simps(1)[OF assms(2,3)] fsm_initial[of S] by auto
   ultimately show "\<exists>k. r_distinguishable_k M q1 q2 k"
-    using reachable_nodes_initial[of S] using is_state_separator_from_canonical_separator_initial[OF assms] by auto 
+    using reachable_nodes_initial[of S] using is_state_separator_from_canonical_separator_initial[OF assms(1-3)] by auto 
 qed
 
 
@@ -4250,11 +4251,11 @@ proof -
     fix io assume "io \<in> L A"
 
     have "io \<in> LS M q1 - LS M q2 \<Longrightarrow> io_targets A io (initial A) = {Inr q1}"
-      using state_separator_from_canonical_separator_language_target(1)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4)] by assumption
+      using state_separator_from_canonical_separator_language_target(1)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4,5)] by assumption
     moreover have "io \<in> LS M q2 - LS M q1 \<Longrightarrow> io_targets A io (initial A) = {Inr q2}"
-      using state_separator_from_canonical_separator_language_target(2)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4)] by assumption
+      using state_separator_from_canonical_separator_language_target(2)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4,5)] by assumption
     moreover have "io \<in> LS M q1 \<inter> LS M q2 \<Longrightarrow> io_targets A io (initial A) \<inter> {Inr q1, Inr q2} = {}"
-      using state_separator_from_canonical_separator_language_target(3)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4)] by assumption
+      using state_separator_from_canonical_separator_language_target(3)[OF assms(1) \<open>io \<in> L A\<close> assms(2,3,4,5)] by assumption
     moreover have "\<And> x yq yt. io @ [(x, yq)] \<in> LS M q1 \<Longrightarrow> io @ [(x, yt)] \<in> L A \<Longrightarrow> io @ [(x, yq)] \<in> L A"
     proof -
       fix x yq yt assume "io @ [(x, yq)] \<in> LS M q1" and "io @ [(x, yt)] \<in> L A"
@@ -4288,7 +4289,7 @@ proof -
 
       have "io \<in> LS M q2"
         using submachine_language[OF \<open>is_submachine A ?C\<close>] \<open>io @ [(x, yt)] \<in> L A\<close> 
-        using canonical_separator_language_prefix[OF _ assms(3,4,2), of io "(x,yt)"] by blast
+        using canonical_separator_language_prefix[OF _ assms(3,4,2,5), of io "(x,yt)"] by blast
       then obtain p2 where "path M q2 p2" and "p_io p2 = io"
         by auto
       
@@ -4345,9 +4346,11 @@ proof -
         have "p_io p1 = p_io p2"
           using \<open>p_io p1 = io\<close> \<open>p_io p2 = io\<close> by auto
         
-        have "?qq \<in> reachable_nodes ?P"
+        have "?qq \<in> nodes ?P" 
           using reachable_nodes_intro[OF product_path_from_paths(1)[OF \<open>path (from_FSM M q1) (initial (from_FSM M q1)) p1\<close> \<open>path (from_FSM M q2) (initial (from_FSM M q2)) p2\<close> \<open>p_io p1 = p_io p2\<close>]]
-          unfolding product_path_from_paths(2)[OF \<open>path (from_FSM M q1) (initial (from_FSM M q1)) p1\<close> \<open>path (from_FSM M q2) (initial (from_FSM M q2)) p2\<close> \<open>p_io p1 = p_io p2\<close>] from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] by assumption
+          unfolding product_path_from_paths(2)[OF \<open>path (from_FSM M q1) (initial (from_FSM M q1)) p1\<close> \<open>path (from_FSM M q2) (initial (from_FSM M q2)) p2\<close> \<open>p_io p1 = p_io p2\<close>] from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] 
+          using reachable_node_is_node
+          by metis
         moreover have "\<exists>q'. (target q1 p1, x, yq, q') \<in> FSM.transitions M"
           using \<open>t1 \<in> FSM.transitions M\<close> \<open>t_input t1 = x\<close> \<open>t_output t1 = yq\<close> \<open>t_source t1 = target q1 p1\<close>
           by (metis prod.collapse) 
@@ -4445,7 +4448,7 @@ proof -
 
       have "io \<in> LS M q1"
         using submachine_language[OF \<open>is_submachine A ?C\<close>] \<open>io @ [(x, yt)] \<in> L A\<close> 
-        using canonical_separator_language_prefix[OF _ assms(3,4,2), of io "(x,yt)"] by blast
+        using canonical_separator_language_prefix[OF _ assms(3,4,2,5), of io "(x,yt)"] by blast
       then obtain p1 where "path M q1 p1" and "p_io p1 = io"
         by auto
       
@@ -4509,9 +4512,10 @@ proof -
           using \<open>p_io p1 = io\<close> \<open>p_io p2 = io\<close> by auto
 
 
-        have "?qq \<in> reachable_nodes ?P"
+        have "?qq \<in> nodes ?P"
           using reachable_nodes_intro[OF product_path_from_paths(1)[OF \<open>path (from_FSM M q1) (initial (from_FSM M q1)) p1\<close> \<open>path (from_FSM M q2) (initial (from_FSM M q2)) p2\<close> \<open>p_io p1 = p_io p2\<close>]]
-          unfolding product_path_from_paths(2)[OF \<open>path (from_FSM M q1) (initial (from_FSM M q1)) p1\<close> \<open>path (from_FSM M q2) (initial (from_FSM M q2)) p2\<close> \<open>p_io p1 = p_io p2\<close>] from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] by assumption
+          unfolding product_path_from_paths(2)[OF \<open>path (from_FSM M q1) (initial (from_FSM M q1)) p1\<close> \<open>path (from_FSM M q2) (initial (from_FSM M q2)) p2\<close> \<open>p_io p1 = p_io p2\<close>] from_FSM_simps[OF assms(3)] from_FSM_simps[OF assms(4)] 
+          using reachable_node_is_node by metis
         moreover have "\<exists>q'. (target q2 p2, x, yq, q') \<in> FSM.transitions M"
           using \<open>t2 \<in> FSM.transitions M\<close> \<open>t_input t2 = x\<close> \<open>t_output t2 = yq\<close> \<open>t_source t2 = target q2 p2\<close>
           by (metis prod.collapse) 
@@ -4604,11 +4608,12 @@ proof -
       unfolding is_state_separator_from_canonical_separator_initial[OF assms(1,3,4)] canonical_separator_initial[OF assms(3,4)] by blast+
 
     then have "isl (target (initial ?C) p)"
-      using canonical_separator_path_initial(4)[OF \<open>path ?C (initial ?C) p\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close>]
+      using canonical_separator_path_initial(4)[OF \<open>path ?C (initial ?C) p\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>observable M\<close> \<open>q1 \<noteq> q2\<close>]
       by auto 
 
     then show "p_io p \<in> LS M q1 \<inter> LS M q2"
-      using \<open>path ?C (initial ?C) p\<close> canonical_separator_path_targets_language(1)[OF _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close>] by auto
+      using \<open>path ?C (initial ?C) p\<close> canonical_separator_path_targets_language(1)[OF _ \<open>observable M\<close> \<open>q1 \<in> nodes M\<close> \<open>q2 \<in> nodes M\<close> \<open>q1 \<noteq> q2\<close>] 
+      by auto
   qed
 
   moreover have "(inputs A) \<subseteq> (inputs M)"

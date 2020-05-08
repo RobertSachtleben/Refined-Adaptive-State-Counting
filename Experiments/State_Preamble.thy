@@ -718,7 +718,7 @@ next
     unfolding submachine_simps[OF \<open>is_submachine S M\<close>] by force
 
   have "fst (last (d_states M q)) = FSM.initial M" and "length (d_states M q) > 0"
-    using False select_inputs_from_submachine[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S M\<close> p1 p2 p3 p4]
+    using False select_inputs_from_submachine_reachable[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S M\<close> p1 p2 p3 p4]
     unfolding d_states.simps submachine_simps[OF \<open>is_submachine S M\<close>]
     by auto 
 
