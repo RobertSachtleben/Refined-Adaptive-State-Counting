@@ -218,20 +218,5 @@ definition state_separators_from_s_states_generator :: "('a::linorder,'b::linord
 
 
 
-definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm option" where
-  "state_separator_from_s_states M q1 q2 = 
-    (let cs = s_states M q1 q2 
-      in (case length cs of
-            0 \<Rightarrow> None |
-            _ \<Rightarrow> if fst (last cs) = Inl (q1,q2)
-                  then Some (state_separator_from_input_choices M (canonical_separator M q1 q2) q1 q2 cs)
-                  else None))"
-
-definition r_distinguishable_state_pairs_with_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b,'c) fsm) set" where
-  "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M 
-                                                                                \<and> q2 \<in> nodes M 
-                                                                                \<and> ((q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some Sep)
-                                                                                  \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some Sep)) }"
-
 
 end 

@@ -7,6 +7,7 @@ theory Test_Suite_Calculation_Refined
           "HOL-Library.Code_Target_Nat"
           (*"HOL-Library.Code_Target_Int"*)
           (*"HOL-Library.Code_Binary_Nat"*)
+          State_Separator_Calculation_Alternative
 begin
 
 
@@ -230,13 +231,13 @@ instance apply intro_classes
 end
 
 (* too restrictive *)
-instantiation sum :: (infinite_UNIV,infinite_UNIV) infinite_UNIV begin
+instantiation sum :: (infinite_UNIV,type) infinite_UNIV begin
 instance apply intro_classes
   by (simp add: infinite_UNIV)
 end
 
 (* too restrictive *)
-instantiation prod :: (infinite_UNIV,infinite_UNIV) infinite_UNIV begin
+instantiation prod :: (infinite_UNIV,type) infinite_UNIV begin
 instance apply intro_classes
   by (simp add: finite_prod infinite_UNIV)  
 end
@@ -1115,13 +1116,105 @@ definition count_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarro
 
 
 
+definition state_separators_from_s_states_generator_integer :: "(integer,integer,integer) fsm \<Rightarrow> ((integer \<times> integer) \<times> (((integer \<times> integer) + LR, integer, integer) fsm)) list" where
+  "state_separators_from_s_states_generator_integer M = state_separators_from_s_states_generator M"
+
+derive (eq) ceq LR
+derive (linorder) compare LR
+derive (compare) ccompare LR
+derive (choose) set_impl LR
+derive (choose) mapping_impl LR
+
+instantiation LR :: finite_UNIV begin
+lemma finite_lr: "finite (UNIV :: LR set)"
+proof -
+  have "(UNIV :: LR set) = {Left,Right}"
+    using LR.exhaust by auto 
+  then show ?thesis 
+    using finite.simps by auto
+qed
+
+definition "finite_UNIV = Phantom(LR) True" 
+instance apply intro_classes 
+  using finite_UNIV_LR_def finite_lr by auto     
+end
+
+instantiation LR :: enum begin
+definition "enum_LR = [Left,Right]"
+definition "enum_all_LR P = (P Left \<and> P Right)"
+definition "enum_ex_LR P = (P Left \<or> P Right)"
+
+instance apply intro_classes proof -
+  show "(UNIV :: LR set) = set enum_class.enum"
+    unfolding enum_LR_def using LR.exhaust by auto
+  show "distinct (enum_class.enum :: LR list)"
+    unfolding enum_LR_def by simp 
+  show "\<And>P. enum_class.enum_all P = Ball (UNIV :: LR set) P"
+    unfolding enum_all_LR_def using LR.exhaust by (metis (full_types) UNIV_I) 
+  show "\<And>P. enum_class.enum_ex P = Bex (UNIV :: LR set) P"
+    unfolding enum_ex_LR_def using LR.exhaust by (metis (full_types) UNIV_I) 
+qed
+end
+
+instantiation LR :: cenum begin
+definition "CENUM(LR) = Some (enum_class.enum, enum_class.enum_all, enum_class.enum_ex)"
+instance by(intro_classes)(auto simp add: cEnum_LR_def enum_UNIV enum_all_UNIV enum_ex_UNIV)
+end
+
+instantiation LR :: proper_interval begin
+fun proper_interval_LR :: "LR proper_interval" where
+  "proper_interval_LR (Some x) (Some y) \<longleftrightarrow> False"
+| "proper_interval_LR (Some x) None \<longleftrightarrow> x = Left"
+| "proper_interval_LR None (Some y) \<longleftrightarrow> y = Right"
+| "proper_interval_LR None None = True"
+instance apply intro_classes
+  apply simp
+  apply (metis (full_types) LR.exhaust LR.simps(3) LR.simps(4) LR.simps(5) LR.simps(6) less_LR_def proper_interval_LR.simps(3))
+  apply (metis (full_types) LR.exhaust LR.simps(3) LR.simps(4) LR.simps(5) LR.simps(6) less_LR_def proper_interval_LR.simps(2))
+  by (metis LR.exhaust not_less_iff_gr_or_eq proper_interval_LR.simps(1))
+end
+
+
+
+instantiation LR :: cproper_interval begin
+definition "cproper_interval = (proper_interval :: LR proper_interval)"
+instance apply intro_classes proof 
+  assume "ID (ccompare :: LR comparator option) \<noteq> None" and  "finite (UNIV :: LR set)"
+
+  then have "cless = lt_of_comp (compare :: LR comparator)" 
+    unfolding ccompare_LR_def by (simp add: ID_code) 
+  then have *: "(cless :: LR \<Rightarrow> LR \<Rightarrow> bool) = (<)"
+    unfolding compare_LR_def
+    by (simp add: le_lt_comparator_of(2)) 
+
+  show "cproper_interval (None :: LR option) None = True"
+    by (simp add: cproper_interval_LR_def) 
+  show "\<And> y. cproper_interval (None :: LR option) (Some y) = (\<exists>z. cless z y)" and "\<And> x. cproper_interval (Some x) (None :: LR option) = (\<exists>z. cless x z)" and "\<And> x y . cproper_interval (Some (x :: LR)) (Some y) = (\<exists>z. cless x z \<and> cless z y)"
+    unfolding * cproper_interval_LR_def proper_interval_LR.simps
+    by (metis (full_types) LR.exhaust LR.simps(3) LR.simps(4) LR.simps(5) LR.simps(6) less_LR_def)+ 
+qed
+end
+
+
+
+
+instantiation LR :: card_UNIV begin
+lemma univ_lr : "(UNIV :: LR set) = {Left,Right}"
+  using LR.exhaust by auto
+definition "card_UNIV = Phantom(LR) 2" 
+instance apply intro_classes by (simp add: card_UNIV_LR_def univ_lr)    
+end
+
+
+
 export_code generate_test_suite_naive generate_test_suite_greedy 
             count_test_suite_naive count_maximal_repetition_sets_from_separators_naive 
             count_test_suite_greedy count_maximal_repetition_sets_from_separators_greedy
             fsm_from_list size integer_of_nat 
             state_separator_from_s_states
             nodes_as_list
-in Haskell module_name FSMopt
+            state_separators_from_s_states_generator_integer
+in Haskell module_name FSMalt
 
 
 end (*
