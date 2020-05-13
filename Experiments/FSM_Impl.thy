@@ -1,5 +1,5 @@
 theory FSM_Impl
-  imports Util
+  imports Util Datatype_Order_Generator.Order_Generator
 begin
 
 record ('state, 'input, 'output) fsm_impl =
@@ -124,7 +124,7 @@ subsubsection \<open>Canonical Separator\<close>
 abbreviation (*shift_Inl :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) \<Rightarrow> (('a \<times> 'a + 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a + 'a))" where*)
   "shift_Inl t \<equiv> (Inl (t_source t),t_input t, t_output t, Inl (t_target t))"
 
-definition shifted_transitions :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'a)) set" where
+definition shifted_transitions :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) set \<Rightarrow> ((('a \<times> 'a) + 'd) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'd)) set" where
   "shifted_transitions ts = image shift_Inl ts"
 
 definition distinguishing_transitions :: "(('a \<times> 'b) \<Rightarrow> 'c set) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> 'b set \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'a)) set" where
@@ -152,6 +152,35 @@ fun canonical_separator' :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'a)
       , outputs = outputs M \<union> outputs P
       , transitions = ts \<rparr>)
   else \<lparr> initial = Inl (q1,q2), nodes = {Inl (q1,q2)}, inputs = {}, outputs = {}, transitions = {}\<rparr>)"
+
+
+
+(* simple datatype used to indicate targets of transitions in the canonical separator that are available only for the left (right) component of a state pair *)
+datatype LR = Left | Right
+derive linorder LR
+
+definition distinguishing_transitions_LR :: "(('a \<times> 'b) \<Rightarrow> 'c set) \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> 'b set \<Rightarrow> ((('a \<times> 'a) + LR) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + LR)) set" where
+  "distinguishing_transitions_LR f nodeSet inputSet = \<Union> (Set.image (\<lambda>((q1',q2'),x) .  
+                                                                (image (\<lambda>y . (Inl (q1',q2'),x,y,Inr Left)) (f (q1',x) - f (q2',x))) 
+                                                                \<union> (image (\<lambda>y . (Inl (q1',q2'),x,y,Inr Right)) (f (q2',x) - f (q1',x))))
+                                                            (nodeSet \<times> inputSet))"
+
+
+
+fun canonical_separator_complete' :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'a) + LR,'b,'c) fsm_impl" where
+  "canonical_separator_complete' M =  
+    (let P = product M M; 
+         f'  = set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M));
+         f   = (\<lambda>qx . (case f' qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}));
+         shifted_transitions' = shifted_transitions (transitions P);
+         distinguishing_transitions_lr = distinguishing_transitions_LR f (nodes P) (inputs P);
+         ts = shifted_transitions' \<union> distinguishing_transitions_lr
+     in   
+      \<lparr> initial = Inl (initial P)
+      , nodes = (image Inl (nodes P)) \<union> {Inr Left, Inr Right}
+      , inputs = inputs M \<union> inputs P
+      , outputs = outputs M \<union> outputs P
+      , transitions = ts \<rparr>)"
 
 
 subsection \<open>Adding Transitions\<close>
