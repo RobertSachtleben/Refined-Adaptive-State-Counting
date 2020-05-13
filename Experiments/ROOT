@@ -1,0 +1,54 @@
+session Snippets = "HOL" +
+  options [
+     document = "pdf",
+     document_output = "generated"]
+  sessions
+    "Datatype_Order_Generator"
+    "Containers"
+  theories
+    "Util"
+    "FSM_Impl"
+    "FSM"
+    "Backwards_Reachability_Analysis"
+    "IO_Sequence_Set"
+    "Maximal_Path_Trie"
+    "State_Preamble"
+    "R_Distinguishability"    
+    "State_Separator"
+    "Adaptive_Test_Case"
+    "Helper_Algorithms"
+    "Traversal_Set"
+    "Test_Suite"
+    "Test_Suite_IO"
+    "Test_Suite_Calculation"
+    (*"Test_Suite_Calculation_Refined"*)
+  document_files
+     build
+
+(*
+session FSM = "HOL-Library" + 
+  options [document = pdf, document_output = "output"]
+  sessions
+    "Datatype_Order_Generator"
+    "Containers"
+  theories
+    "Util"
+    "FSM_Impl"
+    "FSM"
+    "Backwards_Reachability_Analysis"
+    "IO_Sequence_Set"
+    "Maximal_Path_Trie"
+    "State_Preamble"
+    "R_Distinguishability"    
+    "State_Separator"
+    "Adaptive_Test_Case"
+    "Helper_Algorithms"
+    "Traversal_Set"
+    "Test_Suite"
+    "Test_Suite_IO"
+    "Test_Suite_Calculation"
+    (*"Test_Suite_Calculation_Refined"*)
+  document_files
+    "root.tex" 
+  export_files (in ".") [1] "FSM.CodeExport:**"      
+*)
