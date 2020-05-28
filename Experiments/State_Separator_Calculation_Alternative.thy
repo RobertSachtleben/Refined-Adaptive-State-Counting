@@ -6,14 +6,25 @@ section \<open>Alternative Method of Calculating r-distinguishable State Pairs w
 
 subsection \<open>Input Selection Without Early Termination\<close>
 
+(* find and remove all found elements *)
+fun find_remove_2_all' :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> 'a list \<Rightarrow> (('a \<times> 'b) list \<times> 'a list)" where
+  "find_remove_2_all' P [] _  prevSuccesses prevFailures = (prevSuccesses, prevFailures)" |
+  "find_remove_2_all' P (x#xs) ys prevSuccesses prevFailures = (case find (\<lambda>y . P x y) ys of
+      Some y \<Rightarrow> find_remove_2_all' P xs ys ((x,y) # prevSuccesses) prevFailures |
+      None   \<Rightarrow> find_remove_2_all' P xs ys (prevSuccesses) (x#prevFailures))"
+
+fun find_remove_2_all :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> (('a \<times> 'b) list \<times> 'a list)" where
+  "find_remove_2_all P xs ys = find_remove_2_all' P xs ys [] []"
+
 function select_inputs_complete :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
   "select_inputs_complete f inputList [] nodeSet m = m" |
   "select_inputs_complete f inputList (n#nL) nodeSet m = 
-    (case find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList
-          of None            \<Rightarrow> m |
-             Some (q',x,nodeList') \<Rightarrow> select_inputs_complete f inputList nodeList' (insert q' nodeSet) (m@[(q',x)]))"
+    (case find_remove_2_all (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList
+          of ([],_)            \<Rightarrow> m |
+             (qx#qxs,nL')      \<Rightarrow> select_inputs_complete f inputList nL' (foldr insert (map fst (qx#qxs)) nodeSet) (m@(qx#qxs)))"
   by pat_completeness auto
-termination 
+termination sorry 
+(*
  apply (relation "measure (\<lambda> (f,iL,nL,nS,m) . length nL)")
  apply simp
 proof -
@@ -42,7 +53,7 @@ proof -
   then show "((f, inputList, nL', insert q nodeSet, m @ [(q, x)]), f, inputList, n # nL, nodeSet, m) \<in> measure (\<lambda>(f, iL, nL, nS, m). length nL)"
     by auto
 qed
-
+*)
 
 
 
