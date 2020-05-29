@@ -1,11 +1,25 @@
+section \<open>Finite State Machines\<close>
+
+text \<open>This theory introduces function @{text "select_inputs"} which is used for the calculation of
+      both state preambles and state separators.\<close>
+
+
 theory Backwards_Reachability_Analysis
 imports FSM
 begin
 
 
-
-
-
+text \<open>Function @{text "select_inputs"} calculates an associative list that maps states to a single
+      input each such that the FSM induced by this input selection is acyclic, single input and 
+      whose only deadlock states (if any) are contained in @{text "nodeSet"}.
+      The following parameters are used: 
+        - transition function @{text "f"} (typically @{text "(h M)"} for some FSM @{text "M"})
+        - a source state @{text "q0"} (selection terminates as soon as this states is assigned some input)
+        - a list of inputs that may be assigned to states
+        - a list of states not yet taken (these are considered when searching for the next possible
+          assignment)
+        - a set @{text "nodeSet"} of all nodes that already have an input assigned to them by @{text "m"}
+        - an associative list @{text "m"} containing previously chosen assignments\<close>
 
 function select_inputs :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
   "select_inputs f q0 inputList [] nodeSet m = (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
@@ -46,42 +60,50 @@ proof -
     using remove1_length by metis
     
 
-  then show "((f, q0, inputList, nL', insert q nodeSet, m @ [(q, x)]), f, q0, inputList, n # nL, nodeSet, m) \<in> measure (\<lambda>(f, q0, iL, nL, nS, m). length nL)"
+  then show "((f, q0, inputList, nL', insert q nodeSet, m @ [(q, x)]), f, q0, inputList, n # nL, nodeSet, m) 
+              \<in> measure (\<lambda>(f, q0, iL, nL, nS, m). length nL)"
     by auto
 qed
-
-
 
 
 lemma select_inputs_length :
   "length (select_inputs f q0 inputList nodeList nodeSet m) \<le> (length m) + Suc (length nodeList)"
 proof (induction "length nodeList" arbitrary: nodeList nodeSet m)
   case 0
-  then show ?case by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList"; auto)
+  then show ?case 
+    by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList"; auto)
 next
   case (Suc k)
   then obtain n nL where "nodeList = n # nL"
     by (meson Suc_length_conv) 
 
-  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
+  show ?case 
+  proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
     case None
-    then show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
+    then show ?thesis 
+    proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
       case None
-      then show ?thesis using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> unfolding \<open>nodeList = n # nL\<close> by auto
+      then show ?thesis 
+        using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> 
+        unfolding \<open>nodeList = n # nL\<close> by auto
     next
       case (Some a)
-      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList = Some (q',x,nodeList')"
+      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList 
+                                            = Some (q',x,nodeList')"
         unfolding \<open>nodeList = n # nL\<close> by (metis prod_cases3)
       have "k = length nodeList'"
-        using find_remove_2_length[OF *] \<open>Suc k = length nodeList\<close> unfolding \<open>nodeList = n # nL\<close>
+        using find_remove_2_length[OF *] \<open>Suc k = length nodeList\<close> 
+        unfolding \<open>nodeList = n # nL\<close>
         by simp
       show ?thesis 
-        unfolding \<open>nodeList = n # nL\<close> select_inputs.simps None *
-        using Suc.hyps(1)[of nodeList' "insert q' nodeSet" "m@[(q',x)]", OF \<open>k = length nodeList'\<close>] unfolding find_remove_2_length[OF *] by simp
+        using Suc.hyps(1)[of nodeList' "insert q' nodeSet" "m@[(q',x)]", OF \<open>k = length nodeList'\<close>] 
+        unfolding \<open>nodeList = n # nL\<close> select_inputs.simps None * find_remove_2_length[OF *]        
+        by simp
     qed
   next
     case (Some a)
-    then show ?thesis unfolding \<open>nodeList = n # nL\<close> by auto
+    then show ?thesis 
+      unfolding \<open>nodeList = n # nL\<close> by auto
   qed
 qed
 
@@ -90,27 +112,34 @@ lemma select_inputs_length_min :
   "length (select_inputs f q0 inputList nodeList nodeSet m) \<ge> (length m)"
 proof (induction "length nodeList" arbitrary: nodeList nodeSet m)
   case 0
-  then show ?case by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList"; auto)
+  then show ?case 
+    by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList"; auto)
 next
   case (Suc k)
   then obtain n nL where "nodeList = n # nL"
     by (meson Suc_length_conv) 
 
-  show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
+  show ?case 
+  proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
     case None
-    then show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
+    then show ?thesis 
+    proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
       case None
-      then show ?thesis using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> unfolding \<open>nodeList = n # nL\<close> by auto
+      then show ?thesis using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> 
+        unfolding \<open>nodeList = n # nL\<close> by auto
     next
       case (Some a)
-      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList = Some (q',x,nodeList')"
+      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList 
+                                              = Some (q',x,nodeList')"
         unfolding \<open>nodeList = n # nL\<close> by (metis prod_cases3)
       have "k = length nodeList'"
-        using find_remove_2_length[OF *] \<open>Suc k = length nodeList\<close> unfolding \<open>nodeList = n # nL\<close>
+        using find_remove_2_length[OF *] \<open>Suc k = length nodeList\<close> 
+        unfolding \<open>nodeList = n # nL\<close>
         by simp
       show ?thesis 
-        unfolding \<open>nodeList = n # nL\<close> select_inputs.simps None *
-        using Suc.hyps(1)[of nodeList' "m@[(q',x)]" "insert q' nodeSet" , OF \<open>k = length nodeList'\<close>] unfolding find_remove_2_length[OF *] by simp
+        unfolding \<open>nodeList = n # nL\<close> select_inputs.simps None * find_remove_2_length[OF *]
+        using Suc.hyps(1)[of nodeList' "m@[(q',x)]" "insert q' nodeSet" , OF \<open>k = length nodeList'\<close>]  
+        by simp
     qed
   next
     case (Some a)
@@ -119,19 +148,18 @@ next
 qed
 
 
-
 lemma select_inputs_helper1 :
-  "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL = Some x \<Longrightarrow> (select_inputs f q0 iL nL nS m) = m@[(q0,x)]" 
+  "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL = Some x 
+    \<Longrightarrow> (select_inputs f q0 iL nL nS m) = m@[(q0,x)]" 
   by (cases nL; auto)
-
-
 
 
 lemma select_inputs_take :
   "take (length m) (select_inputs f q0 inputList nodeList nodeSet m) = m"
 proof (induction "length nodeList" arbitrary: nodeList nodeSet m)
   case 0
-  then show ?case by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList"; auto)
+  then show ?case 
+    by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList"; auto)
 next
   case (Suc k)
   then obtain n nL where "nodeList = n # nL"
@@ -139,22 +167,29 @@ next
 
   show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList")
     case None
-    then show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
+    then show ?thesis 
+    proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) nodeList inputList")
       case None
-      then show ?thesis using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> unfolding \<open>nodeList = n # nL\<close> by auto
+      then show ?thesis using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nodeSet)) inputList = None\<close> 
+        unfolding \<open>nodeList = n # nL\<close> by auto
     next
       case (Some a)
-      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList = Some (q',x,nodeList')"
-        unfolding \<open>nodeList = n # nL\<close> by (metis prod_cases3)
+      then obtain q' x nodeList' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList 
+                                            = Some (q',x,nodeList')"
+        unfolding \<open>nodeList = n # nL\<close> 
+        by (metis prod_cases3)
       have "k = length nodeList'"
-        using find_remove_2_length[OF *] \<open>Suc k = length nodeList\<close> unfolding \<open>nodeList = n # nL\<close>
+        using find_remove_2_length[OF *] \<open>Suc k = length nodeList\<close> 
+        unfolding \<open>nodeList = n # nL\<close>
         by simp
 
-      have **: "(select_inputs f q0 inputList nodeList nodeSet m) = select_inputs f q0 inputList nodeList' (insert q' nodeSet) (m @ [(q', x)])"
-        unfolding \<open>nodeList = n # nL\<close> select_inputs.simps None * by simp
+      have **: "(select_inputs f q0 inputList nodeList nodeSet m) 
+                  = select_inputs f q0 inputList nodeList' (insert q' nodeSet) (m @ [(q', x)])"
+        unfolding \<open>nodeList = n # nL\<close> select_inputs.simps None * 
+        by simp
       show ?thesis
-        unfolding **
-        using Suc.hyps(1)[of nodeList' "m@[(q',x)]" "insert q' nodeSet" , OF \<open>k = length nodeList'\<close>] unfolding find_remove_2_length[OF *]
+        unfolding ** 
+        using Suc.hyps(1)[of nodeList' "m@[(q',x)]" "insert q' nodeSet" , OF \<open>k = length nodeList'\<close>]  
         by (metis butlast_snoc butlast_take diff_Suc_1 length_append_singleton select_inputs_length_min) 
     qed
   next
@@ -164,13 +199,11 @@ next
 qed
 
 
-
-
 lemma select_inputs_take' :
   "take (length m) (select_inputs f q0 iL nL nS (m@m')) = m"
   using select_inputs_take
-  by (metis (no_types, lifting) add_leE append_eq_append_conv select_inputs_length_min length_append length_take min_absorb2 take_add)
-
+  by (metis (no_types, lifting) add_leE append_eq_append_conv select_inputs_length_min length_append 
+        length_take min_absorb2 take_add)
 
 
 lemma select_inputs_distinct :
@@ -183,7 +216,8 @@ lemma select_inputs_distinct :
   shows "distinct (map fst (select_inputs f q0 iL nL nS m))" 
 using assms proof (induction "length nL" arbitrary: nL nS m)
   case 0
-  then show ?case by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL"; auto)
+  then show ?case 
+    by (cases "find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL"; auto)
 next
   case (Suc k)
   then obtain n nL'' where "nL = n # nL''"
@@ -191,23 +225,28 @@ next
 
   show ?case proof (cases "find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))) iL")
     case None
-    then show ?thesis proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL")
+    then show ?thesis 
+    proof (cases "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL")
       case None
       then have "(select_inputs f q0 iL nL nS m) = m"
-        using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL = None\<close> unfolding \<open>nL = n # nL''\<close> by auto
-      then show ?thesis using Suc.prems by auto
+        using \<open>find (\<lambda>x. f (q0, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>f (q0, x). q'' \<in> nS)) iL = None\<close> 
+        unfolding \<open>nL = n # nL''\<close> by auto
+      then show ?thesis 
+        using Suc.prems by auto
     next
       case (Some a)
-      then obtain q' x nL' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL = Some (q',x,nL')"
+      then obtain q' x nL' where *: "find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nS))) nL iL 
+                                      = Some (q',x,nL')"
         by (metis prod_cases3)
 
       have "k = length nL'"
-        using find_remove_2_length[OF *] \<open>Suc k = length nL\<close> by simp
+        using find_remove_2_length[OF *] \<open>Suc k = length nL\<close> 
+        by simp
 
       have "select_inputs f q0 iL nL nS m = select_inputs f q0 iL nL' (insert q' nS) (m @ [(q', x)])" 
         using *
-        unfolding  \<open>nL = n # nL''\<close> select_inputs.simps None by auto
-
+        unfolding  \<open>nL = n # nL''\<close> select_inputs.simps None 
+        by auto
 
       have "q' \<in> set nL"
       and  "set nL' = set nL - {q'}"
@@ -215,7 +254,8 @@ next
         using find_remove_2_set[OF * ]  \<open>distinct nL\<close> by auto
 
       have "distinct (map fst (m@[(q',x)]))" 
-        using \<open>(set (map fst m)) \<subseteq> nS\<close> \<open>set nL \<inter> nS = {}\<close> \<open>q' \<in> set nL\<close> \<open>distinct (map fst m)\<close> by auto
+        using \<open>(set (map fst m)) \<subseteq> nS\<close> \<open>set nL \<inter> nS = {}\<close> \<open>q' \<in> set nL\<close> \<open>distinct (map fst m)\<close> 
+        by auto
       have "q0 \<notin> insert q' nS"
         using Suc.prems(3) Suc.prems(5) \<open>q' \<in> set nL\<close> by auto
       have "set (map fst (m@[(q',x)])) \<subseteq> insert q' nS" 
@@ -235,15 +275,15 @@ next
                                \<open>distinct nL'\<close>
                                \<open>q0 \<notin> set nL'\<close>
                                \<open>set nL' \<inter> insert q' nS = {}\<close>]
-        unfolding \<open>select_inputs f q0 iL nL nS m = select_inputs f q0 iL nL' (insert q' nS) (m @ [(q', x)])\<close> by assumption
+        unfolding \<open>select_inputs f q0 iL nL nS m = select_inputs f q0 iL nL' (insert q' nS) (m @ [(q', x)])\<close> 
+        by assumption
     qed
   next
     case (Some a)
-    then show ?thesis using Suc \<open>nL = n # nL''\<close> by auto
+    then show ?thesis 
+      using Suc \<open>nL = n # nL''\<close> by auto
   qed
 qed
-
-
 
 
 lemma select_inputs_index_properties : 
@@ -529,7 +569,6 @@ next
 qed
 
 
-
 lemma select_inputs_max_length :
   assumes "distinct nL"
   shows "length (select_inputs f q0 iL nL nS m) \<le> length m + Suc (length nL)" 
@@ -574,7 +613,6 @@ next
 qed
 
 
-(* if q0 can be added, it will be added *)
 lemma select_inputs_q0_containment :
   assumes "f (q0,x) \<noteq> {}"
   and     "(\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nS))"   
@@ -589,9 +627,7 @@ proof -
     unfolding select_inputs_helper1[OF *] by auto
 qed
 
-
     
-
 (* note: currently requires that initial state of S must have some defined input *)
 lemma select_inputs_from_submachine_reachable :
   assumes "single_input S"
@@ -909,178 +945,6 @@ proof -
           unfolding \<open>nL = n # nL''\<close> select_inputs.simps None * by auto
   
         have p1: "(\<And>q. q \<in> reachable_nodes S \<Longrightarrow> deadlock_state S q \<Longrightarrow> q \<in> nS0 \<union> set (map fst (m@[(q',x')])))"
-          using Suc.prems(1) by fastforce
-  
-        have "set nL = insert q' (set nL')" using find_remove_2_set(2,6)[OF *] unfolding \<open>nL = n # nL''\<close> by auto
-        then have "(set nL \<union> set (map fst m)) = (set nL' \<union> set (map fst (m @ [(q', x')])))" by auto
-        then have p2: "nodes M = insert (initial S) (set nL' \<union> nS0 \<union> set (map fst (m @ [(q', x')])))" 
-          using Suc.prems(2) by auto
-  
-        have p3: "initial S \<notin> set nL' \<union> nS0 \<union> set (map fst (m @ [(q', x')]))"
-          using Suc.prems(3) False \<open>set nL = insert q' (set nL')\<close> by auto
-  
-        show ?thesis unfolding **
-          using Suc.hyps(1)[OF \<open>k = length nL'\<close> p1 p2 p3] by blast
-      next
-        case (Some a)
-        then show ?thesis unfolding \<open>nL = n # nL''\<close> by auto
-      qed
-    qed
-  qed
-  then show "fst (last (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m)) = (initial S)"
-       and  "length (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m) > 0"
-    by blast+
-qed
-
-
-
-(* note: currently requires that initial state of S must have some defined input *)
-lemma select_inputs_from_submachine :
-  assumes "single_input S"
-  and     "acyclic S"
-  and     "is_submachine S M"
-  and     "\<And> q x . q \<in> nodes S \<Longrightarrow> h S (q,x) \<noteq> {} \<Longrightarrow> h S (q,x) = h M (q,x)"
-  and     "\<And> q . q \<in> nodes S \<Longrightarrow> deadlock_state S q \<Longrightarrow> q \<in> nS0 \<union> set (map fst m)" 
-  and     "nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))"
-  and     "(initial S) \<notin> (set nL \<union> nS0 \<union> set (map fst m))"
-shows "fst (last (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m)) = (initial S)"
-and   "length (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m) > 0"
-proof -
-  have "fst (last (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m)) = (initial S) \<and> length (select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m) > 0"
-  using assms(5,6,7) proof (induction "length nL" arbitrary: nL m)
-    case 0
-    then have "nL = []" by auto
-  
-    have "\<not> (deadlock_state S (initial S))"
-      using assms(5,6,3,7) reachable_nodes_initial by blast 
-    then obtain x where "x \<in> set (inputs_as_list M)" and "h S ((initial S),x) \<noteq> {}"
-      using assms(3) unfolding deadlock_state.simps h.simps inputs_as_list_set 
-      by fastforce 
-    
-    then have "h M ((initial S),x) \<noteq> {}"
-      using assms(4)[OF fsm_initial]  by fastforce 
-    
-  
-    have "(initial S) \<in> nodes M"
-      using \<open>nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))\<close> by blast
-    then have "(initial S) \<in> nodes M"
-      using reachable_node_is_node by force
-    
-  
-    have "\<And> y q'' . (y,q'') \<in> h M ((initial S),x) \<Longrightarrow> q'' \<in> (nS0 \<union> set (map fst m))"
-    proof -
-      fix y q'' assume "(y,q'') \<in> h M ((initial S),x)"
-      then have "q'' \<in> nodes M" 
-        using fsm_transition_target by auto
-      then have "q'' \<in> insert (initial S) (nS0 \<union> set (map fst m))" using "0.prems"(2) \<open>nL = []\<close> 
-        by auto
-      moreover have "q'' \<noteq> (initial S)"
-        using acyclic_no_self_loop[OF \<open>acyclic S\<close> reachable_nodes_initial]
-        using \<open>(y,q'') \<in> h M ((initial S),x)\<close> assms(4)[OF fsm_initial \<open>h S ((initial S),x) \<noteq> {}\<close>] unfolding h.simps
-        by blast 
-      ultimately show "q'' \<in> (nS0 \<union> set (map fst m))" 
-        by blast
-    qed
-    then have "x \<in> set (inputs_as_list M) \<and> h M ((initial S), x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M ((initial S), x). q'' \<in> nS0 \<union> set (map fst m))"
-      using \<open>x \<in> set (inputs_as_list M) \<close> \<open>h M ((initial S), x) \<noteq> {}\<close> by blast
-    then have "find (\<lambda> x . (h M) ((initial S),x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) ((initial S),x) . (q'' \<in> (nS0 \<union> set (map fst m))))) (inputs_as_list M) \<noteq> None"
-      unfolding find_None_iff by blast
-    then show ?case
-      unfolding \<open>nL = []\<close> select_inputs.simps by auto
-  next
-    case (Suc k)
-    then obtain n nL'' where "nL = n # nL''"
-      by (meson Suc_length_conv) 
-  
-  
-    have "\<exists> q x . q \<in> reachable_nodes S - (nS0 \<union> set (map fst m)) \<and> h M (q,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
-    proof -
-      define ndlps where ndlps_def: "ndlps = {p . path S (initial S) p \<and> target (initial S) p \<notin> (nS0 \<union> set (map fst m))}"
-  
-      have "path S (initial S) [] \<and> target (initial S) [] \<notin> (nS0 \<union> set (map fst m))"
-        using Suc.prems(3) by auto
-      then have "[] \<in> ndlps"
-        unfolding ndlps_def by blast
-      then have "ndlps \<noteq> {}" by auto
-      moreover have "finite ndlps"
-        using acyclic_finite_paths_from_reachable_node[OF \<open>acyclic S\<close>, of "[]"] unfolding ndlps_def by fastforce
-      ultimately have "\<exists> p \<in> ndlps . \<forall> p' \<in> ndlps . length p' \<le> length p"
-        by (meson max_length_elem not_le_imp_less) 
-      then obtain p where "path S (initial S) p"
-                          and "target (initial S) p \<notin> (nS0 \<union> set (map fst m))"
-                          and "\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p"
-        unfolding ndlps_def by blast
-      
-  
-      let ?q = "target (initial S) p"
-      have "\<not> deadlock_state S ?q"
-        using Suc.prems(1)
-        by (meson \<open>path S (FSM.initial S) p\<close> \<open>target (FSM.initial S) p \<notin> nS0 \<union> set (map fst m)\<close> path_target_is_node) 
-      then obtain x where "h S (?q,x) \<noteq> {}"
-        unfolding deadlock_state.simps h.simps by fastforce
-      then have "h M (?q,x) \<noteq> {}"
-        by (metis \<open>path S (FSM.initial S) p\<close> assms(4) path_target_is_node)   
-  
-      moreover have "\<And> y q'' . (y,q'') \<in> h M (?q,x) \<Longrightarrow> q'' \<in> (nS0 \<union> set (map fst m))"
-      proof (rule ccontr)
-        fix y q'' assume "(y,q'') \<in> h M (?q,x)" and "q'' \<notin> nS0 \<union> set (map fst m)"
-        then have "(?q,x,y,q'') \<in> transitions S"
-          by (metis \<open>(y, q'') \<in> h M (target (FSM.initial S) p, x)\<close> \<open>h S (target (FSM.initial S) p, x) \<noteq> {}\<close> \<open>path S (FSM.initial S) p\<close> assms(4) case_prodD h.simps mem_Collect_eq path_target_is_node) 
-        then have "path S (initial S) (p@[(?q,x,y,q'')])"
-          using \<open>path S (initial S) p\<close> by (simp add: path_append_transition)
-        moreover have "target (initial S) (p@[(?q,x,y,q'')]) \<notin> (nS0 \<union> set (map fst m))"
-          using \<open>q'' \<notin> nS0 \<union> set (map fst m)\<close> by auto
-        ultimately show "False"
-          using \<open>\<And> p' . path S (initial S) p' \<Longrightarrow> target (initial S) p' \<notin> (nS0 \<union> set (map fst m)) \<Longrightarrow> length p' \<le> length p\<close>[of "(p@[(?q,x,y,q'')])"] by simp
-      qed
-  
-      moreover have "?q \<in> reachable_nodes S - (nS0 \<union> set (map fst m))"
-        using  \<open>?q \<notin> (nS0 \<union> set (map fst m))\<close> \<open>path S (initial S) p\<close>  by blast
-      
-      ultimately show ?thesis by blast
-    qed
-    
-    then obtain q x where "q \<in> reachable_nodes S" and "q \<notin> (nS0 \<union> set (map fst m))" and "h M (q,x) \<noteq> {}" and "(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))"
-      by blast
-    then have "x \<in> set (inputs_as_list M)"
-      unfolding h.simps using fsm_transition_input inputs_as_list_set by fastforce 
-  
-    
-  
-    show ?case proof (cases "q = initial S")
-      case True
-      have "find (\<lambda>x. h M (FSM.initial S, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (FSM.initial S, x). q'' \<in> nS0 \<union> set (map fst m))) (inputs_as_list M) \<noteq> None"
-        using \<open>h M (q,x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))\<close> \<open>x \<in> set (inputs_as_list M)\<close>
-        unfolding True find_None_iff by blast
-      then show ?thesis unfolding \<open>nL = n # nL''\<close> by auto
-    next
-      case False
-      then have "q \<in> set nL" 
-        using submachine_reachable_subset[OF \<open>is_submachine S M\<close>]
-        unfolding is_submachine.simps \<open>nodes M = insert (initial S) (set nL \<union> nS0 \<union> set (map fst m))\<close>
-        using \<open>q \<in> reachable_nodes S\<close>  \<open>q \<notin> (nS0 \<union> set (map fst m))\<close>
-        by (metis (no_types, lifting) Suc.prems(2) UnE insertE reachable_node_is_node subsetD sup_assoc) 
-        
-  
-      
-      show ?thesis proof (cases "find (\<lambda>x. h M (FSM.initial S, x) \<noteq> {} \<and> (\<forall>(y, q'')\<in>h M (FSM.initial S, x). q'' \<in> nS0 \<union> set (map fst m))) (inputs_as_list M)")
-        case None
-        
-  
-        have "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS0 \<union> set (map fst m)))) (nL) (inputs_as_list M) \<noteq> None"
-          using \<open>q \<in> set nL\<close> \<open>h M (q,x) \<noteq> {}\<close> \<open>(\<forall> (y,q'') \<in> h M (q,x) . q'' \<in> (nS0 \<union> set (map fst m)))\<close> \<open>x \<in> set (inputs_as_list M)\<close>
-          unfolding find_remove_2_None_iff \<open>nL = n # nL''\<close>
-          by blast 
-        then obtain q' x' nL' where *: "find_remove_2 (\<lambda> q' x . (h M) (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> (h M) (q',x) . (q'' \<in> nS0 \<union> set (map fst m)))) (n#nL'') (inputs_as_list M) = Some (q',x',nL')"
-          unfolding \<open>nL = n # nL''\<close> by auto
-        have "k = length nL'"
-          using find_remove_2_length[OF *] \<open>Suc k = length nL\<close>  \<open>nL = n # nL''\<close> by simp
-  
-        have **: "select_inputs (h M) (initial S) (inputs_as_list M) nL (nS0 \<union> set (map fst m)) m
-                  = select_inputs (h M) (initial S) (inputs_as_list M) nL' (nS0 \<union> set (map fst (m@[(q',x')]))) (m@[(q',x')])"
-          unfolding \<open>nL = n # nL''\<close> select_inputs.simps None * by auto
-  
-        have p1: "(\<And>q. q \<in> nodes S \<Longrightarrow> deadlock_state S q \<Longrightarrow> q \<in> nS0 \<union> set (map fst (m@[(q',x')])))"
           using Suc.prems(1) by fastforce
   
         have "set nL = insert q' (set nL')" using find_remove_2_set(2,6)[OF *] unfolding \<open>nL = n # nL''\<close> by auto
