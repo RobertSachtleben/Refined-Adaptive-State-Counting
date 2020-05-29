@@ -1,6 +1,14 @@
+section \<open>Underlying FSM Representation\<close>
+
+text \<open>This theory contains the underlying datatype for (possibly not well-formed) finite state
+      machines that is restricted to well-formed finite state machines in later theories.\<close>
+
 theory FSM_Impl
   imports Util Datatype_Order_Generator.Order_Generator
 begin
+
+
+text \<open>A finite state machine (FSM) is represented using its classical definition:\<close>
 
 record ('state, 'input, 'output) fsm_impl =
   initial :: 'state
@@ -10,11 +18,7 @@ record ('state, 'input, 'output) fsm_impl =
   transitions :: "('state \<times> 'input \<times> 'output \<times> 'state) set"
 
 
-
-
-
-
-subsection \<open>Further Types\<close>
+subsection \<open>Types for Transitions and Paths\<close>
 
 type_synonym ('a,'b,'c) transition = "('a \<times> 'b \<times> 'c \<times> 'a)"
 type_synonym ('a,'b,'c) path = "('a,'b,'c) transition list"
@@ -24,7 +28,9 @@ abbreviation "t_input  (a :: ('a,'b,'c) transition) \<equiv> fst (snd a)"
 abbreviation "t_output (a :: ('a,'b,'c) transition) \<equiv> fst (snd (snd a))"
 abbreviation "t_target (a :: ('a,'b,'c) transition) \<equiv> snd (snd (snd a))"
 
-subsection \<open>Reading FSMs from Lists\<close>
+subsection \<open>Basic Algorithms on FSM\<close>
+
+subsubsection \<open>Reading FSMs from Lists\<close>
 
 fun fsm_impl_from_list :: "'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a, 'b, 'c) fsm_impl" where
   "fsm_impl_from_list q [] = \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>" |
@@ -48,12 +54,14 @@ lemma fsm_impl_from_list_code[code] :
   "fsm_impl_from_list q ts = fsm_impl_from_list' q ts" 
   by (cases ts; auto)
 
-subsection \<open>Changing the initial State\<close>
+
+subsubsection \<open>Changing the initial State\<close>
 
 fun from_FSM :: "('a,'b,'c) fsm_impl \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) fsm_impl" where
   "from_FSM M q = (if q \<in> nodes M then \<lparr> initial = q, nodes = nodes M, inputs = inputs M, outputs = outputs M, transitions = transitions M \<rparr> else M)"
 
-subsection \<open>Product Construction\<close>
+
+subsubsection \<open>Product Construction\<close>
 
 fun product :: "('a,'b,'c) fsm_impl \<Rightarrow> ('d,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'd,'b,'c) fsm_impl" where
   "product A B = \<lparr> initial = (initial A, initial B),
@@ -121,8 +129,7 @@ fun initial_singleton :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a,'b,'c) fsm_impl"
 
 subsubsection \<open>Canonical Separator\<close>
 
-abbreviation (*shift_Inl :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) \<Rightarrow> (('a \<times> 'a + 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a + 'a))" where*)
-  "shift_Inl t \<equiv> (Inl (t_source t),t_input t, t_output t, Inl (t_target t))"
+abbreviation "shift_Inl t \<equiv> (Inl (t_source t),t_input t, t_output t, Inl (t_target t))"
 
 definition shifted_transitions :: "(('a \<times> 'a) \<times> 'b \<times> 'c \<times> ('a \<times> 'a)) set \<Rightarrow> ((('a \<times> 'a) + 'd) \<times> 'b \<times> 'c \<times> (('a \<times> 'a) + 'd)) set" where
   "shifted_transitions ts = image shift_Inl ts"
@@ -155,7 +162,16 @@ fun canonical_separator' :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'a)
 
 
 
-(* simple datatype used to indicate targets of transitions in the canonical separator that are available only for the left (right) component of a state pair *)
+subsubsection \<open>Generalised Canonical Separator\<close>
+
+text \<open>A variation on the state separator that uses states @{text "L"} and @{text "R"} instead of
+      @{text "Inr q1"} and @{text "Inr q2"} to indicate targets of transitions in the 
+      canonical separator that are available only for the left or right component of a state pair\<close>
+
+text \<open>Note: this definition of a canonical separator might serve as a way to avoid recalculation
+            of state separators for different pairs of states, but is currently not fully 
+            implemented\<close>
+
 datatype LR = Left | Right
 derive linorder LR
 
@@ -164,7 +180,6 @@ definition distinguishing_transitions_LR :: "(('a \<times> 'b) \<Rightarrow> 'c 
                                                                 (image (\<lambda>y . (Inl (q1',q2'),x,y,Inr Left)) (f (q1',x) - f (q2',x))) 
                                                                 \<union> (image (\<lambda>y . (Inl (q1',q2'),x,y,Inr Right)) (f (q2',x) - f (q1',x))))
                                                             (nodeSet \<times> inputSet))"
-
 
 
 fun canonical_separator_complete' :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<times> 'a) + LR,'b,'c) fsm_impl" where
@@ -183,24 +198,21 @@ fun canonical_separator_complete' :: "('a,'b,'c) fsm_impl \<Rightarrow> (('a \<t
       , transitions = ts \<rparr>)"
 
 
-subsection \<open>Adding Transitions\<close>
 
-fun create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Rightarrow> 'c set \<Rightarrow> ('a,'b,'c) fsm_impl" where
-  "create_unconnected_fsm q ns ins outs = (if (finite ns \<and> finite ins \<and> finite outs)
-    then \<lparr> initial = q, nodes = insert q ns, inputs = ins, outputs = outs, transitions = {} \<rparr>
-    else \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>)"
-
+subsubsection \<open>Adding Transitions\<close>
 
 fun add_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm_impl" where
   "add_transitions M ts = (if (\<forall> t \<in> ts . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M)
     then  M\<lparr> transitions := transitions M \<union> ts\<rparr>
     else M)"
 
-(*
-fun add_transitions :: "('a,'b,'c) fsm_impl \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm_impl" where
-  "add_transitions M ts = M\<lparr> transitions := transitions M \<union> (Set.filter (\<lambda> t . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_output t \<in> outputs M \<and> t_target t \<in> nodes M) ts)\<rparr>"
-  *)  
 
+subsubsection \<open>Creating an FSM without transitions\<close>
+
+fun create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Rightarrow> 'c set \<Rightarrow> ('a,'b,'c) fsm_impl" where
+  "create_unconnected_fsm q ns ins outs = (if (finite ns \<and> finite ins \<and> finite outs)
+    then \<lparr> initial = q, nodes = insert q ns, inputs = ins, outputs = outs, transitions = {} \<rparr>
+    else \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>)"
 
 
 
