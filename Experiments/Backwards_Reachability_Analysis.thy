@@ -1,4 +1,4 @@
-section \<open>Finite State Machines\<close>
+section \<open>Backwards Reachability Analysis\<close>
 
 text \<open>This theory introduces function @{text "select_inputs"} which is used for the calculation of
       both state preambles and state separators.\<close>
