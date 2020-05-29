@@ -1,28 +1,43 @@
+section \<open>Finite State Machines\<close>
+
+text \<open>This theory defines well-formed finite state machines and introduces various closely related 
+      notions, as well as a selection of basic properties and definitions.\<close>
+
 theory FSM
   imports FSM_Impl "HOL-Library.Quotient_Type"
 begin
 
 
+subsection \<open>Well-formed Finite State Machines\<close>
+
+text \<open>A value of type @{text "fsm_impl"} constitutes a well-formed FSM if its contained sets are 
+      finite and the initial state and the components of each transition are contained in their 
+      respective sets.\<close>
 
 abbreviation(input) "well_formed_fsm (M :: ('state, 'input, 'output) fsm_impl) \<equiv> (initial M \<in> nodes M
       \<and> finite (nodes M)
       \<and> finite (inputs M)
       \<and> finite (outputs M)
       \<and> finite (transitions M)
-      \<and> (\<forall> t \<in> transitions M . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_target t \<in> nodes M \<and> t_output t \<in> outputs M)) " 
+      \<and> (\<forall> t \<in> transitions M . t_source t \<in> nodes M \<and> 
+                                t_input t \<in> inputs M \<and> 
+                                t_target t \<in> nodes M \<and> 
+                                t_output t \<in> outputs M)) " 
 
 typedef ('state, 'input, 'output) fsm = 
   "{ M :: ('state, 'input, 'output) fsm_impl . well_formed_fsm M}"
   morphisms fsm_impl Fsm
 proof -
   obtain q :: 'state where "True" by blast
-  define M :: "('state, 'input, 'output) fsm_impl" where "M = \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>"
+  define M :: "('state, 'input, 'output) fsm_impl" where 
+    "M = \<lparr> initial = q, nodes = {q}, inputs = {}, outputs = {}, transitions = {} \<rparr>"
   then have "initial M \<in> nodes M
               \<and> finite (nodes M)
               \<and> finite (inputs M)
               \<and> finite (outputs M)
               \<and> finite (transitions M)
-              \<and> (\<forall> t \<in> transitions M . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> t_target t \<in> nodes M \<and> t_output t \<in> outputs M)"
+              \<and> (\<forall> t \<in> transitions M . t_source t \<in> nodes M \<and> t_input t \<in> inputs M \<and> 
+                                        t_target t \<in> nodes M \<and> t_output t \<in> outputs M)"
     by auto
   then show ?thesis by blast
 qed
@@ -34,9 +49,12 @@ lift_definition initial :: "('state, 'input, 'output) fsm \<Rightarrow> 'state" 
 lift_definition nodes :: "('state, 'input, 'output) fsm \<Rightarrow> 'state set" is FSM_Impl.nodes done
 lift_definition inputs :: "('state, 'input, 'output) fsm \<Rightarrow> 'input set" is FSM_Impl.inputs done
 lift_definition outputs :: "('state, 'input, 'output) fsm \<Rightarrow> 'output set" is FSM_Impl.outputs done
-lift_definition transitions :: "('state, 'input, 'output) fsm \<Rightarrow> ('state \<times> 'input \<times> 'output \<times> 'state) set" is FSM_Impl.transitions done
+lift_definition transitions :: 
+  "('state, 'input, 'output) fsm \<Rightarrow> ('state \<times> 'input \<times> 'output \<times> 'state) set" 
+  is FSM_Impl.transitions done
 
-lift_definition fsm_from_list :: "'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a, 'b, 'c) fsm" is FSM_Impl.fsm_impl_from_list 
+lift_definition fsm_from_list :: "'a \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) list \<Rightarrow> ('a, 'b, 'c) fsm" 
+  is FSM_Impl.fsm_impl_from_list 
 proof -
   fix q  :: 'a 
   fix ts :: "('a \<times> 'b \<times> 'c \<times> 'a) list"
@@ -44,19 +62,26 @@ proof -
     by (induction ts; auto)
 qed
 
-value "fsm_from_list 1 [(2::nat,3::nat,4::nat,5::nat)]"
 
-subsubsection \<open>Well-Formedness Properties Revisited\<close>
 
-lemma fsm_initial[intro]: "initial M \<in> nodes M" by (transfer; blast)
-lemma fsm_nodes_finite: "finite (nodes M)" by (transfer; blast)
-lemma fsm_inputs_finite: "finite (inputs M)" by (transfer; blast)
-lemma fsm_outputs_finite: "finite (outputs M)" by (transfer; blast)
-lemma fsm_transitions_finite: "finite (transitions M)" by (transfer; blast)
-lemma fsm_transition_source[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_source t \<in> nodes M" by (transfer; blast)
-lemma fsm_transition_target[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_target t \<in> nodes M" by (transfer; blast)
-lemma fsm_transition_input[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_input t \<in> inputs M" by (transfer; blast)
-lemma fsm_transition_output[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_output t \<in> outputs M" by (transfer; blast)
+lemma fsm_initial[intro]: "initial M \<in> nodes M" 
+  by (transfer; blast)
+lemma fsm_nodes_finite: "finite (nodes M)" 
+  by (transfer; blast)
+lemma fsm_inputs_finite: "finite (inputs M)" 
+  by (transfer; blast)
+lemma fsm_outputs_finite: "finite (outputs M)" 
+  by (transfer; blast)
+lemma fsm_transitions_finite: "finite (transitions M)" 
+  by (transfer; blast)
+lemma fsm_transition_source[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_source t \<in> nodes M" 
+  by (transfer; blast)
+lemma fsm_transition_target[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_target t \<in> nodes M" 
+  by (transfer; blast)
+lemma fsm_transition_input[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_input t \<in> inputs M" 
+  by (transfer; blast)
+lemma fsm_transition_output[intro]: "\<And> t . t \<in> (transitions M) \<Longrightarrow> t_output t \<in> outputs M" 
+  by (transfer; blast)
 
 
 instantiation fsm :: (type,type,type) equal
@@ -70,22 +95,11 @@ instance
   apply transfer by auto
 end 
 
-(*
-lemma fsm_eq :
-  fixes x :: "('a,'b,'c) fsm"
-  and   y :: "('a,'b,'c) fsm"
-shows "HOL.equal x y = (x = y)" using equal_class.equal by (metis (full_types))
 
-lemma fsm_eq[iff] :
-  fixes M  :: "('a,'b,'c) fsm"
-  fixes M' :: "('a,'b,'c) fsm"
-  shows "M = M' \<longleftrightarrow> (initial M = initial M' \<and> nodes M = nodes M' \<and> inputs M = inputs M' \<and> outputs M = outputs M' \<and> transitions M = transitions M')"
-  apply transfer by force
-*)
 
-subsection \<open>Example FSMs\<close>
+subsubsection \<open>Example FSMs\<close>
 
-(* example FSM of Hieron's paper *)
+
 definition m_ex_H :: "(integer,integer,integer) fsm" where
   "m_ex_H = fsm_from_list 0 [ (1,0,0,2),
                               (1,0,1,4),
@@ -98,7 +112,7 @@ definition m_ex_H :: "(integer,integer,integer) fsm" where
                               (4,0,0,3),
                               (4,1,0,1)]"
 
-(* example FSM of exercise 9 of Testautomation SoSe 2019 *)
+
 definition m_ex_9 :: "(integer,integer,integer) fsm" where
   "m_ex_9 = fsm_from_list 0 [ (0,0,2,2),
                               (0,0,3,2),
@@ -112,19 +126,22 @@ definition m_ex_9 :: "(integer,integer,integer) fsm" where
                               (3,1,0,2),
                               (3,1,1,1)]"
 
+
 subsection \<open>Transition Function h\<close>
 
-(* TODO: main idea for later common subexpression elimination: calculate all kinds of h functions once
-         and pass them through *)
+text \<open>Function @{text "h"} represents the classical view of the transition relation of an FSM @{text "M"} as a
+      function: given a state @{text "q"} and an input @{text "x"}, @{text "(h M) (q,x)"} returns all
+      possibly reactions @{text "(y,q')"} of @{text "M"} in state @{text "q"} to @{text "x"}, where
+      @{text "y"} is the produced output and @{text "q'"} the target state of the reaction transition.\<close>
 
 fun h :: "('state, 'input, 'output) fsm \<Rightarrow> ('state \<times> 'input) \<Rightarrow> ('output \<times> 'state) set" where
   "h M (q,x) = { (y,q') . (q,x,y,q') \<in> transitions M }"
 
 
-lemma h_code[code] : "h M (q,x) = (let m = set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y,q')) (transitions M)) in (case m (q,x) of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+lemma h_code[code] : 
+  "h M (q,x) = (let m = set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y,q')) (transitions M)) 
+                 in (case m (q,x) of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
   unfolding set_as_map_def by force
-
-
 
 
 fun defined_inputs' :: "(('a \<times>'b) \<Rightarrow> ('c\<times>'a) set) \<Rightarrow> 'b set \<Rightarrow> 'a \<Rightarrow> 'b set" where
@@ -133,19 +150,15 @@ fun defined_inputs' :: "(('a \<times>'b) \<Rightarrow> ('c\<times>'a) set) \<Rig
 fun defined_inputs :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'b set" where
   "defined_inputs M q = defined_inputs' (h M) (inputs M) q"
 
-value "defined_inputs m_ex_H 1"
-
 lemma defined_inputs_set : "defined_inputs M q = {x \<in> inputs M . h M (q,x) \<noteq> {} }"
   by auto
 
-(* TODO: is defined_inputs' necessary? *)
 fun transitions_from' :: "(('a \<times>'b) \<Rightarrow> ('c\<times>'a) set) \<Rightarrow> 'b set \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) transition set" where
   "transitions_from' hM iM q = \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . (q,x,y,q')) (hM (q,x))) iM)"
 
 fun transitions_from :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) transition set" where
   "transitions_from M q = transitions_from' (h M) (inputs M) q"
 
-value "transitions_from m_ex_H 1"
 
 lemma transitions_from_set : 
   assumes "q \<in> nodes M" 
@@ -200,18 +213,14 @@ end
 
 subsection \<open>Paths\<close>
 
-inductive path :: "('state, 'input, 'output) fsm \<Rightarrow> 'state \<Rightarrow> ('state \<times> 'input \<times> 'output \<times> 'state) list \<Rightarrow> bool" where
+inductive path :: "('state, 'input, 'output) fsm \<Rightarrow> 'state \<Rightarrow> ('state, 'input, 'output) path \<Rightarrow> bool" 
+  where
   nil[intro!] : "q \<in> nodes M \<Longrightarrow> path M q []" |
   cons[intro!] : "t \<in> transitions M \<Longrightarrow> path M (t_target t) ts \<Longrightarrow> path M (t_source t) (t#ts)"
 
 inductive_cases path_nil_elim[elim!]: "path M q []"
 inductive_cases path_cons_elim[elim!]: "path M q (t#ts)"
 
-(*
-fun target :: "'state \<Rightarrow> ('state, 'input, 'output) path \<Rightarrow> 'state" where
-  "target q [] = q" |
-  "target q p  = t_target (last p)"
-*)
 fun visited_nodes :: "'state \<Rightarrow> ('state, 'input, 'output) path \<Rightarrow> 'state list" where
   "visited_nodes q p = (q # map t_target p)"
 
@@ -248,7 +257,6 @@ lemma path_prefix :
   shows "path M q p1"
 using assms by (induction p1 arbitrary: q; auto; (metis path_begin_node))
 
-
 lemma path_append_elim[elim!] :
   assumes "path M q (p1@p2)"
   obtains "path M q p1"
@@ -264,20 +272,17 @@ lemma path_append_target_hd :
   shows "target q p = target (t_target (hd p)) (tl p)"
 using assms by (induction p) (simp+)
 
-
 lemma path_transitions :
   assumes "path M q p"
   shows "set p \<subseteq> transitions M"
   using assms by (induct p arbitrary: q; fastforce)
 
-(* TODO: add simp ? *)
 lemma path_append_transition[intro!] :
   assumes "path M q p"
   and     "t \<in> transitions M"
   and     "t_source t = target q p" 
 shows "path M q (p@[t])"
   by (metis assms(1) assms(2) assms(3) cons fsm_transition_target nil path_append)
-
 
 lemma path_append_transition_elim[elim!] :
   assumes "path M q (p@[t])"
@@ -289,7 +294,8 @@ and   "t_source t = target q p"
 lemma path_prepend_t : "path M q' p \<Longrightarrow> (q,x,y,q') \<in> transitions M \<Longrightarrow> path M q ((q,x,y,q')#p)" 
   by (metis (mono_tags, lifting) fst_conv path.intros(2) prod.sel(2)) 
 
-lemma path_target_append : "target q1 p1 = q2 \<Longrightarrow> target q2 p2 = q3 \<Longrightarrow> target q1 (p1@p2) = q3" by auto
+lemma path_target_append : "target q1 p1 = q2 \<Longrightarrow> target q2 p2 = q3 \<Longrightarrow> target q1 (p1@p2) = q3" 
+  by auto
 
 lemma single_transition_path : "t \<in> transitions M \<Longrightarrow> path M (t_source t) [t]" by auto
 
@@ -335,9 +341,63 @@ next
   qed   
 qed
 
+lemma paths_finite : "finite { p . path M q p \<and> length p \<le> k }"
+proof -
+  have "{ p . path M q p \<and> length p \<le> k } \<subseteq> {xs . set xs \<subseteq> transitions M \<and> length xs \<le> k}"
+    by (metis (no_types, lifting) Collect_mono path_transitions)     
+  then show "finite { p . path M q p \<and> length p \<le> k }"
+    using finite_lists_length_le[OF fsm_transitions_finite[of M], of k]
+    by (metis (mono_tags) finite_subset) 
+qed
+
+lemma visited_nodes_prefix :
+  assumes "q' \<in> set (visited_nodes q p)"
+  shows   "\<exists> p1 p2 . p = p1@p2 \<and> target q p1 = q'"
+using assms proof (induction p arbitrary: q)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a p)
+  then show ?case 
+  proof (cases "q' \<in> set (visited_nodes (t_target a) p)")
+    case True
+    then obtain p1 p2 where "p = p1 @ p2 \<and> target (t_target a) p1 = q'"
+      using Cons.IH by blast
+    then have "(a#p) = (a#p1)@p2 \<and> target q (a#p1) = q'"
+      by auto
+    then show ?thesis by blast
+  next
+    case False
+    then have "q' = q" 
+      using Cons.prems by auto     
+    then show ?thesis
+      by auto 
+  qed
+qed 
+
+lemma visited_nodes_are_nodes :
+  assumes "path M q1 p"
+  shows "set (visited_nodes q1 p) \<subseteq> nodes M" 
+  by (metis assms path_prefix path_target_is_node subsetI visited_nodes_prefix) 
+  
+lemma transition_subset_path : 
+  assumes "transitions A \<subseteq> transitions B"
+  and "path A q p"
+  and "q \<in> nodes B"
+shows "path B q p"
+using assms(2) proof (induction p rule: rev_induct)
+  case Nil
+  show ?case using assms(3) by auto
+next
+  case (snoc t p)
+  then show ?case using assms(1) path_suffix
+    by fastforce   
+qed
+
 subsubsection \<open>Paths of fixed length\<close>
 
-fun paths_of_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> (('a \<times>'b) \<Rightarrow> ('c\<times>'a) set) \<Rightarrow> 'b set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
+fun paths_of_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> (('a \<times>'b) \<Rightarrow> ('c\<times>'a) set) \<Rightarrow> 'b set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" 
+  where
   "paths_of_length' prev q hM iM 0 = {prev}" |
   "paths_of_length' prev q hM iM (Suc k) = 
     (let hF = transitions_from' hM iM q
@@ -346,13 +406,12 @@ fun paths_of_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> (('a \<t
 fun paths_of_length :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
   "paths_of_length M q k = paths_of_length' [] q (h M) (inputs M) k"
 
-value "paths_of_length m_ex_H 1 5"
 
-(* TODO: correctness / completeness properties *)
 
 subsubsection \<open>Paths up to fixed length\<close>
 
-fun paths_up_to_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> (('a \<times>'b) \<Rightarrow> (('c\<times>'a) set)) \<Rightarrow> 'b set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
+fun paths_up_to_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> (('a \<times>'b) \<Rightarrow> (('c\<times>'a) set)) \<Rightarrow> 'b set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" 
+  where
   "paths_up_to_length' prev q hM iM 0 = {prev}" |
   "paths_up_to_length' prev q hM iM (Suc k) = 
     (let hF = transitions_from' hM iM q
@@ -361,38 +420,40 @@ fun paths_up_to_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> (('a 
 fun paths_up_to_length :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
   "paths_up_to_length M q k = paths_up_to_length' [] q (h M) (inputs M) k"
 
-value "paths_up_to_length m_ex_H 1 0"
-value "paths_up_to_length m_ex_H 1 1"
-value "paths_up_to_length m_ex_H 1 2"
 
 lemma paths_up_to_length'_set :
   assumes "q \<in> nodes M"
   and     "path M q prev"
-  shows "paths_up_to_length' prev (target q prev) (h M) (inputs M) k = {(prev@p) | p . path M (target q prev) p \<and> length p \<le> k}"
+shows "paths_up_to_length' prev (target q prev) (h M) (inputs M) k 
+        = {(prev@p) | p . path M (target q prev) p \<and> length p \<le> k}"
 using assms(2) proof (induction k arbitrary: prev)
   case 0
   show ?case unfolding paths_up_to_length'.simps using path_target_is_node[OF "0.prems"(1)] by auto
 next
   case (Suc k)
   
-
-  have "\<And> p . p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k) \<Longrightarrow> p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}"
+  have "\<And> p . p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k) 
+          \<Longrightarrow> p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}"
   proof -
     fix p assume "p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
-    then show "p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}" proof (cases "p = prev")
+    then show "p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}" 
+    proof (cases "p = prev")
       case True
       show ?thesis using path_target_is_node[OF Suc.prems(1)] unfolding True by (simp add: nil) 
     next
       case False
-      then have "p \<in> (\<Union> (image (\<lambda> t . paths_up_to_length' (prev@[t]) (t_target t) (h M) (inputs M) k) (transitions_from' (h M) (inputs M) (target q prev))))"
+      then have "p \<in> (\<Union> (image (\<lambda>t. paths_up_to_length' (prev@[t]) (t_target t) (h M) (inputs M) k) 
+                                (transitions_from' (h M) (inputs M) (target q prev))))"
         using \<open>p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)\<close>
         unfolding paths_up_to_length'.simps Let_def by blast
-      then obtain t where "t \<in> \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . ((target q prev),x,y,q')) (h M ((target q prev),x))) (inputs M))"
+      then obtain t where "t \<in> \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . ((target q prev),x,y,q')) 
+                                                    (h M ((target q prev),x))) (inputs M))"
                     and   "p \<in> paths_up_to_length' (prev@[t]) (t_target t) (h M) (inputs M) k"
         unfolding transitions_from'.simps by blast
 
       have "t \<in> transitions M" and "t_source t = (target q prev)"
-        using \<open>t \<in> \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . ((target q prev),x,y,q')) (h M ((target q prev),x))) (inputs M))\<close> by auto
+        using \<open>t \<in> \<Union>(image (\<lambda>x . image (\<lambda>(y,q') . ((target q prev),x,y,q')) 
+                                        (h M ((target q prev),x))) (inputs M))\<close> by auto
       then have "path M q (prev@[t])"
         using Suc.prems(1) using path_append_transition by simp
 
@@ -407,7 +468,8 @@ next
     qed
   qed
 
-  moreover have "\<And> p . p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k} \<Longrightarrow> p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
+  moreover have "\<And> p . p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k} 
+                  \<Longrightarrow> p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
   proof -
     fix p assume "p \<in> {(prev@p) | p . path M (target q prev) p \<and> length p \<le> Suc k}"
     then obtain p' where "p = prev@p'"
@@ -436,18 +498,21 @@ next
       ultimately have "p \<in> paths_up_to_length' (prev @ [t]) (t_target t) (h M) (FSM.inputs M) k"
         using Suc.IH[OF \<open>path M q (prev@[t])\<close>] 
         unfolding \<open>(target q (prev @ [t])) = t_target t\<close> \<open>p = prev@p'\<close> Cons by simp
-      then have "prev @ t # p'' \<in> paths_up_to_length' (prev @ [t]) (t_target t) (h M) (FSM.inputs M) k"
+      then have "prev@t#p'' \<in> paths_up_to_length' (prev @ [t]) (t_target t) (h M) (FSM.inputs M) k"
         unfolding \<open>p = prev@p'\<close> Cons by auto
 
-      have "t \<in> (\<lambda>(y, q'). (t_source t, t_input t, y, q')) ` {(y, q'). (t_source t, t_input t, y, q') \<in> FSM.transitions M}"
+      have "t \<in> (\<lambda>(y, q'). (t_source t, t_input t, y, q')) ` 
+                              {(y, q'). (t_source t, t_input t, y, q') \<in> FSM.transitions M}"
         using \<open>t \<in> transitions M\<close>
         by (metis (no_types, lifting) case_prodI mem_Collect_eq pair_imageI surjective_pairing)  
       then have "t \<in> transitions_from' (h M) (inputs M) (target q prev)"
         unfolding transitions_from'.simps 
-        using fsm_transition_input[OF \<open>t \<in> transitions M\<close>] unfolding \<open>t_source t = (target q prev)\<close>[symmetric] h.simps by blast
+        using fsm_transition_input[OF \<open>t \<in> transitions M\<close>] 
+        unfolding \<open>t_source t = (target q prev)\<close>[symmetric] h.simps 
+        by blast
 
       then show ?thesis 
-        using \<open>prev @ t # p'' \<in> paths_up_to_length' (prev @ [t]) (t_target t) (h M) (FSM.inputs M) k\<close> 
+        using \<open>prev @ t # p'' \<in> paths_up_to_length' (prev@[t]) (t_target t) (h M) (FSM.inputs M) k\<close> 
         unfolding \<open>p = prev@p'\<close> Cons paths_up_to_length'.simps Let_def by blast
     qed
     then show "p \<in> paths_up_to_length' prev (target q prev) (h M) (inputs M) (Suc k)"
@@ -469,14 +534,8 @@ shows "paths_up_to_length M q k = {p . path M q p \<and> length p \<le> k}"
 
 subsubsection \<open>Calculating Acyclic Paths\<close>
 
-abbreviation "member_option x ms \<equiv> (case ms of None \<Rightarrow> False | Some xs \<Rightarrow> x \<in> xs)"
-notation member_option ("(_\<in>\<^sub>o_)" [1000] 1000)
-
-abbreviation(input) "lookup_with_default f d \<equiv> (\<lambda> x . case f x of None \<Rightarrow> d | Some xs \<Rightarrow> xs)"
-abbreviation(input) "m2f f \<equiv> lookup_with_default f {}" (* map to (set-valued) fun *)
-
-
-fun acyclic_paths_up_to_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> ('a  \<Rightarrow> (('b\<times>'c\<times>'a) set)) \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
+fun acyclic_paths_up_to_length' :: "('a,'b,'c) path \<Rightarrow> 'a \<Rightarrow> ('a  \<Rightarrow> (('b\<times>'c\<times>'a) set)) \<Rightarrow> 'a set \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" 
+  where
   "acyclic_paths_up_to_length' prev q hF visitedNodes 0 = {prev}" |
   "acyclic_paths_up_to_length' prev q hF visitedNodes (Suc k) = 
     (let tF = Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF q)
@@ -495,7 +554,10 @@ lemma acyclic_paths_up_to_length'_set :
   and     "\<And> q' . hF q' = {(x,y,q'') | x y q'' . (q',x,y,q'') \<in> transitions M}"
   and     "distinct (visited_nodes (p_source q prev) prev)"
   and     "visitedNodes = set (visited_nodes (p_source q prev) prev)"
-shows "acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes k = { prev@p | p . path M (p_source q prev) (prev@p) \<and> length p \<le> k \<and> distinct (visited_nodes (p_source q prev) (prev@p)) }"
+shows "acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes k 
+        = { prev@p | p . path M (p_source q prev) (prev@p) 
+                          \<and> length p \<le> k 
+                          \<and> distinct (visited_nodes (p_source q prev) (prev@p)) }"
 using assms proof (induction k arbitrary: q hF prev visitedNodes)
   case 0
   then show ?case by auto
@@ -504,11 +566,15 @@ next
 
   let ?tgt = "(target (p_source q prev) prev)"
 
-  have "\<And> p . (prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) \<Longrightarrow> path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p))"
+  have "\<And> p . (prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) 
+            \<Longrightarrow> path M (p_source q prev) (prev@p) 
+                \<and> length p \<le> Suc k 
+                \<and> distinct (visited_nodes (p_source q prev) (prev@p))"
   proof -
     fix p assume "(prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
     then consider (a) "(prev@p) = prev" |
-                  (b) "(prev@p) \<in> (\<Union> (image (\<lambda> (x,y,q') . acyclic_paths_up_to_length' (prev@[(?tgt,x,y,q')]) q' hF (insert q' visitedNodes) k) (Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF (target (p_source q prev) prev)))))"
+                  (b) "(prev@p) \<in> (\<Union> (image (\<lambda> (x,y,q') . acyclic_paths_up_to_length' (prev@[(?tgt,x,y,q')]) q' hF (insert q' visitedNodes) k) 
+                                             (Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF (target (p_source q prev) prev)))))"
       by auto
     then show "path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p))"
     proof (cases)
@@ -528,7 +594,8 @@ next
         by simp
       moreover have "p_source (p_source q prev) (prev@[?t]) = p_source q prev"
         by auto
-      ultimately have p1: "path M (p_source (p_source q prev) (prev@[?t])) (prev@[?t])" using Suc.prems(1)
+      ultimately have p1: "path M (p_source (p_source q prev) (prev@[?t])) (prev@[?t])" 
+        using Suc.prems(1)
         by (simp add: path_append_transition) 
       
       
@@ -537,10 +604,13 @@ next
       then have p2: "distinct (visited_nodes (p_source (p_source q prev) (prev@[?t])) (prev@[?t]))"
         using Suc.prems(3) by auto
 
-      have p3: "(insert q' visitedNodes) = set (visited_nodes (p_source (p_source q prev) (prev@[?t])) (prev@[?t]))"
+      have p3: "(insert q' visitedNodes) 
+                  = set (visited_nodes (p_source (p_source q prev) (prev@[?t])) (prev@[?t]))"
         using Suc.prems(4) by auto
 
-      have ***: "(target (p_source (p_source q prev) (prev @ [(target (p_source q prev) prev, x, y, q')])) (prev @ [(target (p_source q prev) prev, x, y, q')])) = q'"
+      have ***: "(target (p_source (p_source q prev) (prev @ [(target (p_source q prev) prev, x, y, q')])) 
+                         (prev @ [(target (p_source q prev) prev, x, y, q')])) 
+                  = q'"
         by auto
 
       show ?thesis
@@ -548,20 +618,36 @@ next
         unfolding *** 
         unfolding \<open>p_source (p_source q prev) (prev@[?t]) = p_source q prev\<close>
       proof -
-        assume "acyclic_paths_up_to_length' (prev @ [(target (p_source q prev) prev, x, y, q')]) q' hF (insert q' visitedNodes) k = {(prev @ [(target (p_source q prev) prev, x, y, q')]) @ p |p. path M (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ p) \<and> length p \<le> k \<and> distinct (visited_nodes (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ p))}"
-        then have "\<exists>ps. prev @ p = (prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps \<and> path M (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps) \<and> length ps \<le> k \<and> distinct (visited_nodes (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps))"
-          using \<open>prev @ p \<in> acyclic_paths_up_to_length' (prev @ [(target (p_source q prev) prev, x, y, q')]) q' hF (insert q' visitedNodes) k\<close> by blast
+        assume "acyclic_paths_up_to_length' (prev @ [(target (p_source q prev) prev, x, y, q')]) q' hF (insert q' visitedNodes) k 
+                  = {(prev @ [(target (p_source q prev) prev, x, y, q')]) @ p |p. 
+                        path M (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ p) 
+                        \<and> length p \<le> k 
+                        \<and> distinct (visited_nodes (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ p))}"
+        then have "\<exists>ps. prev @ p = (prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps 
+                        \<and> path M (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps) 
+                        \<and> length ps \<le> k 
+                        \<and> distinct (visited_nodes (p_source q prev) ((prev @ [(target (p_source q prev) prev, x, y, q')]) @ ps))"
+          using \<open>prev @ p \<in> acyclic_paths_up_to_length' (prev @ [(target (p_source q prev) prev, x, y, q')]) q' hF (insert q' visitedNodes) k\<close> 
+          by blast
         then show ?thesis
           by (metis (no_types) Suc_le_mono append.assoc append.right_neutral append_Cons length_Cons same_append_eq)
       qed 
     qed
   qed
-  moreover have "\<And> p' . p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) \<Longrightarrow> \<exists> p'' . p' = prev@p''"
-    using acyclic_paths_up_to_length'_prev[of _ prev "[]" "target (p_source q prev) prev" hF visitedNodes "Suc k"] by force
-  ultimately have fwd: "\<And> p' . p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) \<Longrightarrow> p' \<in> { prev@p | p . path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p)) }"
+  moreover have "\<And> p' . p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) 
+                        \<Longrightarrow> \<exists> p'' . p' = prev@p''"
+    using acyclic_paths_up_to_length'_prev[of _ prev "[]" "target (p_source q prev) prev" hF visitedNodes "Suc k"] 
+    by force
+  ultimately have fwd: "\<And> p' . p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k) 
+                          \<Longrightarrow> p' \<in> { prev@p | p . path M (p_source q prev) (prev@p) 
+                                                    \<and> length p \<le> Suc k 
+                                                    \<and> distinct (visited_nodes (p_source q prev) (prev@p)) }"
     by blast
 
-  have "\<And> p . path M (p_source q prev) (prev@p) \<Longrightarrow> length p \<le> Suc k \<Longrightarrow> distinct (visited_nodes (p_source q prev) (prev@p)) \<Longrightarrow> (prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
+  have "\<And> p . path M (p_source q prev) (prev@p) 
+                \<Longrightarrow> length p \<le> Suc k 
+                \<Longrightarrow> distinct (visited_nodes (p_source q prev) (prev@p)) 
+                \<Longrightarrow> (prev@p) \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
   proof -
     fix p assume "path M (p_source q prev) (prev@p)"
           and    "length p \<le> Suc k"
@@ -612,7 +698,9 @@ next
         have "\<exists>b c a. snd t = (b, c, a) \<and> (t_source t, b, c, a) \<in> FSM.transitions M"
           by (metis (no_types) \<open>t \<in> FSM.transitions M\<close> prod.collapse)
         then show ?thesis
-          using \<open>hF (t_source t) = {(x, y, q'') |x y q''. (t_source t, x, y, q'') \<in> FSM.transitions M}\<close> \<open>t_target t \<notin> visitedNodes\<close> by fastforce
+          using \<open>hF (t_source t) = {(x, y, q'') |x y q''. (t_source t, x, y, q'') \<in> FSM.transitions M}\<close> 
+                \<open>t_target t \<notin> visitedNodes\<close> 
+          by fastforce
       qed 
       ultimately have "\<exists> (x,y,q') \<in> (Set.filter (\<lambda> (x,y,q') . q' \<notin> visitedNodes) (hF (target (p_source q prev) prev))) .
                         (prev@[t])@p' \<in> (acyclic_paths_up_to_length' (prev@[((target (p_source q prev) prev),x,y,q')]) q' hF (insert q' visitedNodes) k)"
@@ -623,7 +711,10 @@ next
         unfolding acyclic_paths_up_to_length'.simps Let_def by force
     qed
   qed
-  then have rev: "\<And> p' . p' \<in> {prev@p | p . path M (p_source q prev) (prev@p) \<and> length p \<le> Suc k \<and> distinct (visited_nodes (p_source q prev) (prev@p))} \<Longrightarrow> p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
+  then have rev: "\<And> p' . p' \<in> {prev@p | p . path M (p_source q prev) (prev@p) 
+                                              \<and> length p \<le> Suc k 
+                                              \<and> distinct (visited_nodes (p_source q prev) (prev@p))} 
+                        \<Longrightarrow> p' \<in> acyclic_paths_up_to_length' prev (target (p_source q prev) prev) hF visitedNodes (Suc k)"
     by blast
   
   show ?case
@@ -632,7 +723,7 @@ qed
 
 
 fun acyclic_paths_up_to_length :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> ('a,'b,'c) path set" where
-  "acyclic_paths_up_to_length M q k = { p . path M q p \<and> length p \<le> k \<and> distinct (visited_nodes q p) }"
+  "acyclic_paths_up_to_length M q k = {p. path M q p \<and> length p \<le> k \<and> distinct (visited_nodes q p)}"
 
 lemma acyclic_paths_up_to_length_code[code] :
   "acyclic_paths_up_to_length M q k = (if q \<in> nodes M 
@@ -657,43 +748,72 @@ next
     using acyclic_paths_up_to_length'_set[OF * ** *** ****, of k ] 
     using True by auto
 qed
-  
-
-value "acyclic_paths_up_to_length m_ex_H 1 0"
-value "acyclic_paths_up_to_length m_ex_H 1 1"
-value "acyclic_paths_up_to_length m_ex_H 1 2"
-value "acyclic_paths_up_to_length m_ex_H 1 3"
-value "acyclic_paths_up_to_length m_ex_H 1 4"
-value "acyclic_paths_up_to_length m_ex_H 1 5"
 
 
-subsection \<open>Acyclic Paths\<close>
+lemma path_map_target : "target (f4 q) (map (\<lambda> t . (f1 (t_source t), f2 (t_input t), f3 (t_output t), f4 (t_target t))) p) = f4 (target q p)" 
+  by (induction p; auto)
 
-lemma visited_nodes_prefix :
-  assumes "q' \<in> set (visited_nodes q p)"
-  shows   "\<exists> p1 p2 . p = p1@p2 \<and> target q p1 = q'"
-using assms proof (induction p arbitrary: q)
+
+lemma path_length_sum :
+  assumes "path M q p" 
+  shows "length p = (\<Sum> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) p))"
+  using assms
+proof (induction p rule: rev_induct)
   case Nil
   then show ?case by auto
 next
-  case (Cons a p)
-  then show ?case 
-  proof (cases "q' \<in> set (visited_nodes (t_target a) p)")
-    case True
-    then obtain p1 p2 where "p = p1 @ p2 \<and> target (t_target a) p1 = q'"
-      using Cons.IH by blast
-    then have "(a#p) = (a#p1)@p2 \<and> target q (a#p1) = q'"
-      by auto
-    then show ?thesis by blast
-  next
-    case False
-    then have "q' = q" 
-      using Cons.prems by auto     
-    then show ?thesis
-      by auto 
-  qed
-qed 
+  case (snoc x xs)
+  then have "length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
+    by auto
+  
+  have *: "t_target x \<in> nodes M"
+    using \<open>path M q (xs @ [x])\<close> by auto
+  then have **: "length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])) 
+                  = Suc (length (filter (\<lambda>t. t_target t = t_target x) xs))"
+    by auto
 
+  have "\<And> q . q \<in> nodes M \<Longrightarrow> q \<noteq> t_target x 
+          \<Longrightarrow> length (filter (\<lambda>t. t_target t = q) (xs @ [x])) = length (filter (\<lambda>t. t_target t = q) xs)"
+    by simp
+  then have ***: "(\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) 
+                  = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs))"
+    using fsm_nodes_finite[of M]
+    by (metis (no_types, lifting) DiffE insertCI sum.cong)
+
+  have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) 
+          = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) 
+              + (length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])))"
+    using * fsm_nodes_finite[of M]
+  proof -
+    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) (xs @ [x]))) 
+            = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) (xs @ [x])))"
+      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
+    then show ?thesis
+      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
+  qed  
+  moreover have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs)) 
+                  = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs)) 
+                      + (length (filter (\<lambda>t. t_target t = t_target x) xs))"
+    using * fsm_nodes_finite[of M]
+  proof -
+    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) xs)) 
+            = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) xs))"
+      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
+    then show ?thesis
+      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
+  qed  
+
+  ultimately have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) 
+                    = Suc (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
+    using ** *** by auto
+    
+  then show ?case
+    by (simp add: \<open>length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))\<close>) 
+qed
+
+
+
+subsection \<open>Acyclic Paths\<close>
 
 lemma cyclic_path_loop :
   assumes "path M q p"
@@ -716,7 +836,8 @@ next
     then show ?thesis by blast
   next
     case False
-    then obtain p1 p2 p3 where "ts = p1@p2@p3" and "p2 \<noteq> []" and "target (t_target t) p1 = target (t_target t) (p1@p2)" 
+    then obtain p1 p2 p3 where "ts = p1@p2@p3" and "p2 \<noteq> []" 
+                           and "target (t_target t) p1 = target (t_target t) (p1@p2)" 
       using cons.IH by blast
     then have "t#ts = (t#p1)@p2@p3 \<and> p2 \<noteq> [] \<and> target q (t#p1) = target q ((t#p1)@p2)"
       by simp
@@ -730,28 +851,36 @@ lemma cyclic_path_pumping :
       and "\<not> distinct (visited_nodes (initial M) p)"
   shows "\<exists> p . path M (initial M) p \<and> length p \<ge> n"
 proof -
-  from assms obtain p1 p2 p3 where "p = p1 @ p2 @ p3" and "p2 \<noteq> []" and "target (initial M) p1 = target (initial M) (p1 @ p2)"
+  from assms obtain p1 p2 p3 where "p = p1 @ p2 @ p3" and "p2 \<noteq> []" 
+                               and "target (initial M) p1 = target (initial M) (p1 @ p2)"
     using cyclic_path_loop[of M "initial M" p] by blast
   then have "path M (target (initial M) p1) p3"
     using path_suffix[of M "initial M" "p1@p2" p3] \<open>path M (initial M) p\<close> by auto
   
   have "path M (initial M) p1"
-    using path_prefix[of M "initial M" p1 "p2@p3"] \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> by auto
+    using path_prefix[of M "initial M" p1 "p2@p3"] \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> 
+    by auto
   have "path M (initial M) ((p1@p2)@p3)"
-    using \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> by auto
+    using \<open>path M (initial M) p\<close> \<open>p = p1 @ p2 @ p3\<close> 
+    by auto
   have "path M (target (initial M) p1) p2" 
-    using path_suffix[of M "initial M" p1 p2, OF path_prefix[of M "initial M" "p1@p2" p3, OF \<open>path M (initial M) ((p1@p2)@p3)\<close>]] by assumption
+    using path_suffix[of M "initial M" p1 p2, OF path_prefix[of M "initial M" "p1@p2" p3, OF \<open>path M (initial M) ((p1@p2)@p3)\<close>]] 
+    by assumption
   have "target (target (initial M) p1) p2 = (target (initial M) p1)"
-    using path_append_target \<open>target (initial M) p1 = target (initial M) (p1 @ p2)\<close> by auto
+    using path_append_target \<open>target (initial M) p1 = target (initial M) (p1 @ p2)\<close> 
+    by auto
   
   have "path M (initial M) (p1 @ (concat (replicate n p2)) @ p3)"  
   proof (induction n)
     case 0 
-    then show ?case using path_append[OF \<open>path M (initial M) p1\<close> \<open>path M (target (initial M) p1) p3\<close>]  by auto
+    then show ?case 
+      using path_append[OF \<open>path M (initial M) p1\<close> \<open>path M (target (initial M) p1) p3\<close>]  
+      by auto
   next
     case (Suc n)
     then show ?case
-      using \<open>path M (target (initial M) p1) p2\<close> \<open>target (target (initial M) p1) p2 = target (initial M) p1\<close> by auto 
+      using \<open>path M (target (initial M) p1) p2\<close> \<open>target (target (initial M) p1) p2 = target (initial M) p1\<close> 
+      by auto 
   qed
   moreover have "length (p1 @ (concat (replicate n p2)) @ p3) \<ge> n"
   proof -
@@ -781,17 +910,6 @@ proof -
   moreover have "length (p1@p3) < length p"
     using * by auto
   ultimately show ?thesis by blast
-qed
-
-
-
-lemma paths_finite : "finite { p . path M q p \<and> length p \<le> k }"
-proof -
-  have "{ p . path M q p \<and> length p \<le> k } \<subseteq> {xs . set xs \<subseteq> transitions M \<and> length xs \<le> k}"
-    by (metis (no_types, lifting) Collect_mono path_transitions)     
-  then show "finite { p . path M q p \<and> length p \<le> k }"
-    using finite_lists_length_le[OF fsm_transitions_finite[of M], of k]
-    by (metis (mono_tags) finite_subset) 
 qed
 
 
@@ -848,24 +966,7 @@ proof (rule ccontr)
   then show "False" using assms(2) by blast
 qed
 
-lemma visited_nodes_are_nodes :
-  assumes "path M q1 p"
-  shows "set (visited_nodes q1 p) \<subseteq> nodes M" 
-  by (metis assms path_prefix path_target_is_node subsetI visited_nodes_prefix) 
-  
-lemma transition_subset_path : 
-  assumes "transitions A \<subseteq> transitions B"
-  and "path A q p"
-  and "q \<in> nodes B"
-shows "path B q p"
-using assms(2) proof (induction p rule: rev_induct)
-  case Nil
-  show ?case using assms(3) by auto
-next
-  case (snoc t p)
-  then show ?case using assms(1) path_suffix
-    by fastforce   
-qed
+
 
 
 
@@ -877,23 +978,28 @@ definition reachable :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool" whe
 definition reachable_nodes :: "('a,'b,'c) fsm \<Rightarrow> 'a set" where
   "reachable_nodes M  = {target (initial M) p | p . path M (initial M) p }"
 
+abbreviation "size_r M \<equiv> card (reachable_nodes M)"
+
 lemma acyclic_paths_set :
   "acyclic_paths_up_to_length M q (size M - 1) = {p . path M q p \<and> distinct (visited_nodes q p)}"
   unfolding acyclic_paths_up_to_length.simps using acyclic_path_length_limit[of M q]
-  by (metis (no_types, lifting) One_nat_def Suc_pred cyclic_path_shortening leD list.size(3) not_less_eq_eq not_less_zero path.intros(1) path_begin_node) 
+  by (metis (no_types, lifting) One_nat_def Suc_pred cyclic_path_shortening leD list.size(3) 
+       not_less_eq_eq not_less_zero path.intros(1) path_begin_node) 
 
 
-(* inefficient calculation, as a node may be target of a large number of (acyclic) paths *)
+(* inefficient calculation, as a node may be target of a large number of acyclic paths *)
 lemma reachable_nodes_code[code] : 
   "reachable_nodes M = image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1))"
 proof -
-  have "\<And> q' . q' \<in> reachable_nodes M \<Longrightarrow> q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1))"
+  have "\<And> q' . q' \<in> reachable_nodes M 
+            \<Longrightarrow> q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1))"
   proof -
     fix q' assume "q' \<in> reachable_nodes M"
     then obtain p where "path M (initial M) p" and "target (initial M) p = q'"
       unfolding reachable_nodes_def by blast
     
-    obtain p' where "path M (initial M) p'" and "target (initial M) p' = q'" and "distinct (visited_nodes (initial M) p')"
+    obtain p' where "path M (initial M) p'" and "target (initial M) p' = q'" 
+                and "distinct (visited_nodes (initial M) p')"
     proof (cases "distinct (visited_nodes (initial M) p)")
       case True
       then show ?thesis using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q'\<close> that by auto
@@ -906,13 +1012,87 @@ proof -
     then show "q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1))"
       unfolding acyclic_paths_set by force
   qed
-  moreover have "\<And> q' . q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1)) \<Longrightarrow> q' \<in> reachable_nodes M"
+  moreover have "\<And> q' . q' \<in> image (target (initial M)) (acyclic_paths_up_to_length M (initial M) (size M - 1)) 
+                    \<Longrightarrow> q' \<in> reachable_nodes M"
     unfolding reachable_nodes_def acyclic_paths_set by blast
   ultimately show ?thesis by blast
 qed
 
 
-abbreviation "size_r M \<equiv> card (reachable_nodes M)"
+
+lemma reachable_nodes_intro[intro!] :
+  assumes "path M (initial M) p"
+  shows "target (initial M) p \<in> reachable_nodes M"
+  using assms unfolding reachable_nodes_def by auto
+
+
+lemma reachable_nodes_initial :
+  "initial M \<in> reachable_nodes M"
+  unfolding reachable_nodes_def by auto
+
+
+lemma reachable_nodes_next : 
+  assumes "q \<in> reachable_nodes M" and "t \<in> transitions M" and "t_source t = q" 
+  shows "t_target t \<in> reachable_nodes M" 
+proof -
+  from \<open>q \<in> reachable_nodes M\<close> obtain p where * :"path M (initial M) p"
+                                        and   **:"target (initial M) p = q"
+    unfolding reachable_nodes_def by auto
+
+  then have "path M (initial M) (p@[t])" using assms(2,3) path_append_transition by metis
+  moreover have "target (initial M) (p@[t]) = t_target t" by auto
+  ultimately show ?thesis 
+    unfolding reachable_nodes_def
+    by (metis (mono_tags, lifting) mem_Collect_eq)
+qed
+
+
+lemma reachable_nodes_path :
+  assumes "q \<in> reachable_nodes M"
+  and     "path M q p"
+  and     "t \<in> set p"
+shows "t_source t \<in> reachable_nodes M"
+using assms unfolding reachable_nodes_def proof (induction p arbitrary: q)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t' p')
+  then show ?case proof (cases "t = t'")
+    case True
+    then show ?thesis using Cons.prems(1,2) by force
+  next
+    case False then show ?thesis using Cons
+      by (metis (mono_tags, lifting) path_cons_elim reachable_nodes_def reachable_nodes_next 
+            set_ConsD) 
+  qed
+qed
+
+
+lemma reachable_nodes_initial_or_target :
+  assumes "q \<in> reachable_nodes M"
+  shows "q = initial M \<or> (\<exists> t \<in> transitions M . t_source t \<in> reachable_nodes M \<and> t_target t = q)"
+proof -
+  obtain p where "path M (initial M) p" and "target (initial M) p = q"
+    using assms unfolding reachable_nodes_def by auto 
+  
+  show ?thesis proof (cases p rule: rev_cases)
+    case Nil
+    then show ?thesis using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q\<close> by auto
+  next
+    case (snoc p' t)
+    
+    have "t \<in> transitions M"
+      using \<open>path M (initial M) p\<close> unfolding snoc by auto
+    moreover have "t_target t = q"
+      using \<open>target (initial M) p = q\<close> unfolding snoc by auto
+    moreover have "t_source t \<in> reachable_nodes M"
+      using \<open>path M (initial M) p\<close> unfolding snoc
+      by (metis append_is_Nil_conv last_in_set last_snoc not_Cons_self2 reachable_nodes_initial reachable_nodes_path) 
+
+    ultimately show ?thesis
+      by blast 
+  qed 
+qed
 
 
 subsection \<open>Language\<close>
@@ -963,12 +1143,16 @@ proof -
     by force 
 qed
 
-lemma language_contains_empty_sequence : "[] \<in> L M" by auto
+lemma language_contains_empty_sequence : "[] \<in> L M" 
+  by auto
 
 
 lemma language_state_split :
   assumes "io1 @ io2 \<in> LS M q1"
-  obtains  p1 p2 where "path M q1 p1" and "path M (target q1 p1) p2"  and "p_io p1 = io1" and "p_io p2 = io2"
+  obtains  p1 p2 where "path M q1 p1" 
+                   and "path M (target q1 p1) p2"  
+                   and "p_io p1 = io1" 
+                   and "p_io p2 = io2"
 proof -
   obtain p12 where "path M q1 p12" and "p_io p12 = io1 @ io2"
     using assms unfolding LS.simps by auto
@@ -993,11 +1177,83 @@ proof -
 qed
 
 
+lemma language_initial_path_append_transition :
+  assumes "ios @ [io] \<in> L M"
+  obtains p t where "path M (initial M) (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+proof -
+  obtain pt where "path M (initial M) pt" and "p_io pt = ios @ [io]"
+    using assms unfolding LS.simps by auto
+  then have "pt \<noteq> []"
+    by auto
+  then obtain p t where "pt = p @ [t]"
+    using rev_exhaust by blast  
+  then have "path M (initial M) (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+    using \<open>path M (initial M) pt\<close> \<open>p_io pt = ios @ [io]\<close> by auto
+  then show ?thesis using that by simp
+qed
+
+lemma language_path_append_transition :
+  assumes "ios @ [io] \<in> LS M q"
+  obtains p t where "path M q (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+proof -
+  obtain pt where "path M q pt" and "p_io pt = ios @ [io]"
+    using assms unfolding LS.simps by auto
+  then have "pt \<noteq> []"
+    by auto
+  then obtain p t where "pt = p @ [t]"
+    using rev_exhaust by blast  
+  then have "path M q (p@[t])" and "p_io (p@[t]) = ios @ [io]"
+    using \<open>path M q pt\<close> \<open>p_io pt = ios @ [io]\<close> by auto
+  then show ?thesis using that by simp
+qed
+
+
+lemma language_split :
+  assumes "io1@io2 \<in> L M"
+  obtains p1 p2 where "path M (initial M) (p1@p2)" and "p_io p1 = io1" and "p_io p2 = io2"
+proof -
+  from assms obtain p where "path M (initial M) p" and "p_io p = io1 @ io2"
+    by auto
+
+  let ?p1 = "take (length io1) p"
+  let ?p2 = "drop (length io1) p"
+
+  have "path M (initial M) (?p1@?p2)"
+    using \<open>path M (initial M) p\<close> by simp 
+  moreover have "p_io ?p1 = io1" 
+    using \<open>p_io p = io1 @ io2\<close>
+    by (metis append_eq_conv_conj take_map) 
+  moreover have "p_io ?p2 = io2" 
+    using \<open>p_io p = io1 @ io2\<close>
+    by (metis append_eq_conv_conj drop_map)
+  ultimately show ?thesis using that by blast
+qed
+
+lemma language_io : 
+  assumes "io \<in> L M"
+  and     "(x,y) \<in> set io"
+shows "x \<in> (inputs M)"
+and   "y \<in> outputs M"
+proof -
+  obtain p where "path M (initial M) p" and "p_io p = io"
+    using \<open>io \<in> L M\<close> by auto
+  then obtain t where "t \<in> set p" and "t_input t = x" and "t_output t = y"
+    using \<open>(x,y) \<in> set io\<close> by auto
+  
+  have "t \<in> transitions M"
+    using \<open>path M (initial M) p\<close> \<open>t \<in> set p\<close>
+    by (induction p; auto)
+
+  show "x \<in> (inputs M)"
+    using \<open>t \<in> transitions M\<close> \<open>t_input t = x\<close> by auto
+
+  show "y \<in> outputs M"
+    using \<open>t \<in> transitions M\<close> \<open>t_output t = y\<close> by auto
+qed
 
 
 
-
-subsection \<open> Basic FSM properties \<close>
+subsection \<open>Basic FSM Properties\<close>
 
 subsubsection \<open>Completely Specified\<close>
 
@@ -1005,14 +1261,13 @@ fun completely_specified :: "('a,'b,'c) fsm \<Rightarrow> bool" where
   "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> inputs M . \<exists> t \<in> transitions M . t_source t = q \<and> t_input t = x)"
 
 
-lemma completely_specified_alt_def : "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> inputs M . \<exists> q' y . (q,x,y,q') \<in> transitions M)"
+lemma completely_specified_alt_def : 
+  "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> inputs M . \<exists> q' y . (q,x,y,q') \<in> transitions M)"
   by force
 
-lemma completely_specified_alt_def_h : "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> inputs M . h M (q,x) \<noteq> {})"
+lemma completely_specified_alt_def_h : 
+  "completely_specified M = (\<forall> q \<in> nodes M . \<forall> x \<in> inputs M . h M (q,x) \<noteq> {})"
   by force
-
-
-value "completely_specified m_ex_H"
 
 
 
@@ -1023,69 +1278,119 @@ lemma completely_specified_states :
   "completely_specified M = (\<forall> q \<in> nodes M . completely_specified_state M q)"
   unfolding completely_specified.simps completely_specified_state.simps by force
 
-lemma completely_specified_state_alt_def_h : "completely_specified_state M q = (\<forall> x \<in> inputs M . h M (q,x) \<noteq> {})"
+lemma completely_specified_state_alt_def_h : 
+  "completely_specified_state M q = (\<forall> x \<in> inputs M . h M (q,x) \<noteq> {})"
   by force
 
+
+lemma completely_specified_path_extension : 
+  assumes "completely_specified M"
+  and     "q \<in> nodes M"
+  and     "path M q p"
+  and     "x \<in> (inputs M)"
+obtains t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
+proof -
+  have "target q p \<in> nodes M"
+    using path_target_is_node \<open>path M q p\<close> by metis
+  then obtain t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
+    using \<open>completely_specified M\<close> \<open>x \<in> (inputs M)\<close> 
+    unfolding completely_specified.simps by blast
+  then show ?thesis using that by blast
+qed
+
+
+lemma completely_specified_language_extension :
+  assumes "completely_specified M"
+  and     "q \<in> nodes M"
+  and     "io \<in> LS M q"
+  and     "x \<in> (inputs M)"
+obtains y where "io@[(x,y)] \<in> LS M q"
+proof -
+  obtain p where "path M q p" and "p_io p = io"
+    using \<open>io \<in> LS M q\<close> by auto
+  
+  moreover obtain t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
+    using completely_specified_path_extension[OF assms(1,2) \<open>path M q p\<close> assms(4)] by blast
+
+  ultimately have "path M q (p@[t])" and "p_io (p@[t]) = io@[(x,t_output t)]"
+    by (simp add: path_append_transition)+
+    
+  then have "io@[(x,t_output t)] \<in> LS M q"
+    using language_state_containment[of M q "p@[t]" "io@[(x,t_output t)]"] by auto
+  then show ?thesis using that by blast
+qed
+  
+  
 
 subsubsection \<open>Deterministic\<close>
 
 fun deterministic :: "('a,'b,'c) fsm \<Rightarrow> bool" where
-  "deterministic M = (\<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<longrightarrow> t_output t1 = t_output t2 \<and> t_target t1 = t_target t2)" 
+  "deterministic M = (\<forall> t1 \<in> transitions M . 
+                        \<forall> t2 \<in> transitions M . 
+                          (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2) 
+                          \<longrightarrow> (t_output t1 = t_output t2 \<and> t_target t1 = t_target t2))" 
 
-lemma deterministic_alt_def : "deterministic M = (\<forall> q1 x y' y''  q1' q1'' . (q1,x,y',q1') \<in> transitions M \<and> (q1,x,y'',q1'') \<in> transitions M \<longrightarrow> y' = y'' \<and> q1' = q1'')" 
+lemma deterministic_alt_def : 
+  "deterministic M = (\<forall> q1 x y' y''  q1' q1'' . (q1,x,y',q1') \<in> transitions M \<and> (q1,x,y'',q1'') \<in> transitions M \<longrightarrow> y' = y'' \<and> q1' = q1'')" 
   by auto
 
-lemma deterministic_alt_def_h : "deterministic M = (\<forall> q1 x yq yq' . (yq \<in> h M (q1,x) \<and> yq' \<in> h M (q1,x)) \<longrightarrow> yq = yq')"
+lemma deterministic_alt_def_h : 
+  "deterministic M = (\<forall> q1 x yq yq' . (yq \<in> h M (q1,x) \<and> yq' \<in> h M (q1,x)) \<longrightarrow> yq = yq')"
   by auto
 
-value "deterministic m_ex_H"
 
 
 subsubsection \<open>Observable\<close>
 
 fun observable :: "('a,'b,'c) fsm \<Rightarrow> bool" where
-  "observable M = (\<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2 \<longrightarrow> t_target t1 = t_target t2)" 
+  "observable M = (\<forall> t1 \<in> transitions M . 
+                    \<forall> t2 \<in> transitions M . 
+                      (t_source t1 = t_source t2 \<and> t_input t1 = t_input t2 \<and> t_output t1 = t_output t2) 
+                        \<longrightarrow> t_target t1 = t_target t2)" 
 
-lemma observable_alt_def : "observable M = (\<forall> q1 x y q1' q1'' . (q1,x,y,q1') \<in> transitions M \<and> (q1,x,y,q1'') \<in> transitions M \<longrightarrow> q1' = q1'')" 
+lemma observable_alt_def : 
+  "observable M = (\<forall> q1 x y q1' q1'' . (q1,x,y,q1') \<in> transitions M \<and> (q1,x,y,q1'') \<in> transitions M \<longrightarrow> q1' = q1'')" 
   by auto
 
-lemma observable_alt_def_h : "observable M = (\<forall> q1 x yq yq' . (yq \<in> h M (q1,x) \<and> yq' \<in> h M (q1,x)) \<longrightarrow> fst yq = fst yq' \<longrightarrow> snd yq = snd yq')"
+lemma observable_alt_def_h : 
+  "observable M = (\<forall> q1 x yq yq' . (yq \<in> h M (q1,x) \<and> yq' \<in> h M (q1,x)) \<longrightarrow> fst yq = fst yq' \<longrightarrow> snd yq = snd yq')"
   by auto
-
-value "observable m_ex_H"
-
 
 
 subsubsection \<open>Single Input\<close>
 
-
 (* each state has at most one input, but may have none *)
 fun single_input :: "('a,'b,'c) fsm \<Rightarrow> bool" where
-  "single_input M = (\<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . t_source t1 = t_source t2 \<longrightarrow> t_input t1 = t_input t2)" 
+  "single_input M = (\<forall> t1 \<in> transitions M . 
+                      \<forall> t2 \<in> transitions M . 
+                        t_source t1 = t_source t2 \<longrightarrow> t_input t1 = t_input t2)" 
 
 
-lemma single_input_alt_def : "single_input M = (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> transitions M \<and> (q1,x',y',q1'') \<in> transitions M \<longrightarrow> x = x')"
+lemma single_input_alt_def : 
+  "single_input M = (\<forall> q1 x x' y y' q1' q1'' . (q1,x,y,q1') \<in> transitions M \<and> (q1,x',y',q1'') \<in> transitions M \<longrightarrow> x = x')"
   by fastforce
 
-lemma single_input_alt_def_h : "single_input M = (\<forall> q x x' . (h M (q,x) \<noteq> {} \<and> h M (q,x') \<noteq> {}) \<longrightarrow> x = x')"
+lemma single_input_alt_def_h : 
+  "single_input M = (\<forall> q x x' . (h M (q,x) \<noteq> {} \<and> h M (q,x') \<noteq> {}) \<longrightarrow> x = x')"
   by force
     
-value "single_input m_ex_H"  
-
-
 
 subsubsection \<open>Output Complete\<close>
 
 fun output_complete :: "('a,'b,'c) fsm \<Rightarrow> bool" where
-  "output_complete M = (\<forall> t \<in> transitions M . \<forall> y \<in> outputs M . \<exists> t' \<in> transitions M . t_source t = t_source t' \<and> t_input t = t_input t' \<and> t_output t' = y)" 
+  "output_complete M = (\<forall> t \<in> transitions M . 
+                          \<forall> y \<in> outputs M . 
+                            \<exists> t' \<in> transitions M . t_source t = t_source t' \<and> 
+                                                    t_input t = t_input t' \<and> 
+                                                    t_output t' = y)" 
 
-lemma output_complete_alt_def : "output_complete M = (\<forall> q x . (\<exists> y q' . (q,x,y,q') \<in> transitions M) \<longrightarrow> (\<forall> y \<in> (outputs M) . \<exists> q' . (q,x,y,q') \<in> transitions M))" 
+lemma output_complete_alt_def : 
+  "output_complete M = (\<forall> q x . (\<exists> y q' . (q,x,y,q') \<in> transitions M) \<longrightarrow> (\<forall> y \<in> (outputs M) . \<exists> q' . (q,x,y,q') \<in> transitions M))" 
   by force
 
-lemma output_complete_alt_def_h : "output_complete M = (\<forall> q x . h M (q,x) \<noteq> {} \<longrightarrow> (\<forall> y \<in> outputs M . \<exists> q' . (y,q') \<in> h M (q,x)))"
+lemma output_complete_alt_def_h : 
+  "output_complete M = (\<forall> q x . h M (q,x) \<noteq> {} \<longrightarrow> (\<forall> y \<in> outputs M . \<exists> q' . (y,q') \<in> h M (q,x)))"
   by force
-
-value "output_complete m_ex_H"
 
 
 
@@ -1109,11 +1414,19 @@ qed
 
 
 (* very inefficient calculation *)
-lemma acyclic_code[code] : "acyclic M = (\<not>(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> t_target t \<in> set (visited_nodes (initial M) p)))"
+lemma acyclic_code[code] : 
+  "acyclic M = (\<not>(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . 
+                    \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> 
+                                           t_target t \<in> set (visited_nodes (initial M) p)))"
 proof -
-  have "(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> t_target t \<in> set (visited_nodes (initial M) p)) \<Longrightarrow> \<not> FSM.acyclic M"
+  have "(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . 
+          \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> 
+                t_target t \<in> set (visited_nodes (initial M) p)) 
+        \<Longrightarrow> \<not> FSM.acyclic M"
   proof -
-    assume "(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> t_target t \<in> set (visited_nodes (initial M) p))"
+    assume "(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . 
+              \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> 
+                                    t_target t \<in> set (visited_nodes (initial M) p))"
     then obtain p t where "path M (initial M) p"
                     and   "distinct (visited_nodes (initial M) p)"
                     and   "t \<in> transitions M"
@@ -1127,7 +1440,10 @@ proof -
     ultimately show "\<not> FSM.acyclic M"
       by (meson acyclic.elims(2))
   qed
-  moreover have "\<not> FSM.acyclic M \<Longrightarrow> (\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> t_target t \<in> set (visited_nodes (initial M) p))"
+  moreover have "\<not> FSM.acyclic M \<Longrightarrow> 
+                  (\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . 
+                    \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> 
+                                          t_target t \<in> set (visited_nodes (initial M) p))"
   proof -
     assume "\<not> FSM.acyclic M"
     then obtain p where "path M (initial M) p"
@@ -1142,7 +1458,8 @@ proof -
 
     then obtain p' t' where *: "take n p = p'"
                       and   **: "take (Suc n) p = p' @ [t']"
-      by (metis Suc_less_eq \<open>\<not> distinct (visited_nodes (FSM.initial M) p)\<close> le_imp_less_Suc not_less_eq_eq take_all take_hd_drop)
+      by (metis Suc_less_eq \<open>\<not> distinct (visited_nodes (FSM.initial M) p)\<close> 
+            le_imp_less_Suc not_less_eq_eq take_all take_hd_drop)
     
     have ***: "visited_nodes (FSM.initial M) (p' @ [t']) = (visited_nodes (FSM.initial M) p')@[t_target t']"
       by auto
@@ -1158,16 +1475,18 @@ proof -
       by (metis append_take_drop_id path_append_elim path_cons_elim)
        
     moreover have "t_target t' \<in> set (visited_nodes (initial M) p')"
-      using \<open>distinct (visited_nodes (initial M) (take n p))\<close> \<open>\<not> distinct (visited_nodes (initial M)(take (Suc n) p))\<close>
+      using \<open>distinct (visited_nodes (initial M) (take n p))\<close> 
+            \<open>\<not> distinct (visited_nodes (initial M)(take (Suc n) p))\<close>
       unfolding * ** *** by auto 
-    ultimately show "(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> t_target t \<in> set (visited_nodes (initial M) p))"
+    ultimately show "(\<exists> p \<in> (acyclic_paths_up_to_length M (initial M) (size M - 1)) . 
+                      \<exists> t \<in> transitions M . t_source t = target (initial M) p \<and> 
+                                            t_target t \<in> set (visited_nodes (initial M) p))"
       by blast
   qed
   ultimately show ?thesis by blast
 qed
 
 
-value "acyclic m_ex_H"
 
 
 lemma acyclic_alt_def : "acyclic M = finite (L M)"
@@ -1272,7 +1591,8 @@ proof -
     using assms(1) unfolding acyclic.simps by blast
   then have "distinct (initial M # (map t_target p') @ map t_target p)"
     by auto
-  moreover have "initial M # (map t_target p') @ map t_target p = (butlast (initial M # map t_target p')) @ ((last (initial M # map t_target p')) # map t_target p)"
+  moreover have "initial M # (map t_target p') @ map t_target p 
+                  = (butlast (initial M # map t_target p')) @ ((last (initial M # map t_target p')) # map t_target p)"
     by auto
   ultimately have "distinct ((last (initial M # map t_target p')) # map t_target p)"
     by auto
@@ -1296,10 +1616,19 @@ proof -
     by (metis (no_types) Collect_cong)
   have "\<forall>ps. \<not> path M (FSM.initial M) ps \<or> distinct (visited_nodes (FSM.initial M) ps)"
     using acyclic.simps assms by blast
-  then have "(\<nexists>ps. pps (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa) (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa \<and> distinct (visited_nodes (FSM.initial M) psa)) = p_io ps \<and> path M (FSM.initial M) ps \<and> distinct (visited_nodes (FSM.initial M) ps)) \<noteq> (\<exists>ps. pps (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa) (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa \<and> distinct (visited_nodes (FSM.initial M) psa)) = p_io ps \<and> path M (FSM.initial M) ps)"
+  then have "(\<nexists>ps. pps (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa) 
+                       (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa 
+                                    \<and> distinct (visited_nodes (FSM.initial M) psa)) 
+                  = p_io ps \<and> path M (FSM.initial M) ps \<and> distinct (visited_nodes (FSM.initial M) ps)) 
+            \<noteq> (\<exists>ps. pps (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa) 
+                        (\<lambda>ps. \<exists>psa. ps = p_io psa \<and> path M (FSM.initial M) psa 
+                                    \<and> distinct (visited_nodes (FSM.initial M) psa)) 
+                  = p_io ps \<and> path M (FSM.initial M) ps)"
     by blast
-  then have "{p_io ps |ps. path M (FSM.initial M) ps \<and> distinct (visited_nodes (FSM.initial M) ps)} = {p_io ps |ps. path M (FSM.initial M) ps}"
-    using f1 by (meson \<open>\<forall>ps. \<not> path M (FSM.initial M) ps \<or> distinct (visited_nodes (FSM.initial M) ps)\<close>) 
+  then have "{p_io ps |ps. path M (FSM.initial M) ps \<and> distinct (visited_nodes (FSM.initial M) ps)} 
+              = {p_io ps |ps. path M (FSM.initial M) ps}"
+    using f1 
+    by (meson \<open>\<forall>ps. \<not> path M (FSM.initial M) ps \<or> distinct (visited_nodes (FSM.initial M) ps)\<close>) 
   then show ?thesis
     by (simp add: LS_acyclic_def)
 qed
@@ -1310,14 +1639,17 @@ lemma cyclic_cycle :
   assumes "\<not> acyclic M"
   shows "\<exists> q p . path M q p \<and> p \<noteq> [] \<and> target q p = q" 
 proof -
-  from \<open>\<not> acyclic M\<close> obtain p t where "path M (initial M) (p@[t])" and "\<not>distinct (visited_nodes (initial M) (p@[t]))"
-    by (metis (no_types, hide_lams) Nil_is_append_conv acyclic.simps append_take_drop_id maximal_distinct_prefix rev_exhaust visited_nodes_take)
+  from \<open>\<not> acyclic M\<close> obtain p t where "path M (initial M) (p@[t])" 
+                                  and "\<not>distinct (visited_nodes (initial M) (p@[t]))"
+    by (metis (no_types, hide_lams) Nil_is_append_conv acyclic.simps append_take_drop_id 
+          maximal_distinct_prefix rev_exhaust visited_nodes_take)
      
 
   show ?thesis
   proof (cases "initial M \<in> set (map t_target (p@[t]))")
     case True
-    then obtain i where "last (take i (map t_target (p@[t]))) = initial M" and "i \<le> length (map t_target (p@[t]))" and "0 < i"
+    then obtain i where "last (take i (map t_target (p@[t]))) = initial M" 
+                    and "i \<le> length (map t_target (p@[t]))" and "0 < i"
       using list_contains_last_take by metis
 
     let ?p = "take i (p@[t])"
@@ -1327,14 +1659,18 @@ proof -
     then have "path M (initial M) ?p" by auto
     moreover have "?p \<noteq> []" using \<open>0 < i\<close> by auto
     moreover have "target (initial M) ?p = initial M"
-      using \<open>last (take i (map t_target (p@[t]))) = initial M\<close> unfolding target.simps visited_nodes.simps
+      using \<open>last (take i (map t_target (p@[t]))) = initial M\<close> 
+      unfolding target.simps visited_nodes.simps
       by (metis (no_types, lifting) calculation(2) last_ConsR list.map_disc_iff take_map) 
     ultimately show ?thesis by blast
   next
     case False
     then have "\<not> distinct (map t_target (p@[t]))"
-      using \<open>\<not>distinct (visited_nodes (initial M) (p@[t]))\<close> unfolding visited_nodes.simps by auto
-    then obtain i j where "i < j" and "j < length (map t_target (p@[t]))" and "(map t_target (p@[t])) ! i = (map t_target (p@[t])) ! j"
+      using \<open>\<not>distinct (visited_nodes (initial M) (p@[t]))\<close> 
+      unfolding visited_nodes.simps 
+      by auto
+    then obtain i j where "i < j" and "j < length (map t_target (p@[t]))" 
+                      and "(map t_target (p@[t])) ! i = (map t_target (p@[t])) ! j"
       using non_distinct_repetition_indices by blast
 
     let ?pre_i = "take (Suc i) (p@[t])"
@@ -1356,14 +1692,16 @@ proof -
     have "(target (initial M) ?pre_i) = (map t_target (p@[t])) ! i"
       unfolding target.simps visited_nodes.simps  
       using take_last_index[OF \<open>i < length (map t_target (p@[t]))\<close>]
-      by (metis (no_types, lifting) \<open>i < length (map t_target (p @ [t]))\<close> last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
+      by (metis (no_types, lifting) \<open>i < length (map t_target (p @ [t]))\<close> 
+          last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
     
     have "?pre_i@?p = take (Suc j) (p@[t])"
       by (metis (no_types) \<open>i < j\<close> add_Suc add_diff_cancel_left' less_SucI less_imp_Suc_add take_add)
     moreover have "(target (initial M) (take (Suc j) (p@[t]))) = (map t_target (p@[t])) ! j"
       unfolding target.simps visited_nodes.simps  
       using take_last_index[OF \<open>j < length (map t_target (p@[t]))\<close>]
-      by (metis (no_types, lifting) \<open>j < length (map t_target (p @ [t]))\<close> last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
+      by (metis (no_types, lifting) \<open>j < length (map t_target (p @ [t]))\<close> 
+            last_ConsR snoc_eq_iff_butlast take_Suc_conv_app_nth take_map) 
     ultimately have "(target (initial M) (?pre_i@?p)) = (map t_target (p@[t])) ! j"
       by auto
     then have "(target (initial M) (?pre_i@?p)) = (map t_target (p@[t])) ! i"
@@ -1376,7 +1714,8 @@ proof -
       using \<open>(target (initial M) ?pre_i) = (map t_target (p@[t])) ! i\<close> by auto
 
     show ?thesis
-      using \<open>path M (target (initial M) ?pre_i) ?p\<close> \<open>?p \<noteq> []\<close> \<open>(target (target (initial M) ?pre_i) ?p) = (target (initial M) ?pre_i)\<close>
+      using \<open>path M (target (initial M) ?pre_i) ?p\<close> \<open>?p \<noteq> []\<close> 
+            \<open>(target (target (initial M) ?pre_i) ?p) = (target (initial M) ?pre_i)\<close>
       by blast
   qed
 qed
@@ -1395,8 +1734,10 @@ shows "\<not> acyclic M"
 
 lemma acyclic_initial :
   assumes "acyclic M"
-  shows "\<not> (\<exists> t \<in> transitions M . t_target t = initial M \<and> (\<exists> p . path M (initial M) p \<and> target (initial M) p = t_source t))"
-  by (metis append_Cons assms cyclic_cycle_rev list.distinct(1) path.simps path_append path_append_transition_elim(3) single_transition_path) 
+  shows "\<not> (\<exists> t \<in> transitions M . t_target t = initial M \<and> 
+                                  (\<exists> p . path M (initial M) p \<and> target (initial M) p = t_source t))"
+  by (metis append_Cons assms cyclic_cycle_rev list.distinct(1) path.simps 
+        path_append path_append_transition_elim(3) single_transition_path) 
 
 lemma cyclic_path_shift : 
   assumes "path M q p"
@@ -1445,7 +1786,8 @@ proof -
       case 0
       then show ?case 
         using \<open>p ! i = t0\<close> \<open>P (t_source t0)\<close>
-        by (metis \<open>i < length p\<close> drop_eq_Nil hd_append2 hd_conv_nth hd_drop_conv_nth leD length_greater_0_conv)  
+        by (metis \<open>i < length p\<close> drop_eq_Nil hd_append2 hd_conv_nth hd_drop_conv_nth leD 
+              length_greater_0_conv)  
     next
       case (Suc j)
       then have "P (t_source (?p ! j))"
@@ -1454,7 +1796,8 @@ proof -
         using Suc.prems \<open>\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)\<close>[of "?p ! j"]
         using Suc_lessD nth_mem by blast 
       moreover have "t_target (?p ! j) = t_source (?p ! (Suc j))"
-        using path_source_target_index[OF Suc.prems \<open>path M (target q (take i p)) ?p\<close>] by assumption
+        using path_source_target_index[OF Suc.prems \<open>path M (target q (take i p)) ?p\<close>] 
+        by assumption
       ultimately show ?case 
         using \<open>\<And> t . t \<in> set ?p \<Longrightarrow> P (t_source t) \<Longrightarrow> P (t_target t)\<close>[of "?p ! j"]
         by simp
@@ -1494,20 +1837,12 @@ proof -
     by (metis \<open>i < length p\<close> append_take_drop_id assms(1) path_append_elim take_hd_drop)
   then have "t_source t = (target q (take i p))"
     by auto  
-  moreover have "t_target (last ?p) = (target q (take i p))"
-    using \<open>path M (target q (take i p)) ?p\<close> \<open>target (target q (take i p)) ?p = target q (take i p)\<close> assms(2)
+  moreover have "t_target (last ?p) = (target q (take i p))" 
+    using \<open>path M (target q (take i p)) ?p\<close> \<open>target (target q (take i p)) ?p = target q (take i p)\<close> 
+          assms(2)
     unfolding target.simps visited_nodes.simps last.simps
-  proof -
-    assume a1: "(if map t_target (drop i p @ take i p) = [] then if map t_target (take i p) = [] then q else last (map t_target (take i p)) else last (map t_target (drop i p @ take i p))) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
-    have "drop i p @ take i p \<noteq> [] \<and> map t_target (drop i p @ take i p) \<noteq> []"
-      using \<open>p \<noteq> []\<close> by fastforce
-    moreover
-    { assume "map t_target (take i p) \<noteq> [] \<and> map t_target (drop i p @ take i p) \<noteq> []"
-      then have "t_target (last (drop i p @ take i p)) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
-        by (simp add: last_map) }
-    ultimately show "t_target (last (drop i p @ take i p)) = (if map t_target (take i p) = [] then q else last (map t_target (take i p)))"
-      using a1 by (metis (no_types) last_map)
-  qed
+    by (metis (no_types, lifting) \<open>p = take i p @ drop i p\<close> append_is_Nil_conv last_map 
+          list.map_disc_iff)
     
   
   moreover have "set ?p = set p"
@@ -1519,6 +1854,41 @@ proof -
 
   ultimately show ?thesis
     by (metis \<open>i < length p\<close> append_is_Nil_conv drop_eq_Nil last_in_set leD) 
+qed
+
+
+lemma acyclic_paths_finite :
+  "finite {p . path M q p \<and> distinct (visited_nodes q p) }"
+proof -
+  have "\<And> p . path M q p \<Longrightarrow> distinct (visited_nodes q p) \<Longrightarrow> distinct p"
+  proof -
+    fix p assume "path M q p" and "distinct (visited_nodes q p)"
+    then have "distinct (map t_target p)" by auto
+    then show "distinct p" by (simp add: distinct_map) 
+  qed
+  
+  then show ?thesis
+    using distinct_lists_finite[OF fsm_transitions_finite, of M]  path_transitions[of M q]
+    by (metis (no_types, lifting) infinite_super mem_Collect_eq path_transitions subsetI)
+qed
+
+
+lemma acyclic_no_self_loop :
+  assumes "acyclic M"
+  and     "q \<in> reachable_nodes M"
+shows "\<not> (\<exists> x y . (q,x,y,q) \<in> transitions M)" 
+proof 
+  assume "\<exists>x y. (q, x, y, q) \<in> FSM.transitions M"
+  then obtain x y where "(q, x, y, q) \<in> FSM.transitions M" by blast
+  moreover obtain p where "path M (initial M) p" and "target (initial M) p = q"
+    using assms(2) unfolding reachable_nodes_def by blast
+  ultimately have "path M (initial M) (p@[(q,x,y,q)])" 
+    by (simp add: path_append_transition) 
+  moreover have "\<not> (distinct (visited_nodes (initial M) (p@[(q,x,y,q)])))"
+    using \<open>target (initial M) p = q\<close> unfolding visited_nodes.simps target.simps by (cases p rule: rev_cases; auto)
+  ultimately show "False"
+    using assms(1) unfolding acyclic.simps
+    by meson 
 qed
 
 
@@ -1561,11 +1931,13 @@ proof (rule ccontr)
   
 
   have "finite {p. path M (initial M) p}" 
-    by (metis Collect_cong acyclic_finite_paths_from_reachable_node assms eq_Nil_appendI fsm_initial nil path_append path_append_elim) 
+    by (metis Collect_cong acyclic_finite_paths_from_reachable_node assms eq_Nil_appendI fsm_initial 
+          nil path_append path_append_elim) 
     
   moreover have "{p. path M (initial M) p} \<noteq> {}" 
     by auto
-  ultimately obtain p where "path M (initial M) p" and "\<And> p' . path M (initial M) p' \<Longrightarrow> length p' \<le> length p" 
+  ultimately obtain p where "path M (initial M) p" 
+                        and "\<And> p' . path M (initial M) p' \<Longrightarrow> length p' \<le> length p" 
     using max_length_elem
     by (metis mem_Collect_eq not_le_imp_less)
 
@@ -1600,7 +1972,8 @@ next
   next
     case False
     then have "p' = (butlast p')@[t]"
-      using snoc.prems(2) by (metis append_butlast_last_id append_self_conv2 butlast_snoc in_set_butlast_appendI list_prefix_elem set_ConsD)
+      using snoc.prems(2) by (metis append_butlast_last_id append_self_conv2 butlast_snoc 
+                                in_set_butlast_appendI list_prefix_elem set_ConsD)
     then have "path M q ((butlast p'@[t])@[t'])"
       using snoc.prems(1)
       by auto 
@@ -1616,6 +1989,31 @@ next
 qed
 
 
+lemma nodes_initial_deadlock :
+  assumes "deadlock_state M (initial M)"
+  shows "reachable_nodes M = {initial M}"
+  
+proof -
+  have "\<And> q . q \<in> reachable_nodes M \<Longrightarrow> q = initial M"
+  proof -
+    fix q assume "q \<in> reachable_nodes M"
+    then obtain p where "path M (initial M) p" and "target (initial M) p = q"
+      unfolding reachable_nodes_def by auto
+    
+    show "q = initial M" proof (cases p)
+      case Nil
+      then show ?thesis using \<open>target (initial M) p = q\<close> by auto
+    next
+      case (Cons t p')
+      then have "False" using assms \<open>path M (initial M) p\<close> unfolding deadlock_state.simps
+        by auto 
+      then show ?thesis by simp
+    qed
+  qed
+  then show ?thesis
+    using reachable_nodes_initial[of M] by blast
+qed
+
 subsubsection \<open>Other\<close>
 
 fun completed_path :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) path \<Rightarrow> bool" where
@@ -1625,14 +2023,16 @@ fun minimal :: "('a,'b,'c) fsm \<Rightarrow> bool" where
   "minimal M = (\<forall> q \<in> nodes M . \<forall> q' \<in> nodes M . q \<noteq> q' \<longrightarrow> LS M q \<noteq> LS M q')"
 
 definition retains_outputs_for_states_and_inputs :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> bool" where
-  "retains_outputs_for_states_and_inputs M S = (\<forall> tS \<in> transitions S . \<forall> tM \<in> transitions M . (t_source tS = t_source tM \<and> t_input tS = t_input tM) \<longrightarrow> tM \<in> transitions S)"
+  "retains_outputs_for_states_and_inputs M S 
+    = (\<forall> tS \<in> transitions S . 
+        \<forall> tM \<in> transitions M . 
+          (t_source tS = t_source tM \<and> t_input tS = t_input tM) \<longrightarrow> tM \<in> transitions S)"
 
 
 
 
 
 subsection \<open>IO Targets and Observability\<close>
-
 
 fun paths_for_io' :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> 'a \<Rightarrow> ('a,'b,'c) path \<Rightarrow> ('a,'b,'c) path set" where
   "paths_for_io' f [] q prev = {prev}" |
@@ -1649,7 +2049,8 @@ next
   obtain x y where "xy = (x,y)"
     by (meson surj_pair) 
 
-  let ?UN = "\<Union>(image (\<lambda>yq' . paths_for_io' (h M) io (snd yq') (prev@[(q,x,y,(snd yq'))])) (Set.filter (\<lambda>yq' . fst yq' = y) (h M (q,x))))"
+  let ?UN = "\<Union>(image (\<lambda>yq' . paths_for_io' (h M) io (snd yq') (prev@[(q,x,y,(snd yq'))])) 
+                      (Set.filter (\<lambda>yq' . fst yq' = y) (h M (q,x))))"
 
   have "?UN = {prev@p | p . path M q p \<and> p_io p = (x,y)#io}"
   proof 
@@ -1660,13 +2061,15 @@ next
                      and   "p \<in> paths_for_io' (h M) io q' (prev@[(q,x,y,q')])"
         by auto
       
-      from \<open>(y,q') \<in> (Set.filter (\<lambda>yq' . fst yq' = y) (h M (q,x)))\<close> have "q' \<in> nodes M" and "(q,x,y,q') \<in> transitions M"
+      from \<open>(y,q') \<in> (Set.filter (\<lambda>yq' . fst yq' = y) (h M (q,x)))\<close> have "q' \<in> nodes M" 
+                                                                     and "(q,x,y,q') \<in> transitions M"
         using fsm_transition_target unfolding h.simps by auto
 
       have "p \<in> {(prev @ [(q, x, y, q')]) @ p |p. path M q' p \<and> p_io p = io}"
         using \<open>p \<in> paths_for_io' (h M) io q' (prev@[(q,x,y,q')])\<close>
         unfolding Cons.IH[OF \<open>q' \<in> nodes M\<close>] by assumption
-      moreover have " {(prev @ [(q, x, y, q')]) @ p |p. path M q' p \<and> p_io p = io} \<subseteq> {prev@p | p . path M q p \<and> p_io p = (x,y)#io}"
+      moreover have "{(prev @ [(q, x, y, q')]) @ p |p. path M q' p \<and> p_io p = io} 
+                      \<subseteq> {prev@p | p . path M q p \<and> p_io p = (x,y)#io}"
         using \<open>(q,x,y,q') \<in> transitions M\<close>
         using cons by force 
       ultimately show "p \<in> {prev@p | p . path M q p \<and> p_io p = (x,y)#io}" 
@@ -1680,9 +2083,12 @@ next
       fix pp assume "pp \<in> {prev@p | p . path M q p \<and> p_io p = (x,y)#io}"
       then obtain p where "pp = prev@p" and "path M q p" and "p_io p = (x,y)#io"
         by fastforce
-      then obtain t p' where "p = t#p'" and "path M q (t#p')" and "p_io (t#p') = (x,y)#io" and "p_io p' = io"
+      then obtain t p' where "p = t#p'" and "path M q (t#p')" and "p_io (t#p') = (x,y)#io" 
+                         and "p_io p' = io"
         by (metis (no_types, lifting) map_eq_Cons_D)
-      then have "path M (t_target t) p'" and "t_source t = q" and "t_input t = x" and "t_output t = y" and "t_target t \<in> nodes M" and "t \<in> transitions M"
+      then have "path M (t_target t) p'" and "t_source t = q" and "t_input t = x" 
+                                         and "t_output t = y" and "t_target t \<in> nodes M"
+                                         and "t \<in> transitions M"
         by auto
 
       have "(y,t_target t) \<in> Set.filter (\<lambda>yq'. fst yq' = y) (h M (q, x))"
@@ -1691,7 +2097,9 @@ next
         by auto 
       moreover have "(prev@p) \<in> paths_for_io' (h M) io (snd (y,t_target t)) (prev @ [(q, x, y, snd (y,t_target t))])"
         using Cons.IH[OF \<open>t_target t \<in> nodes M\<close>, of "prev@[(q, x, y, t_target t)]"]
-        using \<open>p = t # p'\<close> \<open>p_io p' = io\<close> \<open>path M (t_target t) p'\<close> \<open>t_input t = x\<close> \<open>t_output t = y\<close> \<open>t_source t = q\<close> by auto
+        using \<open>p = t # p'\<close> \<open>p_io p' = io\<close> \<open>path M (t_target t) p'\<close> \<open>t_input t = x\<close> 
+              \<open>t_output t = y\<close> \<open>t_source t = q\<close> 
+        by auto
 
       ultimately show "pp \<in> ?UN" unfolding \<open>pp = prev@p\<close>
         by blast 
@@ -1714,7 +2122,8 @@ lemma paths_for_io_set_code[code] :
   using paths_for_io'_set[of q M io "[]"]
   unfolding paths_for_io_def
 proof -
-  have "{[] @ ps |ps. path M q ps \<and> p_io ps = io} = (if q \<in> FSM.nodes M then paths_for_io' (h M) io q [] else {}) \<longrightarrow> {ps. path M q ps \<and> p_io ps = io} = (if q \<in> FSM.nodes M then paths_for_io' (h M) io q [] else {})"
+  have "{[] @ ps |ps. path M q ps \<and> p_io ps = io} = (if q \<in> FSM.nodes M then paths_for_io' (h M) io q [] else {}) 
+        \<longrightarrow> {ps. path M q ps \<and> p_io ps = io} = (if q \<in> FSM.nodes M then paths_for_io' (h M) io q [] else {})"
     by auto
   moreover
     { assume "{[] @ ps |ps. path M q ps \<and> p_io ps = io} \<noteq> (if q \<in> FSM.nodes M then paths_for_io' (h M) io q [] else {})"
@@ -1726,8 +2135,6 @@ proof -
     by linarith
 qed 
 
-value "paths_for_io m_ex_H 1 []"
-value "paths_for_io m_ex_H 1 [(1,1),(1,0)]"
 
 fun io_targets :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> 'a \<Rightarrow> 'a set" where
   "io_targets M io q = {target q p | p . path M q p \<and> p_io p = io}"
@@ -1744,7 +2151,9 @@ lemma io_targets_nodes :
 lemma observable_transition_unique :
   assumes "observable M"
       and "t \<in> transitions M"
-    shows "\<exists>! t' \<in> transitions M . t_source t' = t_source t \<and> t_input t' = t_input t \<and> t_output t' = t_output t"
+    shows "\<exists>! t' \<in> transitions M . t_source t' = t_source t \<and> 
+                                    t_input t' = t_input t \<and> 
+                                    t_output t' = t_output t"
   by (metis assms observable.elims(2) prod.expand)
 
 lemma observable_path_unique :
@@ -1757,12 +2166,14 @@ proof -
   have "length p = length p'"
     using assms(4) map_eq_imp_length_eq by blast 
   then show ?thesis
-  using \<open>p_io p = p_io p'\<close> \<open>path M q p\<close> \<open>path M q p'\<close> proof (induction p p' arbitrary: q rule: list_induct2)
+    using \<open>p_io p = p_io p'\<close> \<open>path M q p\<close> \<open>path M q p'\<close>
+  proof (induction p p' arbitrary: q rule: list_induct2)
     case Nil
     then show ?case by auto
   next
     case (Cons x xs y ys)
-    then have *: "x \<in> transitions M \<and> y \<in> transitions M \<and> t_source x = t_source y \<and> t_input x = t_input y \<and> t_output x = t_output y" 
+    then have *: "x \<in> transitions M \<and> y \<in> transitions M \<and> t_source x = t_source y 
+                                    \<and> t_input x = t_input y \<and> t_output x = t_output y" 
       by auto
     then have "t_target x = t_target y" 
       using assms(1) observable.elims(2) by blast 
@@ -1828,7 +2239,8 @@ lemma observable_path_io_target :
   assumes "observable M"
   and     "path M q p"
 shows "io_targets M (p_io p) q = {target q p}"
-  using observable_io_targets[OF assms(1) language_state_containment[OF assms(2)], of "p_io p"] singletonD[of "target q p"]
+  using observable_io_targets[OF assms(1) language_state_containment[OF assms(2)], of "p_io p"] 
+        singletonD[of "target q p"]
   unfolding io_targets.simps
 proof -
   assume a1: "\<And>a. target q p \<in> {a} \<Longrightarrow> target q p = a"
@@ -1872,7 +2284,9 @@ using assms proof (induction p rule: rev_induct)
 next
   case (snoc t p)
   
-  from \<open>path M q (p @ [t])\<close> have "path M q p" and "t_source t = target q p" and "t \<in> transitions M" by auto
+  from \<open>path M q (p @ [t])\<close> have "path M q p" and "t_source t = target q p" 
+                                              and "t \<in> transitions M" 
+    by auto
 
   show ?case proof
     assume "p_io (p @ [t]) @ [(x, y)] \<in> LS M q"
@@ -1896,7 +2310,8 @@ next
     moreover have "t_input t' = t_input t \<and> t_output t' = t_output t"
       using \<open>p_io p' = p_io (p @ [t]) @ [(x, y)]\<close> \<open>p' = p''@[t']@[t'']\<close> \<open>p'' = p\<close> by auto
     ultimately have "t' = t"
-      using \<open>t \<in> transitions M\<close> \<open>t' \<in> transitions M\<close> assms(1) unfolding observable.simps by (meson prod.expand) 
+      using \<open>t \<in> transitions M\<close> \<open>t' \<in> transitions M\<close> assms(1) unfolding observable.simps 
+      by (meson prod.expand) 
 
     have "t'' \<in> transitions M" and "t_source t'' = target q (p@[t])"
       using \<open>path M q p'\<close> \<open>p' = p''@[t']@[t'']\<close> \<open>p'' = p\<close> \<open>t' = t\<close> by auto
@@ -1913,7 +2328,8 @@ lemma observable_io_targets_language :
   and     "q2 \<in> io_targets M io1 q1"
 shows "io2 \<in> LS M q2" 
 proof -
-  obtain p1 p2 where "path M q1 p1" and "path M (target q1 p1) p2"  and "p_io p1 = io1" and "p_io p2 = io2"
+  obtain p1 p2 where "path M q1 p1" and "path M (target q1 p1) p2"  
+                 and "p_io p1 = io1" and "p_io p2 = io2"
     using language_state_split[OF assms(1)] by blast
   then have "io1 \<in> LS M q1" and "io2 \<in> LS M (target q1 p1)"
     by auto
@@ -1934,10 +2350,14 @@ lemma io_targets_language_append :
   and     "io2 \<in> LS M q1"
 shows "io1@io2 \<in> LS M q" 
 proof -
-  obtain p1 where "path M q p1" and "p_io p1 = io1" and "target q p1 = q1" using assms(1) by auto
-  moreover obtain p2 where "path M q1 p2" and "p_io p2 = io2" using assms(2) by auto
-  ultimately have "path M q (p1@p2)" and "p_io (p1@p2) = io1@io2" by auto
-  then show ?thesis using language_state_containment[of M q "p1@p2" "io1@io2"] by simp
+  obtain p1 where "path M q p1" and "p_io p1 = io1" and "target q p1 = q1" 
+    using assms(1) by auto
+  moreover obtain p2 where "path M q1 p2" and "p_io p2 = io2" 
+    using assms(2) by auto
+  ultimately have "path M q (p1@p2)" and "p_io (p1@p2) = io1@io2"
+    by auto
+  then show ?thesis 
+    using language_state_containment[of M q "p1@p2" "io1@io2"] by simp
 qed
 
 
@@ -1956,8 +2376,6 @@ proof
 qed
 
 
-
-
 lemma observable_io_targets_next :
   assumes "observable M"
   and     "t \<in> transitions M"
@@ -1966,7 +2384,9 @@ proof
   show "io_targets M (p_io [t] @ io) (t_source t) \<subseteq> io_targets M io (t_target t)"
   proof 
     fix q assume "q \<in> io_targets M (p_io [t] @ io) (t_source t)"
-    then obtain p where "q = target (t_source t) p" and "path M (t_source t) p" and "p_io p = p_io [t] @ io"
+    then obtain p where "q = target (t_source t) p" 
+                    and "path M (t_source t) p"
+                    and "p_io p = p_io [t] @ io"
       unfolding io_targets.simps by blast
     then have "q = t_target (last p)" unfolding target.simps visited_nodes.simps
       using last_map by auto 
@@ -2006,9 +2426,7 @@ shows "LS T t \<subseteq> LS M q"
 proof 
   fix io2 assume "io2 \<in> LS T t"
   then obtain pT2 where "path T t pT2" and "p_io pT2 = io2"
-    by auto
-
-  
+    by auto  
   
   obtain pT1 where "path T (initial T) pT1" and "p_io pT1 = io1" and "target (initial T) pT1 = t"
     using \<open>t \<in> io_targets T io1 (initial T)\<close> by auto
@@ -2061,6 +2479,23 @@ shows "\<not> L T \<subseteq> L M"
   using observable_language_target[OF assms(1,2,3)] assms(4) by blast
     
 
+lemma language_path_append_transition_observable :
+  assumes "(p_io p) @ [(x,y)] \<in> LS M q"
+  and     "path M q p"
+  and     "observable M"
+  obtains t where "path M q (p@[t])" and "t_input t = x" and "t_output t = y"
+proof -
+  obtain p' t where "path M q (p'@[t])" and "p_io (p'@[t]) = (p_io p) @ [(x,y)]"
+    using language_path_append_transition[OF assms(1)] by blast
+  then have "path M q p'" and "p_io p' = p_io p" and "t_input t = x" and "t_output t = y"
+    by auto
+
+  have "p' = p"
+    using observable_path_unique[OF assms(3) \<open>path M q p'\<close> \<open>path M q p\<close> \<open>p_io p' = p_io p\<close>] by assumption
+  then have "path M q (p@[t])"
+    using \<open>path M q (p'@[t])\<close> by auto
+  then show ?thesis using that \<open>t_input t = x\<close> \<open>t_output t = y\<close> by metis
+qed
 
 
 subsection \<open>Conformity Relations\<close>
@@ -2109,13 +2544,11 @@ shows "path B q p"
   by (meson assms(1) assms(2) is_submachine.elims(2) path_begin_node subsetD transition_subset_path)
   
 
-
-
-
 lemma submachine_reduction : 
   assumes "is_submachine A B"
   shows "is_io_reduction A B"
   using submachine_path[OF assms] assms by auto 
+
 
 lemma complete_submachine_initial :
   assumes "is_submachine A B"
@@ -2124,12 +2557,11 @@ lemma complete_submachine_initial :
   using assms(1) assms(2) fsm_initial subset_iff by fastforce
 
 
-
-
 lemma submachine_language :
   assumes "is_submachine S M"
   shows "L S \<subseteq> L M"
   by (meson assms is_io_reduction_state.elims(2) submachine_reduction)
+
 
 lemma submachine_observable :
   assumes "is_submachine S M"
@@ -2138,15 +2570,12 @@ shows "observable S"
   using assms unfolding is_submachine.simps observable.simps by blast
 
 
-
-
-
-
 lemma submachine_transitive :
   assumes "is_submachine S M"
   and     "is_submachine S' S"
 shows "is_submachine S' M"
   using assms unfolding is_submachine.simps by force
+
 
 lemma transitions_subset_path :
   assumes "set p \<subseteq> transitions M"
@@ -2154,7 +2583,6 @@ lemma transitions_subset_path :
   and     "path S q p"
 shows "path M q p"
   using assms by (induction p arbitrary: q; auto)
-
 
 
 lemma transition_subset_paths :
@@ -2193,7 +2621,8 @@ lemma submachine_reachable_subset :
 shows "reachable_nodes A \<subseteq> reachable_nodes B" 
   using assms submachine_path_initial[OF assms] 
   unfolding is_submachine.simps reachable_nodes_def by force
- 
+
+
 lemma submachine_simps :
   assumes "is_submachine A B"
 shows "initial A = initial B"
@@ -2221,19 +2650,19 @@ lemma from_FSM_simps[simp]:
   "nodes (from_FSM M q) = nodes M" using assms by (transfer; simp)+
 
 
-
-
-
 lemma from_FSM_path_initial :
   assumes "q \<in> nodes M"
   shows "path M q p = path (from_FSM M q) (initial (from_FSM M q)) p"
-  by (metis assms from_FSM_simps(1) from_FSM_simps(4) from_FSM_simps(5) order_refl transition_subset_path)
+  by (metis assms from_FSM_simps(1) from_FSM_simps(4) from_FSM_simps(5) order_refl 
+        transition_subset_path)
+
 
 lemma from_FSM_path :
   assumes "q \<in> nodes M"
       and "path (from_FSM M q) q' p"
     shows "path M q' p"
   using assms(1) assms(2) path_transitions transitions_subset_path by fastforce
+
 
 lemma from_FSM_reachable_nodes :
   assumes "q \<in> reachable_nodes M"
@@ -2255,8 +2684,6 @@ proof
     unfolding reachable_nodes_def by blast
 qed
   
-   
-
 
 lemma submachine_from :
   assumes "is_submachine S M"
@@ -2270,8 +2697,6 @@ proof -
   then show ?thesis
     using assms(1) assms(2) by force
 qed
-
-
 
 
 lemma from_FSM_path_rev_initial :
@@ -2298,6 +2723,7 @@ proof -
   then show ?thesis by (transfer; force)
 qed
 
+
 lemma from_FSM_completely_specified : 
   assumes "completely_specified M"
 shows "completely_specified (from_FSM M q)" proof (cases "q \<in> nodes M")
@@ -2309,6 +2735,7 @@ next
   then have "from_FSM M q = M" by (transfer; auto)
   then show ?thesis using assms by auto
 qed
+
 
 lemma from_FSM_single_input : 
   assumes "single_input M"
@@ -2333,20 +2760,11 @@ shows "acyclic (from_FSM M q)"
         acyclic_paths_from_reachable_nodes[OF assms(2), of _ q]
         from_FSM_path[of q M q]
         path_target_is_node
+        reachable_node_is_node[OF assms(1)]
+        from_FSM_simps(1)
   unfolding acyclic.simps
             reachable_nodes_def
-proof -
-  assume "q \<in> {target (FSM.initial M) p |p. path M (FSM.initial M) p}"
-  then have "\<exists>ps. q = target (FSM.initial M) ps \<and> path M (FSM.initial M) ps"
-    by blast
-  then have f1: "\<And> v0_1 . \<not> path (FSM.from_FSM M q) (FSM.initial (FSM.from_FSM M q)) v0_1 \<or> distinct (visited_nodes (FSM.initial (FSM.from_FSM M q)) v0_1)"
-    by (metis (no_types) \<open>\<And>p' p. \<lbrakk>path M (FSM.initial M) p'; target (FSM.initial M) p' = q; path M q p\<rbrakk> \<Longrightarrow> distinct (visited_nodes q p)\<close> \<open>\<And>p. \<lbrakk>q \<in> FSM.nodes M; path (FSM.from_FSM M q) q p\<rbrakk> \<Longrightarrow> path M q p\<close> from_FSM_simps(1) path_target_is_node)
-  obtain pps :: "('a \<times> 'b \<times> 'c \<times> 'a) list" where
-    "(\<exists>v0. path (FSM.from_FSM M q) (FSM.initial (FSM.from_FSM M q)) v0 \<and> \<not> distinct (visited_nodes (FSM.initial (FSM.from_FSM M q)) v0)) = (path (FSM.from_FSM M q) (FSM.initial (FSM.from_FSM M q)) pps \<and> \<not> distinct (visited_nodes (FSM.initial (FSM.from_FSM M q)) pps))"
-    by blast
-  then show "\<forall>ps. path (FSM.from_FSM M q) (FSM.initial (FSM.from_FSM M q)) ps \<longrightarrow> distinct (visited_nodes (FSM.initial (FSM.from_FSM M q)) ps)"
-    using f1 by blast
-qed
+  by force
   
 
 
@@ -2408,6 +2826,7 @@ proof -
   then show ?thesis using \<open>p_io p' = ios\<close> by auto
 qed
 
+
 lemma from_FSM_language :
   assumes "q \<in> nodes M"
   shows "L (from_FSM M q) = LS M q"
@@ -2432,9 +2851,6 @@ proof -
 qed
 
 
-subsection \<open>Filtering Transitions\<close>
-
-(* TODO: reactivate if required *)
 
 subsection \<open>Further Reachability Formalisations\<close>
 
@@ -2468,36 +2884,11 @@ proof -
 qed
 
 
-subsection \<open>Generating Submachines\<close>
-
-(* TODO: reactivate if required *)
-
   
 subsubsection \<open>Induction Schemes\<close>
 
 
-
-
-
-lemma reachable_nodes_next : 
-  assumes "q \<in> reachable_nodes M" and "t \<in> transitions M" and "t_source t = q" 
-  shows "t_target t \<in> reachable_nodes M" 
-proof -
-  from \<open>q \<in> reachable_nodes M\<close> obtain p where * :"path M (initial M) p"
-                                        and   **:"target (initial M) p = q"
-    unfolding reachable_nodes_def by auto
-
-  then have "path M (initial M) (p@[t])" using assms(2,3) path_append_transition by metis
-  moreover have "target (initial M) (p@[t]) = t_target t" by auto
-  ultimately show ?thesis 
-    unfolding reachable_nodes_def
-    by (metis (mono_tags, lifting) mem_Collect_eq)
-qed
   
-  
-
-
-
 lemma acyclic_induction [consumes 1, case_names reachable_node]:
   assumes "acyclic M"
       and "\<And> q . q \<in> reachable_nodes M \<Longrightarrow> (\<And> t . t \<in> transitions M \<Longrightarrow> ((t_source t = q) \<Longrightarrow> P (t_target t))) \<Longrightarrow> P q"
@@ -2574,7 +2965,8 @@ next
       have "p \<in> {(prev @ [(q, x, y', q')]) @ p |p. path M q' p \<and> map fst (p_io p) = xs}"
         using \<open>p \<in> paths_for_input' (h_from M) xs q' (prev@[(q,x,y',q')])\<close>
         unfolding Cons.IH[OF \<open>q' \<in> nodes M\<close>] by assumption
-      moreover have " {(prev @ [(q, x, y', q')]) @ p |p. path M q' p \<and> map fst (p_io p) = xs} \<subseteq> {prev@p | p . path M q p \<and> map fst (p_io p) = x#xs}"
+      moreover have "{(prev @ [(q, x, y', q')]) @ p |p. path M q' p \<and> map fst (p_io p) = xs} 
+                      \<subseteq> {prev@p | p . path M q p \<and> map fst (p_io p) = x#xs}"
         using \<open>(q,x,y',q') \<in> transitions M\<close>
         using cons by force 
       ultimately show "p \<in> {prev@p | p . path M q p \<and> map fst (p_io p) = x#xs}" 
@@ -2598,9 +2990,13 @@ next
         unfolding h.simps by auto 
       moreover have "(prev@p) \<in> paths_for_input' (h_from M) xs (t_target t) (prev@[(q,x,t_output t,t_target t)])"
         using Cons.IH[OF \<open>t_target t \<in> nodes M\<close>, of "prev@[(q, x, t_output t, t_target t)]"]
-        using \<open>p = t # p'\<close> \<open>map fst (p_io p') = xs\<close> \<open>path M (t_target t) p'\<close> \<open>t_input t = x\<close> \<open>t_source t = q\<close> 
-        using \<open>map fst (p_io p') = xs\<close> \<open>p = t # p'\<close> \<open>paths_for_input' (h_from M) xs (t_target t) (prev @ [(q, x, t_output t, t_target t)]) = {(prev @ [(q, x, t_output t, t_target t)]) @ p |p. path M (t_target t) p \<and> map fst (p_io p) = xs}\<close> \<open>t_input t = x\<close> \<open>t_source t = q\<close> by force
-      
+        using \<open>\<And>thesis. (\<And>t p'. \<lbrakk>p = t # p'; path M q (t # p'); map fst (p_io (t # p')) = x # xs; map fst (p_io p') = xs\<rbrakk> \<Longrightarrow> thesis) \<Longrightarrow> thesis\<close> 
+              \<open>p = t # p'\<close> 
+              \<open>paths_for_input' (h_from M) xs (t_target t) (prev @ [(q, x, t_output t, t_target t)]) 
+                = {(prev @ [(q, x, t_output t, t_target t)]) @ p |p. path M (t_target t) p \<and> map fst (p_io p) = xs}\<close> 
+              \<open>t_input t = x\<close> 
+              \<open>t_source t = q\<close> 
+        by fastforce
 
       ultimately show "pp \<in> ?UN" unfolding \<open>pp = prev@p\<close>
         by blast 
@@ -2625,16 +3021,9 @@ lemma paths_for_input_set_code[code] :
   by (cases "q \<in> nodes M"; auto; simp add: path_begin_node)
 
 
-
-value "paths_for_input m_ex_H 1 []"
-value "paths_for_input m_ex_H 1 [0]"
-value "paths_for_input m_ex_H 1 [0,0]"
-value "paths_for_input m_ex_H 1 [0,0,1]"
-
-
-
-
-fun paths_up_to_length_or_condition_with_witness' :: "('a \<Rightarrow> ('b \<times> 'c \<times> 'a) set) \<Rightarrow> (('a,'b,'c) path \<Rightarrow> 'd option) \<Rightarrow> ('a,'b,'c) path \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> 'd) set" where
+fun paths_up_to_length_or_condition_with_witness' :: 
+    "('a \<Rightarrow> ('b \<times> 'c \<times> 'a) set) \<Rightarrow> (('a,'b,'c) path \<Rightarrow> 'd option) \<Rightarrow> ('a,'b,'c) path \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> 'd) set" 
+  where
   "paths_up_to_length_or_condition_with_witness' f P prev 0 q = (case P prev of Some w \<Rightarrow> {(prev,w)} | None \<Rightarrow> {})" |
   "paths_up_to_length_or_condition_with_witness' f P prev (Suc k) q = (case P prev of 
     Some w \<Rightarrow> {(prev,w)} | 
@@ -2644,7 +3033,11 @@ fun paths_up_to_length_or_condition_with_witness' :: "('a \<Rightarrow> ('b \<ti
 
 lemma paths_up_to_length_or_condition_with_witness'_set :
   assumes "q \<in> nodes M"
-  shows   "paths_up_to_length_or_condition_with_witness' (h_from M) P prev k q = {(prev@p,x) | p x . path M q p \<and> length p \<le> k \<and> P (prev@p) = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)}"
+  shows   "paths_up_to_length_or_condition_with_witness' (h_from M) P prev k q 
+            = {(prev@p,x) | p x . path M q p 
+                                  \<and> length p \<le> k 
+                                  \<and> P (prev@p) = Some x 
+                                  \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)}"
 using assms proof (induction k arbitrary: q prev)
   case 0
   then show ?case proof (cases "P prev")
@@ -2657,16 +3050,27 @@ next
   case (Suc k) 
   then show ?case proof (cases "P prev")
     case (Some w) 
-    then have "(prev,w) \<in> {(prev@p,x) | p x . path M q p \<and> length p \<le> Suc k \<and> P (prev@p) = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)}"
+    then have "(prev,w) \<in> {(prev@p,x) | p x . path M q p 
+                                              \<and> length p \<le> Suc k 
+                                              \<and> P (prev@p) = Some x 
+                                              \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)}"
       by (simp add: Suc.prems nil) 
-    then have "{(prev@p,x) | p x . path M q p \<and> length p \<le> Suc k \<and> P (prev@p) = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)} = {(prev,w)}"
+    then have "{(prev@p,x) | p x . path M q p 
+                                    \<and> length p \<le> Suc k 
+                                    \<and> P (prev@p) = Some x 
+                                    \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)} 
+              = {(prev,w)}"
       using Some by fastforce
       
     then show ?thesis using Some by auto
   next
     case None 
 
-    have "(\<Union>(image (\<lambda>(x,y,q') . paths_up_to_length_or_condition_with_witness' (h_from M) P (prev@[(q,x,y,q')]) k q') (h_from M q))) = {(prev@p,x) | p x . path M q p \<and> length p \<le> Suc k \<and> P (prev@p) = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)}"
+    have "(\<Union>(image (\<lambda>(x,y,q') . paths_up_to_length_or_condition_with_witness' (h_from M) P (prev@[(q,x,y,q')]) k q') (h_from M q))) 
+            = {(prev@p,x) | p x . path M q p 
+                                  \<and> length p \<le> Suc k 
+                                  \<and> P (prev@p) = Some x 
+                                  \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P (prev@p') = None)}"
          (is "?UN = ?PX")
     proof -
       have *: "\<And> pp . pp \<in> ?UN \<Longrightarrow> pp \<in> ?PX"
@@ -2687,11 +3091,17 @@ next
           unfolding Suc.IH[OF \<open>q' \<in> nodes M\<close>, of "prev@[(q,x,y,q')]"] 
           by blast
         
-        have "path M q ((q,x,y,q')#p)" using \<open>path M q' p\<close> \<open>(q,x,y,q') \<in> transitions M\<close> by (simp add: path_prepend_t) 
-        moreover have "length ((q,x,y,q')#p) \<le> Suc k" using \<open>length p \<le> k\<close> by auto
-        moreover have "P (prev @ ([(q, x, y, q')] @ p)) = Some w" using \<open>P ((prev @ [(q, x, y, q')]) @ p) = Some w\<close> by auto
-        moreover have "\<And> p' p''. ((q,x,y,q')#p) = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> P (prev @ p') = None" using \<open>\<And> p' p''. p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> P ((prev @ [(q, x, y, q')]) @ p') = None\<close>
-          using None by (metis (no_types, hide_lams) append.simps(1) append_Cons append_Nil2 append_assoc list.inject neq_Nil_conv) 
+        have "path M q ((q,x,y,q')#p)" 
+          using \<open>path M q' p\<close> \<open>(q,x,y,q') \<in> transitions M\<close> by (simp add: path_prepend_t) 
+        moreover have "length ((q,x,y,q')#p) \<le> Suc k" 
+          using \<open>length p \<le> k\<close> by auto
+        moreover have "P (prev @ ([(q, x, y, q')] @ p)) = Some w" 
+          using \<open>P ((prev @ [(q, x, y, q')]) @ p) = Some w\<close> by auto
+        moreover have "\<And> p' p''. ((q,x,y,q')#p) = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> P (prev @ p') = None" 
+          using \<open>\<And> p' p''. p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> P ((prev @ [(q, x, y, q')]) @ p') = None\<close>
+          using None 
+          by (metis (no_types, hide_lams) append.simps(1) append_Cons append_Nil2 append_assoc 
+                list.inject neq_Nil_conv) 
 
         ultimately show "pp \<in> ?PX" 
           unfolding \<open>pp = ((prev@[(q,x,y,q')])@p,w)\<close> by auto  
@@ -2710,16 +3120,24 @@ next
           by (metis append_Nil2 list.exhaust option.distinct(1)) 
         
         
-        have "pp = ((prev @ [t])@p, w)" using \<open>pp = (prev @ p', w)\<close> unfolding \<open>p' = t#p\<close> by auto
-        have "path M q (t#p)" using \<open>path M q p'\<close> unfolding \<open>p' = t#p\<close> by auto
-        have p2: "length (t#p) \<le> Suc k" using \<open>length p' \<le> Suc k\<close> unfolding \<open>p' = t#p\<close> by auto
-        have p3: "P ((prev @ [t])@p) = Some w" using \<open>P (prev @ p') = Some w\<close> unfolding \<open>p' = t#p\<close> by auto
+        have "pp = ((prev @ [t])@p, w)" 
+          using \<open>pp = (prev @ p', w)\<close> unfolding \<open>p' = t#p\<close> by auto
+        have "path M q (t#p)" 
+          using \<open>path M q p'\<close> unfolding \<open>p' = t#p\<close> by auto
+        have p2: "length (t#p) \<le> Suc k" 
+          using \<open>length p' \<le> Suc k\<close> unfolding \<open>p' = t#p\<close> by auto
+        have p3: "P ((prev @ [t])@p) = Some w" 
+          using \<open>P (prev @ p') = Some w\<close> unfolding \<open>p' = t#p\<close> by auto
         have p4: "\<And> p' p''. p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> P ((prev@[t]) @ p') = None"
-          using \<open>\<And> p' p''. p' = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> P (prev @ p') = None\<close> \<open>pp \<in> ?PX\<close> unfolding \<open>pp = ((prev @ [t]) @ p, w)\<close> \<open>p' = t#p\<close> by auto
+          using \<open>\<And> p' p''. p' = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> P (prev @ p') = None\<close> \<open>pp \<in> ?PX\<close> 
+          unfolding \<open>pp = ((prev @ [t]) @ p, w)\<close> \<open>p' = t#p\<close> 
+          by auto
 
         have "t \<in> transitions M" and p1: "path M (t_target t) p" and "t_source t = q"
           using \<open>path M q (t#p)\<close> by auto
-        then have "t_target t \<in> nodes M" and "(t_input t, t_output t, t_target t) \<in> h_from M q" and "t_source t = q"
+        then have "t_target t \<in> nodes M" 
+              and "(t_input t, t_output t, t_target t) \<in> h_from M q" 
+              and "t_source t = q"
           using fsm_transition_target by auto
         then have "t = (q,t_input t, t_output t, t_target t)"
           by auto
@@ -2732,10 +3150,13 @@ next
         then show "pp \<in> ?UN"
           unfolding \<open>pp = ((prev @ [t])@p, w)\<close>  
         proof -
-          have "paths_up_to_length_or_condition_with_witness' (h_from M) P (prev @ [t]) k (t_target t) = paths_up_to_length_or_condition_with_witness' (h_from M) P (prev @ [(q, t_input t, t_output t, t_target t)]) k (t_target t)"
+          have "paths_up_to_length_or_condition_with_witness' (h_from M) P (prev @ [t]) k (t_target t) 
+                = paths_up_to_length_or_condition_with_witness' (h_from M) P (prev @ [(q, t_input t, t_output t, t_target t)]) k (t_target t)"
             using \<open>t = (q, t_input t, t_output t, t_target t)\<close> by presburger
           then show "((prev @ [t]) @ p, w) \<in> (\<Union>(b, c, a)\<in>h_from M q. paths_up_to_length_or_condition_with_witness' (h_from M) P (prev @ [(q, b, c, a)]) k a)"
-            using \<open>((prev @ [t]) @ p, w) \<in> paths_up_to_length_or_condition_with_witness' (h_from M) P (prev @ [t]) k (t_target t)\<close> \<open>(t_input t, t_output t, t_target t) \<in> h_from M q\<close> by blast
+            using \<open>((prev @ [t]) @ p, w) \<in> paths_up_to_length_or_condition_with_witness' (h_from M) P (prev @ [t]) k (t_target t)\<close> 
+                  \<open>(t_input t, t_output t, t_target t) \<in> h_from M q\<close> 
+            by blast
         qed
       qed
 
@@ -2743,32 +3164,45 @@ next
         using subsetI[of ?UN ?PX, OF *] subsetI[of ?PX ?UN, OF **] subset_antisym by blast
     qed
 
-    then show ?thesis using None unfolding paths_up_to_length_or_condition_with_witness'.simps by simp
+    then show ?thesis 
+      using None unfolding paths_up_to_length_or_condition_with_witness'.simps by simp
   qed
 qed
 
 
-definition paths_up_to_length_or_condition_with_witness :: "('a,'b,'c) fsm \<Rightarrow> (('a,'b,'c) path \<Rightarrow> 'd option) \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> 'd) set" where
-  "paths_up_to_length_or_condition_with_witness M P k q = {(p,x) | p x . path M q p \<and> length p \<le> k \<and> P p = Some x \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P p' = None)}"
+definition paths_up_to_length_or_condition_with_witness :: 
+  "('a,'b,'c) fsm \<Rightarrow> (('a,'b,'c) path \<Rightarrow> 'd option) \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> 'd) set" 
+  where
+  "paths_up_to_length_or_condition_with_witness M P k q 
+    = {(p,x) | p x . path M q p 
+                      \<and> length p \<le> k 
+                      \<and> P p = Some x 
+                      \<and> (\<forall> p' p'' . (p = p'@p'' \<and> p'' \<noteq> []) \<longrightarrow> P p' = None)}"
 
 
 lemma paths_up_to_length_or_condition_with_witness_code[code] :
-  "paths_up_to_length_or_condition_with_witness M P k q = (if q \<in> nodes M then paths_up_to_length_or_condition_with_witness' (h_from M) P [] k q
-                                                                          else {})" 
+  "paths_up_to_length_or_condition_with_witness M P k q 
+    = (if q \<in> nodes M then paths_up_to_length_or_condition_with_witness' (h_from M) P [] k q
+                      else {})" 
 proof (cases "q \<in> nodes M")
   case True
   then show ?thesis 
-    unfolding paths_up_to_length_or_condition_with_witness_def paths_up_to_length_or_condition_with_witness'_set[OF True] by auto
+    unfolding paths_up_to_length_or_condition_with_witness_def 
+              paths_up_to_length_or_condition_with_witness'_set[OF True] 
+    by auto
 next
   case False
-  then show ?thesis unfolding paths_up_to_length_or_condition_with_witness_def
+  then show ?thesis 
+    unfolding paths_up_to_length_or_condition_with_witness_def
     using path_begin_node by fastforce 
 qed
 
 
-lemma paths_up_to_length_or_condition_with_witness_finite : "finite (paths_up_to_length_or_condition_with_witness M P k q)"
+lemma paths_up_to_length_or_condition_with_witness_finite : 
+  "finite (paths_up_to_length_or_condition_with_witness M P k q)"
 proof -
-  have "paths_up_to_length_or_condition_with_witness M P k q \<subseteq> {(p, the (P p)) | p . path M q p \<and> length p \<le> k}"
+  have "paths_up_to_length_or_condition_with_witness M P k q 
+          \<subseteq> {(p, the (P p)) | p . path M q p \<and> length p \<le> k}"
     unfolding paths_up_to_length_or_condition_with_witness_def
     by auto 
   moreover have "finite {(p, the (P p)) | p . path M q p \<and> length p \<le> k}" 
@@ -2782,7 +3216,6 @@ qed
 
 
 subsection \<open>More Acyclicity Properties\<close>
-
 
 
 lemma maximal_path_target_deadlock :
@@ -2819,11 +3252,13 @@ qed
 
 
 definition maximal_acyclic_paths :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) path set" where
-  "maximal_acyclic_paths M = {p . path M (initial M) p \<and> distinct (visited_nodes (initial M) p) \<and> \<not>(\<exists> p' . p' \<noteq> [] \<and> path M (initial M) (p@p') \<and> distinct (visited_nodes (initial M) (p@p')))}"
+  "maximal_acyclic_paths M = {p . path M (initial M) p 
+                                  \<and> distinct (visited_nodes (initial M) p) 
+                                  \<and> \<not>(\<exists> p' . p' \<noteq> [] \<and> path M (initial M) (p@p') 
+                                              \<and> distinct (visited_nodes (initial M) (p@p')))}"
 
 
 (* very inefficient construction *)
-(* could be improved by performing a calculation of acyclic paths that omits non-maximal paths during construction *)
 lemma maximal_acyclic_paths_code[code] :  
   "maximal_acyclic_paths M = (let ps = acyclic_paths_up_to_length M (initial M) (size M - 1)
                                in Set.filter (\<lambda>p . \<not> (\<exists> p' \<in> ps . p' \<noteq> p \<and> is_prefix p p')) ps)"
@@ -2831,7 +3266,10 @@ proof -
   have scheme1: "\<And> P p . (\<exists> p' . p' \<noteq> [] \<and> P (p@p')) = (\<exists> p' \<in> {p . P p} . p' \<noteq> p \<and> is_prefix p p')"
     unfolding is_prefix_prefix by blast
 
-  have scheme2: "\<And> p . (path M (FSM.initial M) p \<and> length p \<le> FSM.size M - 1 \<and> distinct (visited_nodes (FSM.initial M) p)) = (path M (FSM.initial M) p \<and> distinct (visited_nodes (FSM.initial M) p))"
+  have scheme2: "\<And> p . (path M (FSM.initial M) p 
+                          \<and> length p \<le> FSM.size M - 1 
+                          \<and> distinct (visited_nodes (FSM.initial M) p)) 
+                      = (path M (FSM.initial M) p \<and> distinct (visited_nodes (FSM.initial M) p))"
     using acyclic_path_length_limit by fastforce 
 
   show ?thesis
@@ -2845,19 +3283,23 @@ qed
 lemma maximal_acyclic_path_deadlock :
   assumes "acyclic M"
   and     "path M (initial M) p"
-shows "\<not>(\<exists> p' . p' \<noteq> [] \<and> path M (initial M) (p@p') \<and> distinct (visited_nodes (initial M) (p@p'))) = deadlock_state M (target (initial M) p)"
+shows "\<not>(\<exists> p' . p' \<noteq> [] \<and> path M (initial M) (p@p') \<and> distinct (visited_nodes (initial M) (p@p'))) 
+        = deadlock_state M (target (initial M) p)"
 proof -
-  have "deadlock_state M (target (initial M) p) \<Longrightarrow> \<not>(\<exists> p' . p' \<noteq> [] \<and> path M (initial M) (p@p') \<and> distinct (visited_nodes (initial M) (p@p')))"
+  have "deadlock_state M (target (initial M) p) \<Longrightarrow> \<not>(\<exists> p' . p' \<noteq> [] \<and> path M (initial M) (p@p') 
+          \<and> distinct (visited_nodes (initial M) (p@p')))"
     unfolding deadlock_state.simps 
     using assms(2) by (metis path.cases path_suffix) 
   then show ?thesis
-    by (metis acyclic.elims(2) assms(1) assms(2) is_prefix_prefix maximal_path_target_deadlock self_append_conv) 
+    by (metis acyclic.elims(2) assms(1) assms(2) is_prefix_prefix maximal_path_target_deadlock 
+          self_append_conv) 
 qed
   
 
 lemma maximal_acyclic_paths_deadlock_targets : 
   assumes "acyclic M"
-  shows "maximal_acyclic_paths M = { p . path M (initial M) p \<and> deadlock_state M (target (initial M) p) }"
+  shows "maximal_acyclic_paths M 
+          = { p . path M (initial M) p \<and> deadlock_state M (target (initial M) p)}"
   using maximal_acyclic_path_deadlock[OF assms] 
   unfolding maximal_acyclic_paths_def
   by (metis (no_types, lifting) acyclic.elims(2) assms)
@@ -2871,7 +3313,8 @@ obtains i j where
   "target (target q (take i p)) (take j (drop i p)) = (target q (take i p))"
   "path M (target q (take i p)) (take j (drop i p))"
 proof -
-  obtain i j where "i < j" and "j < length (visited_nodes q p)" and "(visited_nodes q p) ! i = (visited_nodes q p) ! j"
+  obtain i j where "i < j" and "j < length (visited_nodes q p)" 
+               and "(visited_nodes q p) ! i = (visited_nodes q p) ! j"
     using assms(2) non_distinct_repetition_indices by blast 
 
   have "(target q (take i p)) = (visited_nodes q p) ! i"
@@ -2906,6 +3349,7 @@ shows "qd \<in> reachable_nodes M"
   using acyclic_deadlock_reachable[OF assms(1)]
   using assms(2) by auto 
 
+
 lemma acyclic_paths_to_single_deadlock :
   assumes "acyclic M"
   and     "\<And> q' . q' \<in> reachable_nodes M \<Longrightarrow> q' = qd \<or> \<not> deadlock_state M q'"
@@ -2916,7 +3360,8 @@ proof -
   have "acyclic (from_FSM M q)"
     using from_FSM_acyclic[OF assms(3,1)] by assumption
 
-  have *: "(\<And>q'. q' \<in> reachable_nodes (FSM.from_FSM M q) \<Longrightarrow> q' = qd \<or> \<not> deadlock_state (FSM.from_FSM M q) q')"
+  have *: "(\<And>q'. q' \<in> reachable_nodes (FSM.from_FSM M q) 
+                \<Longrightarrow> q' = qd \<or> \<not> deadlock_state (FSM.from_FSM M q) q')"
     using assms(2) from_FSM_reachable_nodes[OF assms(3)] 
     unfolding deadlock_state.simps from_FSM_simps[OF \<open>q \<in> nodes M\<close>] by blast
 
@@ -2933,8 +3378,6 @@ qed
 
 subsection \<open>Nodes and Inputs as List\<close>
 
-(* Idea: To be used in functions like d_states which require finding (in an executable way) some element of the nodes or inputs satisfying a property *)
-
 fun nodes_as_list :: "('a :: linorder, 'b, 'c) fsm \<Rightarrow> 'a list" where
   "nodes_as_list M = sorted_list_of_set (nodes M)"
 
@@ -2943,13 +3386,16 @@ lemma nodes_as_list_distinct : "distinct (nodes_as_list M)" by auto
 lemma nodes_as_list_set : "set (nodes_as_list M) = nodes M"
   by (simp add: fsm_nodes_finite)
 
+
 fun reachable_nodes_as_list :: "('a :: linorder, 'b, 'c) fsm \<Rightarrow> 'a list" where
   "reachable_nodes_as_list M = sorted_list_of_set (reachable_nodes M)"
 
 lemma reachable_nodes_as_list_distinct : "distinct (reachable_nodes_as_list M)" by auto
 
 lemma reachable_nodes_as_list_set : "set (reachable_nodes_as_list M) = reachable_nodes M"
-  by (metis fsm_nodes_finite infinite_super reachable_node_is_node reachable_nodes_as_list.simps set_sorted_list_of_set subsetI)  
+  by (metis fsm_nodes_finite infinite_super reachable_node_is_node reachable_nodes_as_list.simps 
+        set_sorted_list_of_set subsetI)  
+
 
 fun inputs_as_list :: "('a, 'b :: linorder, 'c) fsm \<Rightarrow> 'b list" where
   "inputs_as_list M = sorted_list_of_set (inputs M)"
@@ -2963,7 +3409,8 @@ lemma inputs_as_list_distinct : "distinct (inputs_as_list M)" by auto
 
 subsection \<open>Filtering Transitions\<close>
 
-lift_definition filter_transitions :: "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.filter_transitions 
+lift_definition filter_transitions :: 
+  "('a,'b,'c) fsm \<Rightarrow> (('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.filter_transitions 
 proof -
   fix M  :: "('a,'b,'c) fsm_impl"
   fix P  :: "('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> bool"
@@ -2982,7 +3429,8 @@ lemma filter_transitions_simps[simp] :
 
 subsection \<open>Filtering Nodes\<close>
 
-lift_definition filter_nodes :: "('a,'b,'c) fsm \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.filter_nodes 
+lift_definition filter_nodes :: "('a,'b,'c) fsm \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" 
+  is FSM_Impl.filter_nodes 
 proof -
   fix M  :: "('a,'b,'c) fsm_impl"
   fix P  :: "'a \<Rightarrow> bool"
@@ -3004,16 +3452,15 @@ shows "initial (filter_nodes M P) = initial M"
 fun restrict_to_reachable_nodes :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm" where
   "restrict_to_reachable_nodes M = filter_nodes M (\<lambda> q . q \<in> reachable_nodes M)"
 
-lemma reachable_nodes_initial :
-  "initial M \<in> reachable_nodes M"
-  unfolding reachable_nodes_def by auto
+
 
 lemma restrict_to_reachable_nodes_simps[simp] :
 shows "initial (restrict_to_reachable_nodes M) = initial M"
       "nodes (restrict_to_reachable_nodes M) = reachable_nodes M"
       "inputs (restrict_to_reachable_nodes M) = inputs M"
       "outputs (restrict_to_reachable_nodes M) = outputs M"
-      "transitions (restrict_to_reachable_nodes M) = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M}"
+      "transitions (restrict_to_reachable_nodes M) 
+          = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M}"
 proof -
   show "initial (restrict_to_reachable_nodes M) = initial M"
        "nodes (restrict_to_reachable_nodes M) = reachable_nodes M"
@@ -3023,34 +3470,14 @@ proof -
     using filter_nodes_simps[of "(\<lambda> q . q \<in> reachable_nodes M)", OF reachable_nodes_initial] 
     using reachable_node_is_node[of _ M] by auto
 
-  have "transitions (restrict_to_reachable_nodes M) = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M \<and> (t_target t) \<in> reachable_nodes M}"
-    using filter_nodes_simps[of "(\<lambda> q . q \<in> reachable_nodes M)", OF reachable_nodes_initial] by auto
-  then show "transitions (restrict_to_reachable_nodes M) = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M}"
+  have "transitions (restrict_to_reachable_nodes M) 
+          = {t \<in> transitions M. (t_source t) \<in> reachable_nodes M \<and> (t_target t) \<in> reachable_nodes M}"
+    using filter_nodes_simps[of "(\<lambda> q . q \<in> reachable_nodes M)", OF reachable_nodes_initial] 
+    by auto
+  then show "transitions (restrict_to_reachable_nodes M) 
+              = {t \<in> transitions M . (t_source t) \<in> reachable_nodes M}"
     using reachable_nodes_next[of _ M] by auto
 qed
-
-
-lemma reachable_nodes_path :
-  assumes "q \<in> reachable_nodes M"
-  and     "path M q p"
-  and     "t \<in> set p"
-shows "t_source t \<in> reachable_nodes M"
-using assms unfolding reachable_nodes_def proof (induction p arbitrary: q)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons t' p')
-  then show ?case proof (cases "t = t'")
-    case True
-    then show ?thesis using Cons.prems(1,2) by force
-  next
-    case False then show ?thesis using Cons
-      by (metis (mono_tags, lifting) path_cons_elim reachable_nodes_def reachable_nodes_next set_ConsD) 
-  qed
-qed
-
-
-
 
 
 lemma restrict_to_reachable_nodes_path :
@@ -3071,12 +3498,14 @@ proof
       moreover have "t_target t' \<in> reachable_nodes M" using Cons.prems
         by (metis path_cons_elim reachable_nodes_next) 
       ultimately show ?case using Cons.IH
-        by (metis (no_types, lifting) Cons.prems(1) Cons.prems(2) mem_Collect_eq path.simps path_cons_elim restrict_to_reachable_nodes_simps(5))        
+        by (metis (no_types, lifting) Cons.prems(1) Cons.prems(2) mem_Collect_eq path.simps 
+              path_cons_elim restrict_to_reachable_nodes_simps(5))        
     qed
   qed
 
   show "path (restrict_to_reachable_nodes M) q p \<Longrightarrow> path M q p"
-    by (metis (no_types, lifting) assms mem_Collect_eq reachable_node_is_node restrict_to_reachable_nodes_simps(5) subsetI transition_subset_path)
+    by (metis (no_types, lifting) assms mem_Collect_eq reachable_node_is_node 
+          restrict_to_reachable_nodes_simps(5) subsetI transition_subset_path)
 qed
 
 
@@ -3084,7 +3513,8 @@ qed
 
 subsection \<open>Adding Transitions\<close>
 
-lift_definition create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Rightarrow> 'c set \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.create_unconnected_fsm by (transfer; simp)
+lift_definition create_unconnected_fsm :: "'a \<Rightarrow> 'a set \<Rightarrow> 'b set \<Rightarrow> 'c set \<Rightarrow> ('a,'b,'c) fsm" 
+  is FSM_Impl.create_unconnected_fsm by (transfer; simp)
 
 lemma create_unconnected_fsm_simps :
   assumes "finite ns" and "finite ins" and "finite outs" and "q \<in> ns"
@@ -3096,17 +3526,21 @@ lemma create_unconnected_fsm_simps :
   using assms by (transfer; auto)+
 
 
-lift_definition add_transitions :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.add_transitions 
+lift_definition add_transitions :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'b \<times> 'c \<times> 'a) set \<Rightarrow> ('a,'b,'c) fsm" 
+  is FSM_Impl.add_transitions 
 proof -
   fix M  :: "('a,'b,'c) fsm_impl"
   fix ts :: "('a \<times> 'b \<times> 'c \<times> 'a) set"
   assume *: "well_formed_fsm M"
 
   then show "well_formed_fsm (FSM_Impl.add_transitions M ts)" 
-  proof (cases "\<forall> t \<in> ts . t_source t \<in> FSM_Impl.nodes M \<and> t_input t \<in> FSM_Impl.inputs M \<and> t_output t \<in> FSM_Impl.outputs M \<and> t_target t \<in> FSM_Impl.nodes M")
+  proof (cases "\<forall> t \<in> ts . t_source t \<in> FSM_Impl.nodes M \<and> t_input t \<in> FSM_Impl.inputs M 
+                            \<and> t_output t \<in> FSM_Impl.outputs M \<and> t_target t \<in> FSM_Impl.nodes M")
     case True
-    then have "ts \<subseteq> FSM_Impl.nodes M \<times> FSM_Impl.inputs M \<times> FSM_Impl.outputs M \<times> FSM_Impl.nodes M" by fastforce
-    moreover have "finite (FSM_Impl.nodes M \<times> FSM_Impl.inputs M \<times> FSM_Impl.outputs M \<times> FSM_Impl.nodes M)" using * by blast
+    then have "ts \<subseteq> FSM_Impl.nodes M \<times> FSM_Impl.inputs M \<times> FSM_Impl.outputs M \<times> FSM_Impl.nodes M" 
+      by fastforce
+    moreover have "finite (FSM_Impl.nodes M \<times> FSM_Impl.inputs M \<times> FSM_Impl.outputs M \<times> FSM_Impl.nodes M)" 
+      using * by blast
     ultimately have "finite ts"
       using rev_finite_subset by auto 
     then show ?thesis using * by auto
@@ -3126,288 +3560,5 @@ lemma add_transitions_simps :
         "transitions (add_transitions M ts) = transitions M \<union> ts"
   using assms by (transfer; auto)+
 
-
-
-
-
-
-subsection \<open>Assorted Lemmata\<close>
-
-lemma reachable_nodes_intro[intro!] :
-  assumes "path M (initial M) p"
-  shows "target (initial M) p \<in> reachable_nodes M"
-  using assms unfolding reachable_nodes_def by auto
-
-
-lemma language_initial_path_append_transition :
-  assumes "ios @ [io] \<in> L M"
-  obtains p t where "path M (initial M) (p@[t])" and "p_io (p@[t]) = ios @ [io]"
-proof -
-  obtain pt where "path M (initial M) pt" and "p_io pt = ios @ [io]"
-    using assms unfolding LS.simps by auto
-  then have "pt \<noteq> []"
-    by auto
-  then obtain p t where "pt = p @ [t]"
-    using rev_exhaust by blast  
-  then have "path M (initial M) (p@[t])" and "p_io (p@[t]) = ios @ [io]"
-    using \<open>path M (initial M) pt\<close> \<open>p_io pt = ios @ [io]\<close> by auto
-  then show ?thesis using that by simp
-qed
-
-lemma language_path_append_transition :
-  assumes "ios @ [io] \<in> LS M q"
-  obtains p t where "path M q (p@[t])" and "p_io (p@[t]) = ios @ [io]"
-proof -
-  obtain pt where "path M q pt" and "p_io pt = ios @ [io]"
-    using assms unfolding LS.simps by auto
-  then have "pt \<noteq> []"
-    by auto
-  then obtain p t where "pt = p @ [t]"
-    using rev_exhaust by blast  
-  then have "path M q (p@[t])" and "p_io (p@[t]) = ios @ [io]"
-    using \<open>path M q pt\<close> \<open>p_io pt = ios @ [io]\<close> by auto
-  then show ?thesis using that by simp
-qed
-
-
-
-lemma path_map_target : "target (f4 q) (map (\<lambda> t . (f1 (t_source t), f2 (t_input t), f3 (t_output t), f4 (t_target t))) p) = f4 (target q p)" 
-  by (induction p; auto)
-
-
-lemma reachable_nodes_initial_or_target :
-  assumes "q \<in> reachable_nodes M"
-  shows "q = initial M \<or> (\<exists> t \<in> transitions M . t_source t \<in> reachable_nodes M \<and> t_target t = q)"
-proof -
-  obtain p where "path M (initial M) p" and "target (initial M) p = q"
-    using assms unfolding reachable_nodes_def by auto 
-  
-  show ?thesis proof (cases p rule: rev_cases)
-    case Nil
-    then show ?thesis using \<open>path M (initial M) p\<close> \<open>target (initial M) p = q\<close> by auto
-  next
-    case (snoc p' t)
-    
-    have "t \<in> transitions M"
-      using \<open>path M (initial M) p\<close> unfolding snoc by auto
-    moreover have "t_target t = q"
-      using \<open>target (initial M) p = q\<close> unfolding snoc by auto
-    moreover have "t_source t \<in> reachable_nodes M"
-      using \<open>path M (initial M) p\<close> unfolding snoc
-      by (metis append_is_Nil_conv last_in_set last_snoc not_Cons_self2 reachable_nodes_initial reachable_nodes_path) 
-
-    ultimately show ?thesis
-      by blast 
-  qed 
-qed
-
-
-
-lemma nodes_initial_deadlock :
-  assumes "deadlock_state M (initial M)"
-  shows "reachable_nodes M = {initial M}"
-  
-proof -
-  have "\<And> q . q \<in> reachable_nodes M \<Longrightarrow> q = initial M"
-  proof -
-    fix q assume "q \<in> reachable_nodes M"
-    then obtain p where "path M (initial M) p" and "target (initial M) p = q"
-      unfolding reachable_nodes_def by auto
-    
-    show "q = initial M" proof (cases p)
-      case Nil
-      then show ?thesis using \<open>target (initial M) p = q\<close> by auto
-    next
-      case (Cons t p')
-      then have "False" using assms \<open>path M (initial M) p\<close> unfolding deadlock_state.simps
-        by auto 
-      then show ?thesis by simp
-    qed
-  qed
-  then show ?thesis
-    using reachable_nodes_initial[of M] by blast
-qed
-      
-      
-lemma completely_specified_path_extension : 
-  assumes "completely_specified M"
-  and     "q \<in> nodes M"
-  and     "path M q p"
-  and     "x \<in> (inputs M)"
-obtains t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
-proof -
-  have "target q p \<in> nodes M"
-    using path_target_is_node \<open>path M q p\<close> by metis
-  then obtain t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
-    using \<open>completely_specified M\<close> \<open>x \<in> (inputs M)\<close> 
-    unfolding completely_specified.simps by blast
-  then show ?thesis using that by blast
-qed
-
-lemma completely_specified_language_extension :
-  assumes "completely_specified M"
-  and     "q \<in> nodes M"
-  and     "io \<in> LS M q"
-  and     "x \<in> (inputs M)"
-obtains y where "io@[(x,y)] \<in> LS M q"
-proof -
-  obtain p where "path M q p" and "p_io p = io"
-    using \<open>io \<in> LS M q\<close> by auto
-  
-  moreover obtain t where "t \<in> transitions M" and "t_input t = x" and "t_source t = target q p"
-    using completely_specified_path_extension[OF assms(1,2) \<open>path M q p\<close> assms(4)] by blast
-
-  ultimately have "path M q (p@[t])" and "p_io (p@[t]) = io@[(x,t_output t)]"
-    by (simp add: path_append_transition)+
-    
-  then have "io@[(x,t_output t)] \<in> LS M q"
-    using language_state_containment[of M q "p@[t]" "io@[(x,t_output t)]"] by auto
-  then show ?thesis using that by blast
-qed
-  
-  
-lemma language_path_append_transition_observable :
-  assumes "(p_io p) @ [(x,y)] \<in> LS M q"
-  and     "path M q p"
-  and     "observable M"
-  obtains t where "path M q (p@[t])" and "t_input t = x" and "t_output t = y"
-proof -
-  obtain p' t where "path M q (p'@[t])" and "p_io (p'@[t]) = (p_io p) @ [(x,y)]"
-    using language_path_append_transition[OF assms(1)] by blast
-  then have "path M q p'" and "p_io p' = p_io p" and "t_input t = x" and "t_output t = y"
-    by auto
-
-  have "p' = p"
-    using observable_path_unique[OF assms(3) \<open>path M q p'\<close> \<open>path M q p\<close> \<open>p_io p' = p_io p\<close>] by assumption
-  then have "path M q (p@[t])"
-    using \<open>path M q (p'@[t])\<close> by auto
-  then show ?thesis using that \<open>t_input t = x\<close> \<open>t_output t = y\<close> by metis
-qed
-
-lemma acyclic_paths_finite :
-  "finite {p . path M q p \<and> distinct (visited_nodes q p) }"
-proof -
-  have "\<And> p . path M q p \<Longrightarrow> distinct (visited_nodes q p) \<Longrightarrow> distinct p"
-  proof -
-    fix p assume "path M q p" and "distinct (visited_nodes q p)"
-    then have "distinct (map t_target p)" by auto
-    then show "distinct p" by (simp add: distinct_map) 
-  qed
-  
-  then show ?thesis
-    using distinct_lists_finite[OF fsm_transitions_finite, of M]  path_transitions[of M q]
-    by (metis (no_types, lifting) infinite_super mem_Collect_eq path_transitions subsetI)
-qed
-
-
-lemma acyclic_no_self_loop :
-  assumes "acyclic M"
-  and     "q \<in> reachable_nodes M"
-shows "\<not> (\<exists> x y . (q,x,y,q) \<in> transitions M)" 
-proof 
-  assume "\<exists>x y. (q, x, y, q) \<in> FSM.transitions M"
-  then obtain x y where "(q, x, y, q) \<in> FSM.transitions M" by blast
-  moreover obtain p where "path M (initial M) p" and "target (initial M) p = q"
-    using assms(2) unfolding reachable_nodes_def by blast
-  ultimately have "path M (initial M) (p@[(q,x,y,q)])" 
-    by (simp add: path_append_transition) 
-  moreover have "\<not> (distinct (visited_nodes (initial M) (p@[(q,x,y,q)])))"
-    using \<open>target (initial M) p = q\<close> unfolding visited_nodes.simps target.simps by (cases p rule: rev_cases; auto)
-  ultimately show "False"
-    using assms(1) unfolding acyclic.simps
-    by meson 
-qed
-
-
-lemma language_split :
-  assumes "io1@io2 \<in> L M"
-  obtains p1 p2 where "path M (initial M) (p1@p2)" and "p_io p1 = io1" and "p_io p2 = io2"
-proof -
-  from assms obtain p where "path M (initial M) p" and "p_io p = io1 @ io2"
-    by auto
-
-  let ?p1 = "take (length io1) p"
-  let ?p2 = "drop (length io1) p"
-
-  have "path M (initial M) (?p1@?p2)"
-    using \<open>path M (initial M) p\<close> by simp 
-  moreover have "p_io ?p1 = io1" 
-    using \<open>p_io p = io1 @ io2\<close>
-    by (metis append_eq_conv_conj take_map) 
-  moreover have "p_io ?p2 = io2" 
-    using \<open>p_io p = io1 @ io2\<close>
-    by (metis append_eq_conv_conj drop_map)
-  ultimately show ?thesis using that by blast
-qed
-
-lemma language_io : 
-  assumes "io \<in> L M"
-  and     "(x,y) \<in> set io"
-shows "x \<in> (inputs M)"
-and   "y \<in> outputs M"
-proof -
-  obtain p where "path M (initial M) p" and "p_io p = io"
-    using \<open>io \<in> L M\<close> by auto
-  then obtain t where "t \<in> set p" and "t_input t = x" and "t_output t = y"
-    using \<open>(x,y) \<in> set io\<close> by auto
-  
-  have "t \<in> transitions M"
-    using \<open>path M (initial M) p\<close> \<open>t \<in> set p\<close>
-    by (induction p; auto)
-
-  show "x \<in> (inputs M)"
-    using \<open>t \<in> transitions M\<close> \<open>t_input t = x\<close> by auto
-
-  show "y \<in> outputs M"
-    using \<open>t \<in> transitions M\<close> \<open>t_output t = y\<close> by auto
-qed
-
-
-lemma path_length_sum :
-  assumes "path M q p" 
-  shows "length p = (\<Sum> q \<in> nodes M . length (filter (\<lambda>t. t_target t = q) p))"
-  using assms
-proof (induction p rule: rev_induct)
-  case Nil
-  then show ?case by auto
-next
-  case (snoc x xs)
-  then have "length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
-    by auto
-  
-  have *: "t_target x \<in> nodes M"
-    using \<open>path M q (xs @ [x])\<close> by auto
-  then have **: "length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])) = Suc (length (filter (\<lambda>t. t_target t = t_target x) xs))"
-    by auto
-
-  have "\<And> q . q \<in> nodes M \<Longrightarrow> q \<noteq> t_target x \<Longrightarrow> length (filter (\<lambda>t. t_target t = q) (xs @ [x])) = length (filter (\<lambda>t. t_target t = q) xs)"
-    by simp
-  then have ***: "(\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs))"
-    using fsm_nodes_finite[of M]
-    by (metis (no_types, lifting) DiffE insertCI sum.cong)
-
-  have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) + (length (filter (\<lambda>t. t_target t = t_target x) (xs @ [x])))"
-    using * fsm_nodes_finite[of M]
-  proof -
-    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) (xs @ [x]))) = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) (xs @ [x])))"
-      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
-    then show ?thesis
-      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
-  qed  
-  moreover have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs)) = (\<Sum>q\<in>nodes M - {t_target x}. length (filter (\<lambda>t. t_target t = q) xs)) + (length (filter (\<lambda>t. t_target t = t_target x) xs))"
-    using * fsm_nodes_finite[of M]
-  proof -
-    have "(\<Sum>a\<in>insert (t_target x) (nodes M). length (filter (\<lambda>p. t_target p = a) xs)) = (\<Sum>a\<in>nodes M. length (filter (\<lambda>p. t_target p = a) xs))"
-      by (simp add: \<open>t_target x \<in> nodes M\<close> insert_absorb)
-    then show ?thesis
-      by (simp add: \<open>finite (nodes M)\<close> sum.insert_remove)
-  qed  
-
-  ultimately have "(\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) (xs @ [x]))) = Suc (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))"
-    using ** *** by auto
-    
-  then show ?case
-    by (simp add: \<open>length xs = (\<Sum>q\<in>nodes M. length (filter (\<lambda>t. t_target t = q) xs))\<close>) 
-qed
 
 end

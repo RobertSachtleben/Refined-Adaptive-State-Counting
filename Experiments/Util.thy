@@ -134,6 +134,13 @@ proof -
 qed
 
 
+abbreviation "member_option x ms \<equiv> (case ms of None \<Rightarrow> False | Some xs \<Rightarrow> x \<in> xs)"
+notation member_option ("(_\<in>\<^sub>o_)" [1000] 1000)
+
+abbreviation(input) "lookup_with_default f d \<equiv> (\<lambda> x . case f x of None \<Rightarrow> d | Some xs \<Rightarrow> xs)"
+abbreviation(input) "m2f f \<equiv> lookup_with_default f {}" 
+
+
 subsection \<open>Utility Lemmata for existing functions on lists\<close>
 
 subsubsection \<open>Utility Lemmata for @{text "find"}\<close>
