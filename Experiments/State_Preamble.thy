@@ -1,16 +1,17 @@
+section \<open>State Preambles\<close>
+
+text \<open>This theory defines state preambles.
+      A state preamble @{text "P"} of some state @{text "q"} of some FSM @{text "M"} is an acyclic single-input 
+      submachine of @{text "M"} that contains for each of its states and defined inputs in that state
+      all transitions of @{text "M"} and has @{text "q"} as its only deadlock state.
+      That is, @{text "P"} represents a strategy of reaching @{text "q"} in every complete submachine
+      of @{text "M"}.
+      In testing, preambles are used to reach states in the SUT that must conform to a single known
+      state in the specification.\<close>
+
 theory State_Preamble
 imports Product_FSM Backwards_Reachability_Analysis
 begin
-
-section \<open>State Preambles\<close>
-
-subsection \<open>Definitions\<close>
-
-(* TODO: use actual definition
-fun definitely_reachable :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool" where
-  "definitely_reachable M q = (\<forall> S . completely_specified S \<and> is_submachine S M \<longrightarrow> q \<in> nodes S)"
-*)
-
 
 
 definition is_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool" where
@@ -20,7 +21,11 @@ definition is_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm \<Rightar
     \<and> is_submachine S M 
     \<and> q \<in> reachable_nodes S 
     \<and> deadlock_state S q 
-    \<and> (\<forall> q' \<in> reachable_nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> inputs M . (\<exists> t \<in> transitions S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> transitions M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> transitions S))))"
+    \<and> (\<forall> q' \<in> reachable_nodes S . 
+        (q = q' \<or> \<not> deadlock_state S q') \<and> 
+        (\<forall> x \<in> inputs M . 
+          (\<exists> t \<in> transitions S . t_source t = q' \<and> t_input t = x) 
+            \<longrightarrow> (\<forall> t' \<in> transitions M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> transitions S))))"
 
 fun definitely_reachable :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool" where
   "definitely_reachable M q = (\<exists> S . is_preamble S M q)"
@@ -28,9 +33,10 @@ fun definitely_reachable :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> bool"
 
 
 
-subsection \<open>Properties\<close>
+subsection \<open>Basic Properties\<close>
 
-lift_definition initial_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.initial_singleton by auto
+lift_definition initial_preamble :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm" is FSM_Impl.initial_singleton 
+  by auto
 
 lemma initial_preamble_simps[simp] :
   "initial (initial_preamble M) = initial M"
@@ -77,7 +83,10 @@ proof -
   and  "is_submachine S M" 
   and  "q \<in> reachable_nodes S"
   and  "deadlock_state S q" 
-  and  *: "(\<forall> q' \<in> reachable_nodes S . (q = q' \<or> \<not> deadlock_state S q') \<and> (\<forall> x \<in> inputs M . (\<exists> t \<in> transitions S . t_source t = q' \<and> t_input t = x) \<longrightarrow> (\<forall> t' \<in> transitions M . t_source t' = q' \<and> t_input t' = x \<longrightarrow> t' \<in> transitions S)))"
+  and  *: "(\<forall> q' \<in> reachable_nodes S . (q = q' \<or> \<not> deadlock_state S q') 
+            \<and> (\<forall> x \<in> inputs M . (\<exists> t \<in> transitions S . t_source t = q' \<and> t_input t = x) 
+                                \<longrightarrow> (\<forall> t' \<in> transitions M . t_source t' = q' \<and> t_input t' = x 
+                                                            \<longrightarrow> t' \<in> transitions S)))"
     using assms(1) unfolding is_preamble_def by linarith+
 
   have "t_target t \<in> nodes S"
@@ -89,7 +98,8 @@ proof -
     using from_FSM_path_initial[OF \<open>t_target t \<in> nodes S\<close>]
     unfolding acyclic.simps from_FSM_simps[OF \<open>t_target t \<in> nodes S\<close>]
     using acyclic_paths_from_reachable_nodes[OF \<open>acyclic S\<close>, of "[t]" "t_target t"]
-    by (metis \<open>is_submachine S M\<close> assms(3) assms(4) is_submachine.elims(2) prod.collapse single_transition_path target_single_transition)
+    by (metis \<open>is_submachine S M\<close> assms(3) assms(4) is_submachine.elims(2) 
+          prod.collapse single_transition_path target_single_transition)
 
   have is_single_input: "single_input ?S"
     using \<open>single_input S\<close> 
@@ -115,7 +125,9 @@ proof -
       using acyclic_deadlock_reachable by blast 
     
     have "qd \<in> reachable_nodes S"
-      by (metis (no_types, lifting) \<open>is_submachine S M\<close> \<open>qd \<in> reachable_nodes (FSM.from_FSM S (t_target t))\<close> assms(3) assms(4) from_FSM_reachable_nodes in_mono is_submachine.elims(2) prod.collapse reachable_nodes_intro single_transition_path target_single_transition)
+      by (metis (no_types, lifting) \<open>is_submachine S M\<close> \<open>qd \<in> reachable_nodes (FSM.from_FSM S (t_target t))\<close> 
+            assms(3) assms(4) from_FSM_reachable_nodes in_mono is_submachine.elims(2) prod.collapse 
+            reachable_nodes_intro single_transition_path target_single_transition)
     then have "deadlock_state S qd"
       using \<open>deadlock_state ?S qd\<close> unfolding deadlock_state.simps
       by (simp add: \<open>t_target t \<in> FSM.nodes S\<close>)
@@ -135,7 +147,9 @@ proof -
   proof -
     fix q' assume "q' \<in> reachable_nodes ?S" and "deadlock_state ?S q'"
     have "q' \<in> reachable_nodes S"
-      by (metis (no_types, lifting) \<open>is_submachine S M\<close> \<open>q' \<in> reachable_nodes (FSM.from_FSM S (t_target t))\<close> assms(3) assms(4) from_FSM_reachable_nodes in_mono is_submachine.elims(2) prod.collapse reachable_nodes_intro single_transition_path target_single_transition)      
+      by (metis (no_types, lifting) \<open>is_submachine S M\<close> \<open>q' \<in> reachable_nodes (FSM.from_FSM S (t_target t))\<close> 
+          assms(3) assms(4) from_FSM_reachable_nodes in_mono is_submachine.elims(2) prod.collapse 
+          reachable_nodes_intro single_transition_path target_single_transition)      
     then have "deadlock_state S q'"
       using \<open>deadlock_state ?S q'\<close> unfolding deadlock_state.simps
       using \<open>q' \<in> reachable_nodes ?S\<close> by (simp add: \<open>t_target t \<in> FSM.nodes S\<close>)
@@ -148,11 +162,15 @@ proof -
     t \<in> transitions ?S \<Longrightarrow> t_source t = q' \<Longrightarrow> t_input t = x \<Longrightarrow>
     t' \<in> transitions ?M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> transitions ?S"
   proof -
-    fix x tS tM q' assume "q' \<in> reachable_nodes ?S" and "tS \<in> transitions ?S" and "t_source tS = q'" and "t_input tS = x" and "tM \<in> transitions ?M" and "t_source tM = q'" and "t_input tM = x"
+    fix x tS tM q' assume "q' \<in> reachable_nodes ?S" and "tS \<in> transitions ?S" and "t_source tS = q'" 
+                      and "t_input tS = x" and "tM \<in> transitions ?M" and "t_source tM = q'" 
+                      and "t_input tM = x"
 
 
     have "q' \<in> reachable_nodes S"
-      by (metis (no_types, lifting) \<open>is_submachine S M\<close> \<open>q' \<in> reachable_nodes (FSM.from_FSM S (t_target t))\<close> assms(3) assms(4) from_FSM_reachable_nodes in_mono is_submachine.elims(2) prod.collapse reachable_nodes_intro single_transition_path target_single_transition)
+      by (metis (no_types, lifting) \<open>is_submachine S M\<close> \<open>q' \<in> reachable_nodes (FSM.from_FSM S (t_target t))\<close> 
+            assms(3) assms(4) from_FSM_reachable_nodes in_mono is_submachine.elims(2) prod.collapse 
+            reachable_nodes_intro single_transition_path target_single_transition)
     
 
     have "tS \<in> transitions S"
@@ -169,15 +187,21 @@ proof -
       using \<open>q' \<in> reachable_nodes ?S\<close> submachine_path[OF \<open>is_submachine ?S ?M\<close>]
       unfolding reachable_nodes_def
     proof -
-      assume "q' \<in> {target (FSM.initial (FSM.from_FSM S (t_target t))) p |p. path (FSM.from_FSM S (t_target t)) (FSM.initial (FSM.from_FSM S (t_target t))) p}"
-      then show "q' \<in> {target (FSM.initial (FSM.from_FSM M (t_target t))) ps |ps. path (FSM.from_FSM M (t_target t)) (FSM.initial (FSM.from_FSM M (t_target t))) ps}"
-        using \<open>FSM.initial (FSM.from_FSM S (t_target t)) = FSM.initial (FSM.from_FSM M (t_target t))\<close> \<open>\<And>q p. path (FSM.from_FSM S (t_target t)) q p \<Longrightarrow> path (FSM.from_FSM M (t_target t)) q p\<close> by fastforce
+      assume "q' \<in> {target (FSM.initial (FSM.from_FSM S (t_target t))) p |p. 
+                      path (FSM.from_FSM S (t_target t)) (FSM.initial (FSM.from_FSM S (t_target t))) p}"
+      then show "q' \<in> {target (FSM.initial (FSM.from_FSM M (t_target t))) ps |ps. 
+                        path (FSM.from_FSM M (t_target t)) (FSM.initial (FSM.from_FSM M (t_target t))) ps}"
+        using \<open>FSM.initial (FSM.from_FSM S (t_target t)) = FSM.initial (FSM.from_FSM M (t_target t))\<close> 
+              \<open>\<And>q p. path (FSM.from_FSM S (t_target t)) q p \<Longrightarrow> path (FSM.from_FSM M (t_target t)) q p\<close> 
+        by fastforce
     qed
        
 
     show "tM \<in> transitions ?S" 
       using * \<open>q' \<in> reachable_nodes S\<close>
-      using \<open>tM \<in> FSM.transitions M\<close> \<open>tS \<in> FSM.transitions S\<close> \<open>t_input tM = x\<close> \<open>t_input tS = x\<close> \<open>t_source tM = q'\<close> \<open>t_source tS = q'\<close> \<open>t_target t \<in> FSM.nodes S\<close> by fastforce       
+            \<open>tM \<in> FSM.transitions M\<close> \<open>tS \<in> FSM.transitions S\<close> \<open>t_input tM = x\<close> \<open>t_input tS = x\<close> 
+            \<open>t_source tM = q'\<close> \<open>t_source tS = q'\<close> \<open>t_target t \<in> FSM.nodes S\<close> 
+      by fastforce       
   qed 
      
 
@@ -194,62 +218,13 @@ qed
 
 
 
-
-
-
-
-
-
-
 subsection \<open>Calculating State Preambles via Backwards Reachability Analysis\<close>
-
-definition m_ex_DR :: "(integer,integer,integer) fsm" where
-  "m_ex_DR = fsm_from_list 0  [(0,0,0,100),
-                               (100,0,0,101), 
-                               (100,0,1,101),
-                               (101,0,0,102),
-                               (101,0,1,102),
-                               (102,0,0,103),
-                               (102,0,1,103),
-                               (103,0,0,104),
-                               (103,0,1,104),
-                               (104,0,0,100),
-                               (104,0,1,100),
-                               (104,1,0,400),
-                               (0,0,2,200),
-                               (200,0,2,201),
-                               (201,0,2,202),
-                               (202,0,2,203),
-                               (203,0,2,200),
-                               (203,1,0,400),
-                               (0,1,0,300),
-                               (100,1,0,300),
-                               (101,1,0,300),
-                               (102,1,0,300),
-                               (103,1,0,300),
-                               (200,1,0,300),
-                               (201,1,0,300),
-                               (202,1,0,300),
-                               (300,0,0,300),
-                               (300,1,0,300),
-                               (400,0,0,300),
-                               (400,1,0,300)]"
-
 
 
 fun d_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b) list" where
   "d_states M q = (if q = initial M 
                       then [] 
                       else select_inputs (h M) (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} [])"
-
-value "d_states m_ex_H 1"
-value "d_states m_ex_H 2"
-value "d_states m_ex_H 3"
-value "d_states m_ex_H 4"
-
-
-
-
 
 
 
@@ -309,8 +284,6 @@ proof -
 qed
 
 
-
-
 lemma d_states_distinct :
   "distinct (map fst (d_states M q))"
 proof -
@@ -331,12 +304,10 @@ proof -
 qed
 
 
-
 lemma d_states_nodes : 
   "set (map fst (d_states M q)) \<subseteq> reachable_nodes M - {q}"
   using d_states_index_properties(1)[of _ M q] list_property_from_index_property[of "map fst (d_states M q)" "\<lambda>q' . q' \<in> reachable_nodes M - {q}"]
   by (simp add: subsetI)
-
 
 
 lemma d_states_size :
@@ -352,9 +323,6 @@ proof -
 qed
 
 
-
-
-
 lemma d_states_initial :
   assumes "qx \<in> set (d_states M q)" 
   and     "fst qx = initial M"
@@ -363,14 +331,10 @@ shows "(last (d_states M q)) = qx"
   by (cases "q = initial M"; auto)
 
 
-
-
 lemma d_states_q_noncontainment :
   shows "\<not>(\<exists> qqx \<in> set (d_states M q) . fst qqx = q)" 
   using d_states_index_properties(2)
   by (metis in_set_conv_nth) 
-
-
 
 
 lemma d_states_acyclic_paths' :
@@ -380,17 +344,14 @@ lemma d_states_acyclic_paths' :
   and     "p \<noteq> []"
 shows "False"
 proof -
-
   from \<open>p \<noteq> []\<close> obtain p' t' where "p = t'#p'"
     using list.exhaust by blast
   then have "path (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M q))) q' (p@[t'])"
     using assms(1,2) by fastforce
 
-
   define f :: "('a \<times> 'b \<times> 'c \<times> 'a) \<Rightarrow> nat"
     where f_def: "f = (\<lambda> t . the (find_index (\<lambda> qx . fst qx = t_source t \<and> snd qx = t_input t) (d_states M q)))"
   
-
   have f_prop: "\<And> t . t \<in> set (p@[t']) \<Longrightarrow> (f t < length (d_states M q)) 
                                       \<and> ((d_states M q) ! (f t) = (t_source t, t_input t))
                                       \<and> (\<forall> j < f t . fst (d_states M q ! j) \<noteq> t_source t)"
@@ -419,7 +380,6 @@ proof -
                                       \<and> ((d_states M q) ! (f t) = (t_source t, t_input t))
                                       \<and> (\<forall> j < f t . fst (d_states M q ! j) \<noteq> t_source t)" by simp
   qed
-
 
   have *: "\<And> i . Suc i < length (p@[t']) \<Longrightarrow> f ((p@[t']) ! i) > f ((p@[t']) ! (Suc i))"
   proof -
@@ -459,10 +419,7 @@ proof -
     then show "f ((p@[t']) ! i) > f ((p@[t']) ! (Suc i))"
       using \<open>(\<forall>j<f ((p@[t']) ! Suc i). fst (d_states M q ! j) \<noteq> t_source ((p@[t']) ! Suc i))\<close>
       using leI le_less_trans by blast 
-  qed
-  
-  
-  
+  qed   
 
   have "\<And> i j . j < i \<Longrightarrow> i < length (p@[t']) \<Longrightarrow> f ((p@[t']) ! j) > f ((p@[t']) ! i)"
     using list_index_fun_gt[of "p@[t']" f] * by blast
@@ -471,13 +428,6 @@ proof -
   then show "False"
     by auto
 qed
-
-
-
-
-
-  
-
 
 
 lemma d_states_acyclic_paths :
@@ -498,10 +448,6 @@ proof (rule ccontr)
 qed
 
 
-
-
-
-
 lemma d_states_induces_state_preamble_helper_acyclic :
   shows "acyclic (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M q)))"
   unfolding acyclic.simps
@@ -512,8 +458,6 @@ lemma d_states_induces_state_preamble_helper_single_input :
       (is "single_input ?FM")
   unfolding single_input.simps filter_transitions_simps
   by (metis (no_types, lifting) d_states_distinct eq_key_imp_eq_value mem_Collect_eq)
-    
-
 
 
 lemma d_states_induces_state_preamble :
@@ -539,7 +483,6 @@ next
   have has_deadlock_q : "deadlock_state ?S q" 
     using d_states_q_noncontainment[of M q] unfolding deadlock_state.simps
     by fastforce
-  
 
   have "\<And> q' . q' \<in> reachable_nodes ?S \<Longrightarrow> q' \<noteq> q \<Longrightarrow> \<not> deadlock_state ?S q'"
   proof -
@@ -592,10 +535,9 @@ next
             t'\<in> transitions M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> transitions ?S"
     by simp
 
-
   have contains_q : "q \<in> reachable_nodes ?S" 
-    using \<open>\<And>q'. \<lbrakk>q' \<in> reachable_nodes ?S; q' \<noteq> q\<rbrakk> \<Longrightarrow> \<not> deadlock_state ?S q'\<close> acyclic_deadlock_reachable is_acyclic by blast
-
+    using \<open>\<And>q'. \<lbrakk>q' \<in> reachable_nodes ?S; q' \<noteq> q\<rbrakk> \<Longrightarrow> \<not> deadlock_state ?S q'\<close> acyclic_deadlock_reachable is_acyclic 
+    by blast
 
   show ?thesis
     unfolding is_preamble_def
@@ -607,12 +549,10 @@ next
           has_nodes_prop_1 has_nodes_prop_2
     by blast
 qed
-  
 
 
-
-
-fun calculate_state_preamble_from_input_choices :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a  \<Rightarrow> ('a,'b,'c) fsm option" where
+fun calculate_state_preamble_from_input_choices :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a  \<Rightarrow> ('a,'b,'c) fsm option" 
+  where
   "calculate_state_preamble_from_input_choices M q = (if q = initial M
     then Some (initial_preamble M)
     else 
@@ -623,17 +563,6 @@ fun calculate_state_preamble_from_input_choices :: "('a::linorder,'b::linorder,'
             _  \<Rightarrow> if fst (last DS) = initial M
                     then Some (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> DSS))
                     else None)))"
-
-
-value "calculate_state_preamble_from_input_choices m_ex_H 1"
-value "calculate_state_preamble_from_input_choices m_ex_H 2"
-value "calculate_state_preamble_from_input_choices m_ex_H 3"
-value "calculate_state_preamble_from_input_choices m_ex_H 4"
-
-value "calculate_state_preamble_from_input_choices m_ex_DR 400"
-
-
-
 
 
 lemma calculate_state_preamble_from_input_choices_soundness :
@@ -660,8 +589,6 @@ next
     unfolding \<open>S = (filter_transitions M (\<lambda> t . (t_source t, t_input t) \<in> set (d_states M q)))\<close>
     by blast 
 qed
-
-
 
 
 lemma calculate_state_preamble_from_input_choices_exhaustiveness :
@@ -736,12 +663,11 @@ qed
 
 
 
-
-
 subsection \<open>Minimal Sequences to Failures extending Preambles\<close>
 
-
-definition sequence_to_failure_extending_preamble_path :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('a\<times>'b\<times>'c\<times>'a) list \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
+definition sequence_to_failure_extending_preamble_path :: 
+  "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('a\<times>'b\<times>'c\<times>'a) list \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" 
+  where
   "sequence_to_failure_extending_preamble_path M M' PS p io = (\<exists> q P . q \<in> nodes M 
                                                                         \<and> (q,P) \<in> PS
                                                                         \<and> path P (initial P) p 
@@ -786,25 +712,34 @@ proof -
   let ?io = "take (Suc j) io"
   
 
-  have "initial M \<in> nodes M" by auto
+  have "initial M \<in> nodes M" 
+    by auto
   moreover note \<open>(initial M, (initial_preamble M)) \<in> PS\<close>
   moreover have "path ?P (initial ?P) []" by force
-  moreover have "((p_io []) @ butlast ?io) \<in> L M" using \<open>take j io \<in> L M\<close>  unfolding List.list.map(1) append_Nil 
-    by (metis Diff_iff One_nat_def \<open>io \<in> LS M' (initial M') - LS M (initial M)\<close> butlast_take diff_Suc_Suc minus_nat.diff_0 not_less_eq_eq take_all)
-  moreover have "((p_io []) @ ?io) \<notin> L M" using \<open>take (Suc j) io \<notin> L M\<close> by auto
-  moreover have "((p_io []) @ ?io) \<in> L M'" using \<open>\<And> i . take i io \<in> L M'\<close> by auto
+  moreover have "((p_io []) @ butlast ?io) \<in> L M" 
+    using \<open>take j io \<in> L M\<close>  
+    unfolding List.list.map(1) append_Nil 
+    by (metis Diff_iff One_nat_def \<open>io \<in> LS M' (initial M') - LS M (initial M)\<close> butlast_take 
+          diff_Suc_Suc minus_nat.diff_0 not_less_eq_eq take_all)
+  moreover have "((p_io []) @ ?io) \<notin> L M" 
+    using \<open>take (Suc j) io \<notin> L M\<close> by auto
+  moreover have "((p_io []) @ ?io) \<in> L M'" 
+    using \<open>\<And> i . take i io \<in> L M'\<close> by auto
   ultimately have "sequence_to_failure_extending_preamble_path M M' PS [] ?io"
     unfolding sequence_to_failure_extending_preamble_path_def by force
-  then show ?thesis using that by blast
-qed
-  
-    
-  
+  then show ?thesis 
+    using that by blast
+qed  
+     
 
+definition minimal_sequence_to_failure_extending_preamble_path :: 
+  "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('a\<times>'b\<times>'c\<times>'a) list \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" 
+  where
+  "minimal_sequence_to_failure_extending_preamble_path M M' PS p io 
+    = ((sequence_to_failure_extending_preamble_path M M' PS p io)
+        \<and> (\<forall> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' 
+                        \<longrightarrow> length io \<le> length io'))"
 
-definition minimal_sequence_to_failure_extending_preamble_path :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set \<Rightarrow> ('a\<times>'b\<times>'c\<times>'a) list \<Rightarrow> ('b \<times> 'c) list \<Rightarrow> bool" where
-  "minimal_sequence_to_failure_extending_preamble_path M M' PS p io = ((sequence_to_failure_extending_preamble_path M M' PS p io)
-                                                                \<and> (\<forall> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<longrightarrow> length io \<le> length io'))"
 
 lemma minimal_sequence_to_failure_extending_preamble_ex :
   assumes "(initial M, (initial_preamble M)) \<in> PS" (is "(initial M,?P) \<in> PS")
@@ -813,7 +748,6 @@ obtains p io where "minimal_sequence_to_failure_extending_preamble_path M M' PS 
 proof -
   let ?ios = "{io . \<exists> p . sequence_to_failure_extending_preamble_path M M' PS p io}"
   let ?io_min = "arg_min length (\<lambda>io . io \<in> ?ios)"
-
 
   have "?ios \<noteq> {}"
     using sequence_to_failure_extending_preamble_ex[OF assms] by blast
@@ -831,148 +765,6 @@ proof -
     by blast
 qed
 
-
-
-
-(* TODO: move *)
-lemma path_loop_cut :
-  assumes "path M q p"
-  and     "t_target (p ! i) = t_target (p ! j)"
-  and     "i < j"
-  and     "j < length p"
-shows "path M q ((take (Suc i) p) @ (drop (Suc j) p))"
-and   "target q ((take (Suc i) p) @ (drop (Suc j) p)) = target q p"
-and   "length ((take (Suc i) p) @ (drop (Suc j) p)) < length p"
-and   "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p))"
-and   "target (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p)) = (target q (take (Suc i) p))"
-proof -
-    
-  have "p = (take (Suc j) p) @ (drop (Suc j) p)"
-    by auto
-  also have "\<dots> = ((take (Suc i) (take (Suc j) p)) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p)"
-    by (metis append_take_drop_id)
-  also have "\<dots> = ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p)"
-    using \<open>i < j\<close> by (simp add: min.strict_order_iff) 
-  finally have "p = (take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p)"
-    by simp
-
-  then have "path M q ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p))"
-       and  "path M q (((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p))"
-    using \<open>path M q p\<close> by auto
-
-  have "path M q (take (Suc i) p)" and "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p) @ drop (Suc j) p)"
-    using path_append_elim[OF \<open>path M q ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p))\<close>] 
-    by blast+
-
-  
-  have *: "(take (Suc i) p @ drop (Suc i) (take (Suc j) p)) = (take (Suc j) p)"
-      using \<open>i < j\<close> append_take_drop_id
-      by (metis \<open>(take (Suc i) (take (Suc j) p) @ drop (Suc i) (take (Suc j) p)) @ drop (Suc j) p = (take (Suc i) p @ drop (Suc i) (take (Suc j) p)) @ drop (Suc j) p\<close> append_same_eq)
-
-  have "path M q (take (Suc j) p)" and "path M (target q (take (Suc j) p)) (drop (Suc j) p)"
-    using path_append_elim[OF \<open>path M q (((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p))\<close>] 
-    unfolding *
-    by blast+
-
-  have **: "(target q (take (Suc j) p)) = (target q (take (Suc i) p))"
-  proof -
-    have "p ! i = last (take (Suc i) p)"
-      by (metis Suc_lessD assms(3) assms(4) less_trans_Suc take_last_index)
-    moreover have "p ! j = last (take (Suc j) p)"
-      by (simp add: assms(4) take_last_index)
-    ultimately show ?thesis
-      using assms(2) unfolding * target.simps visited_nodes.simps
-      by (simp add: last_map) 
-  qed
-
-  show "path M q ((take (Suc i) p) @ (drop (Suc j) p))"
-    using \<open>path M q (take (Suc i) p)\<close> \<open>path M (target q (take (Suc j) p)) (drop (Suc j) p)\<close> unfolding ** by auto
-
-  show "target q ((take (Suc i) p) @ (drop (Suc j) p)) = target q p"
-    by (metis "**" append_take_drop_id path_append_target)
-    
-  show "length ((take (Suc i) p) @ (drop (Suc j) p)) < length p"
-  proof -
-    have ***: "length p = length ((take (Suc j) p) @ (drop (Suc j) p))"
-      by auto
-
-    have "length (take (Suc i) p) < length (take (Suc j) p)"
-      using assms(3,4)
-      by (simp add: min_absorb2) 
-
-    have scheme: "\<And> a b c . length a < length b \<Longrightarrow> length (a@c) < length (b@c)"
-      by auto
-    
-    show ?thesis 
-      unfolding *** using scheme[OF \<open>length (take (Suc i) p) < length (take (Suc j) p)\<close>, of "(drop (Suc j) p)"]
-      by assumption
-  qed
-
-  show "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p))"
-    using \<open>path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p) @ drop (Suc j) p)\<close> by blast
-
-  show "target (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p)) = (target q (take (Suc i) p))"
-    by (metis "*" "**" path_append_target) 
-qed
-      
-
-
-(* TODO: move *)
-lemma language_io_target_append :
-  assumes "q' \<in> io_targets M io1 q"
-  and     "io2 \<in> LS M q'"
-shows "(io1@io2) \<in> LS M q"
-proof - 
-  obtain p2 where "path M q' p2" and "p_io p2 = io2"
-    using assms(2) by auto
-
-  moreover obtain p1 where "q' = target q p1" and "path M q p1" and "p_io p1 = io1"
-    using assms(1) by auto
-
-  ultimately show ?thesis unfolding LS.simps
-    by (metis (mono_tags, lifting) map_append mem_Collect_eq path_append) 
-qed
-
-
-(* TODO: move *)
-
-lemma path_io_split :
-  assumes "path M q p"
-  and     "p_io p = io1@io2"
-shows "path M q (take (length io1) p)"
-and   "p_io (take (length io1) p) = io1"
-and   "path M (target q (take (length io1) p)) (drop (length io1) p)"
-and   "p_io (drop (length io1) p) = io2"
-proof -
-  have "length io1 \<le> length p"
-    using \<open>p_io p = io1@io2\<close> 
-    unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric]
-    by auto
-
-  have "p = (take (length io1) p)@(drop (length io1) p)"
-    by simp
-  then have *: "path M q ((take (length io1) p)@(drop (length io1) p))"
-    using \<open>path M q p\<close> by auto
-
-  show "path M q (take (length io1) p)"
-       and  "path M (target q (take (length io1) p)) (drop (length io1) p)"
-    using path_append_elim[OF *] by blast+
-
-  show "p_io (take (length io1) p) = io1"
-    using \<open>p = (take (length io1) p)@(drop (length io1) p)\<close> \<open>p_io p = io1@io2\<close>
-    by (metis append_eq_conv_conj take_map) 
-
-  show "p_io (drop (length io1) p) = io2"
-    using \<open>p = (take (length io1) p)@(drop (length io1) p)\<close> \<open>p_io p = io1@io2\<close>
-    by (metis append_eq_conv_conj drop_map)
-qed
-    
-  
-
-
-
-
-  
 
 lemma minimal_sequence_to_failure_extending_preamble_no_repetitions_along_path :
   assumes "minimal_sequence_to_failure_extending_preamble_path M M' PS pP io"
@@ -995,9 +787,9 @@ proof (rule ccontr)
        and  "t_target (p' ! i) = t_target (p' ! j)"
     by blast+
 
-
   have "sequence_to_failure_extending_preamble_path M M' PS pP io"
-  and  "\<And> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' \<Longrightarrow> length io \<le> length io'"
+  and  "\<And> p' io' . sequence_to_failure_extending_preamble_path M M' PS p' io' 
+                    \<Longrightarrow> length io \<le> length io'"
     using \<open>minimal_sequence_to_failure_extending_preamble_path M M' PS pP io\<close>
     unfolding minimal_sequence_to_failure_extending_preamble_path_def   
     by blast+
@@ -1017,7 +809,8 @@ proof (rule ccontr)
     using \<open>(q,P) \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
   then have "q \<in> nodes M"
     unfolding is_preamble_def
-    by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> path_target_is_node submachine_path) 
+    by (metis \<open>path P (FSM.initial P) pP\<close> \<open>target (FSM.initial P) pP = q\<close> 
+          path_target_is_node submachine_path) 
 
   have "initial P = initial M"
     using \<open>is_preamble P M q\<close> unfolding is_preamble_def by auto
@@ -1030,7 +823,6 @@ proof (rule ccontr)
   then have "path M q p"
     using \<open>path M (target (initial M) pP) p\<close> by auto
     
-
   have "io \<noteq> []"
     using \<open>((p_io pP) @ butlast io) \<in> L M\<close> \<open>((p_io pP) @ io) \<notin> L M\<close> by auto
   then have "length p' > 0"
@@ -1042,12 +834,9 @@ proof (rule ccontr)
   then have "path M' q' (butlast p')" and "(last p') \<in> transitions M'" and "t_source (last p') = target q' (butlast p')"
     by auto
     
-
   have "p_io (butlast p') = butlast io"
     using \<open>p' = (butlast p')@[last p']\<close> \<open>p_io p' = io\<close>
     using map_butlast by auto 
-
-
 
   let ?p = "((take (Suc i) p) @ (drop (Suc j) p))"
   let ?pCut = "(drop (Suc i) (take (Suc j) p))" (* the loop cut out of p *)
@@ -1063,11 +852,17 @@ proof (rule ccontr)
     using \<open>t_target (p' ! i) = t_target (p' ! j)\<close> 
     by (simp add: \<open>i < j\<close> dual_order.strict_trans nth_butlast) 
 
-  have "path M q ?p" and "target q ?p = target q p" and "length ?p < length p" and "path M (target q (take (Suc i) p)) ?pCut" and "target (target q (take (Suc i) p)) ?pCut = target q (take (Suc i) p)"
+  have "path M q ?p" 
+  and  "target q ?p = target q p" 
+  and  "length ?p < length p"
+  and  "path M (target q (take (Suc i) p)) ?pCut" 
+  and  "target (target q (take (Suc i) p)) ?pCut = target q (take (Suc i) p)"
     using path_loop_cut[OF \<open>path M q p\<close> \<open>t_target (p ! i) = t_target (p ! j)\<close> \<open>i < j\<close> \<open>j < length p\<close>]
     by blast+
 
-  have "path M' q' ?p'" and "target q' ?p' = target q' (butlast p')" and "length ?p' < length (butlast p')"
+  have "path M' q' ?p'" 
+  and  "target q' ?p' = target q' (butlast p')" 
+  and  "length ?p' < length (butlast p')"
     using path_loop_cut[OF \<open>path M' q' (butlast p')\<close> \<open>t_target ((butlast p') ! i) = t_target ((butlast p') ! j)\<close> \<open>i < j\<close> \<open>j < length (butlast p')\<close>]
     by blast+
   
@@ -1075,7 +870,6 @@ proof (rule ccontr)
     using \<open>t_source (last p') = target q' (butlast p')\<close> 
     using path_append_transition[OF \<open>path M' q' ?p'\<close> \<open>(last p') \<in> transitions M'\<close>]
     unfolding \<open>target q' ?p' = target q' (butlast p')\<close> by simp
-
 
   have "p_io ?p' = p_io ?p"
     using \<open>p_io p = butlast io\<close> \<open>p_io (butlast p') = butlast io\<close>
@@ -1087,12 +881,8 @@ proof (rule ccontr)
     by auto
 
 
-
-
   (* show that the shorter path would constitute a shorter seq to a failure, contradicting
      the minimality assumption on io *)
-
-  
 
   have "q \<in> io_targets M (p_io pP) (initial M)"
     using \<open>path M (initial M) pP\<close> \<open>target (initial M) pP = q\<close> unfolding io_targets.simps
@@ -1110,7 +900,8 @@ proof (rule ccontr)
   have p2: "((p_io pP) @ (p_io (?p' @ [last p']))) \<notin> L M"
   proof 
     assume "((p_io pP) @ (p_io (?p' @ [last p']))) \<in> L M"
-    then obtain pCntr where "path M (initial M) pCntr" and "p_io pCntr = (p_io pP) @ (p_io (?p' @ [last p']))"
+    then obtain pCntr where "path M (initial M) pCntr" 
+                        and "p_io pCntr = (p_io pP) @ (p_io (?p' @ [last p']))"
       by auto
 
     let ?pCntr1 = "(take (length (p_io pP)) pCntr)"
@@ -1135,7 +926,6 @@ proof (rule ccontr)
       using path_io_split[OF \<open>path M (target (initial M) ?pCntr1) ?pCntr23\<close> \<open>p_io ?pCntr23 = p_io ?p' @ p_io [last p']\<close>]
       by blast+
 
-
     have "?pCntr1 = pP"
       using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) ?pCntr1\<close> \<open>path M (initial M) pP\<close> \<open>p_io ?pCntr1 = p_io pP\<close>]
       by assumption
@@ -1157,8 +947,7 @@ proof (rule ccontr)
     then have "(target q ?pCntr2) = (target q ?p)"
       by auto
     then have "(target q ?pCntr2) = (target q p)"
-      using \<open>target q ?p = target q p\<close> by auto
-    
+      using \<open>target q ?p = target q p\<close> by auto    
 
     have "p_io ?pCntr3 = [last io]"
       using \<open>p_io ?pCntr3 = p_io [last p']\<close>
@@ -1178,14 +967,12 @@ proof (rule ccontr)
       by simp
   qed
 
-
   have p3: "((p_io pP) @ (p_io (?p' @ [last p']))) \<in> L M'"
     using language_io_target_append[OF \<open>q' \<in> io_targets M' (p_io pP) (initial M')\<close>, of "(p_io (?p' @ [last p']))"]
     using \<open>path M' q' (?p'@[last p'])\<close> 
     unfolding LS.simps
     by (metis (mono_tags, lifting) mem_Collect_eq) 
 
-  
   have "sequence_to_failure_extending_preamble_path M M' PS pP (p_io (?p' @ [last p']))"
     unfolding sequence_to_failure_extending_preamble_path_def
     using \<open>q \<in> nodes M\<close>
@@ -1199,23 +986,6 @@ proof (rule ccontr)
           min_prop
     by simp
 qed
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 lemma minimal_sequence_to_failure_extending_preamble_no_repetitions_with_other_preambles :
@@ -1271,10 +1041,6 @@ proof
   then have "path M q p"
     using \<open>path M (target (initial M) pP) p\<close> by auto
 
-
-  
-
-
   have "is_preamble P' M (t_target (p ! i))"
     using \<open>(t_target (p ! i), P') \<in> PS\<close> \<open>\<And> q P. (q, P) \<in> PS \<Longrightarrow> is_preamble P M q\<close> by blast
   then have "(t_target (p ! i)) \<in> nodes M"
@@ -1289,8 +1055,6 @@ proof
   have "target (initial M) pP' = t_target (p ! i)"
     using \<open>target (initial P') pP' = t_target (p ! i)\<close> unfolding \<open>initial P' = initial M\<close> by simp
 
-
-
   have "io \<noteq> []"
     using \<open>((p_io pP) @ butlast io) \<in> L M\<close> \<open>((p_io pP) @ io) \<notin> L M\<close> by auto
   then have "length p' > 0"
@@ -1300,17 +1064,14 @@ proof
   then have "path M' q' ((butlast p')@[last p'])"
     using \<open>path M' q' p'\<close> by simp
   then have "path M' q' (butlast p')" and "(last p') \<in> transitions M'" and "t_source (last p') = target q' (butlast p')"
-    by auto
-    
+    by auto    
 
   have "p_io (butlast p') = butlast io"
     using \<open>p' = (butlast p')@[last p']\<close> \<open>p_io p' = io\<close>
     using map_butlast by auto 
 
   have "butlast io \<noteq> []"
-    using assms(9) by fastforce
-    
-
+    using assms(9) by fastforce    
 
   let ?p = "(drop (Suc i) p)"
   let ?p' = "(drop (Suc i) (butlast p'))"
@@ -1323,9 +1084,6 @@ proof
   then have "t_target (p ! i) = target q (take (Suc i) p)"
     unfolding target.simps visited_nodes.simps
     by (metis (no_types, lifting) \<open>i < length p\<close> gr_implies_not0 last_ConsR length_0_conv length_map nth_map old.nat.distinct(2) take_eq_Nil take_last_index take_map) 
-
-
-  
 
   have "p = (take (Suc i) p @ ?p)"
     by simp
@@ -1343,8 +1101,7 @@ proof
   then have "path M (initial M) (pP' @ ?p)"
     using \<open>path M (initial M) pP'\<close> \<open>target (initial M) pP' = t_target (p ! i)\<close>
     by (simp add: path_append)
-  
-  
+   
   let ?io = "(p_io ?p) @ [last io]"
   have is_shorter: "length ?io < length io"
   proof -
@@ -1357,11 +1114,7 @@ proof
     then show ?thesis
       by auto
   qed
-
-    
-    
-          
-    
+   
   have p1: "((p_io pP') @ (p_io ?p)) \<in> L M" 
     using \<open>path M (initial M) (pP' @ ?p)\<close>
     by (metis (mono_tags, lifting) language_state_containment map_append) 
@@ -1381,7 +1134,6 @@ proof
     and  "p_io ?pCntr23 = (p_io ?p) @ [last io]"
       using path_io_split[OF \<open>path M (initial M) pCntr\<close> \<open>p_io pCntr = (p_io pP') @ (p_io ?p) @ [last io]\<close>] 
       by blast+
-
 
     have "?pCntr1 = pP'"
       using observable_path_unique[OF \<open>observable M\<close> \<open>path M (initial M) ?pCntr1\<close> \<open>path M (initial M) pP'\<close> \<open>p_io ?pCntr1 = p_io pP'\<close>]
@@ -1419,9 +1171,6 @@ proof
 
   have p3: "((p_io pP') @ ?io) \<in> L M'"
   proof -
-
-    
-
     have "i < length (butlast p')"
       using \<open>i < length (butlast io)\<close> unfolding \<open>p_io p' = io\<close>[symmetric] 
       using length_map[of "(\<lambda> t . (t_input t, t_output t))"]
@@ -1438,9 +1187,6 @@ proof
       by (simp add: nth_butlast) 
     ultimately have "(target q' (take (Suc i) (butlast p'))) = t_target (p' ! i)"
       by simp
-
-    
-
 
     have "p' = (take (Suc i) (butlast p')) @ ?p' @ [last p']"
       by (metis \<open>p' = butlast p' @ [last p']\<close> append.assoc append_take_drop_id) 
@@ -1473,7 +1219,6 @@ proof
     using is_shorter
     by simp
 qed
-
 
 
 end

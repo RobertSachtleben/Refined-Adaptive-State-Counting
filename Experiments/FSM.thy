@@ -126,6 +126,38 @@ definition m_ex_9 :: "(integer,integer,integer) fsm" where
                               (3,1,0,2),
                               (3,1,1,1)]"
 
+definition m_ex_DR :: "(integer,integer,integer) fsm" where
+  "m_ex_DR = fsm_from_list 0  [(0,0,0,100),
+                               (100,0,0,101), 
+                               (100,0,1,101),
+                               (101,0,0,102),
+                               (101,0,1,102),
+                               (102,0,0,103),
+                               (102,0,1,103),
+                               (103,0,0,104),
+                               (103,0,1,104),
+                               (104,0,0,100),
+                               (104,0,1,100),
+                               (104,1,0,400),
+                               (0,0,2,200),
+                               (200,0,2,201),
+                               (201,0,2,202),
+                               (202,0,2,203),
+                               (203,0,2,200),
+                               (203,1,0,400),
+                               (0,1,0,300),
+                               (100,1,0,300),
+                               (101,1,0,300),
+                               (102,1,0,300),
+                               (103,1,0,300),
+                               (200,1,0,300),
+                               (201,1,0,300),
+                               (202,1,0,300),
+                               (300,0,0,300),
+                               (300,1,0,300),
+                               (400,0,0,300),
+                               (400,1,0,300)]"
+
 
 subsection \<open>Transition Function h\<close>
 
@@ -812,6 +844,88 @@ next
 qed
 
 
+lemma path_loop_cut :
+  assumes "path M q p"
+  and     "t_target (p ! i) = t_target (p ! j)"
+  and     "i < j"
+  and     "j < length p"
+shows "path M q ((take (Suc i) p) @ (drop (Suc j) p))"
+and   "target q ((take (Suc i) p) @ (drop (Suc j) p)) = target q p"
+and   "length ((take (Suc i) p) @ (drop (Suc j) p)) < length p"
+and   "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p))"
+and   "target (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p)) = (target q (take (Suc i) p))"
+proof -
+    
+  have "p = (take (Suc j) p) @ (drop (Suc j) p)"
+    by auto
+  also have "\<dots> = ((take (Suc i) (take (Suc j) p)) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p)"
+    by (metis append_take_drop_id)
+  also have "\<dots> = ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p)"
+    using \<open>i < j\<close> by (simp add: min.strict_order_iff) 
+  finally have "p = (take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p)"
+    by simp
+
+  then have "path M q ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p))"
+       and  "path M q (((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p))"
+    using \<open>path M q p\<close> by auto
+
+  have "path M q (take (Suc i) p)" and "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p) @ drop (Suc j) p)"
+    using path_append_elim[OF \<open>path M q ((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p)) @ (drop (Suc j) p))\<close>] 
+    by blast+
+
+  
+  have *: "(take (Suc i) p @ drop (Suc i) (take (Suc j) p)) = (take (Suc j) p)"
+      using \<open>i < j\<close> append_take_drop_id
+      by (metis \<open>(take (Suc i) (take (Suc j) p) @ drop (Suc i) (take (Suc j) p)) @ drop (Suc j) p = (take (Suc i) p @ drop (Suc i) (take (Suc j) p)) @ drop (Suc j) p\<close> append_same_eq)
+
+  have "path M q (take (Suc j) p)" and "path M (target q (take (Suc j) p)) (drop (Suc j) p)"
+    using path_append_elim[OF \<open>path M q (((take (Suc i) p) @ (drop (Suc i) (take (Suc j) p))) @ (drop (Suc j) p))\<close>] 
+    unfolding *
+    by blast+
+
+  have **: "(target q (take (Suc j) p)) = (target q (take (Suc i) p))"
+  proof -
+    have "p ! i = last (take (Suc i) p)"
+      by (metis Suc_lessD assms(3) assms(4) less_trans_Suc take_last_index)
+    moreover have "p ! j = last (take (Suc j) p)"
+      by (simp add: assms(4) take_last_index)
+    ultimately show ?thesis
+      using assms(2) unfolding * target.simps visited_nodes.simps
+      by (simp add: last_map) 
+  qed
+
+  show "path M q ((take (Suc i) p) @ (drop (Suc j) p))"
+    using \<open>path M q (take (Suc i) p)\<close> \<open>path M (target q (take (Suc j) p)) (drop (Suc j) p)\<close> unfolding ** by auto
+
+  show "target q ((take (Suc i) p) @ (drop (Suc j) p)) = target q p"
+    by (metis "**" append_take_drop_id path_append_target)
+    
+  show "length ((take (Suc i) p) @ (drop (Suc j) p)) < length p"
+  proof -
+    have ***: "length p = length ((take (Suc j) p) @ (drop (Suc j) p))"
+      by auto
+
+    have "length (take (Suc i) p) < length (take (Suc j) p)"
+      using assms(3,4)
+      by (simp add: min_absorb2) 
+
+    have scheme: "\<And> a b c . length a < length b \<Longrightarrow> length (a@c) < length (b@c)"
+      by auto
+    
+    show ?thesis 
+      unfolding *** using scheme[OF \<open>length (take (Suc i) p) < length (take (Suc j) p)\<close>, of "(drop (Suc j) p)"]
+      by assumption
+  qed
+
+  show "path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p))"
+    using \<open>path M (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p) @ drop (Suc j) p)\<close> by blast
+
+  show "target (target q (take (Suc i) p)) (drop (Suc i) (take (Suc j) p)) = (target q (take (Suc i) p))"
+    by (metis "*" "**" path_append_target) 
+qed
+      
+
+
 
 subsection \<open>Acyclic Paths\<close>
 
@@ -1251,6 +1365,37 @@ proof -
     using \<open>t \<in> transitions M\<close> \<open>t_output t = y\<close> by auto
 qed
 
+
+lemma path_io_split :
+  assumes "path M q p"
+  and     "p_io p = io1@io2"
+shows "path M q (take (length io1) p)"
+and   "p_io (take (length io1) p) = io1"
+and   "path M (target q (take (length io1) p)) (drop (length io1) p)"
+and   "p_io (drop (length io1) p) = io2"
+proof -
+  have "length io1 \<le> length p"
+    using \<open>p_io p = io1@io2\<close> 
+    unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric]
+    by auto
+
+  have "p = (take (length io1) p)@(drop (length io1) p)"
+    by simp
+  then have *: "path M q ((take (length io1) p)@(drop (length io1) p))"
+    using \<open>path M q p\<close> by auto
+
+  show "path M q (take (length io1) p)"
+       and  "path M (target q (take (length io1) p)) (drop (length io1) p)"
+    using path_append_elim[OF *] by blast+
+
+  show "p_io (take (length io1) p) = io1"
+    using \<open>p = (take (length io1) p)@(drop (length io1) p)\<close> \<open>p_io p = io1@io2\<close>
+    by (metis append_eq_conv_conj take_map) 
+
+  show "p_io (drop (length io1) p) = io2"
+    using \<open>p = (take (length io1) p)@(drop (length io1) p)\<close> \<open>p_io p = io1@io2\<close>
+    by (metis append_eq_conv_conj drop_map)
+qed
 
 
 subsection \<open>Basic FSM Properties\<close>
@@ -2496,6 +2641,23 @@ proof -
     using \<open>path M q (p'@[t])\<close> by auto
   then show ?thesis using that \<open>t_input t = x\<close> \<open>t_output t = y\<close> by metis
 qed
+
+
+lemma language_io_target_append :
+  assumes "q' \<in> io_targets M io1 q"
+  and     "io2 \<in> LS M q'"
+shows "(io1@io2) \<in> LS M q"
+proof - 
+  obtain p2 where "path M q' p2" and "p_io p2 = io2"
+    using assms(2) by auto
+
+  moreover obtain p1 where "q' = target q p1" and "path M q p1" and "p_io p1 = io1"
+    using assms(1) by auto
+
+  ultimately show ?thesis unfolding LS.simps
+    by (metis (mono_tags, lifting) map_append mem_Collect_eq path_append) 
+qed
+
 
 
 subsection \<open>Conformity Relations\<close>
