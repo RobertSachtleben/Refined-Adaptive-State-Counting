@@ -1,24 +1,18 @@
+section \<open>Properties of Sets of IO Sequences\<close>
+
+text \<open>This theory contains various definitions for properties of sets of IO-sequences.\<close>
+
 theory IO_Sequence_Set
 imports FSM
 begin
 
 
-section \<open>Properties of Sets of IO Sequences\<close>
-
 fun output_completion :: "('a \<times> 'b) list set \<Rightarrow> 'b set \<Rightarrow> ('a \<times> 'b) list set" where
   "output_completion P Out = P \<union> {io@[(fst xy, y)] | io xy y . y \<in> Out \<and> io@[xy] \<in> P \<and> io@[(fst xy, y)] \<notin> P}"
 
 
-
-
 fun output_complete_sequences :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
   "output_complete_sequences M P = (\<forall> io \<in> P . io = [] \<or> (\<forall> y \<in> (outputs M) . (butlast io)@[(fst (last io), y)] \<in> P))"
-
-value "output_complete_sequences m_ex_H {}"  
-value "output_complete_sequences m_ex_H {[]}"
-value "output_complete_sequences m_ex_H {[],[(1,0)]}"
-value "output_complete_sequences m_ex_H {[],[(1,0)],[(1,1)]}"
-
 
 
 fun acyclic_sequences :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
@@ -30,15 +24,6 @@ fun acyclic_sequences' :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('b \<t
 lemma acyclic_sequences_alt_def[code] : "acyclic_sequences M P = acyclic_sequences' M P"
   unfolding acyclic_sequences'.simps acyclic_sequences.simps paths_for_io_def
   by blast
-  
-value "acyclic_sequences m_ex_H 1 {}"  
-value "acyclic_sequences m_ex_H 1 {[]}"
-value "acyclic_sequences m_ex_H 1 {[(0,0)]}"
-value "acyclic_sequences m_ex_H 1 {[(0,0),(0,0)]}"
-
-
-
-
 
 fun single_input_sequences :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
   "single_input_sequences M P = (\<forall> xys1 xys2 xy1 xy2 . (xys1@[xy1] \<in> P \<and> xys2@[xy2] \<in> P \<and> io_targets M xys1 (initial M) = io_targets M xys2 (initial M)) \<longrightarrow> fst xy1 = fst xy2)"
@@ -50,24 +35,16 @@ lemma single_input_sequences_alt_def[code] : "single_input_sequences M P = singl
   unfolding single_input_sequences.simps single_input_sequences'.simps
   by (metis append_butlast_last_id append_is_Nil_conv butlast_snoc last_snoc not_Cons_self)
 
-value "single_input_sequences m_ex_H {}"
-value "single_input_sequences m_ex_H {[(1,0)],[(1,0),(1,0)],[(1,0),(2,0)]}"
-value "single_input_sequences m_ex_H {[(1,0)],[(1,0),(1,0)],[(1,1),(2,0)]}"
-
-
-
 fun output_complete_for_FSM_sequences_from_state :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
   "output_complete_for_FSM_sequences_from_state M q P = (\<forall> io xy t . io@[xy] \<in> P \<and> t \<in> transitions M \<and> t_source t \<in> io_targets M io q \<and> t_input t = fst xy \<longrightarrow> io@[(fst xy, t_output t)] \<in> P)"
 
 lemma output_complete_for_FSM_sequences_from_state_alt_def :
-  shows "output_complete_for_FSM_sequences_from_state M q P = (\<forall> xys xy y . (xys@[xy] \<in> P \<and> (\<exists> q' \<in> (io_targets M xys q) . [(fst xy,y)] \<in> LS M q')) \<longrightarrow> xys@[(fst xy,y)] \<in> P)"
-  
+  shows "output_complete_for_FSM_sequences_from_state M q P = (\<forall> xys xy y . (xys@[xy] \<in> P \<and> (\<exists> q' \<in> (io_targets M xys q) . [(fst xy,y)] \<in> LS M q')) \<longrightarrow> xys@[(fst xy,y)] \<in> P)"  
 proof -
   have "\<And> xys xy y q' . q' \<in> (io_targets M xys q) \<Longrightarrow> [(fst xy,y)] \<in> LS M q' \<Longrightarrow> \<exists> t . t \<in> transitions M \<and> t_source t \<in> io_targets M xys q \<and> t_input t = fst xy \<and> t_output t = y" 
     unfolding io_targets.simps LS.simps
     using path_append path_append_transition_elim(2) by fastforce 
 
-  
   moreover have "\<And> xys xy y t . t \<in> transitions M \<Longrightarrow> t_source t \<in> io_targets M xys q \<Longrightarrow> t_input t = fst xy \<Longrightarrow> t_output t = y \<Longrightarrow> \<exists> q' \<in> (io_targets M xys q) . [(fst xy,y)] \<in> LS M q'"
     unfolding io_targets.simps LS.simps
   proof -
@@ -90,26 +67,12 @@ proof -
     unfolding output_complete_for_FSM_sequences_from_state.simps by blast
 qed
 
-
-
-
-
-
 fun output_complete_for_FSM_sequences_from_state' :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
   "output_complete_for_FSM_sequences_from_state' M q P = (\<forall> io\<in>P . \<forall> t \<in> transitions M . io = [] \<or> (t_source t \<in> io_targets M (butlast io) q \<and> t_input t = fst (last io) \<longrightarrow> (butlast io)@[(fst (last io), t_output t)] \<in> P))"
 
 lemma output_complete_for_FSM_sequences_alt_def'[code] : "output_complete_for_FSM_sequences_from_state M q P = output_complete_for_FSM_sequences_from_state' M q P"
   unfolding output_complete_for_FSM_sequences_from_state.simps output_complete_for_FSM_sequences_from_state'.simps
   by (metis last_snoc snoc_eq_iff_butlast)
-
-
-  
-
-value "output_complete_for_FSM_sequences_from_state m_ex_H 1 {}"
-value "output_complete_for_FSM_sequences_from_state m_ex_H 1 {[]}"
-value "output_complete_for_FSM_sequences_from_state m_ex_H 1 {[(1,0)]}"
-value "output_complete_for_FSM_sequences_from_state m_ex_H 1 {[(1,0)],[(1,1)]}"
-
 
 fun deadlock_states_sequences :: "('a,'b,'c) fsm \<Rightarrow> 'a set \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
   "deadlock_states_sequences M Q P = (\<forall> xys \<in> P . 
@@ -118,22 +81,8 @@ fun deadlock_states_sequences :: "('a,'b,'c) fsm \<Rightarrow> 'a set \<Rightarr
                                       \<or> (\<not> io_targets M xys (initial M) \<inter> Q = {} 
                                           \<and> (\<exists> xys' \<in> P . length xys < length xys' \<and> take (length xys) xys' = xys)))" 
 
-value "deadlock_states_sequences m_ex_H {} {}"
-value "deadlock_states_sequences m_ex_H {} {[]}"
-value "deadlock_states_sequences m_ex_H {1} {[]}" 
-
-
-
-
 fun reachable_states_sequences :: "('a,'b,'c) fsm \<Rightarrow> 'a set \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
   "reachable_states_sequences M Q P = (\<forall> q \<in> Q . \<exists> xys \<in> P . q \<in> io_targets M xys (initial M))"
-
-
-value "reachable_states_sequences m_ex_H {} {}"
-value "reachable_states_sequences m_ex_H {} {[]}"
-value "reachable_states_sequences m_ex_H {1} {}"
-value "reachable_states_sequences m_ex_H {1} {[]}"
-
 
 fun prefix_closed_sequences :: "('b \<times> 'c) list set \<Rightarrow> bool" where
   "prefix_closed_sequences P = (\<forall> xys1 xys2 . xys1@xys2 \<in> P \<longrightarrow> xys1 \<in> P)"
@@ -164,13 +113,6 @@ proof
   then show "prefix_closed_sequences' P \<Longrightarrow> prefix_closed_sequences P"
     unfolding prefix_closed_sequences.simps prefix_closed_sequences'.simps by blast 
 qed
-
-value "prefix_closed_sequences ({}::(nat \<times> nat) list set)"
-value "prefix_closed_sequences ({[]}::(nat \<times> nat) list set)"
-value "prefix_closed_sequences ({[(1,20)]}::(nat \<times> nat) list set)"
-value "prefix_closed_sequences ({[],[(1,20)]}::(nat \<times> nat) list set)"
-
-
 
 subsection \<open>Completions\<close>
 
@@ -269,8 +211,6 @@ proof -
     unfolding output_completion_for_FSM_def
     by simp 
 qed
-        
 
-value "output_completion_for_FSM m_ex_H {[(0,0)],[(0,0),(1,1)]}"
 
 end

@@ -1,5 +1,5 @@
 theory State_Separator
-imports R_Distinguishability IO_Sequence_Set Backwards_Reachability_Analysis"HOL-Library.Product_Lexorder"
+imports R_Distinguishability Backwards_Reachability_Analysis"HOL-Library.Product_Lexorder"
 begin
 
 section \<open>State Separators\<close>

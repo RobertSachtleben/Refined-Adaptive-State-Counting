@@ -2646,6 +2646,37 @@ next
 qed
 
 
+lemma list_index_split_set: 
+  assumes "i < length xs"
+shows "set xs = set ((xs ! i) # ((take i xs) @ (drop (Suc i) xs)))"  
+using assms proof (induction xs arbitrary: i)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons x xs)
+  then show ?case proof (cases i)
+    case 0
+    then show ?thesis by auto
+  next
+    case (Suc j)
+    then have "j < length xs" using Cons.prems by auto
+    then have "set xs = set ((xs ! j) # ((take j xs) @ (drop (Suc j) xs)))" using Cons.IH[of j] by blast
+    
+    have *: "take (Suc j) (x#xs) = x#(take j xs)" by auto
+    have **: "drop (Suc (Suc j)) (x#xs) = (drop (Suc j) xs)" by auto
+    have ***: "(x # xs) ! Suc j = xs ! j" by auto
+    
+    show ?thesis
+      using \<open>set xs = set ((xs ! j) # ((take j xs) @ (drop (Suc j) xs)))\<close>
+      unfolding Suc * ** *** by auto
+  qed
+qed
+
+
+lemma max_by_foldr :
+  assumes "x \<in> set xs"
+  shows "f x < Suc (foldr (\<lambda> x' m . max (f x') m) xs 0)"
+  using assms by (induction xs; auto)
 
 
 end

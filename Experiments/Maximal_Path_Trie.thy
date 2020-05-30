@@ -1,12 +1,12 @@
-theory Maximal_Path_Trie
-imports FSM
-begin
-
 section \<open>Maximal Path Tries\<close>
 
 text \<open>Drastically reduced implementation of tries that consider only maximum length sequences as elements.
       Inserting a sequence that is prefix of some already contained sequence does not alter the trie.
-      Intended to store IO-sequences to apply in testing, as in this use-case proper prefixes need not be applied separately\<close>
+      Intended to store IO-sequences to apply in testing, as in this use-case proper prefixes need not be applied separately.\<close>
+
+theory Maximal_Path_Trie
+imports Util
+begin
 
 subsection \<open>Utils for Updating Associative Lists\<close>
 
@@ -126,11 +126,6 @@ proof (rule ccontr)
 qed
 
 
-lemma max_by_foldr :
-  assumes "x \<in> set xs"
-  shows "f x < Suc (foldr (\<lambda> x' m . max (f x') m) xs 0)"
-  using assms by (induction xs; auto)
-
 lemma height_inc :
   assumes "t \<in> set (map snd ts)"
   shows "height t < height (MP_Trie ts)"
@@ -173,7 +168,8 @@ next
       by (metis in_set_conv_nth length_map nth_map) 
     have "insert (x#xs) (MP_Trie ts) = (MP_Trie (take i ts @ [(x, insert xs (snd (ts ! i)))] @ drop (Suc i) ts))"
       unfolding insert.simps empty_def
-      unfolding update_assoc_list_with_default_key_found[OF \<open>distinct (map fst ts)\<close> \<open>i < length ts\<close> \<open>fst (ts ! i) = x\<close>, of "(\<lambda> t . insert xs t)" "(MP_Trie [])"] 
+      unfolding update_assoc_list_with_default_key_found[OF \<open>distinct (map fst ts)\<close> \<open>i < length ts\<close> \<open>fst (ts ! i) = x\<close>
+                                                        ,of "(\<lambda> t . insert xs t)" "(MP_Trie [])"] 
       by simp
     
     have "\<And> t . t \<in> set (map snd (take i ts @ [(x, insert xs (snd (ts ! i)))] @ drop (Suc i) ts)) \<Longrightarrow> mp_trie_invar t"
@@ -349,38 +345,6 @@ next
 qed
 
 
-(* TODO: move *)
-lemma list_index_split_set: 
-  assumes "i < length xs"
-shows "set xs = set ((xs ! i) # ((take i xs) @ (drop (Suc i) xs)))"  
-using assms proof (induction xs arbitrary: i)
-  case Nil
-  then show ?case by auto
-next
-  case (Cons x xs)
-  then show ?case proof (cases i)
-    case 0
-    then show ?thesis by auto
-  next
-    case (Suc j)
-    then have "j < length xs" using Cons.prems by auto
-    then have "set xs = set ((xs ! j) # ((take j xs) @ (drop (Suc j) xs)))" using Cons.IH[of j] by blast
-    
-    have *: "take (Suc j) (x#xs) = x#(take j xs)" by auto
-    have **: "drop (Suc (Suc j)) (x#xs) = (drop (Suc j) xs)" by auto
-    have ***: "(x # xs) ! Suc j = xs ! j" by auto
-    
-    show ?thesis
-      using \<open>set xs = set ((xs ! j) # ((take j xs) @ (drop (Suc j) xs)))\<close>
-      unfolding Suc * ** *** by auto
-  qed
-qed
-  
-
-
-
-
-
 lemma paths_insert_maximal :
   assumes "mp_trie_invar t" 
   shows "set (paths (insert xs t)) = (if (\<exists> xs' . xs@xs' \<in> set (paths t))
@@ -433,10 +397,12 @@ next
         unfolding update_assoc_list_with_default_key_found[OF \<open>distinct (map fst (xt#xts))\<close> \<open>i < length (xt#xts)\<close> \<open>fst ((xt#xts) ! i) = x\<close>]
         by simp
       
-      then have "set (paths (insert (x#xs) t)) = set (paths (MP_Trie (take i (xt # xts) @ [(x, insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))))"
+      then have "set (paths (insert (x#xs) t)) 
+                 = set (paths (MP_Trie (take i (xt # xts) @ [(x, insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))))"
         by simp
       also have "... = set (paths (MP_Trie ((x, insert xs (snd ((xt # xts) ! i))) # (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
-        using paths_order[of "(take i (xt # xts) @ [(x, insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))" "((x, insert xs (snd ((xt # xts) ! i))) # (take i (xt # xts) @ drop (Suc i) (xt # xts)))"]
+        using paths_order[of "(take i (xt # xts) @ [(x, insert xs (snd ((xt # xts) ! i)))] @ drop (Suc i) (xt # xts))" 
+                             "((x, insert xs (snd ((xt # xts) ! i))) # (take i (xt # xts) @ drop (Suc i) (xt # xts)))"]
         by force
       also have "... = set ((map ((#) x) (paths (insert xs (snd ((xt # xts) ! i))))) @ (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))))"
         unfolding paths.simps by force
@@ -449,7 +415,7 @@ next
         by auto
       finally have pi1: "set (paths (insert (x#xs) t)) = 
                       image ((#) x) (if \<exists>xs'. xs @ xs' \<in> set (paths (snd ((xt # xts) ! i))) then set (paths (snd ((xt # xts) ! i)))
-                                                                                           else Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs}))
+                                                                                            else Set.insert xs (set (paths (snd ((xt # xts) ! i))) - {xs'. \<exists>xs''. xs' @ xs'' = xs}))
                        \<union> set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts))))"
         unfolding Cons.IH[OF \<open>mp_trie_invar (snd ((xt # xts) ! i))\<close>] by blast
 
@@ -554,11 +520,13 @@ next
               moreover have "(xt#xts) ! ((Suc i) + j) = xt'"
                 using \<open>(drop (Suc i) (xt#xts)) ! j = xt'\<close>
                 using \<open>i < length (xt # xts)\<close> by auto  
-              ultimately show ?thesis using \<open>\<And> j . j < length (xt#xts) \<Longrightarrow> j \<noteq> i \<Longrightarrow> fst ((xt#xts) ! j) \<noteq> x\<close>[of "(Suc i) + j"] by auto
+              ultimately show ?thesis using \<open>\<And> j . j < length (xt#xts) \<Longrightarrow> j \<noteq> i \<Longrightarrow> fst ((xt#xts) ! j) \<noteq> x\<close>[of "(Suc i) + j"] 
+                by auto
             qed
           qed
           then show "set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))) 
-                      = (set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})" by force
+                      = (set (concat (map (\<lambda>(x, t). map ((#) x) (paths t)) (take i (xt # xts) @ drop (Suc i) (xt # xts)))) - {xs'. \<exists>xs''. xs' @ xs'' = x # xs})" 
+            by force
 
           show "\<not>(\<exists>xs'. (x # xs) @ xs' \<in> set (paths t))"
           proof 
@@ -626,11 +594,8 @@ qed
 
 
 
-(* possible TODO: generalize to a insert_list function *)
 fun from_list :: "'a list list \<Rightarrow> 'a mp_trie" where
   "from_list seqs = foldr insert seqs empty"
-
- 
 
 lemma from_list_invar : "mp_trie_invar (from_list xs)"
   using empty_invar insert_invar by (induction xs; auto)
@@ -857,17 +822,6 @@ qed
 
 
 
-
-
-value "pow_list (upto 1 10)"
-value "from_list (pow_list (upto 1 10))"
-value "paths (from_list (pow_list (upto 1 10)))"
-
-
-
-
-
-
 subsection \<open>Removing Proper Prefixes From a Set of Sequences\<close> 
 
 definition remove_proper_prefixes :: "'a list set \<Rightarrow> 'a list set" where
@@ -877,7 +831,6 @@ lemma remove_proper_prefixes_code[code] :
   "remove_proper_prefixes (set xs) = (case xs of [] \<Rightarrow> {} | (x#xs') \<Rightarrow> set (paths (from_list (x#xs'))))"
   unfolding from_list_paths remove_proper_prefixes_def by (cases xs; auto)
 
-value "remove_proper_prefixes {[1::nat], [1,2,3,4,5], [1,2,3], [3,4,5], [3,4,5,6]}"
 
 
 end 
