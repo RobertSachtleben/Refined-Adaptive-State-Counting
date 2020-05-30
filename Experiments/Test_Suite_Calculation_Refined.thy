@@ -560,7 +560,7 @@ qed
 
 
 
-subsubsection \<open>New Code Generation for remove_proper_prefixes\<close>
+subsubsection \<open>New Code Generation for @{text "remove_proper_prefixes"}\<close>
 
 declare [[code drop: remove_proper_prefixes]]
 
@@ -585,7 +585,7 @@ next
     case False
     then have "?v2 = set (paths (from_list (RBT_Set2.keys t)))" using Some by auto
     moreover have "?v1 = set (paths (from_list (RBT_Set2.keys t)))"
-      using False unfolding RBT_set_conv_keys[OF *, of t] remove_proper_prefixes_code  by (cases "RBT_Set2.keys t"; auto)
+      using False unfolding RBT_set_conv_keys[OF *, of t] remove_proper_prefixes_code_trie by (cases "RBT_Set2.keys t"; auto)
     ultimately show ?thesis by simp
   qed
 qed

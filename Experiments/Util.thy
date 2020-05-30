@@ -2215,11 +2215,24 @@ instance
 end
 
 
+subsection \<open>Removing Proper Prefixes\<close>
 
-    
+definition remove_proper_prefixes :: "'a list set \<Rightarrow> 'a list set" where
+  "remove_proper_prefixes xs = {x . x \<in> xs \<and> (\<nexists> x' . x' \<noteq> [] \<and> x@x' \<in> xs)}"
 
+lemma remove_proper_prefixes_code[code] :
+  "remove_proper_prefixes (set xs) = set (filter (\<lambda>x . (\<forall> y \<in> set xs . is_prefix x y \<longrightarrow> x = y)) xs)"
+proof -
+  
+  have *: "remove_proper_prefixes (set xs) = Set.filter (\<lambda> zs . \<nexists>ys . ys \<noteq> [] \<and> zs @ ys \<in> (set xs)) (set xs)"
+    unfolding remove_proper_prefixes_def by force
 
-
+  have "\<And> zs . (\<nexists>ys . ys \<noteq> [] \<and> zs @ ys \<in> (set xs)) = (\<forall> ys \<in> set xs . is_prefix zs ys \<longrightarrow> zs = ys)"
+    unfolding is_prefix_prefix by auto
+  
+  then show ?thesis
+    unfolding * filter_set by auto
+qed
 
 
 subsection \<open>Other Lemmata\<close>

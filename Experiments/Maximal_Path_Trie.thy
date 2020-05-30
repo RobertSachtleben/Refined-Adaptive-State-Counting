@@ -822,15 +822,13 @@ qed
 
 
 
-subsection \<open>Removing Proper Prefixes From a Set of Sequences\<close> 
+subsubsection \<open>New Code Generation for @{text "remove_proper_prefixes"}\<close>
 
-definition remove_proper_prefixes :: "'a list set \<Rightarrow> 'a list set" where
-  "remove_proper_prefixes xs = {x . x \<in> xs \<and> (\<nexists> x' . x' \<noteq> [] \<and> x@x' \<in> xs)}"
+declare [[code drop: remove_proper_prefixes]]
 
-lemma remove_proper_prefixes_code[code] :
+lemma remove_proper_prefixes_code_trie[code] :
   "remove_proper_prefixes (set xs) = (case xs of [] \<Rightarrow> {} | (x#xs') \<Rightarrow> set (paths (from_list (x#xs'))))"
   unfolding from_list_paths remove_proper_prefixes_def by (cases xs; auto)
-
 
 
 end 
