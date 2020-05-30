@@ -226,8 +226,40 @@ fun h_from :: "('state, 'input, 'output) fsm \<Rightarrow> 'state \<Rightarrow> 
   "h_from M q = { (x,y,q') . (q,x,y,q') \<in> transitions M }"
 
 
-lemma h_from[code] : "h_from M q = (let m = set_as_map (transitions M) in (case m q of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+lemma h_from[code] : "h_from M q = (let m = set_as_map (transitions M) 
+                                     in (case m q of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
   unfolding set_as_map_def by force
+
+
+fun h_out :: "('a,'b,'c) fsm \<Rightarrow> ('a \<times> 'b) \<Rightarrow> 'c set" where
+  "h_out M (q,x) = {y . \<exists> q' . (q,x,y,q') \<in> transitions M}"
+
+lemma h_out_code[code]: 
+  "h_out M = (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M))) qx of 
+                            Some yqs \<Rightarrow> yqs | 
+                            None \<Rightarrow> {}))"
+proof -
+  
+
+  let ?f = "(\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+  
+  have "\<And> qx . (\<lambda>qx . (case (set_as_map (image (\<lambda>(q,x,y,q') . ((q,x),y)) (transitions M))) qx of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {})) qx = (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` (transitions M)}) qx"
+    unfolding set_as_map_def by auto
+  
+  moreover have "\<And> qx . (\<lambda> qx . {z. (qx, z) \<in> (\<lambda>(q, x, y, q'). ((q, x), y)) ` (transitions M)}) qx = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> (transitions M)}) qx" 
+    by force
+    
+  ultimately have "?f = (\<lambda> qx . {y | y . \<exists> q' . (fst qx, snd qx, y, q') \<in> (transitions M)})" 
+    by blast
+  then have "?f = (\<lambda> (q,x) . {y | y . \<exists> q' . (q, x, y, q') \<in> (transitions M)})" by force
+  
+  then show ?thesis by force 
+qed
+
+lemma h_out_alt_def : 
+  "h_out M (q,x) = {t_output t | t . t \<in> transitions M \<and> t_source t = q \<and> t_input t = x}"
+  unfolding h_out.simps
+  by auto
 
 
 subsection \<open>Size\<close>
@@ -2795,6 +2827,12 @@ and   "transitions A \<subseteq> transitions B"
   using assms unfolding is_submachine.simps by blast+
 
 
+lemma submachine_deadlock :
+  assumes "is_submachine A B"
+      and "deadlock_state B q"
+    shows "deadlock_state A q"
+  using assms(1) assms(2) in_mono by auto 
+
 
 
 subsection \<open>Changing Initial States\<close>
@@ -3589,6 +3627,11 @@ lemma filter_transitions_simps[simp] :
   "transitions (filter_transitions M P) = {t \<in> transitions M . P t}"
   by (transfer;auto)+
 
+lemma filter_transitions_submachine :
+  "is_submachine (filter_transitions M P) M" 
+  unfolding filter_transitions_simps by fastforce
+
+
 subsection \<open>Filtering Nodes\<close>
 
 lift_definition filter_nodes :: "('a,'b,'c) fsm \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a,'b,'c) fsm" 
@@ -3611,9 +3654,16 @@ shows "initial (filter_nodes M P) = initial M"
       "transitions (filter_nodes M P) = {t \<in> transitions M . P (t_source t) \<and> P (t_target t)}"
   using assms by (transfer;auto)+
 
+
+lemma filter_nodes_submachine :
+  assumes "P (initial M)"
+  shows "is_submachine (filter_nodes M P) M" 
+  using filter_nodes_simps[of P M, OF assms] by fastforce
+
+
+
 fun restrict_to_reachable_nodes :: "('a,'b,'c) fsm \<Rightarrow> ('a,'b,'c) fsm" where
   "restrict_to_reachable_nodes M = filter_nodes M (\<lambda> q . q \<in> reachable_nodes M)"
-
 
 
 lemma restrict_to_reachable_nodes_simps[simp] :

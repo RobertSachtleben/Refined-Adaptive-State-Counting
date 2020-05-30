@@ -1,10 +1,13 @@
+section \<open>Product Machines\<close>
+
+text \<open>This theory defines the construction of product machines.
+      A product machine of two finite state machines essentially represents all possible parallel
+      executions of those two machines.\<close>
+
 theory Product_FSM
 imports FSM
-
 begin
 
-
-subsection \<open>Product Machine\<close>
 
 lift_definition product :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('a \<times> 'd,'b,'c) fsm" is FSM_Impl.product 
 proof -
@@ -57,14 +60,10 @@ qed
 
 
 
-
-
-value "product m_ex_H m_ex_9"
-value "reachable_nodes (product m_ex_H m_ex_9)"
-
 abbreviation "left_path p \<equiv> map (\<lambda>t. (fst (t_source t), t_input t, t_output t, fst (t_target t))) p"
 abbreviation "right_path p \<equiv> map (\<lambda>t. (snd (t_source t), t_input t, t_output t, snd (t_target t))) p"
-abbreviation "zip_path p1 p2 \<equiv> (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) (zip p1 p2))"
+abbreviation "zip_path p1 p2 \<equiv> (map (\<lambda> t . ((t_source (fst t), t_source (snd t)), t_input (fst t), t_output (fst t), (t_target (fst t), t_target (snd t)))) 
+                                     (zip p1 p2))"
 
 
 lemma product_simps[simp]:
@@ -74,9 +73,11 @@ lemma product_simps[simp]:
   "outputs (product A B) = outputs A \<union> outputs B"  
   by (transfer; simp)+
 
+
 lemma product_transitions_def :
   "transitions (product A B) = {((qA,qB),x,y,(qA',qB')) | qA qB x y qA' qB' . (qA,x,y,qA') \<in> transitions A \<and> (qB,x,y,qB') \<in> transitions B}"
   by (transfer; simp)+
+
 
 lemma product_transitions_alt_def :
   "transitions (product A B) = {((t_source tA, t_source tB),t_input tA, t_output tA, (t_target tA, t_target tB)) | tA tB . tA \<in> transitions A \<and> tB \<in> transitions B \<and> t_input tA = t_input tB \<and> t_output tA = t_output tB}"
@@ -108,18 +109,9 @@ proof -
 qed
       
 
-
-
-
-
-
-
-
-
-
-
 lemma zip_path_last : "length xs = length ys \<Longrightarrow> (zip_path (xs @ [x]) (ys @ [y])) = (zip_path xs ys)@(zip_path [x] [y])"
   by (induction xs ys rule: list_induct2; simp)
+
 
 lemma product_path_from_paths :
   assumes "path A (initial A) p1"
@@ -134,7 +126,8 @@ proof -
 
   have "length p1 = length p2" using assms(3)
     using map_eq_imp_length_eq by blast 
-  then have c: "path (product A B) (initial (product A B)) (zip_path p1 p2) \<and> target (initial (product A B)) (zip_path p1 p2) = (target (initial A) p1, target (initial B) p2)"
+  then have c: "path (product A B) (initial (product A B)) (zip_path p1 p2) 
+                \<and> target (initial (product A B)) (zip_path p1 p2) = (target (initial A) p1, target (initial B) p2)"
     using assms proof (induction p1 p2 rule: rev_induct2)
     case Nil
     
@@ -177,7 +170,8 @@ proof -
 
     have "t_target x = target (initial A) (xs@[x])" by auto
     moreover have "t_target y = target (initial B) (ys@[y])" by auto
-    ultimately have ****: "target (initial (product A B)) ((zip_path xs ys)@[((target (initial A) xs, target (initial B) ys), t_input x, t_output x, (t_target x, t_target y))]) = (target (initial A) (xs@[x]), target (initial B) (ys@[y]))"
+    ultimately have ****: "target (initial (product A B)) ((zip_path xs ys)@[((target (initial A) xs, target (initial B) ys), t_input x, t_output x, (t_target x, t_target y))]) 
+                            = (target (initial A) (xs@[x]), target (initial B) (ys@[y]))"
       by fastforce
 
 
@@ -185,17 +179,22 @@ proof -
       using \<open>t_source x = target (initial A) xs\<close> \<open>t_source y = target (initial B) ys\<close> by auto
     moreover have "(zip_path (xs @ [x]) (ys @ [y])) = (zip_path xs ys)@(zip_path [x] [y])"
       using zip_path_last[of xs ys x y, OF snoc.hyps]  by assumption
-    ultimately have *****:"(zip_path (xs@[x]) (ys@[y])) = (zip_path xs ys)@[((target (initial A) xs, target (initial B) ys), t_input x, t_output x, (t_target x, t_target y))]"
+    ultimately have *****:"(zip_path (xs@[x]) (ys@[y])) 
+                            = (zip_path xs ys)@[((target (initial A) xs, target (initial B) ys), t_input x, t_output x, (t_target x, t_target y))]"
       by auto
     then have "path (product A B) (initial (product A B)) (zip_path (xs@[x]) (ys@[y]))"
       using *** by presburger 
-    moreover have "target (initial (product A B)) (zip_path (xs@[x]) (ys@[y])) = (target (initial A) (xs@[x]), target (initial B) (ys@[y]))"
+    moreover have "target (initial (product A B)) (zip_path (xs@[x]) (ys@[y])) 
+                      = (target (initial A) (xs@[x]), target (initial B) (ys@[y]))"
       using **** ***** by auto
     ultimately show ?case by linarith
   qed
 
-  from c show "path (product A B) (initial (product A B)) (zip_path p1 p2)" by auto
-  from c show "target (initial (product A B)) (zip_path p1 p2) = (target (initial A) p1, target (initial B) p2)" by auto
+  from c show "path (product A B) (initial (product A B)) (zip_path p1 p2)" 
+    by auto
+  from c show "target (initial (product A B)) (zip_path p1 p2) 
+                  = (target (initial A) p1, target (initial B) p2)" 
+    by auto
 qed
 
 
@@ -260,9 +259,9 @@ proof -
 qed
 
 
-
 lemma zip_path_left_right[simp] :
   "(zip_path (left_path p) (right_path p)) = p" by (induction p; auto)
+
 
 lemma product_reachable_node_paths :
   assumes "(q1,q2) \<in> reachable_nodes (product A B)" 
@@ -294,8 +293,6 @@ proof -
 qed
 
 
-
-
 lemma product_reachable_nodes[iff] :
   "(q1,q2) \<in> reachable_nodes (product A B) \<longleftrightarrow> (\<exists> p1 p2 . path A (initial A) p1 \<and> path B (initial B) p2 \<and> target (initial A) p1 = q1 \<and> target (initial B) p2 = q2 \<and> p_io p1 = p_io p2)"
 proof 
@@ -313,16 +310,13 @@ proof
 qed
 
 
-
-
-
-
-
 lemma left_path_zip : "length p1 = length p2 \<Longrightarrow> left_path (zip_path p1 p2) = p1" 
   by (induction p1 p2 rule: list_induct2; simp)
 
+
 lemma right_path_zip : "length p1 = length p2 \<Longrightarrow> p_io p1 = p_io p2 \<Longrightarrow> right_path (zip_path p1 p2) = p2" 
   by (induction p1 p2 rule: list_induct2; simp)
+
 
 lemma zip_path_append_left_right : "length p1 = length p2 \<Longrightarrow> zip_path (p1@(left_path p)) (p2@(right_path p)) = (zip_path p1 p2)@p"
 proof (induction p1 p2 rule: list_induct2)
@@ -332,9 +326,7 @@ next
   case (Cons x xs y ys)
   then show ?case by simp
 qed
-  
-    
-      
+          
 
 lemma product_path:
   "path (product A B) (q1,q2) p \<longleftrightarrow> (path A q1 (left_path p) \<and> path B q2 (right_path p))"
@@ -342,8 +334,7 @@ proof (induction p arbitrary: q1 q2)
   case Nil
   then show ?case by auto
 next
-  case (Cons t p)
-  
+  case (Cons t p)  
   
   have "path (Product_FSM.product A B) (q1, q2) (t # p) \<Longrightarrow> (path A q1 (left_path (t # p)) \<and> path B q2 (right_path (t # p)))"
   proof -
@@ -381,20 +372,6 @@ next
 qed
 
 
-    
-      
-
-
-
-
-
-
-
-
-
-
-
-
 lemma product_path_rev:
   assumes "p_io p1 = p_io p2"
   shows "path (product A B) (q1,q2) (zip_path p1 p2) \<longleftrightarrow> (path A q1 p1 \<and> path B q2 p2)"
@@ -411,13 +388,7 @@ proof -
     by auto
 qed
     
-    
-
-
-
-
-
-
+   
 lemma product_language_state : 
   shows "LS (product A B) (q1,q2) = LS A q1 \<inter> LS B q2"
 proof 
@@ -468,7 +439,6 @@ lemma product_language : "L (product A B) = L A \<inter> L B"
   unfolding product_simps product_language_state by blast
 
 
-(* TODO: omit? *)
 lemma product_transition_split_ob :
   assumes "t \<in> transitions (product A B)"
   obtains t1 t2 
@@ -478,7 +448,6 @@ lemma product_transition_split_ob :
   by auto 
 
 
-(* TODO: omit? *)
 lemma product_transition_split :
   assumes "t \<in> transitions (product A B)"
   shows "(fst (t_source t), t_input t, t_output t, fst (t_target t)) \<in> transitions A"
@@ -486,16 +455,54 @@ lemma product_transition_split :
   using product_transition_split_ob[OF assms] prod.collapse by fastforce+
 
 
-
-subsection \<open>Other Lemmata\<close>
-
 lemma  product_target_split:
   assumes "target (q1,q2) p = (q1',q2')"
   shows "target q1 (left_path p) = q1'"
     and "target q2 (right_path p) = q2'"
 using assms by (induction p arbitrary: q1 q2; force)+
 
-lemma target_single_transition[simp] : "target q1 [(q1, x, y, q1')] = q1'" by auto
+
+lemma target_single_transition[simp] : "target q1 [(q1, x, y, q1')] = q1'" 
+  by auto
+
+
+lemma product_undefined_input :
+  assumes "\<not> (\<exists> t \<in> transitions (product (from_FSM M q1) (from_FSM M q2)).
+               t_source t = qq \<and> t_input t = x)"
+  and "q1 \<in> nodes M"
+  and "q2 \<in> nodes M"
+shows "\<not> (\<exists> t1 \<in> transitions M. \<exists> t2 \<in> transitions M.
+                 t_source t1 = fst qq \<and>
+                 t_source t2 = snd qq \<and>
+                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" 
+proof 
+  assume "\<exists> t1 \<in> transitions M. \<exists> t2 \<in> transitions M.
+                 t_source t1 = fst qq \<and>
+                 t_source t2 = snd qq \<and>
+                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2"
+  then obtain t1 t2 where "t1 \<in> transitions M"
+                      and "t2 \<in> transitions M"
+                      and "t_source t1 = fst qq"
+                      and "t_source t2 = snd qq"
+                      and "t_input t1 = x"
+                      and "t_input t1 = t_input t2" 
+                      and "t_output t1 = t_output t2"
+    by force
+  
+  have "((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
+    unfolding product_transitions_alt_def 
+    unfolding from_FSM_simps[OF assms(2)]
+    unfolding from_FSM_simps[OF assms(3)]
+    using \<open>t1 \<in> transitions M\<close> \<open>t2 \<in> transitions M\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close> by blast
+  then show False
+    unfolding \<open>t_source t1 = fst qq\<close> \<open>t_source t2 = snd qq\<close> \<open>t_input t1 = x\<close> prod.collapse
+    using assms(1) by auto 
+qed
+
+
+
+subsection \<open>Product Machines and Changing Initial States\<close>
+
 
 lemma product_from_reachable_next : 
   assumes "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
@@ -530,56 +537,6 @@ proof -
 
   then show ?thesis by (transfer; auto)
 qed
-  
-    
-
-
-   
-
-lemma submachine_transition_product_from :
-  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
-  and     "((q1,q2),x,y,(q1',q2')) \<in> transitions S"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
- shows "is_submachine (from_FSM S (q1',q2')) (product (from_FSM M q1') (from_FSM M q2'))"
-proof -
-  have "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-    using assms(1) assms(2) by auto
-  have "(q1',q2') \<in> nodes S" using fsm_transition_target assms(2) by auto 
-  show ?thesis 
-    using product_from_reachable_next[OF \<open>((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))\<close> assms(3,4)]
-          submachine_from[OF assms(1) \<open>(q1',q2') \<in> nodes S\<close>]
-    by simp
-qed
-
-lemma submachine_transition_complete_product_from :
-  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
-      and "completely_specified S"
-      and "((q1,q2),x,y,(q1',q2')) \<in> transitions S"
-  and     "q1 \<in> nodes M"
-  and     "q2 \<in> nodes M"
- shows "completely_specified (from_FSM S (q1',q2'))"
-proof -
-  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
-  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
-  let ?F = "(from_FSM S (q1',q2'))"  
-  
-  have "initial ?P = (q1,q2)"
-    by (simp add: assms(4) assms(5) reachable_node_is_node)
-    
-  then have "initial S = (q1,q2)" 
-    using assms(1) by (metis is_submachine.simps) 
-  then have "(q1',q2') \<in> nodes S"
-    using assms(3)
-    using fsm_transition_target by fastforce 
-  then have "nodes ?F = nodes S"
-    using from_FSM_simps(5) by simp 
-  moreover have "inputs ?F = inputs S"
-    using from_FSM_simps(2) \<open>(q1',q2') \<in> nodes S\<close> by simp
-  ultimately show "completely_specified ?F" 
-    using assms(2) unfolding completely_specified.simps
-    by (meson assms(2) completely_specified.elims(2) from_FSM_completely_specified)
-qed
 
 
 lemma from_FSM_product_inputs :
@@ -593,11 +550,11 @@ lemma from_FSM_product_outputs :
 shows "(outputs (product (from_FSM M q1) (from_FSM M q2))) = (outputs M)"
   by (simp add: assms(1) assms(2))
 
+
 lemma from_FSM_product_initial : 
   assumes "q1 \<in> nodes M" and "q2 \<in> nodes M"
 shows "initial (product (from_FSM M q1) (from_FSM M q2)) = (q1,q2)"
   by (simp add: assms(1) assms(2)) 
-
 
 
 lemma product_from_reachable_next' :
@@ -611,7 +568,6 @@ proof -
   then show ?thesis
     by (metis (no_types) assms(1) assms(2) assms(3) product_from_reachable_next)
 qed 
-
 
 
 lemma product_from_reachable_next'_path :
@@ -658,7 +614,6 @@ proof -
 qed
 
 
-
 lemma product_from_path:
   assumes "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))" 
   and     "q1 \<in> nodes M"
@@ -666,7 +621,6 @@ lemma product_from_path:
       and "path (product (from_FSM M q1') (from_FSM M q2')) (q1',q2') p" 
     shows "path (product (from_FSM M q1) (from_FSM M q2)) (q1',q2') p"
   by (metis (no_types, lifting) assms(1) assms(2) assms(3) assms(4) from_FSM_path_initial from_FSM_simps(5) from_from mem_Sigma_iff product_path product_simps(2))
-
 
 
 lemma product_from_path_previous :
@@ -689,7 +643,6 @@ shows "t \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
   by (metis assms product_from_transition)
 
     
-
 lemma product_from_not_completely_specified :
   assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1',q2')"
   and     "(q1',q2') \<in> nodes (product (from_FSM M q1) (from_FSM M q2))"
@@ -711,6 +664,7 @@ proof -
   qed 
 qed
 
+
 lemma from_product_initial_paths_ex :
   assumes "q1 \<in> nodes M"
   and     "q2 \<in> nodes M"
@@ -729,7 +683,7 @@ proof -
   ultimately show ?thesis by blast
 qed
 
-(* TODO: move *)
+
 lemma product_observable :
   assumes "observable M1"
   and     "observable M2"
@@ -764,6 +718,7 @@ proof -
   then show ?thesis unfolding observable.simps by blast
 qed
 
+
 lemma product_observable_self_transitions :
   assumes "q \<in> reachable_nodes (product M M)"
   and     "observable M"
@@ -771,7 +726,6 @@ shows "fst q = snd q"
 proof -
   let ?P = "product M M"
   
-
   have "\<And> p . path ?P (initial ?P) p \<Longrightarrow> fst (target (initial ?P) p) = snd (target (initial ?P) p)"
   proof -
     fix p assume "path ?P (initial ?P) p"
@@ -818,6 +772,7 @@ proof -
     by blast 
 qed
 
+
 lemma zip_path_eq_left :
   assumes "length xs1 = length xs2"
   and     "length xs2 = length ys1"
@@ -825,7 +780,6 @@ lemma zip_path_eq_left :
   and     "zip_path xs1 xs2 = zip_path ys1 ys2"
 shows "xs1 = ys1"
   using assms by (induction xs1 xs2 ys1 ys2 rule: list_induct4; auto)
-
 
 
 lemma zip_path_eq_right :
@@ -838,12 +792,10 @@ shows "xs2 = ys2"
   using assms by (induction xs1 xs2 ys1 ys2 rule: list_induct4; auto)
 
 
-
-
-
 lemma zip_path_merge :
   "(zip_path (left_path p) (right_path p)) = p"
   by (induction p; auto)
+
 
 lemma product_from_reachable_path' :
   assumes "path (product (from_FSM M q1) (from_FSM M q2)) (q1', q2') p"
@@ -852,7 +804,6 @@ lemma product_from_reachable_path' :
 shows "path (product (from_FSM M q1') (from_FSM M q2')) (q1', q2') p"
   by (meson assms(1) assms(2) assms(3) from_FSM_path from_FSM_path_rev_initial product_path reachable_node_is_node)
     
-
 
 lemma product_from :
   assumes "q1 \<in> nodes M"
@@ -886,45 +837,54 @@ shows "(product (from_FSM M q1') (from_FSM M q2')) = (from_FSM (product (from_FS
   by (metis (no_types, lifting) assms(1) assms(2) assms(3) from_FSM_simps(5) from_from mem_Sigma_iff product_simps(2))
 
 
-lemma product_undefined_input :
-  assumes "\<not> (\<exists> t \<in> transitions (product (from_FSM M q1) (from_FSM M q2)).
-               t_source t = qq \<and> t_input t = x)"
-  and "q1 \<in> nodes M"
-  and "q2 \<in> nodes M"
-shows "\<not> (\<exists> t1 \<in> transitions M. \<exists> t2 \<in> transitions M.
-                 t_source t1 = fst qq \<and>
-                 t_source t2 = snd qq \<and>
-                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2)" 
-proof 
-  assume "\<exists> t1 \<in> transitions M. \<exists> t2 \<in> transitions M.
-                 t_source t1 = fst qq \<and>
-                 t_source t2 = snd qq \<and>
-                 t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2"
-  then obtain t1 t2 where "t1 \<in> transitions M"
-                      and "t2 \<in> transitions M"
-                      and "t_source t1 = fst qq"
-                      and "t_source t2 = snd qq"
-                      and "t_input t1 = x"
-                      and "t_input t1 = t_input t2" 
-                      and "t_output t1 = t_output t2"
-    by force
-  
-  have "((t_source t1, t_source t2), t_input t1, t_output t1, t_target t1, t_target t2) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
-    unfolding product_transitions_alt_def 
-    unfolding from_FSM_simps[OF assms(2)]
-    unfolding from_FSM_simps[OF assms(3)]
-    using \<open>t1 \<in> transitions M\<close> \<open>t2 \<in> transitions M\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close> by blast
-  then show False
-    unfolding \<open>t_source t1 = fst qq\<close> \<open>t_source t2 = snd qq\<close> \<open>t_input t1 = x\<close> prod.collapse
-    using assms(1) by auto 
+lemma submachine_transition_product_from :
+  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+  and     "((q1,q2),x,y,(q1',q2')) \<in> transitions S"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+ shows "is_submachine (from_FSM S (q1',q2')) (product (from_FSM M q1') (from_FSM M q2'))"
+proof -
+  have "((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))"
+    using assms(1) assms(2) by auto
+  have "(q1',q2') \<in> nodes S" using fsm_transition_target assms(2) by auto 
+  show ?thesis 
+    using product_from_reachable_next[OF \<open>((q1,q2),x,y,(q1',q2')) \<in> transitions (product (from_FSM M q1) (from_FSM M q2))\<close> assms(3,4)]
+          submachine_from[OF assms(1) \<open>(q1',q2') \<in> nodes S\<close>]
+    by simp
 qed
 
 
+lemma submachine_transition_complete_product_from :
+  assumes "is_submachine S (product (from_FSM M q1) (from_FSM M q2))"
+      and "completely_specified S"
+      and "((q1,q2),x,y,(q1',q2')) \<in> transitions S"
+  and     "q1 \<in> nodes M"
+  and     "q2 \<in> nodes M"
+ shows "completely_specified (from_FSM S (q1',q2'))"
+proof -
+  let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
+  let ?P' = "(product (from_FSM M q1') (from_FSM M q2'))"
+  let ?F = "(from_FSM S (q1',q2'))"  
+  
+  have "initial ?P = (q1,q2)"
+    by (simp add: assms(4) assms(5) reachable_node_is_node)
+    
+  then have "initial S = (q1,q2)" 
+    using assms(1) by (metis is_submachine.simps) 
+  then have "(q1',q2') \<in> nodes S"
+    using assms(3)
+    using fsm_transition_target by fastforce 
+  then have "nodes ?F = nodes S"
+    using from_FSM_simps(5) by simp 
+  moreover have "inputs ?F = inputs S"
+    using from_FSM_simps(2) \<open>(q1',q2') \<in> nodes S\<close> by simp
+  ultimately show "completely_specified ?F" 
+    using assms(2) unfolding completely_specified.simps
+    by (meson assms(2) completely_specified.elims(2) from_FSM_completely_specified)
+qed
 
 
-
-
-subsubsection \<open>Calculating Acyclic Intersection Languages\<close>
+subsection \<open>Calculating Acyclic Intersection Languages\<close>
 
 lemma acyclic_product :
   assumes "acyclic B"
@@ -979,6 +939,7 @@ proof -
   qed
 qed
 
+
 lemma acyclic_product_path_length :
   assumes "acyclic B"
   and     "path (product A B) (initial (product A B)) p"
@@ -998,7 +959,6 @@ proof -
 qed
   
 
-
 lemma acyclic_language_alt_def :
   assumes "acyclic A"
   shows "image p_io (acyclic_paths_up_to_length A (initial A) (size A - 1)) = L A"
@@ -1011,7 +971,6 @@ proof -
     using assms unfolding acyclic_paths_up_to_length.simps acyclic.simps by blast
   then show ?thesis unfolding LS.simps by blast
 qed
-
 
 
 definition acyclic_language_intersection :: "('a,'b,'c) fsm \<Rightarrow> ('d,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set" where
