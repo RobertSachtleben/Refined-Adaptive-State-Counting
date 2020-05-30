@@ -3619,6 +3619,7 @@ proof -
     unfolding FSM_Impl.filter_transitions.simps by force
 qed
 
+
 lemma filter_transitions_simps[simp] :
   "initial (filter_transitions M P) = initial M"
   "nodes (filter_transitions M P) = nodes M"
@@ -3627,9 +3628,25 @@ lemma filter_transitions_simps[simp] :
   "transitions (filter_transitions M P) = {t \<in> transitions M . P t}"
   by (transfer;auto)+
 
+
 lemma filter_transitions_submachine :
   "is_submachine (filter_transitions M P) M" 
   unfolding filter_transitions_simps by fastforce
+
+
+lemma filter_transitions_path :
+  assumes "path (filter_transitions M P) q p"
+  shows "path M q p"
+  using path_begin_node[OF assms] 
+        transition_subset_path[of "filter_transitions M P" M, OF _ assms]
+  unfolding filter_transitions_simps by blast
+
+lemma filter_transitions_reachable_nodes :
+  assumes "q \<in> reachable_nodes (filter_transitions M P)"
+  shows "q \<in> reachable_nodes M"
+  using assms unfolding reachable_nodes_def filter_transitions_simps 
+  using filter_transitions_path[of M P "initial M"]
+  by blast
 
 
 subsection \<open>Filtering Nodes\<close>

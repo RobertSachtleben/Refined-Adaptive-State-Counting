@@ -2691,5 +2691,8 @@ lemma max_by_foldr :
   shows "f x < Suc (foldr (\<lambda> x' m . max (f x') m) xs 0)"
   using assms by (induction xs; auto)
 
+lemma Max_elem : "finite (xs :: 'a set) \<Longrightarrow> xs \<noteq> {} \<Longrightarrow> \<exists> x \<in> xs . Max (image (f :: 'a \<Rightarrow> nat) xs) = f x"
+  by (metis (mono_tags, hide_lams) Max_in empty_is_image finite_imageI imageE)
+
 
 end

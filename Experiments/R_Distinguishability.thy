@@ -1,20 +1,21 @@
+section \<open>R-Distinguishability\<close>
+
+text \<open>This theory defines the notion of r-distinguishability and relates it to state separators.\<close>
+
+
 theory R_Distinguishability
 imports State_Separator
 begin
 
-section \<open>R-Distinguishability\<close>
 
-subsection \<open>Basic Definitions\<close>
-
-(* Note: maybe add requirement that all nodes in the submachine are reachable *)
 definition r_compatible :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where 
   "r_compatible M q1 q2 = ((\<exists> S . completely_specified S \<and> is_submachine S (product (from_FSM M q1) (from_FSM M q2))))"
 
 abbreviation(input) "r_distinguishable M q1 q2 \<equiv> \<not> r_compatible M q1 q2"
 
-(* Note: If an input is not defined on states q and q', then they are r(0)-distinguishable.
+(* Note: If an input is not defined on states q and q', then they are r(0)-distinguishable (r_distinguishable_k M q1 q2 0).
          In particular, any state with some undefined input is r-distinguishable from itself 
-         This behaviour is justified by the assumption that tested machines are complete.
+         This behaviour is justified by the assumption that tested FSMs are completely specified.
 *)
 
 fun r_distinguishable_k :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where
@@ -87,8 +88,6 @@ proof -
   then show ?thesis
     using \<open>\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1, q2)\<close> by presburger
 qed
-
-
 
 
 
@@ -170,8 +169,6 @@ proof -
 qed          
 
 
-
-  
 lemma r_0_distinguishable_from_not_completely_specified :
   assumes "\<not> completely_specified_state (product (from_FSM M q1) (from_FSM M q2)) (q1',q2')"
       and "q1 \<in> nodes M"
@@ -189,11 +186,7 @@ proof -
     unfolding completely_specified_state.simps product_simps from_FSM_simps[OF assms(2)] from_FSM_simps[OF assms(3)] from_FSM_simps[OF \<open>q1' \<in> nodes M\<close>] from_FSM_simps[OF \<open>q2' \<in> nodes M\<close>]
               product_transitions_alt_def by auto
 qed
-        
-        
-
-
-
+               
 
 lemma r_distinguishable_k_intersection_path : 
   assumes "\<not> r_distinguishable_k M q1 q2 k"
@@ -250,8 +243,6 @@ next
   case (Suc k)
   let ?P = "(product (from_FSM M q1) (from_FSM M q2))"
   
-  
-
   show ?case 
   proof (cases "length xs \<le> Suc k")
     case True
@@ -273,7 +264,6 @@ next
 
     let ?x = "hd xs"
     let ?xs = "tl xs"
-
 
     have "\<forall> x \<in> (inputs M) . \<exists> t \<in> transitions ?P . t_source t = (q1,q2) \<and> t_input t = x \<and> \<not> r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k"
     proof 
@@ -299,10 +289,6 @@ next
         by (simp add: Suc.prems(5) \<open>t2 \<in> FSM.transitions M\<close>) 
       have p3: "t_input t1 = t_input t2"
         using \<open>t_input t1 = x\<close> \<open>t_input t2 = x\<close> by auto
-      
-
-      
-      
       
       have ***: "((q1,q2), x, t_output t1, (t_target t1, t_target t2)) \<in> transitions ?P"
         using \<open>t_source t1 = q1\<close> \<open>t_source t2 = q2\<close> \<open>t_input t1 = x\<close> p1 p2 p3 p4
@@ -338,7 +324,6 @@ next
 qed
 
 
-
 lemma r_distinguishable_k_intersection_paths : 
   assumes "\<not>(\<exists> k . r_distinguishable_k M q1 q2 k)"
   and "q1 \<in> nodes M"
@@ -359,52 +344,9 @@ proof (rule ccontr)
 qed
 
 
+
+
 subsubsection \<open>Equivalence of R-Distinguishability Definitions\<close>
-
-
-
-
-(* TODO: move *)
-
-lemma reachable_node_is_initial_or_target:
-  assumes "q \<in> reachable_nodes M"
-  shows "q = initial M \<or> (\<exists> t \<in> transitions M . q = t_target t \<and> t_source t \<in> reachable_nodes M)"
-proof -
-  obtain p where *: "path M (initial M) p" and "target (initial M) p = q"
-    using assms unfolding reachable_nodes_def by auto
-  then show ?thesis proof (induction p arbitrary: q rule: rev_induct)
-    case Nil
-    then show ?case by auto
-  next
-    case (snoc t' p')
-    then show ?case using reachable_nodes_intro by fastforce  
-  qed
-qed
-
-
-(* TODO: move *)
-lemma filter_transitions_path :
-  assumes "path (filter_transitions M P) q p"
-  shows "path M q p"
-  using path_begin_node[OF assms] 
-        transition_subset_path[of "filter_transitions M P" M, OF _ assms]
-  unfolding filter_transitions_simps by blast
-
-lemma filter_transitions_reachable_nodes :
-  assumes "q \<in> reachable_nodes (filter_transitions M P)"
-  shows "q \<in> reachable_nodes M"
-  using assms unfolding reachable_nodes_def filter_transitions_simps 
-  using filter_transitions_path[of M P "initial M"]
-  by blast
-
-
-
-
-
-
-
-
-
 
 
 lemma r_distinguishable_alt_def :
@@ -422,7 +364,6 @@ proof
                      r(j)-distinguishable for any j. 
     *)
 
-
     assume "r_distinguishable M q1 q2"
     assume c_assm: "\<not> (\<exists>k. r_distinguishable_k M q1 q2 k)"
   
@@ -438,14 +379,11 @@ proof
     have h_ft : "transitions ?PC = { t \<in> transitions ?P . ?f t }" 
       by auto
 
-    
     have nodes_non_r_d_k : "\<And> q . q \<in> reachable_nodes ?PC \<Longrightarrow> \<not> (\<exists> k . r_distinguishable_k M (fst q) (snd q) k)"
     proof -   
       fix q assume "q \<in> reachable_nodes ?PC"
       have "q = initial ?PC \<or> (\<exists> t \<in> transitions ?PC . q = t_target t)"
-        using reachable_node_is_initial_or_target[OF \<open>q \<in> reachable_nodes ?PC\<close>]
-        by blast
-
+        by (metis (no_types, lifting) \<open>q \<in> reachable_nodes (FSM.filter_transitions (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2)) (\<lambda>t. \<not> r_distinguishable_k M (fst (t_source t)) (snd (t_source t)) 0 \<and> (\<nexists>k. r_distinguishable_k M (fst (t_target t)) (snd (t_target t)) k) \<and> t_source t \<in> reachable_nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))))\<close> reachable_nodes_initial_or_target)
       then have "q = (q1,q2) \<or> (\<exists> t \<in> transitions ?PC . q = t_target t)"
         by (simp add: assms(1) assms(2))
 
@@ -487,10 +425,6 @@ proof
           then show ?thesis by blast
         next
           case False
-
-          
-
-
 
           let ?tp = "{t . t \<in> transitions ?P \<and> t_source t = q \<and> t_input t = x}"
           have "finite ?tp" using fsm_transitions_finite[of ?P] by force
@@ -567,14 +501,8 @@ proof
     then have "\<And> q . q \<in> nodes ?PCR \<Longrightarrow> completely_specified_state ?PCR q"
       unfolding restrict_to_reachable_nodes_simps completely_specified_state.simps
       by blast 
-
-    
-    
-
-
     then have "completely_specified ?PCR"
-      using completely_specified_states by blast 
-  
+      using completely_specified_states by blast   
     moreover have "is_submachine ?PCR ?P"
     proof -
       have "is_submachine ?PC ?P"
@@ -589,8 +517,7 @@ proof
       unfolding r_compatible_def by blast
     then show "False" using \<open>r_distinguishable M q1 q2\<close>
       by blast 
-  qed    
-
+  qed  
   
 
   show "\<exists>k. r_distinguishable_k M q1 q2 k \<Longrightarrow> r_distinguishable M q1 q2"
@@ -657,8 +584,8 @@ proof
 qed
 
 
-subsection \<open>Bounds\<close>
 
+subsection \<open>Bounds\<close>
 
 
 inductive is_least_r_d_k_path :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) \<times> 'b \<times> nat) list \<Rightarrow> bool" where
@@ -701,7 +628,6 @@ lemma is_least_r_d_k_path_Suc_transitions :
   by metis
 
 
-
 lemma is_least_r_d_k_path_is_least :
   assumes "is_least_r_d_k_path M q1 q2 (t#p)"
   shows "r_distinguishable_k M q1 q2 (snd (snd t)) \<and> (snd (snd t)) = (LEAST k' . r_distinguishable_k M q1 q2 k')"
@@ -735,10 +661,6 @@ next
     by (metis \<open>t = ((q1, q2), x, Suc k)\<close> snd_conv) 
 qed
 
-(* TODO: move *)
-lemma Max_elem : "finite (xs :: 'a set) \<Longrightarrow> xs \<noteq> {} \<Longrightarrow> \<exists> x \<in> xs . Max (image (f :: 'a \<Rightarrow> nat) xs) = f x"
-  by (metis (mono_tags, hide_lams) Max_in empty_is_image finite_imageI imageE)
-
 
 lemma r_distinguishable_k_least_next :
   assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
@@ -769,11 +691,6 @@ proof -
                t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<and>
               (LEAST k. r_distinguishable_k M (t_target t1) (t_target t2) k) = k)"
     
-    
-
-
-    (* TODO: extract *)
-
     let ?hs = "{(t1,t2) | t1 t2 . t1 \<in> transitions M \<and> t2 \<in> transitions M \<and> t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2}"
     have "finite ?hs"
     proof -
@@ -818,8 +735,6 @@ proof -
       unfolding r_distinguishable_k.simps 
       using \<open>x \<in> (inputs M)\<close> by blast
 
-    (* end extract *)
-
     have "?hs \<noteq> {}"
     proof 
       assume "?hs = {}"
@@ -852,9 +767,7 @@ proof -
       using assms(2) \<open>r_distinguishable_k M q1 q2 (Suc ?k)\<close>
       by (metis (no_types, lifting) Suc_mono not_less_Least) 
   qed
-qed
-
-    
+qed   
 
 
 lemma is_least_r_d_k_path_length_from_r_d :
@@ -893,7 +806,6 @@ proof -
     then have "r_distinguishable_k M (t_target t1) (t_target t2) (LEAST k. r_distinguishable_k M (t_target t1) (t_target t2) k)"
       using * by metis
     
-
     then obtain t' p' where "is_least_r_d_k_path M (t_target t1) (t_target t2) (t' # p')"
                         and "length (t' # p') = Suc (Least (r_distinguishable_k M (t_target t1) (t_target t2)))"
       using Suc.hyps(1)[OF \<open>k = (LEAST k. r_distinguishable_k M (t_target t1) (t_target t2) k)\<close>] by blast
@@ -903,7 +815,6 @@ proof -
       by auto
 
     
-
     show ?case
       by (metis (no_types) Suc.hyps(2) \<open>is_least_r_d_k_path M q1 q2 (((q1, q2), x, Suc k) # t' # p')\<close> \<open>k = (LEAST k. r_distinguishable_k M (t_target t1) (t_target t2) k)\<close> \<open>length (t' # p') = Suc (Least (r_distinguishable_k M (t_target t1) (t_target t2)))\<close> length_Cons)      
   qed
@@ -911,8 +822,6 @@ qed
 
 
 
-
-(* TODO: rework to use the number of reachable nodes as limit *)
 lemma is_least_r_d_k_path_nodes :
   assumes "is_least_r_d_k_path M q1 q2 p"
       and "q1 \<in> nodes M"
@@ -993,6 +902,7 @@ next
   qed
 qed
 
+
 lemma is_least_r_d_k_path_suffix :
   assumes "is_least_r_d_k_path M q1 q2 p"
       and "i < length p"
@@ -1016,7 +926,6 @@ next
 qed
 
   
-
 lemma is_least_r_d_k_path_distinct :
   assumes "is_least_r_d_k_path M q1 q2 p"
   shows "distinct (map fst p)"
@@ -1058,7 +967,6 @@ next
 qed
 
 
-
 lemma r_distinguishable_k_least_bound :
   assumes "\<exists> k . r_distinguishable_k M q1 q2 k"
       and "q1 \<in> nodes M"
@@ -1075,8 +983,6 @@ proof (rule ccontr)
   then have "(size (product (from_FSM M q1) (from_FSM M q2))) < length (t # p)"
     using c_assm by linarith
 
-   
-  
   have "distinct (map fst (t # p))"
     using is_least_r_d_k_path_distinct[OF \<open>is_least_r_d_k_path M q1 q2 (t # p)\<close>] by assumption
   then have "card (set (map fst (t # p))) = length (t # p)"
@@ -1103,15 +1009,6 @@ fun r_distinguishable_k_least :: "('a, 'b::linorder, 'c) fsm \<Rightarrow> 'a \<
     None \<Rightarrow> (case find (\<lambda> x . \<forall> t1 \<in> transitions M . \<forall> t2 \<in> transitions M . (t_source t1 = q1 \<and> t_source t2 = q2 \<and> t_input t1 = x \<and> t_input t2 = x \<and> t_output t1 = t_output t2) \<longrightarrow> r_distinguishable_k M (t_target t1) (t_target t2) n) (sort (inputs_as_list M)) of
       Some x \<Rightarrow> Some (Suc n,x) |
       None \<Rightarrow> None))"
-
-
-value "r_distinguishable_k_least m_ex_9 0 3 0"
-value "r_distinguishable_k_least m_ex_9 0 3 1"
-value "r_distinguishable_k_least m_ex_9 0 3 2"
-
-
-
-
 
 
 lemma r_distinguishable_k_least_ex : 
@@ -1169,10 +1066,6 @@ next
     using inputs_as_list_set by fastforce 
 qed
   
-
-  
-
-
 
 lemma r_distinguishable_k_least_0_correctness :
   assumes  "r_distinguishable_k_least M q1 q2 n = Some (0,x)"  
@@ -1261,7 +1154,6 @@ next
 qed
 
 
-
 lemma r_distinguishable_k_least_is_least :
   assumes "r_distinguishable_k_least M q1 q2 n = Some (k,x)"
   shows "(\<exists> k . r_distinguishable_k M q1 q2 k) \<and> (k = (LEAST k . r_distinguishable_k M q1 q2 k))"
@@ -1308,6 +1200,7 @@ qed
 definition is_r_distinguishable :: "('a, 'b, 'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" where
   "is_r_distinguishable M q1 q2 = (\<exists> k . r_distinguishable_k M q1 q2 k)"
 
+
 lemma is_r_distinguishable_contained_code[code] :
   "is_r_distinguishable M q1 q2 = (if (q1 \<in> nodes M \<and> q2 \<in> nodes M) then (r_distinguishable_k_least M q1 q2 (size (product (from_FSM M q1) (from_FSM M q2))) \<noteq> None)
                                                                     else \<not>(inputs M = {}))"
@@ -1335,11 +1228,6 @@ next
       by (meson "*" equals0I fst_conv is_r_distinguishable_def r_distinguishable_k_0_alt_def r_distinguishable_k_from_r_distinguishable_k_least) 
   qed 
 qed
-
-
-value "is_r_distinguishable m_ex_9 1 3"
-
-
 
 
 
@@ -1409,7 +1297,6 @@ proof -
         using reachable_node_is_node[OF \<open>Inl (q1',q2') \<in> reachable_nodes ?C\<close>] unfolding canonical_separator_simps[OF assms(2,3)]
         by auto 
 
-
       have "path (from_FSM M q1) (initial (from_FSM M q1)) (left_path p')"
           and "path (from_FSM M q2) (initial (from_FSM M q2)) (right_path p')"
         using product_path[of "from_FSM M q1" "from_FSM M q2" q1 q2 p'] \<open>path ?P (initial ?P) p'\<close>
@@ -1462,9 +1349,6 @@ proof -
           using \<open>t1 \<in> transitions (from_FSM M q1)\<close> \<open>t2 \<in> transitions (from_FSM M q2)\<close> \<open>t_input t1 = t_input t2\<close> \<open>t_output t1 = t_output t2\<close>
           unfolding product_transitions_alt_def 
           by blast
-          
-          
-
         then have "shift_Inl ?t \<in> transitions ?C"
           using \<open>(q1',q2') \<in> nodes (Product_FSM.product (FSM.from_FSM M q1) (FSM.from_FSM M q2))\<close>
           unfolding \<open>t_source t1 = q1'\<close> \<open>t_source t2 = q2'\<close> canonical_separator_transitions_def[OF assms(2,3)] by fastforce
@@ -1536,10 +1420,7 @@ proof -
     qed
   qed
 
-          
-
-
-  moreover have "Inl (q1,q2) \<in> nodes S" 
+  moreover have "Inl (q1,q2) \<in> nodes S"
     using \<open>is_submachine S ?C\<close> canonical_separator_simps(1)[OF assms(2,3)] fsm_initial[of S] by auto
   ultimately show "\<exists>k. r_distinguishable_k M q1 q2 k"
     using reachable_nodes_initial[of S] using is_state_separator_from_canonical_separator_initial[OF assms(1-3)] by auto 
