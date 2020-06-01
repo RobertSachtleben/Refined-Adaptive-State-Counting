@@ -9,8 +9,6 @@ begin
 
 
 
-
-
 definition generate_test_suite_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
   "generate_test_suite_naive M m = calculate_test_suite_naive_as_io_sequences M (nat_of_integer m)"
 
