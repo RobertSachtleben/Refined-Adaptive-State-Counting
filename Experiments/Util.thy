@@ -240,6 +240,11 @@ qed
 
 subsubsection \<open>Utility Lemmata for @{text "filter"}\<close>
 
+lemma filter_take_length :
+  "length (filter P (take i xs)) \<le> length (filter P xs)"
+  by (metis append_take_drop_id filter_append le0 le_add_same_cancel1 length_append)
+
+
 lemma filter_double :
   assumes "x \<in> set (filter P1 xs)"
   and     "P2 x"
@@ -2694,5 +2699,131 @@ lemma max_by_foldr :
 lemma Max_elem : "finite (xs :: 'a set) \<Longrightarrow> xs \<noteq> {} \<Longrightarrow> \<exists> x \<in> xs . Max (image (f :: 'a \<Rightarrow> nat) xs) = f x"
   by (metis (mono_tags, hide_lams) Max_in empty_is_image finite_imageI imageE)
 
+
+lemma card_union_of_singletons :
+  assumes "\<And> S . S \<in> SS \<Longrightarrow> (\<exists> t . S = {t})"
+shows "card (\<Union> SS) = card SS"
+proof -
+  let ?f = "\<lambda> x . {x}"
+  have "bij_betw ?f (\<Union> SS) SS" 
+    unfolding bij_betw_def inj_on_def using assms by fastforce
+  then show ?thesis 
+    using bij_betw_same_card by blast 
+qed
+
+lemma card_union_of_distinct :
+  assumes "\<And> S1 S2 . S1 \<in> SS \<Longrightarrow> S2 \<in> SS \<Longrightarrow> S1 = S2 \<or> f S1 \<inter> f S2 = {}"
+  and     "finite SS"
+  and     "\<And> S . S \<in> SS \<Longrightarrow> f S \<noteq> {}"
+shows "card (image f SS) = card SS" 
+proof -
+  from assms(2) have "\<forall> S1 \<in> SS . \<forall> S2 \<in> SS . S1 = S2 \<or> f S1 \<inter> f S2 = {} 
+                      \<Longrightarrow> \<forall> S \<in> SS . f S \<noteq> {} \<Longrightarrow> ?thesis"
+  proof (induction SS)
+    case empty
+    then show ?case by auto
+  next
+    case (insert x F)
+    then have "\<not> (\<exists> y \<in> F . f y = f x)" 
+      by auto
+    then have "f x \<notin> image f F" 
+      by auto
+    then have "card (image f (insert x F)) = Suc (card (image f F))" 
+      using insert by auto
+    moreover have "card (f ` F) = card F" 
+      using insert by auto
+    moreover have "card (insert x F) = Suc (card F)" 
+      using insert by auto
+    ultimately show ?case 
+      by simp
+  qed
+  then show ?thesis 
+    using assms by simp
+qed
+
+
+lemma take_le :
+  assumes "i \<le> length xs"
+  shows "take i (xs@ys) = take i xs"
+  by (simp add: assms less_imp_le_nat)
+
+
+lemma butlast_take_le :
+  assumes "i \<le> length (butlast xs)" 
+  shows "take i (butlast xs) = take i xs" 
+  using take_le[OF assms, of "[last xs]"]
+  by (metis append_butlast_last_id butlast.simps(1)) 
+
+
+lemma distinct_union_union_card :
+  assumes "finite xs"
+  and     "\<And> x1 x2 y1 y2 . x1 \<noteq> x2 \<Longrightarrow> x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> y1 \<in> f x1 \<Longrightarrow> y2 \<in> f x2 \<Longrightarrow> g y1 \<inter> g y2 = {}"
+  and     "\<And> x1 y1 y2 . y1 \<in> f x1 \<Longrightarrow> y2 \<in> f x1 \<Longrightarrow> y1 \<noteq> y2 \<Longrightarrow> g y1 \<inter> g y2 = {}"
+  and     "\<And> x1 . finite (f x1)"
+  and     "\<And> y1 . finite (g y1)"
+  and     "\<And> y1 . g y1 \<subseteq> zs"
+  and     "finite zs"
+shows "(\<Sum> x \<in> xs . card (\<Union> y \<in> f x . g y)) \<le> card zs" 
+proof -
+  have "(\<Sum> x \<in> xs . card (\<Union> y \<in> f x . g y)) = card (\<Union> x \<in> xs . (\<Union> y \<in> f x . g y))"
+    using assms(1,2) proof induction
+    case empty
+    then show ?case by auto
+  next
+    case (insert x xs)
+    then have "(\<And>x1 x2. x1 \<in> xs \<Longrightarrow> x2 \<in> xs \<Longrightarrow> x1 \<noteq> x2 \<Longrightarrow> \<Union> (g ` f x1) \<inter> \<Union> (g ` f x2) = {})" and "x \<in> insert x xs" by blast+
+    then have "(\<Sum>x\<in>xs. card (\<Union> (g ` f x))) = card (\<Union>x\<in>xs. \<Union> (g ` f x))" using insert.IH by blast
+
+    moreover have "(\<Sum>x\<in>(insert x xs). card (\<Union> (g ` f x))) = (\<Sum>x\<in>xs. card (\<Union> (g ` f x))) + card (\<Union> (g ` f x))"
+      using insert.hyps by auto
+
+    moreover have "card (\<Union>x\<in>(insert x xs). \<Union> (g ` f x)) = card (\<Union>x\<in>xs. \<Union> (g ` f x)) + card (\<Union> (g ` f x))"
+    proof -
+      have "((\<Union>x\<in>xs. \<Union> (g ` f x)) \<union> \<Union> (g ` f x)) = (\<Union>x\<in>(insert x xs). \<Union> (g ` f x))"
+        by blast
+
+      have *: "(\<Union>x\<in>xs. \<Union> (g ` f x)) \<inter> (\<Union> (g ` f x)) = {}"
+      proof (rule ccontr)
+        assume "(\<Union>x\<in>xs. \<Union> (g ` f x)) \<inter> \<Union> (g ` f x)\<noteq> {}"
+        then obtain z where "z \<in> \<Union> (g ` f x)" and "z \<in> (\<Union>x\<in>xs. \<Union> (g ` f x))" by blast
+        then obtain x' where "x' \<in> xs" and "z \<in> \<Union> (g ` f x')" by blast
+        then have "x' \<noteq> x" and "x' \<in> insert x xs" using insert.hyps by blast+
+
+        have "\<Union> (g ` f x') \<inter> \<Union> (g ` f x) = {}"
+          using insert.prems[OF \<open>x' \<noteq> x\<close> \<open>x' \<in> insert x xs\<close> \<open>x \<in> insert x xs\<close> ]
+          by blast 
+        then show "False"
+          using \<open>z \<in> \<Union> (g ` f x')\<close> \<open>z \<in> \<Union> (g ` f x)\<close> by blast
+      qed
+      have **: "finite (\<Union> (g ` f x))"
+        using assms(4) assms(5) by blast 
+      have ***: "finite (\<Union>x\<in>xs. \<Union> (g ` f x))"
+        by (simp add: assms(4) assms(5) insert.hyps(1))
+
+      have "card ((\<Union>x\<in>xs. \<Union> (g ` f x)) \<union> \<Union> (g ` f x)) = card (\<Union>x\<in>xs. \<Union> (g ` f x)) + card (\<Union> (g ` f x))" 
+        using card_Un_disjoint[OF *** ** *] by simp
+
+      
+      then show ?thesis 
+        unfolding \<open>((\<Union>x\<in>xs. \<Union> (g ` f x)) \<union> \<Union> (g ` f x)) = (\<Union>x\<in>(insert x xs). \<Union> (g ` f x))\<close> by assumption
+    qed
+
+    ultimately show ?case by linarith
+  qed
+
+  moreover have "card (\<Union> x \<in> xs . (\<Union> y \<in> f x . g y)) \<le> card zs"
+  proof -
+    have "(\<Union> x \<in> xs . (\<Union> y \<in> f x . g y)) \<subseteq> zs"
+      using assms(6) by (simp add: UN_least) 
+    moreover have "finite (\<Union> x \<in> xs . (\<Union> y \<in> f x . g y))"
+      by (simp add: assms(1) assms(4) assms(5)) 
+    ultimately show ?thesis
+      using assms(7)
+      by (simp add: card_mono) 
+  qed
+
+  ultimately show ?thesis
+    by linarith 
+qed
 
 end

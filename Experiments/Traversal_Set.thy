@@ -1,31 +1,30 @@
+section \<open>Traversal Set\<close>
+
+text \<open>This theory defines the calculation of m-traversal paths.
+      These are paths extended from some state until they visit pairwise r-distinguishable states
+      a number of times dependent on m.\<close>  
+
 theory Traversal_Set
 imports R_Distinguishability Helper_Algorithms 
 begin
 
-section \<open>Traversal Sets for State Counting\<close>
 
-subsection \<open>Calculating Traversal Paths\<close>
+definition m_traversal_paths_with_witness_up_to_length :: 
+  "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> (('a\<times>'b\<times>'c\<times>'a) list \<times> ('a set \<times> 'a set)) set" 
+  where
+  "m_traversal_paths_with_witness_up_to_length M q D m k 
+    = paths_up_to_length_or_condition_with_witness M (\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D) k q"
 
-definition m_traversal_paths_with_witness_up_to_length :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> (('a\<times>'b\<times>'c\<times>'a) list \<times> ('a set \<times> 'a set)) set" where
-  "m_traversal_paths_with_witness_up_to_length M q D m k = paths_up_to_length_or_condition_with_witness M (\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D) k q"
-
-definition m_traversal_paths_with_witness :: "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> (('a\<times>'b\<times>'c\<times>'a) list \<times> ('a set \<times> 'a set)) set" where
+definition m_traversal_paths_with_witness :: 
+  "('a,'b,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> (('a\<times>'b\<times>'c\<times>'a) list \<times> ('a set \<times> 'a set)) set" 
+  where
   "m_traversal_paths_with_witness M q D m = m_traversal_paths_with_witness_up_to_length M q D m (Suc (size M * m))"
-
-value "m_traversal_paths_with_witness m_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
-value "m_traversal_paths_with_witness m_ex_H 3 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
-value "m_traversal_paths_with_witness m_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
-
-value "m_traversal_paths_with_witness m_ex_H 4 (maximal_repetition_sets_from_separators_list m_ex_H) 4"
-
-
 
 
 lemma m_traversal_paths_with_witness_finite : "finite (m_traversal_paths_with_witness M q D m)"
   unfolding m_traversal_paths_with_witness_def m_traversal_paths_with_witness_up_to_length_def
   by (simp add: paths_up_to_length_or_condition_with_witness_finite) 
   
-
 
 lemma m_traversal_paths_with_witness_up_to_length_max_length :
   assumes "\<And> q . q \<in> nodes M \<Longrightarrow> \<exists> d \<in> set D . q \<in> fst d"
@@ -44,7 +43,9 @@ proof (rule ccontr)
         and "length p \<le> k"
         and "?f p = Some d"
         and "\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> ?f p' = None"
-    using assms(4) unfolding m_traversal_paths_with_witness_up_to_length_def paths_up_to_length_or_condition_with_witness_def by auto
+    using assms(4) 
+    unfolding m_traversal_paths_with_witness_up_to_length_def paths_up_to_length_or_condition_with_witness_def 
+    by auto
 
   let ?p = "take (Suc (m * size M)) p"
   let ?p' = "drop (Suc (m * size M)) p"
@@ -92,7 +93,9 @@ proof (rule ccontr)
     have "\<forall>p. find p D \<noteq> None \<or> \<not> p d"
       by (metis \<open>d \<in> set D\<close> find_from)
     then show ?thesis
-      using \<open>Suc m \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (Suc (m * FSM.size M)) p))\<close> diff_le_self le_trans not_less_eq_eq by blast
+      using \<open>Suc m \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (Suc (m * FSM.size M)) p))\<close> 
+            diff_le_self le_trans not_less_eq_eq 
+      by blast
   qed 
   then obtain d' where "?f ?p = Some d'"
     by blast
@@ -102,7 +105,7 @@ proof (rule ccontr)
 
   then show "False"
     using \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> (?f p') = None\<close>
-    by (metis (no_types) \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None\<close> \<open>p = take (Suc (m * FSM.size M)) p @ drop (Suc (m * FSM.size M)) p \<and> drop (Suc (m * FSM.size M)) p \<noteq> [] \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take (Suc (m * FSM.size M)) p))) D = Some d'\<close> option.distinct(1))
+    by (metis (no_types) option.distinct(1))
 qed
 
 
@@ -110,8 +113,10 @@ lemma m_traversal_paths_with_witness_set :
   assumes "\<And> q . q \<in> nodes M \<Longrightarrow> \<exists> d \<in> set D . q \<in> fst d"
   and     "\<And> d .  d \<in> set D \<Longrightarrow> snd d \<subseteq> fst d"
   and     "q \<in> nodes M"
-  shows "(m_traversal_paths_with_witness M q D m) = {(p,d) | p d . path M q p \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) D = Some d
-                                                                  \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None)}"
+shows "(m_traversal_paths_with_witness M q D m) 
+          = {(p,d) | p d . path M q p 
+                            \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) D = Some d
+                            \<and> (\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None)}"
         (is "?MTP = ?P")
 proof -
   let ?f = "(\<lambda> p . find (\<lambda> d . length (filter (\<lambda>t . t_target t \<in> fst d) p) \<ge> Suc (m - (card (snd d)))) D)"
@@ -120,7 +125,8 @@ proof -
     using assms(3) by auto
 
   have "\<And> p . p \<in> ?MTP \<Longrightarrow> p \<in> ?P"
-    unfolding m_traversal_paths_with_witness_def m_traversal_paths_with_witness_up_to_length_def paths_up_to_length_or_condition_with_witness_def
+    unfolding m_traversal_paths_with_witness_def m_traversal_paths_with_witness_up_to_length_def 
+              paths_up_to_length_or_condition_with_witness_def
     by force
   moreover have "\<And> p . p \<in> ?P \<Longrightarrow> p \<in> ?MTP"
   proof -
@@ -141,8 +147,10 @@ proof -
       using m_traversal_paths_with_witness_up_to_length_max_length[OF assms] by blast
     
     have "(p,x) \<in> ?MTP"
-      using \<open>path M q p\<close> \<open>length p \<le> Suc (size M * m)\<close> \<open>?f p = Some x\<close> \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> (?f p') = None\<close>
-      unfolding m_traversal_paths_with_witness_def m_traversal_paths_with_witness_up_to_length_def paths_up_to_length_or_condition_with_witness_def
+      using \<open>path M q p\<close> \<open>length p \<le> Suc (size M * m)\<close> \<open>?f p = Some x\<close> 
+            \<open>\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> (?f p') = None\<close>
+      unfolding m_traversal_paths_with_witness_def m_traversal_paths_with_witness_up_to_length_def 
+                paths_up_to_length_or_condition_with_witness_def
       by force 
     then show "px \<in> ?MTP"
       using \<open>px = (p,x)\<close> by simp
@@ -152,16 +160,12 @@ proof -
 qed
 
 
-
-
-
-
-
 lemma maximal_repetition_sets_from_separators_cover :
   assumes "q \<in> nodes M"
   shows "\<exists> d \<in> (maximal_repetition_sets_from_separators M) . q \<in> fst d"
   unfolding maximal_repetition_sets_from_separators_def
   using maximal_pairwise_r_distinguishable_state_sets_from_separators_cover[OF assms] by auto
+
 
 lemma maximal_repetition_sets_from_separators_d_reachable_subset :
   shows "\<And> d . d \<in> (maximal_repetition_sets_from_separators M) \<Longrightarrow> snd d \<subseteq> fst d"
@@ -185,42 +189,15 @@ lemma m_traversal_paths_with_witness_set_containment :
 shows "\<exists> d' . (p,d') \<in> (m_traversal_paths_with_witness M q repSets m)"
 proof -
   obtain d' where "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p)) repSets = Some d'"
-    using assms(3,4) find_None_iff[of "(\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p))" repSets] by auto
-  moreover have "(\<And> p' p''. p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) repSets = None)"
-    using assms(5) find_None_iff[of _ repSets] by force
-  
-
+    using assms(3,4) find_None_iff[of "(\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p))" repSets] 
+    by auto
+  moreover have "(\<And> p' p''. p = p' @ p'' \<Longrightarrow> p'' \<noteq> [] 
+                  \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) repSets = None)"
+    using assms(5) find_None_iff[of _ repSets] by force  
   ultimately show ?thesis
     using m_traversal_paths_with_witness_set[of M repSets q m, OF  assms(6,7,1)] 
     using assms(2) by blast
 qed
-
-
-
-
-(* TODO: move *)
-lemma path_of_length_ex :
-  assumes "completely_specified M"
-  and     "q \<in> nodes M"
-  and     "inputs M \<noteq> {}"
-shows "\<exists> p . path M q p \<and> length p = k" 
-using assms(2) proof (induction k arbitrary: q)
-  case 0
-  then show ?case by auto
-next
-  case (Suc k)
-
-  obtain t where "t_source t = q" and "t \<in> transitions M"
-    by (meson Suc.prems assms(1) assms(3) completely_specified.simps equals0I)
-  then have "t_target t \<in> nodes M"
-    using fsm_transition_target by blast
-  then obtain p where "path M (t_target t) p \<and> length p = k"
-    using Suc.IH by blast
-  then show ?case 
-    using \<open>t_source t = q\<close> \<open>t \<in> transitions M\<close>
-    by auto 
-qed
-
 
 
 lemma m_traversal_path_exist :
@@ -284,12 +261,17 @@ proof -
 
   show ?thesis proof (cases "(\<forall>p' p''. p = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None)")
     case True
-    then show ?thesis using m_traversal_paths_with_witness_set[OF assms(4,5,2), of m] \<open>path M q p\<close> \<open>?f p = Some d'\<close> by blast
+    then show ?thesis 
+      using m_traversal_paths_with_witness_set[OF assms(4,5,2), of m] \<open>path M q p\<close> \<open>?f p = Some d'\<close> 
+      by blast
   next
     case False
 
-    define ps where ps_def: "ps = {p' . \<exists> p''. p = p' @ p'' \<and> p'' \<noteq> [] \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D \<noteq> None}"
-    have "ps \<noteq> {}" using False ps_def by blast
+    define ps where ps_def: "ps = {p' . \<exists> p''. p = p' @ p'' \<and> p'' \<noteq> [] 
+                                              \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D \<noteq> None}"
+    have "ps \<noteq> {}" 
+      using False ps_def 
+      by blast
     moreover have "finite ps" 
     proof -
       have "ps \<subseteq> set (prefixes p)"
@@ -300,7 +282,8 @@ proof -
     qed
     ultimately obtain p' where "p' \<in> ps" and "\<And> p'' . p'' \<in> ps \<Longrightarrow> length p' \<le> length p''"
       by (meson leI min_length_elem) 
-    then have "\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None"
+    then have "\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] 
+                \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None"
     proof -
       fix p'' p''' assume "p' = p'' @ p'''" and "p''' \<noteq> []"
       show "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None"
@@ -327,27 +310,14 @@ proof -
     then have "path M q p' \<and>
                find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = Some d' \<and>
                (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None)"
-      using \<open>\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None\<close> \<open>path M q p'\<close>
+      using \<open>\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None\<close> 
+            \<open>path M q p'\<close>
       by blast
     then have "(p',d') \<in> (m_traversal_paths_with_witness M q D m)"
       using m_traversal_paths_with_witness_set[OF assms(4,5,2), of m] by blast
     then show ?thesis by blast
   qed 
 qed
-
-
-
-
-
-
-
-
-
-
-lemma filter_take_length :
-  "length (filter P (take i xs)) \<le> length (filter P xs)"
-  by (metis append_take_drop_id filter_append le0 le_add_same_cancel1 length_append)
-
 
 
 
@@ -361,9 +331,6 @@ lemma m_traversal_path_extension_exist :
   and     "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p1)) D = None"
 shows "\<exists> p2 d' . (p1@p2,d') \<in> (m_traversal_paths_with_witness M q D m)"
 proof -
-
-  
-
   obtain p2 where "path M (target q p1) p2" and "length p2 = (Suc ((size M) * m)) - length p1"
     using path_of_length_ex[OF assms(1) path_target_is_node[OF assms(6)] assms(3)] 
     by blast
@@ -438,12 +405,10 @@ proof -
       using assms(7) by simp
   qed
 
-
   have "length (p1@p2) = (Suc ((size M) * m))"
     using \<open>length p2 = (Suc ((size M) * m)) - length p1\<close>
           \<open>length p1 < Suc ((size M) * m)\<close> 
     by simp
-
 
   have "\<exists> q \<in> nodes M . length (filter (\<lambda>t . t_target t = q) (p1@p2)) \<ge> Suc m"
   proof (rule ccontr)
@@ -464,7 +429,6 @@ proof -
       using \<open>length (p1@p2) = Suc ((size M) * m)\<close>
       by (simp add: mult.commute) 
   qed
-
   then obtain q' where "q' \<in> nodes M"
                    and "length (filter (\<lambda> t . t_target t = q') (p1@p2)) \<ge> Suc m" 
     by blast
@@ -491,17 +455,17 @@ proof -
     by blast
 
 
-
-  
-
-
-  show ?thesis proof (cases "(\<forall>p' p''. (p1@p2) = p' @ p'' \<and> p'' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None)")
+  show ?thesis proof (cases "(\<forall>p' p''. (p1@p2) = p' @ p'' \<and> p'' \<noteq> [] 
+                                 \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = None)")
     case True
-    then show ?thesis using m_traversal_paths_with_witness_set[OF assms(4,5,2), of m] \<open>path M q (p1@p2)\<close> \<open>?f (p1@p2) = Some d'\<close> by blast
+    then show ?thesis 
+      using m_traversal_paths_with_witness_set[OF assms(4,5,2), of m] \<open>path M q (p1@p2)\<close> \<open>?f (p1@p2) = Some d'\<close> 
+      by blast
   next
     case False
 
-    define ps where ps_def: "ps = {p' . \<exists> p''. (p1@p2) = p' @ p'' \<and> p'' \<noteq> [] \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D \<noteq> None}"
+    define ps where ps_def: "ps = {p' . \<exists> p''. (p1@p2) = p' @ p'' \<and> p'' \<noteq> [] 
+                                                \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D \<noteq> None}"
     have "ps \<noteq> {}" using False ps_def by blast
     moreover have "finite ps" 
     proof -
@@ -513,7 +477,8 @@ proof -
     qed
     ultimately obtain p' where "p' \<in> ps" and "\<And> p'' . p'' \<in> ps \<Longrightarrow> length p' \<le> length p''"
       by (meson leI min_length_elem) 
-    then have "\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None"
+    then have "\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] 
+                            \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None"
     proof -
       fix p'' p''' assume "p' = p'' @ p'''" and "p''' \<noteq> []"
       show "find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None"
@@ -543,7 +508,6 @@ proof -
 
     have "length p' > length p1"
     proof (rule ccontr)
-
       assume "\<not> length p1 < length p'"
       then obtain i where "p' = take i p1"
         by (metis \<open>p1 @ p2 = p' @ p''\<close> append_eq_append_conv_if less_le)
@@ -580,15 +544,13 @@ proof -
       using \<open>(p1@p2) = p' @ p''\<close> by auto
 
     ultimately obtain p where "p' = p1 @ p"
-      by auto 
-       
-    
-    
+      by auto        
 
     have "path M q p' \<and>
            find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = Some d' \<and>
            (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None)"
-      using \<open>\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None\<close> \<open>path M q p'\<close> \<open>find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = Some d'\<close>
+      using \<open>\<And>p'' p''' . p' = p'' @ p''' \<Longrightarrow> p''' \<noteq> [] \<Longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None\<close> 
+            \<open>path M q p'\<close> \<open>find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = Some d'\<close>
       by blast
     then have "(p',d') \<in> (m_traversal_paths_with_witness M q D m)"
       using m_traversal_paths_with_witness_set[OF assms(4,5,2), of m] by blast
@@ -598,9 +560,6 @@ qed
 
 
 
-
-
-(* TODO: combine with m_traversal_path_extension_exist *)
 lemma m_traversal_path_extension_exist_for_transition :
   assumes "completely_specified M"
   and     "q \<in> nodes M"
@@ -796,10 +755,10 @@ proof -
         by fastforce
     next
       case None
-        
-  
-  
-      define ps where ps_def: "ps = {p' . \<exists> p''. (?p@p2) = p' @ p'' \<and> p'' \<noteq> [] \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D \<noteq> None}"
+
+      define ps where ps_def: "ps = {p' . \<exists> p''. (?p@p2) = p' @ p'' 
+                                                  \<and> p'' \<noteq> [] 
+                                                  \<and> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D \<noteq> None}"
       have "ps \<noteq> {}" using False ps_def by blast
       moreover have "finite ps" 
       proof -
@@ -845,9 +804,7 @@ proof -
         assume "\<not> length ?p < length p'"
         then obtain i where "p' = take i ?p"
           by (metis \<open>?p @ p2 = p' @ p''\<close> append_eq_append_conv_if less_le)
-  
-        
-  
+
         have "\<And> i . find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) (take i ?p))) D = None"
         proof - 
           fix i
@@ -881,10 +838,7 @@ proof -
   
       ultimately obtain p where "p' = ?p @ p"
         by (metis dual_order.strict_implies_order take_all take_append) 
-         
-      
-      
-  
+
       have "path M q p' \<and>
              find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p')) D = Some d' \<and>
              (\<forall>p'' p'''. p' = p'' @ p''' \<and> p''' \<noteq> [] \<longrightarrow> find (\<lambda>d. Suc (m - card (snd d)) \<le> length (filter (\<lambda>t. t_target t \<in> fst d) p'')) D = None)"
@@ -897,7 +851,4 @@ proof -
   qed
 qed
 
-
-
 end
-

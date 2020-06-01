@@ -217,6 +217,145 @@ proof -
 qed
 
 
+lemma observable_preamble_paths :
+  assumes "is_preamble P M q'"
+  and     "observable M"
+  and     "path M q p"  
+  and     "p_io p \<in> LS P q"
+  and     "q \<in> reachable_nodes P"
+shows "path P q p"
+using assms(3,4,5) proof (induction p arbitrary: q rule: list.induct)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons t p)
+
+  have   "is_submachine P M"
+  and *: "\<And> q' x t t' . q'\<in>reachable_nodes P \<Longrightarrow> x\<in>FSM.inputs M \<Longrightarrow>
+            t\<in>FSM.transitions P \<Longrightarrow> t_source t = q' \<Longrightarrow> t_input t = x \<Longrightarrow>
+            t'\<in>FSM.transitions M \<Longrightarrow> t_source t' = q' \<Longrightarrow> t_input t' = x \<Longrightarrow> t' \<in> FSM.transitions P"
+    using assms(1) unfolding is_preamble_def by blast+
+
+  have "observable P"
+    using submachine_observable[OF \<open>is_submachine P M\<close> \<open>observable M\<close>] by blast
+
+  obtain t' where "t'\<in>FSM.transitions P" and "t_source t' = q" and "t_input t' = t_input t"
+    using \<open>p_io (t # p) \<in> LS P q\<close> by auto
+
+  have "t_source t = q" and "t \<in> transitions M" and "t_input t \<in> inputs M"
+    using \<open>path M q (t # p)\<close> by auto
+
+  have "t \<in> transitions P"
+    using *[OF \<open>q \<in> reachable_nodes P\<close> \<open>t_input t \<in> inputs M\<close> \<open>t'\<in>FSM.transitions P\<close> 
+               \<open>t_source t' = q\<close> \<open>t_input t' = t_input t\<close> \<open>t \<in> transitions M\<close> \<open>t_source t = q\<close>]
+    by auto
+
+  have "path M (t_target t) p"
+    using \<open>path M q (t # p)\<close> by auto
+  moreover have "p_io p \<in> LS P (t_target t)"
+  proof -
+    have f1: "t_input t = fst (t_input t, t_output t)"
+      by (metis fst_conv)
+    have f2: "t_output t = snd (t_input t, t_output t)"
+      by auto
+    have f3: "(t_input t, t_output t) # p_io p \<in> LS P (t_source t)"
+      using Cons.prems(2) \<open>t_source t = q\<close> by fastforce
+    have "L (FSM.from_FSM P (t_target t)) = LS P (t_target t)"
+      by (meson \<open>t \<in> FSM.transitions P\<close> from_FSM_language fsm_transition_target)
+    then show ?thesis
+      using f3 f2 f1 \<open>observable P\<close> \<open>t \<in> FSM.transitions P\<close> observable_language_next by blast
+  qed   
+  moreover have "t_target t \<in> reachable_nodes P"
+    using \<open>t \<in> transitions P\<close> \<open>t_source t = q\<close> \<open>q \<in> reachable_nodes P\<close>
+    by (meson reachable_nodes_next) 
+  ultimately have "path P (t_target t) p"
+    using Cons.IH by blast
+  then show ?case
+    using \<open>t \<in> transitions P\<close> \<open>t_source t = q\<close> by auto
+qed
+
+
+lemma preamble_pass_path :
+  assumes "is_preamble P M q"
+  and     "\<And> io x y y' . io@[(x,y)] \<in> L P \<Longrightarrow> io@[(x,y')] \<in> L M' \<Longrightarrow> io@[(x,y')] \<in> L P"
+  and     "completely_specified M'"
+  and     "inputs M' = inputs M"
+obtains p where "path P (initial P) p" and "target (initial P) p = q" and "p_io p \<in> L M'"
+proof -
+  (* get the longest paths p such that p_io p is still in L M' *)
+
+  let ?ps = "{p . path P (initial P) p \<and> p_io p \<in> L M'}"
+  have "?ps \<noteq> {}"
+  proof -
+    have "[] \<in> ?ps" by auto
+    then show ?thesis by blast
+  qed
+  moreover have "finite ?ps"
+  proof -
+    have "acyclic P"
+      using assms(1) unfolding is_preamble_def by blast
+    have "finite {p. path P (FSM.initial P) p}"
+      using acyclic_finite_paths_from_reachable_node[OF \<open>acyclic P\<close>, of "[]" "initial P"] by auto
+    then show ?thesis
+      by simp 
+  qed
+  ultimately obtain p where "p \<in> ?ps" and "\<And> p' . p' \<in> ?ps \<Longrightarrow> length p' \<le> length p" 
+    by (meson leI max_length_elem) 
+  then have "path P (initial P) p"
+       and  "p_io p \<in> L M'"
+    by blast+
+
+  show ?thesis
+  proof (cases "target (initial P) p = q")
+    case True
+    then show ?thesis using that[OF \<open>path P (initial P) p\<close> _ \<open>p_io p \<in> L M'\<close>] by blast
+  next
+    case False
+
+    (* if p does not target the sole deadlock state q, then it can be extended *)
+
+    then have "\<not> deadlock_state P (target (initial P) p)"
+      using reachable_nodes_intro[OF \<open>path P (initial P) p\<close>] assms(1) unfolding is_preamble_def by fastforce
+    then obtain t where "t \<in> transitions P" and "t_source t = target (initial P) p"
+      by auto
+    then have "path P (initial P) (p@[t])" 
+      using \<open>path P (initial P) p\<close> path_append_transition by simp
+    have "(p_io p) @ [(t_input t, t_output t)] \<in> L P"
+      using language_intro[OF \<open>path P (initial P) (p@[t])\<close>] by simp
+
+    have "t_input t \<in> inputs M'"
+      using assms(1,4) fsm_transition_input[OF \<open>t \<in> transitions P\<close>] unfolding is_preamble_def is_submachine.simps by blast
+    
+    obtain p' where "path M' (initial M') p'" and "p_io p' = p_io p"
+      using \<open>p_io p \<in> L M'\<close> by auto
+    obtain t' where "t' \<in> transitions M'" and "t_source t' = target (initial M') p'" and "t_input t' = t_input t"
+      using \<open>completely_specified M'\<close> \<open>t_input t \<in> inputs M'\<close> path_target_is_node[OF \<open>path M' (initial M') p'\<close>]
+      unfolding completely_specified.simps by blast
+    then have "path M' (initial M') (p'@[t'])" 
+      using \<open>path M' (initial M') p'\<close> path_append_transition by simp
+    have "(p_io p) @ [(t_input t, t_output t')] \<in> L M'"
+      using language_intro[OF \<open>path M' (initial M') (p'@[t'])\<close>] 
+      unfolding \<open>p_io p' = p_io p\<close>[symmetric] \<open>t_input t' = t_input t\<close>[symmetric] by simp
+
+    have "(p_io p) @ [(t_input t, t_output t')] \<in> L P"
+      using assms(2)[OF \<open>(p_io p) @ [(t_input t, t_output t)] \<in> L P\<close> \<open>(p_io p) @ [(t_input t, t_output t')] \<in> L M'\<close>]
+      by assumption
+    then obtain pt' where "path P (initial P) pt'" and "p_io pt' = (p_io p) @ [(t_input t, t_output t')]"
+      by auto
+    then have "pt' \<in> ?ps"
+      using \<open>(p_io p) @ [(t_input t, t_output t')] \<in> L M'\<close> by auto
+    then have "length pt' \<le> length p"
+      using \<open>\<And> p' . p' \<in> ?ps \<Longrightarrow> length p' \<le> length p\<close> by blast
+    moreover have "length pt' > length p"
+      using \<open>p_io pt' = (p_io p) @ [(t_input t, t_output t')]\<close> 
+      unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] by simp
+    ultimately have "False"
+      by simp
+    then show ?thesis by simp
+  qed
+qed
+
+
 
 subsection \<open>Calculating State Preambles via Backwards Reachability Analysis\<close>
 

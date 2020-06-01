@@ -957,6 +957,16 @@ proof -
 qed
       
 
+lemma path_prefix_take :
+  assumes "path M q p"
+  shows "path M q (take i p)"
+proof -
+  have "p = (take i p)@(drop i p)" by auto
+  then have "path M q ((take i p)@(drop i p))" using assms by auto
+  then show ?thesis
+    by blast 
+qed
+
 
 
 subsection \<open>Acyclic Paths\<close>
@@ -1430,6 +1440,27 @@ proof -
 qed
 
 
+lemma language_intro :
+  assumes "path M q p"
+  shows "p_io p \<in> LS M q"
+  using assms unfolding LS.simps by auto
+
+
+lemma language_prefix_append :
+  assumes "io1 @ (p_io p) \<in> L M"
+shows   "io1 @ p_io (take i p) \<in> L M"
+proof -
+  fix i
+  have "p_io p = (p_io (take i p)) @ (p_io (drop i p))"
+    by (metis append_take_drop_id map_append) 
+  then have "(io1 @ (p_io (take i p))) @ (p_io (drop i p)) \<in> L M"
+    using \<open>io1 @ p_io p \<in> L M\<close> by auto
+  show "io1 @ p_io (take i p) \<in> L M" 
+    using language_prefix[OF \<open>(io1 @ (p_io (take i p))) @ (p_io (drop i p)) \<in> L M\<close>] 
+    by assumption
+qed
+
+
 subsection \<open>Basic FSM Properties\<close>
 
 subsubsection \<open>Completely Specified\<close>
@@ -1497,7 +1528,29 @@ proof -
   then show ?thesis using that by blast
 qed
   
-  
+
+lemma path_of_length_ex :
+  assumes "completely_specified M"
+  and     "q \<in> nodes M"
+  and     "inputs M \<noteq> {}"
+shows "\<exists> p . path M q p \<and> length p = k" 
+using assms(2) proof (induction k arbitrary: q)
+  case 0
+  then show ?case by auto
+next
+  case (Suc k)
+
+  obtain t where "t_source t = q" and "t \<in> transitions M"
+    by (meson Suc.prems assms(1) assms(3) completely_specified.simps equals0I)
+  then have "t_target t \<in> nodes M"
+    using fsm_transition_target by blast
+  then obtain p where "path M (t_target t) p \<and> length p = k"
+    using Suc.IH by blast
+  then show ?case 
+    using \<open>t_source t = q\<close> \<open>t \<in> transitions M\<close>
+    by auto 
+qed
+
 
 subsubsection \<open>Deterministic\<close>
 
@@ -2690,6 +2743,36 @@ proof -
     by (metis (mono_tags, lifting) map_append mem_Collect_eq path_append) 
 qed
 
+
+lemma observable_path_suffix :
+  assumes "(p_io p)@io \<in> LS M q"
+  and     "path M q p"
+  and     "observable M"
+obtains p' where "path M (target q p) p'" and "p_io p' = io"
+proof -
+  obtain p1 p2 where "path M q p1" and "path M (target q p1) p2"  and "p_io p1 = p_io p" and "p_io p2 = io"
+    using language_state_split[OF assms(1)] by blast
+
+  have "p1 = p"
+    using observable_path_unique[OF assms(3,2) \<open>path M q p1\<close> \<open>p_io p1 = p_io p\<close>[symmetric]]
+    by simp
+
+  show ?thesis using that[of p2] \<open>path M (target q p1) p2\<close> \<open>p_io p2 = io\<close> unfolding \<open>p1 = p\<close>
+    by blast
+qed
+
+
+lemma io_targets_finite :
+  "finite (io_targets M io q)"
+proof -
+  have "(io_targets M io q) \<subseteq> {target q p | p . path M q p \<and> length p \<le> length io}"
+    unfolding io_targets.simps length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] by force
+  moreover have "finite {target q p | p . path M q p \<and> length p \<le> length io}"
+    using paths_finite[of M q "length io"]
+    by simp 
+  ultimately show ?thesis
+    using rev_finite_subset by blast 
+qed
 
 
 subsection \<open>Conformity Relations\<close>
