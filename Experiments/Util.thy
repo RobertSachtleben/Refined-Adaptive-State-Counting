@@ -1108,6 +1108,13 @@ proof -
 qed
 
 
+lemma prefixes_set_ob :
+  assumes "xs \<in> set (prefixes xss)"
+  obtains xs' where "xss = xs@xs'"
+  using assms unfolding prefixes_set
+  by auto 
+
+
 
 subsubsection \<open>Pairs of Distinct Prefixes\<close>
 

@@ -351,10 +351,102 @@ proof -
       unfolding length_map[of "(\<lambda> t . (t_input t, t_output t))", symmetric] by simp
     ultimately have "False"
       by simp
-    then show ?thesis by simp
+    then show ?thesis 
+      by simp
   qed
 qed
 
+
+lemma preamble_maximal_io_paths :
+  assumes "is_preamble P M q"
+  and     "observable M"
+  and     "path P (initial P) p"
+  and     "target (initial P) p = q"
+shows "\<nexists>io' . io' \<noteq> [] \<and> p_io p @ io' \<in> L P" 
+proof -
+  have "deadlock_state P q"  
+  and  "is_submachine P M"
+    using assms(1) unfolding is_preamble_def by blast+
+
+  have "observable P"
+    using \<open>observable M\<close> \<open>is_submachine P M\<close>
+    using submachine_observable by blast 
+
+  show "\<nexists>io' . io' \<noteq> [] \<and> p_io p @ io' \<in> L P"
+  proof
+    assume "\<exists>io'. io' \<noteq> [] \<and> p_io p @ io' \<in> L P"
+    then obtain io' where "io' \<noteq> []" and "p_io p @ io' \<in> L P"
+      by blast
+
+    obtain p1 p2 where "path P (FSM.initial P) p1" 
+                   and "path P (target (FSM.initial P) p1) p2" 
+                   and "p_io p1 = p_io p" 
+                   and "p_io p2 = io'"
+      using language_state_split[OF \<open>p_io p @ io' \<in> L P\<close>] by blast
+
+    have "p1 = p"
+      using observable_path_unique[OF \<open>observable P\<close> \<open>path P (FSM.initial P) p1\<close> \<open>path P (FSM.initial P) p\<close> \<open>p_io p1 = p_io p\<close>] 
+      by assumption
+
+    have "io' \<in> LS P q"
+      using \<open>path P (target (FSM.initial P) p1) p2\<close> \<open>p_io p2 = io'\<close>
+      unfolding \<open>p1 = p\<close> assms(4) by auto
+    then show "False"
+      using \<open>io' \<noteq> []\<close> \<open>deadlock_state P q\<close> 
+      unfolding deadlock_state_alt_def 
+      by blast
+  qed
+qed
+
+
+lemma preamble_maximal_io_paths_rev :
+  assumes "is_preamble P M q"
+  and     "observable M"
+  and     "io \<in> L P"
+  and     "\<nexists>io' . io' \<noteq> [] \<and> io @ io' \<in> L P"
+obtains p where "path P (initial P) p"
+          and   "p_io p = io"
+          and   "target (initial P) p = q"
+proof -  
+  have "acyclic P"
+  and  "deadlock_state P q"  
+  and  "is_submachine P M"
+  and  "\<And> q' . q'\<in>reachable_nodes P \<Longrightarrow> (q = q' \<or> \<not> deadlock_state P q')"
+    using assms(1) unfolding is_preamble_def by blast+
+
+  have "observable P"
+    using \<open>observable M\<close> \<open>is_submachine P M\<close>
+    using submachine_observable by blast 
+
+  obtain p where "path P (initial P) p" and "p_io p = io"
+    using \<open>io \<in> L P\<close> by auto
+
+  moreover have "target (initial P) p = q"
+  proof (rule ccontr)
+    assume "target (FSM.initial P) p \<noteq> q"
+    then have "\<not> deadlock_state P (target (FSM.initial P) p)"
+      using \<open>\<And> q' . q'\<in>reachable_nodes P \<Longrightarrow> (q = q' \<or> \<not> deadlock_state P q')\<close>[OF reachable_nodes_intro[OF \<open>path P (initial P) p\<close>]] by simp
+    then obtain t where "t \<in> transitions P" and "t_source t = target (initial P) p"
+      by auto
+    then have "path P (initial P) (p @ [t])"
+      using path_append_transition[OF \<open>path P (initial P) p\<close>] by auto
+    then have "p_io (p@[t]) \<in> L P"
+      unfolding LS.simps by (metis (mono_tags, lifting) mem_Collect_eq)
+    then have "io @ [(t_input t, t_output t)] \<in> L P"
+      using \<open>p_io p = io\<close> by auto
+    then show "False"
+      using assms(4) by auto
+  qed
+
+  ultimately show ?thesis using that by blast
+qed
+
+
+lemma is_preamble_is_node : 
+  assumes "is_preamble P M q"
+  shows "q \<in> nodes M"
+  using assms unfolding is_preamble_def
+  by (meson nil path_nil_elim reachable_node_is_node submachine_path) 
 
 
 subsection \<open>Calculating State Preambles via Backwards Reachability Analysis\<close>

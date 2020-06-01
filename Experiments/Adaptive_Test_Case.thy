@@ -1140,45 +1140,6 @@ lemma atc_to_io_set_code :
   using acyclic_language_intersection_completeness[OF assms] unfolding atc_to_io_set.simps by blast
 
 
-definition pass_io_set :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
-  "pass_io_set M ios = (\<forall> io x y . io@[(x,y)] \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> io@[(x,y')] \<in> ios))"
-
-definition pass_io_set_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
-  "pass_io_set_maximal M ios = (\<forall> io x y io' . io@[(x,y)]@io' \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> (\<exists> io''. io@[(x,y')]@io'' \<in> ios)))"
-
-
-lemma pass_io_set_from_pass_io_set_maximal :
-  "pass_io_set_maximal M ios = pass_io_set M {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
-proof -
-  have "\<And> io x y io' . io@[(x,y)]@io' \<in> ios \<Longrightarrow> io@[(x,y)] \<in> {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
-    by auto
-  moreover have "\<And> io x y . io@[(x,y)] \<in> {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios} \<Longrightarrow> \<exists> io' . io@[(x,y)]@io' \<in> ios"
-    by auto
-  ultimately show ?thesis
-    unfolding pass_io_set_def pass_io_set_maximal_def
-    by meson 
-qed
-
-
-lemma pass_io_set_maximal_from_pass_io_set :
-  assumes "finite ios"
-  and     "\<And> io' io'' . io'@io'' \<in> ios \<Longrightarrow> io' \<in> ios"
-shows "pass_io_set M ios = pass_io_set_maximal M {io' \<in> ios . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> ios)}"
-proof -
-  have "\<And> io x y . io@[(x,y)] \<in> ios \<Longrightarrow> \<exists> io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)}"
-  proof -
-    fix io x y assume "io@[(x,y)] \<in> ios"
-    show "\<exists> io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)}"
-      using finite_set_elem_maximal_extension_ex[OF \<open>io@[(x,y)] \<in> ios\<close> assms(1)] by force
-  qed
-  moreover have "\<And> io x y io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)} \<Longrightarrow> io@[(x,y)] \<in> ios"
-    using \<open>\<And> io' io'' . io'@io'' \<in> ios \<Longrightarrow> io' \<in> ios\<close> by force
-  ultimately show ?thesis
-    unfolding pass_io_set_def pass_io_set_maximal_def 
-    by meson 
-qed
-
-
 lemma pass_io_set_from_pass_separator :
   assumes "is_separator M q1 q2 A t1 t2"
   and     "pass_separator_ATC S A s1 t2"

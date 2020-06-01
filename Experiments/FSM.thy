@@ -1461,6 +1461,16 @@ proof -
 qed
 
 
+lemma language_finite: "finite {io . io \<in> L M \<and> length io \<le> k}"
+proof -
+  have "{io . io \<in> L M \<and> length io \<le> k} \<subseteq> p_io  ` {p. path M (FSM.initial M) p \<and> length p \<le> k}"
+    by auto
+  then show ?thesis
+    using paths_finite[of M "initial M" k]
+    using finite_surj by auto 
+qed
+
+
 subsection \<open>Basic FSM Properties\<close>
 
 subsubsection \<open>Completely Specified\<close>
@@ -1585,6 +1595,23 @@ lemma observable_alt_def :
 lemma observable_alt_def_h : 
   "observable M = (\<forall> q1 x yq yq' . (yq \<in> h M (q1,x) \<and> yq' \<in> h M (q1,x)) \<longrightarrow> fst yq = fst yq' \<longrightarrow> snd yq = snd yq')"
   by auto
+
+
+lemma language_append_path_ob :
+  assumes "io@[(x,y)] \<in> L M"
+  obtains p t where "path M (initial M) (p@[t])" and "p_io p = io" and "t_input t = x" and "t_output t = y"
+proof -
+  obtain p p2 where "path M (initial M) p" and "path M (target (initial M) p) p2"  and "p_io p = io" and "p_io p2 = [(x,y)]"
+    using language_state_split[OF assms] by blast
+
+  obtain t where "p2 = [t]" and "t_input t = x" and "t_output t = y"
+    using \<open>p_io p2 = [(x,y)]\<close> by auto
+
+  have "path M (initial M) (p@[t])"
+    using \<open>path M (initial M) p\<close> \<open>path M (target (initial M) p) p2\<close> unfolding \<open>p2 = [t]\<close> by auto
+  then show ?thesis using that[OF _ \<open>p_io p = io\<close> \<open>t_input t = x\<close> \<open>t_output t = y\<close>]
+    by simp 
+qed
 
 
 subsubsection \<open>Single Input\<close>
@@ -2792,6 +2819,46 @@ abbreviation(input) "is_io_reduction_on_inputs A U B \<equiv> is_io_reduction_st
 notation 
   is_io_reduction_on_inputs ("_ \<preceq>\<lbrakk>_\<rbrakk> _")
 
+
+subsection \<open>A Pass Relation for Test Represented as Sets of Input-Output Sequences\<close>
+
+definition pass_io_set :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
+  "pass_io_set M ios = (\<forall> io x y . io@[(x,y)] \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> io@[(x,y')] \<in> ios))"
+
+definition pass_io_set_maximal :: "('a,'b,'c) fsm \<Rightarrow> ('b \<times> 'c) list set \<Rightarrow> bool" where
+  "pass_io_set_maximal M ios = (\<forall> io x y io' . io@[(x,y)]@io' \<in> ios \<longrightarrow> (\<forall> y' . io@[(x,y')] \<in> L M \<longrightarrow> (\<exists> io''. io@[(x,y')]@io'' \<in> ios)))"
+
+
+lemma pass_io_set_from_pass_io_set_maximal :
+  "pass_io_set_maximal M ios = pass_io_set M {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
+proof -
+  have "\<And> io x y io' . io@[(x,y)]@io' \<in> ios \<Longrightarrow> io@[(x,y)] \<in> {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios}"
+    by auto
+  moreover have "\<And> io x y . io@[(x,y)] \<in> {io' . \<exists> io io'' . io = io'@io'' \<and> io \<in> ios} \<Longrightarrow> \<exists> io' . io@[(x,y)]@io' \<in> ios"
+    by auto
+  ultimately show ?thesis
+    unfolding pass_io_set_def pass_io_set_maximal_def
+    by meson 
+qed
+
+
+lemma pass_io_set_maximal_from_pass_io_set :
+  assumes "finite ios"
+  and     "\<And> io' io'' . io'@io'' \<in> ios \<Longrightarrow> io' \<in> ios"
+shows "pass_io_set M ios = pass_io_set_maximal M {io' \<in> ios . \<not> (\<exists> io'' . io'' \<noteq> [] \<and> io'@io'' \<in> ios)}"
+proof -
+  have "\<And> io x y . io@[(x,y)] \<in> ios \<Longrightarrow> \<exists> io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)}"
+  proof -
+    fix io x y assume "io@[(x,y)] \<in> ios"
+    show "\<exists> io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)}"
+      using finite_set_elem_maximal_extension_ex[OF \<open>io@[(x,y)] \<in> ios\<close> assms(1)] by force
+  qed
+  moreover have "\<And> io x y io' . io@[(x,y)]@io' \<in> {io'' \<in> ios . \<not> (\<exists> io''' . io''' \<noteq> [] \<and> io''@io''' \<in> ios)} \<Longrightarrow> io@[(x,y)] \<in> ios"
+    using \<open>\<And> io' io'' . io'@io'' \<in> ios \<Longrightarrow> io' \<in> ios\<close> by force
+  ultimately show ?thesis
+    unfolding pass_io_set_def pass_io_set_maximal_def 
+    by meson 
+qed
 
 
 subsection \<open>Submachines\<close>
