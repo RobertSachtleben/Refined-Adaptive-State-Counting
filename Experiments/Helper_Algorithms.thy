@@ -1,18 +1,28 @@
+section \<open>Helper Algorithms\<close>
+
+text \<open>This theory contains several algorithms used to calculate components of a test suite.\<close>   
+
 theory Helper_Algorithms
 imports R_Distinguishability State_Separator State_Preamble
 begin
 
 subsection \<open>Calculating r-distinguishable State Pairs with Separators\<close>
 
-definition r_distinguishable_state_pairs_with_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b,'c) fsm) set" where
-  "r_distinguishable_state_pairs_with_separators M = {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M 
-                                                                                \<and> q2 \<in> nodes M 
-                                                                                \<and> ((q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some Sep)
-                                                                                  \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some Sep)) }"
-
-lemma r_distinguishable_state_pairs_with_separators_code :
+definition r_distinguishable_state_pairs_with_separators :: 
+  "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> (('a \<times> 'a) \<times> (('a \<times> 'a) + 'a,'b,'c) fsm) set" 
+  where
   "r_distinguishable_state_pairs_with_separators M = 
-    \<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
+    {((q1,q2),Sep) | q1 q2 Sep . q1 \<in> nodes M 
+                      \<and> q2 \<in> nodes M 
+                      \<and> ((q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some Sep)
+                        \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some Sep)) }"
+
+lemma r_distinguishable_state_pairs_with_separators_alt_def :
+  "r_distinguishable_state_pairs_with_separators M = 
+    \<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) 
+              (Set.filter (\<lambda> (qq,A) . A \<noteq> None) 
+                          (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                 (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
   (is "?P1 = ?P2")
 proof -
   have "\<And> x . x \<in> ?P1 \<Longrightarrow> x \<in> ?P2"
@@ -23,7 +33,8 @@ proof -
     then have "((q1,q2),A) \<in> ?P1" using \<open>x \<in> ?P1\<close> by auto
     then have "q1 \<in> nodes M"
          and  "q2 \<in> nodes M" 
-         and  "((q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some A) \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some A))"
+         and  "((q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some A) 
+                  \<or> (q2 < q1 \<and> state_separator_from_s_states M q2 q1 = Some A))"
       unfolding r_distinguishable_state_pairs_with_separators_def by blast+
 
     then consider (a) "q1 < q2 \<and> state_separator_from_s_states M q1 q2 = Some A" |
@@ -40,7 +51,8 @@ proof -
     then have "((q1,q2),A) \<in> ?P2" using \<open>x \<in> ?P2\<close> by auto
     then obtain q1' q2' A' where "((q1,q2),A) \<in> {((q1',q2'),the A'),((q2',q1'),the A')}"
                            and   "A' \<noteq> None"
-                           and   "((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))"
+                           and   "((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                                            (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))"
       by force
     
     then have "A' = Some A"
@@ -50,7 +62,8 @@ proof -
              and  "q1' < q2'"
              and  "q1' \<in> nodes M"
              and  "q2' \<in> nodes M"
-      using \<open>((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))\<close> 
+      using \<open>((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                      (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))\<close> 
       by force+
     ultimately have "state_separator_from_s_states M q1' q2' = Some A" by simp
 
@@ -80,7 +93,7 @@ proof -
 qed
 
 
-lemma r_distinguishable_state_pairs_with_separators_refined[code] :
+lemma r_distinguishable_state_pairs_with_separators_code[code] :
   "r_distinguishable_state_pairs_with_separators M = 
     set (concat (map 
                   (\<lambda> ((q1,q2),A) . [((q1,q2),the A),((q2,q1),the A)]) 
@@ -90,10 +103,13 @@ lemma r_distinguishable_state_pairs_with_separators_refined[code] :
                                        (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))))"
   (is "r_distinguishable_state_pairs_with_separators M = ?C2")
 proof -
-  let ?C1 = "\<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
+  let ?C1 = "\<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) 
+                       (Set.filter (\<lambda> (qq,A) . A \<noteq> None) 
+                                   (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                          (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
 
-  have "r_distinguishable_state_pairs_with_separators M = \<Union> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
-    using r_distinguishable_state_pairs_with_separators_code by assumption
+  have "r_distinguishable_state_pairs_with_separators M = ?C1"
+    using r_distinguishable_state_pairs_with_separators_alt_def by assumption
   also have "\<dots> = ?C2"
   proof 
     show "?C1 \<subseteq> ?C2"
@@ -104,7 +120,8 @@ proof -
       then have "((q1,q2),A) \<in> ?C1" using \<open>x \<in> ?C1\<close> by auto
       then obtain q1' q2' A' where "((q1,q2),A) \<in> {((q1',q2'),the A'),((q2',q1'),the A')}"
                              and   "A' \<noteq> None"
-                             and   "((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))"
+                             and   "((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                                             (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))"
         by force
       
       then have "A' = Some A"
@@ -114,19 +131,29 @@ proof -
                and  "q1' < q2'"
                and  "q1' \<in> nodes M"
                and  "q2' \<in> nodes M"
-        using \<open>((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))\<close> 
+        using \<open>((q1',q2'), A') \<in> (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                        (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))\<close> 
         by force+
       ultimately have "state_separator_from_s_states M q1' q2' = Some A" 
                  and  "(q1',q2') \<in> set (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))"
         using cartesian_product_list_set' unfolding nodes_as_list_set[symmetric] by auto
 
-      then have "((q1',q2'),A') \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
+      then have "((q1',q2'),A') \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) 
+                                              (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                                   (filter (\<lambda> (q1,q2) . q1 < q2) 
+                                                           (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
         using \<open>A' = state_separator_from_s_states M q1' q2'\<close> \<open>A' = Some A\<close> by force
 
       have scheme1: "\<And> f xs x . x \<in> set xs \<Longrightarrow> f x \<in> set (map f xs)" by auto
       have scheme2: "\<And> x xs xss . xs \<in> set xss \<Longrightarrow> x \<in> set xs \<Longrightarrow> x \<in> set (concat xss)" by auto
-      have *:"[((q1',q2'),the A'),((q2',q1'),the A')] \<in> set (map (\<lambda> ((q1,q2),A) . [((q1,q2),the A),((q2,q1),the A)]) (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M))))))"
-        using scheme1[OF \<open>((q1',q2'),A') \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))\<close>, of "\<lambda> ((q1', q2'), A') . [((q1',q2'),the A'),((q2',q1'),the A')]"] by force
+      have *:"[((q1',q2'),the A'),((q2',q1'),the A')] \<in> 
+                set (map (\<lambda> ((q1,q2),A) . [((q1,q2),the A),((q2,q1),the A)]) 
+                         (filter (\<lambda> (qq,A) . A \<noteq> None) 
+                                 (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                      (filter (\<lambda> (q1,q2) . q1 < q2) 
+                                              (cartesian_product_list (nodes_as_list M) (nodes_as_list M))))))"
+        using scheme1[OF \<open>((q1',q2'),A') \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))\<close>, of "\<lambda> ((q1', q2'), A') . [((q1',q2'),the A'),((q2',q1'),the A')]"] 
+        by force
       have **: "((q1,q2),A) \<in> set [((q1',q2'),the A'),((q2',q1'),the A')]"
         using \<open>((q1,q2),A) \<in> {((q1',q2'),the A'),((q2',q1'),the A')}\<close> by auto
       
@@ -138,14 +165,20 @@ proof -
     proof 
       fix x assume "x \<in> ?C2"
       obtain q1q2A where "x \<in>  set ((\<lambda> ((q1', q2'), A') . [((q1',q2'),the A'),((q2',q1'),the A')]) q1q2A)"
-                   and   "q1q2A \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
+                   and   "q1q2A \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) 
+                                              (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                                   (filter (\<lambda> (q1,q2) . q1 < q2) 
+                                                           (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
         using concat_map_elem[OF \<open>x \<in> ?C2\<close>] by blast
 
       moreover obtain q1 q2 A where "q1q2A = ((q1,q2),A)"
         by (metis prod.collapse)
         
       ultimately have "x \<in> set [((q1,q2),the A),((q2,q1),the A)]"
-                 and  "((q1,q2),A) \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (filter (\<lambda> (q1,q2) . q1 < q2) (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
+                 and  "((q1,q2),A) \<in> set (filter (\<lambda> (qq,A) . A \<noteq> None) 
+                                                 (map (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                                      (filter (\<lambda> (q1,q2) . q1 < q2) 
+                                                              (cartesian_product_list (nodes_as_list M) (nodes_as_list M)))))"
         by force+
 
       then have "A = state_separator_from_s_states M q1 q2"
@@ -157,9 +190,15 @@ proof -
         using cartesian_product_list_set' unfolding nodes_as_list_set[symmetric] by auto
       then have "(q1,q2) \<in> Set.filter (\<lambda>(q1, q2). q1 < q2) (FSM.nodes M \<times> FSM.nodes M)"
         by auto
-      then have "((q1,q2),A) \<in> (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M))))"
+      then have "((q1,q2),A) \<in> (Set.filter (\<lambda> (qq,A) . A \<noteq> None) 
+                                           (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                                  (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M))))"
         using \<open>A \<noteq> None\<close> unfolding \<open>A = state_separator_from_s_states M q1 q2\<close> by auto
-      then have "{((q1,q2),the A),((q2,q1),the A)} \<in> (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) (Set.filter (\<lambda> (qq,A) . A \<noteq> None) (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
+      then have "{((q1,q2),the A),((q2,q1),the A)} \<in> 
+                      (image (\<lambda> ((q1,q2),A) . {((q1,q2),the A),((q2,q1),the A)}) 
+                             (Set.filter (\<lambda> (qq,A) . A \<noteq> None) 
+                                         (image (\<lambda> (q1,q2) . ((q1,q2),state_separator_from_s_states M q1 q2)) 
+                                                (Set.filter (\<lambda> (q1,q2) . q1 < q2) (nodes M \<times> nodes M)))))"
         by (metis (no_types, lifting) \<open>q1q2A = ((q1, q2), A)\<close> case_prod_conv image_iff)
       then show "x \<in> ?C1"
         using \<open>x \<in> set [((q1,q2),the A),((q2,q1),the A)]\<close>
@@ -170,16 +209,6 @@ proof -
   finally show ?thesis .
 qed
   
-
-
-
-
-
-value "r_distinguishable_state_pairs_with_separators m_ex_H"
-value "r_distinguishable_state_pairs_with_separators m_ex_9"
-
-
-
 
 lemma r_distinguishable_state_pairs_with_separators_same_pair_same_separator :
   assumes "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
@@ -196,16 +225,22 @@ shows "A = A'"
   using assms unfolding r_distinguishable_state_pairs_with_separators_def
   by force 
 
+
 lemma r_distinguishable_state_pairs_with_separators_elem_is_separator:
   assumes "((q1,q2),A) \<in> r_distinguishable_state_pairs_with_separators M"
   and     "observable M"
   and     "completely_specified M"
 shows "is_separator M q1 q2 A (Inr q1) (Inr q2)"
 proof -
-  have *:"q1 \<in> nodes M" and **:"q2 \<in> nodes M" and ***:"q1 \<noteq> q2" and ****: "q2\<noteq>q1" and *****: "state_separator_from_s_states M q1 q2 = Some A \<or> state_separator_from_s_states M q2 q1 = Some A"
+  have *:"q1 \<in> nodes M" 
+  and **:"q2 \<in> nodes M" 
+  and ***:"q1 \<noteq> q2" 
+  and ****: "q2\<noteq>q1" 
+  and *****: "state_separator_from_s_states M q1 q2 = Some A \<or> state_separator_from_s_states M q2 q1 = Some A"
     using assms(1) unfolding r_distinguishable_state_pairs_with_separators_def by auto
 
-  from ***** have "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A \<or> is_state_separator_from_canonical_separator (canonical_separator M q2 q1) q2 q1 A"
+  from ***** have "is_state_separator_from_canonical_separator (canonical_separator M q1 q2) q1 q2 A 
+                    \<or> is_state_separator_from_canonical_separator (canonical_separator M q2 q1) q2 q1 A"
     using state_separator_from_s_states_soundness[of M q1 q2 A, OF _ * ** assms(3)]
     using state_separator_from_s_states_soundness[of M q2 q1 A, OF _ ** * assms(3)] by auto
   then show ?thesis
@@ -215,27 +250,29 @@ proof -
 qed
 
 
-subsection \<open>Pairwise r-distinguishable Sets of States\<close>
 
 
-definition pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
-  "pairwise_r_distinguishable_state_sets_from_separators M = { S . S \<subseteq> nodes M \<and> (\<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M))}" 
+subsection \<open>Calculating Pairwise r-distinguishable Sets of States\<close>
 
-definition pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set list" where
-  "pairwise_r_distinguishable_state_sets_from_separators_list M = (let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
-                                                                    in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
-                                                                           (map set (pow_list (nodes_as_list M))))"
 
-(* use a list-based calculation to avoid storing the entire powerset *)
+definition pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
+  "pairwise_r_distinguishable_state_sets_from_separators M 
+    = { S . S \<subseteq> nodes M \<and> (\<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M))}" 
+
+definition pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
+  "pairwise_r_distinguishable_state_sets_from_separators_list M = 
+    (let RDS = image fst (r_distinguishable_state_pairs_with_separators M)
+      in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
+             (map set (pow_list (nodes_as_list M))))"
+
+(* uses a list-based calculation to avoid storing the entire powerset *)
 lemma pairwise_r_distinguishable_state_sets_from_separators_code[code] :
   "pairwise_r_distinguishable_state_sets_from_separators M = set (pairwise_r_distinguishable_state_sets_from_separators_list M)"
   using pow_list_set[of "nodes_as_list M"]
-  unfolding nodes_as_list_set[of M] pairwise_r_distinguishable_state_sets_from_separators_def pairwise_r_distinguishable_state_sets_from_separators_list_def Let_def
+  unfolding nodes_as_list_set[of M] 
+            pairwise_r_distinguishable_state_sets_from_separators_def 
+            pairwise_r_distinguishable_state_sets_from_separators_list_def 
   by auto
-
-
-value "pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
-value "pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
 
 
 lemma pairwise_r_distinguishable_state_sets_from_separators_cover :
@@ -245,36 +282,25 @@ lemma pairwise_r_distinguishable_state_sets_from_separators_cover :
 
 
 
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set set" where
+  "maximal_pairwise_r_distinguishable_state_sets_from_separators M 
+    = { S . S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) 
+            \<and> (\<nexists> S' . S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> S \<subset> S')}"
 
 
-
-definition maximal_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set set" where
-  "maximal_pairwise_r_distinguishable_state_sets_from_separators M = { S . S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> (\<nexists> S' . S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) \<and> S \<subset> S')}"
-
-
-definition maximal_pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set list" where
-  "maximal_pairwise_r_distinguishable_state_sets_from_separators_list M = remove_subsets (pairwise_r_distinguishable_state_sets_from_separators_list M)"
+definition maximal_pairwise_r_distinguishable_state_sets_from_separators_list :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
+  "maximal_pairwise_r_distinguishable_state_sets_from_separators_list M = 
+    remove_subsets (pairwise_r_distinguishable_state_sets_from_separators_list M)"
       
-(*
-lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_code[code] :
-  "maximal_pairwise_r_distinguishable_state_sets_from_separators M = 
-    (let PR = (pairwise_r_distinguishable_state_sets_from_separators M) 
-      in Set.filter (\<lambda> S . \<not>(\<exists> S' \<in> PR . S \<subset> S')) PR)"
-  unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_def Let_def by auto
-
-
-value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
-value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
-*)
 
 
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_code[code] :
-  "maximal_pairwise_r_distinguishable_state_sets_from_separators M = set (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M)"
-  unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_list_def Let_def remove_subsets_set pairwise_r_distinguishable_state_sets_from_separators_code[symmetric] maximal_pairwise_r_distinguishable_state_sets_from_separators_def by blast
-
-value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
-value "maximal_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
-
+  "maximal_pairwise_r_distinguishable_state_sets_from_separators M 
+    = set (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M)"
+  unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_list_def 
+            Let_def remove_subsets_set pairwise_r_distinguishable_state_sets_from_separators_code[symmetric] 
+            maximal_pairwise_r_distinguishable_state_sets_from_separators_def 
+  by blast
 
 
 lemma maximal_pairwise_r_distinguishable_state_sets_from_separators_cover :
@@ -288,17 +314,22 @@ proof -
     unfolding pairwise_r_distinguishable_state_sets_from_separators_def by (simp add: fsm_nodes_finite) 
 
   have "(maximal_pairwise_r_distinguishable_state_sets_from_separators M) = 
-        {S \<in> (pairwise_r_distinguishable_state_sets_from_separators M). \<not>(\<exists> S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . S \<subset> S')}"
-    unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_def  pairwise_r_distinguishable_state_sets_from_separators_def by metis
+        {S \<in> (pairwise_r_distinguishable_state_sets_from_separators M). 
+            \<not>(\<exists> S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . S \<subset> S')}"
+    unfolding maximal_pairwise_r_distinguishable_state_sets_from_separators_def  
+              pairwise_r_distinguishable_state_sets_from_separators_def 
+    by metis
   then have "(maximal_pairwise_r_distinguishable_state_sets_from_separators M) = 
-        {S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . (\<forall> S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . \<not> S \<subset> S')}"
+        {S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . 
+              (\<forall> S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . \<not> S \<subset> S')}"
     by blast 
-  moreover have "\<exists> S \<in> {S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . (\<forall> S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . \<not> S \<subset> S')} . q \<in> S"
-    using maximal_set_cover[OF ** *] by blast
-  ultimately show ?thesis by blast 
+  moreover have "\<exists> S \<in> {S \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . 
+                      (\<forall> S' \<in> (pairwise_r_distinguishable_state_sets_from_separators M) . \<not> S \<subset> S')} . q \<in> S"
+    using maximal_set_cover[OF ** *] 
+    by blast
+  ultimately show ?thesis 
+    by blast 
 qed
-
-
 
 
 
@@ -309,9 +340,12 @@ subsection \<open>Calculating d-reachable States with Preambles\<close>
 
 
 (* calculate d-reachable states and a fixed assignment of preambles *)
-definition d_reachable_states_with_preambles :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a \<times> ('a,'b,'c::linorder) fsm) set" where
-  "d_reachable_states_with_preambles M = image (\<lambda> qp . (fst qp, the (snd qp))) (Set.filter (\<lambda> qp . snd qp \<noteq> None) (image (\<lambda> q . (q, calculate_state_preamble_from_input_choices M q)) (nodes M)))"
-
+definition d_reachable_states_with_preambles :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a \<times> ('a,'b,'c) fsm) set" where
+  "d_reachable_states_with_preambles M = 
+    image (\<lambda> qp . (fst qp, the (snd qp))) 
+          (Set.filter (\<lambda> qp . snd qp \<noteq> None) 
+                      (image (\<lambda> q . (q, calculate_state_preamble_from_input_choices M q)) 
+                             (nodes M)))"
 
 
 lemma d_reachable_states_with_preambles_exhaustiveness :
@@ -331,12 +365,21 @@ lemma d_reachable_states_with_preambles_soundness :
   unfolding d_reachable_states_with_preambles_def
   using imageE by auto
 
-definition maximal_repetition_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) set" where
-  "maximal_repetition_sets_from_separators M = {(S, S \<inter> (image fst (d_reachable_states_with_preambles M))) | S . S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}"
 
-definition maximal_repetition_sets_from_separators_list_naive :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
-  "maximal_repetition_sets_from_separators_list_naive M = (let DR = (image fst (d_reachable_states_with_preambles M))
-    in  map (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M))"
+subsection \<open>Calculating Repetition Sets\<close>
+
+text \<open>Repetition sets are sets of tuples each containing a maximal set of pairwise r-distinguishable 
+      states and the subset of those states that have a preamble.\<close> 
+
+definition maximal_repetition_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) set" where
+  "maximal_repetition_sets_from_separators M 
+    = {(S, S \<inter> (image fst (d_reachable_states_with_preambles M))) | S . 
+            S \<in> (maximal_pairwise_r_distinguishable_state_sets_from_separators M)}"
+
+definition maximal_repetition_sets_from_separators_list_naive :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
+  "maximal_repetition_sets_from_separators_list_naive M 
+    = (let DR = (image fst (d_reachable_states_with_preambles M))
+        in map (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M))"
 
 
 lemma maximal_repetition_sets_from_separators_code[code]: 
@@ -344,24 +387,21 @@ lemma maximal_repetition_sets_from_separators_code[code]:
     in  image (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators M))" 
   unfolding maximal_repetition_sets_from_separators_def Let_def by force
 
-(* TODO: decide which code equation to use *)
 lemma maximal_repetition_sets_from_separators_code_alt: 
   "maximal_repetition_sets_from_separators M = set (maximal_repetition_sets_from_separators_list_naive M)" 
-  unfolding maximal_repetition_sets_from_separators_def maximal_repetition_sets_from_separators_list_naive_def Let_def maximal_pairwise_r_distinguishable_state_sets_from_separators_code by force
-
-
-value "maximal_repetition_sets_from_separators m_ex_H"
-value "maximal_repetition_sets_from_separators m_ex_9"
-
-
-
+  unfolding maximal_repetition_sets_from_separators_def 
+            maximal_repetition_sets_from_separators_list_naive_def 
+            maximal_pairwise_r_distinguishable_state_sets_from_separators_code 
+  by force
 
 
 
 subsubsection \<open>Calculating Sub-Optimal Repetition Sets\<close>
 
 text \<open>Finding maximal pairwise r-distinguishable subsets of the node set of some FSM is likely too expensive
-      for FSMs containing a large number of r-distinguishable pairs of states\<close>
+      for FSMs containing a large number of r-distinguishable pairs of states.
+      The following functions calculate only subset of all repetition sets while maintaining the
+      property that every state is contained in some repetition set.\<close>
 
 fun extend_until_conflict :: "('a \<times> 'a) set \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> nat \<Rightarrow> 'a list" where
   "extend_until_conflict non_confl_set candidates xs 0 = xs" |
@@ -369,9 +409,6 @@ fun extend_until_conflict :: "('a \<times> 'a) set \<Rightarrow> 'a list \<Right
     [] \<Rightarrow> xs |
     (c#cs) \<Rightarrow> extend_until_conflict non_confl_set cs (c#xs) k)"
 
-
-value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [3,2,5,4] [1] 5"
-value "extend_until_conflict {(1::nat,2),(2,1),(1,3),(3,1),(2,4),(4,2)} [2,3,4,5] [1] 5"
 
 lemma extend_until_conflict_retainment :
   assumes "x \<in> set xs"
@@ -417,6 +454,7 @@ next
   qed
 qed
 
+
 lemma extend_until_conflict_no_conflicts :
   assumes "x \<in> set (extend_until_conflict non_confl_set candidates xs k)"
   and     "y \<in> set (extend_until_conflict non_confl_set candidates xs k)"
@@ -442,8 +480,6 @@ next
          and  yk: "y \<in> set (extend_until_conflict non_confl_set cs (c#xs) k)"
       using Suc.prems by auto
 
-    
-
     have **: "x \<in> set (c#xs) \<Longrightarrow> y \<in> set (c#xs) \<Longrightarrow> (x,y) \<in> non_confl_set \<or> (y,x) \<in> non_confl_set"
     proof -
       have scheme: "\<And> P xs x xs' . dropWhile P xs = (x#xs') \<Longrightarrow> \<not> P x"
@@ -467,27 +503,18 @@ next
 qed
 
 
-
-
-
-
-(* Greedy algorithm that finds one maximal pairwise r-distinguishable set for each state *)
-definition greedy_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a set list" where
+definition greedy_pairwise_r_distinguishable_state_sets_from_separators :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a set list" where
   "greedy_pairwise_r_distinguishable_state_sets_from_separators M = 
     (let pwrds = image fst (r_distinguishable_state_pairs_with_separators M);
          k     = size M;
          nL    = nodes_as_list M
      in map (\<lambda>q . set (extend_until_conflict pwrds (remove1 q nL) [q] k)) nL)"
 
-definition maximal_repetition_sets_from_separators_list_greedy :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
+definition maximal_repetition_sets_from_separators_list_greedy :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
   "maximal_repetition_sets_from_separators_list_greedy M = (let DR = (image fst (d_reachable_states_with_preambles M))
     in remdups (map (\<lambda> S . (S, S \<inter> DR)) (greedy_pairwise_r_distinguishable_state_sets_from_separators M)))"
 
 
-
-
-value "greedy_pairwise_r_distinguishable_state_sets_from_separators m_ex_H"
-value "greedy_pairwise_r_distinguishable_state_sets_from_separators m_ex_9"
 
 lemma greedy_pairwise_r_distinguishable_state_sets_from_separators_cover :
   assumes "q \<in> nodes M"
@@ -499,7 +526,9 @@ shows "\<exists> S \<in> set (greedy_pairwise_r_distinguishable_state_sets_from_
 lemma r_distinguishable_state_pairs_with_separators_sym :
   assumes "(q1,q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M"
   shows "(q2,q1) \<in> fst ` r_distinguishable_state_pairs_with_separators M" 
-  using assms unfolding r_distinguishable_state_pairs_with_separators_def by force
+  using assms 
+  unfolding r_distinguishable_state_pairs_with_separators_def 
+  by force
 
 
 lemma greedy_pairwise_r_distinguishable_state_sets_from_separators_soundness :
@@ -507,8 +536,12 @@ lemma greedy_pairwise_r_distinguishable_state_sets_from_separators_soundness :
 proof 
   fix S assume "S \<in> set (greedy_pairwise_r_distinguishable_state_sets_from_separators M)"
   then obtain q' where "q' \<in> nodes M"
-                 and   *: "S = set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
-    unfolding greedy_pairwise_r_distinguishable_state_sets_from_separators_def Let_def nodes_as_list_set[symmetric] by auto
+                 and   *: "S = set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) 
+                                                          (remove1 q' (nodes_as_list M)) 
+                                                          [q'] 
+                                                          (size M))"
+    unfolding greedy_pairwise_r_distinguishable_state_sets_from_separators_def Let_def nodes_as_list_set[symmetric] 
+    by auto
 
 
   have "S \<subseteq> nodes M"
@@ -527,7 +560,9 @@ proof
     then have e1: "q1 \<in> set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
          and  e2: "q2 \<in> set (extend_until_conflict (image fst (r_distinguishable_state_pairs_with_separators M)) (remove1 q' (nodes_as_list M)) [q'] (size M))"
       unfolding * by simp+
-    have e3: "(q1 \<in> set [q'] \<Longrightarrow> q2 \<in> set [q'] \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M \<or> (q2, q1) \<in> fst ` r_distinguishable_state_pairs_with_separators M)"
+    have e3: "(q1 \<in> set [q'] \<Longrightarrow> q2 \<in> set [q'] 
+              \<Longrightarrow> (q1, q2) \<in> fst ` r_distinguishable_state_pairs_with_separators M 
+                  \<or> (q2, q1) \<in> fst ` r_distinguishable_state_pairs_with_separators M)"
       using \<open>q1 \<noteq> q2\<close> by auto
 
     show "(q1,q2) \<in> image fst (r_distinguishable_state_pairs_with_separators M)"

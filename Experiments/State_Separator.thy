@@ -3226,12 +3226,12 @@ text \<open>A state separator for states @{text "q1"} and @{text "q2"} can be ca
       reachability analysis starting from the two deadlock states of their canonical separator until
       @{text "Inl (q1.q2)"} is reached or it is not possible to reach @{text "(q1,q2)"}.\<close>
 
-definition s_states :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b) list" where
+definition s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> ((('a \<times> 'a) + 'a) \<times> 'b) list" where
   "s_states M q1 q2 = (let C = canonical_separator M q1 q2
    in select_inputs (h C) (initial C) (inputs_as_list C) (remove1 (Inl (q1,q2)) (remove1 (Inr q1) (remove1 (Inr q2) (nodes_as_list C)))) {Inr q1, Inr q2} [])"
 
 
-definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm option" 
+definition state_separator_from_s_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> (('a \<times> 'a) + 'a, 'b, 'c) fsm option" 
   where
   "state_separator_from_s_states M q1 q2 = 
     (let cs = s_states M q1 q2 
