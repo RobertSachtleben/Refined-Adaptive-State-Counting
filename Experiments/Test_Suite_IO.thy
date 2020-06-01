@@ -1432,7 +1432,7 @@ subsection \<open>Using Maximal Sequences Only\<close>
 
 
 
-fun test_suite_to_io'_maximal :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a,'b,'c,'d::linorder) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
+fun test_suite_to_io'_maximal :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> ('a,'b,'c,'d::linorder) test_suite \<Rightarrow> ('b \<times> 'c) list set" where
   "test_suite_to_io'_maximal M (Test_Suite prs tps rd_targets atcs) = 
       remove_proper_prefixes (\<Union> (q,P) \<in> prs . L_acyclic P \<union> (\<Union> ioP \<in> remove_proper_prefixes (L_acyclic P) . \<Union> pt \<in> tps q . Set.insert (ioP @ p_io pt) (\<Union> q' \<in> rd_targets (q,pt) . \<Union> (A,t1,t2) \<in> atcs (target q pt,q') . (\<lambda> io_atc . ioP @ p_io pt @ io_atc) ` (remove_proper_prefixes (acyclic_language_intersection (from_FSM M (target q pt)) A)))))"
 

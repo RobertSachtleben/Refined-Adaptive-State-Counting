@@ -140,6 +140,32 @@ notation member_option ("(_\<in>\<^sub>o_)" [1000] 1000)
 abbreviation(input) "lookup_with_default f d \<equiv> (\<lambda> x . case f x of None \<Rightarrow> d | Some xs \<Rightarrow> xs)"
 abbreviation(input) "m2f f \<equiv> lookup_with_default f {}" 
 
+abbreviation(input) "lookup_with_default_by f g d \<equiv> (\<lambda> x . case f x of None \<Rightarrow> g d | Some xs \<Rightarrow> g xs)"
+abbreviation(input) "m2f_by g f \<equiv> lookup_with_default_by f g {}" 
+
+lemma m2f_by_from_m2f :
+  "(m2f_by g f xs) = g (m2f f xs)"
+  by (simp add: option.case_eq_if) 
+
+
+lemma set_as_map_containment :
+  assumes "(x,y) \<in> zs"
+  shows "y \<in> (m2f (set_as_map zs)) x"
+  using assms unfolding set_as_map_def
+  by auto 
+
+lemma set_as_map_elem :
+  assumes "y \<in> m2f (set_as_map xs) x" 
+shows "(x,y) \<in> xs" 
+using assms unfolding set_as_map_def
+proof -
+  assume a1: "y \<in> (case if \<exists>z. (x, z) \<in> xs then Some {z. (x, z) \<in> xs} else None of None \<Rightarrow> {} | Some xs \<Rightarrow> xs)"
+  then have "\<exists>a. (x, a) \<in> xs"
+    using all_not_in_conv by fastforce
+  then show ?thesis
+    using a1 by simp
+qed 
+
 
 subsection \<open>Utility Lemmata for existing functions on lists\<close>
 
@@ -2831,6 +2857,31 @@ proof -
 
   ultimately show ?thesis
     by linarith 
+qed
+
+
+lemma set_concat_elem :
+  assumes "x \<in> set (concat xss)"
+  obtains xs where "xs \<in> set xss" and "x \<in> set xs" 
+  using assms by auto
+
+lemma set_map_elem :
+  assumes "y \<in> set (map f xs)"
+  obtains x where "y = f x" and "x \<in> set xs" 
+  using assms by auto
+
+lemma finite_snd_helper: 
+  assumes "finite xs" 
+  shows "finite {z. ((q, p), z) \<in> xs}" 
+proof -
+  have "{z. ((q, p), z) \<in> xs} \<subseteq> (\<lambda>((a,b),c) . c) ` xs" 
+  proof 
+    fix x assume "x \<in> {z. ((q, p), z) \<in> xs}"
+    then have "((q,p),x) \<in> xs" by auto
+    then show "x \<in> (\<lambda>((a,b),c) . c) ` xs" by force
+  qed
+  then show ?thesis using assms
+    using finite_surj by blast 
 qed
 
 end
