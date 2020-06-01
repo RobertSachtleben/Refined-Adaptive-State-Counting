@@ -1,29 +1,20 @@
+section \<open>Refined Test Suite Calculation\<close>
+
+text \<open>This theory refines some of the algorithms defined in @{text "Test_Suite_Calculation"}
+      using containser from the Containers framework.\<close>
+
 theory Test_Suite_Calculation_Refined
   imports Test_Suite_Calculation 
-          "HOL-Library.Product_Lexorder"
-          HOL.Record
           Deriving.Compare
           Containers.Containers
-          "HOL-Library.Code_Target_Nat"
-          (*"HOL-Library.Code_Target_Int"*)
-          (*"HOL-Library.Code_Binary_Nat"*)
-          State_Separator_Calculation_Alternative
 begin
 
 
 
 subsection \<open>New Instances\<close>
 
+subsubsection \<open>Order on FSMs\<close>
 
-(*
-
-(* TODO: linear order on FSMs can be created using set_less_aux or similar functions, as all
-         contained sets are finite - but this is probably not that efficient/necessary,
-         as sets of FSMs only occur at one point in the algorithm (collecting ATCs to append
-         after the same path), after which the FSMs are translated to path sets anyway.
-         Still, the instantiation can be made later to profile whether it has any positive
-         effect on performance.
-*)
 instantiation fsm :: (ord,ord,ord) ord
 begin
 
@@ -49,16 +40,13 @@ end
 instantiation fsm :: (linorder,linorder,linorder) linorder
 begin
 
-
-
 lemma less_le_not_le_FSM :
   fixes x :: "('a,'b,'c) fsm"
   and   y :: "('a,'b,'c) fsm"
 shows "(x < y) = (x \<le> y \<and> \<not> y \<le> x)"
 proof 
   show "x < y \<Longrightarrow> x \<le> y \<and> \<not> y \<le> x" 
-    
-   
+       
   proof -
     assume "x < y"
     then show "x \<le> y \<and> \<not> y \<le> x"
@@ -88,32 +76,42 @@ proof
         next
           case False
           then have ***: "FSM.inputs x = FSM.inputs y"
-            using \<open>x < y\<close> * ** unfolding less_fsm.simps less_eq_fsm.simps by (simp add: set_less_def)
+            using \<open>x < y\<close> * ** 
+            unfolding less_fsm.simps less_eq_fsm.simps 
+            by (simp add: set_less_def)
           
           show ?thesis proof (cases "set_less_aux (FSM.outputs x) (FSM.outputs y)")
             case True
             then show ?thesis 
               unfolding less_fsm.simps less_eq_fsm.simps 
-              using * ** *** set_less_aux_antisym by fastforce
+              using * ** *** set_less_aux_antisym 
+              by fastforce
           next
             case False
             then have ****: "FSM.outputs x = FSM.outputs y"
-              using \<open>x < y\<close> * ** *** unfolding less_fsm.simps less_eq_fsm.simps by (simp add: set_less_def)
+              using \<open>x < y\<close> * ** *** 
+              unfolding less_fsm.simps less_eq_fsm.simps 
+              by (simp add: set_less_def)
 
 
             have "x \<noteq> y" using \<open>x < y\<close> by auto
             then have "FSM.transitions x \<noteq> FSM.transitions y"
               using * ** *** **** by (transfer; auto)
             then have *****: "set_less_aux (FSM.transitions x) (FSM.transitions y)"
-              using \<open>x < y\<close> * ** *** **** unfolding less_fsm.simps less_eq_fsm.simps by (simp add: set_less_aux_def)
+              using \<open>x < y\<close> * ** *** **** 
+              unfolding less_fsm.simps less_eq_fsm.simps 
+              by (simp add: set_less_aux_def)
 
             then have "\<not>(set_less_aux (FSM.transitions y) (FSM.transitions x) \<or> transitions y = transitions x)"
-              using \<open>FSM.transitions x \<noteq> FSM.transitions y\<close> fsm_transitions_finite set_less_aux_antisym by auto
+              using \<open>FSM.transitions x \<noteq> FSM.transitions y\<close> fsm_transitions_finite set_less_aux_antisym 
+              by auto
             then have "\<not> y \<le> x"
-              using * ** *** **** unfolding less_fsm.simps less_eq_fsm.simps 
+              using * ** *** **** 
+              unfolding less_fsm.simps less_eq_fsm.simps 
               by (simp add: set_less_def)
             then show ?thesis using \<open>x < y\<close> 
-              using less_fsm.elims(2) by blast
+              using less_fsm.elims(2) 
+              by blast
           qed
         qed
       qed
@@ -121,7 +119,8 @@ proof
   qed
 
   show "x \<le> y \<and> \<not> y \<le> x \<Longrightarrow> x < y"
-    using less_fsm.elims(3) by blast
+    using less_fsm.elims(3) 
+    by blast
 qed
 
     
@@ -178,7 +177,10 @@ instance
   by (intro_classes; simp add: comparator_def)
 end
 
-
+(* The above order on FSMs is currently not used in code generation,
+   as there are few sets of FSMs and hence on evaluated examples it is
+   more efficient to simply store FSMs using d-lists.*)
+(*
 instantiation fsm :: (linorder,linorder,linorder) ccompare
 begin
 definition ccompare_fsm :: "(('a, 'b, 'c) fsm \<Rightarrow> ('a, 'b, 'c) fsm \<Rightarrow> order) option" where
@@ -191,7 +193,6 @@ end
 
 subsubsection \<open>Derived Instances\<close>
 
-(* TODO: experiment with different set-impls for fsms *)
 derive (eq) ceq fsm
 
 derive (dlist) set_impl fsm
@@ -199,17 +200,15 @@ derive (assoclist) mapping_impl fsm
 
 derive (no) cenum fsm
 derive (no) ccompare fsm
-print_derives
 
 
+subsubsection \<open>Finiteness and Cardinality Instantiations for FSMs\<close>
 
-
-subsection \<open>Finiteness and Cardinality Instantiations for FSMs\<close>
-
-
-(* class to encode the constraint that the types used for FSM elements in the following sections are to be infinite to reduce the
-   effort required for instance proofs *)
-(* this is not the best idea, see for example https://lists.cam.ac.uk/pipermail/cl-isabelle-users/2013-July/msg00104.html *)
+text \<open>The following type class partially encodes infinity of a type.
+      This is done as later instantiations assume the universe of FSMs to be infinite, as this
+      reduces the effort required to instantiate proper intervals over FSMs.
+      This class is not a good idea for any general usage, as many types (e.g. pairs) have
+      conflicting instantiations (see for example https://lists.cam.ac.uk/pipermail/cl-isabelle-users/2013-July/msg00104.html).\<close>
 class infinite_UNIV =
   assumes infinite_UNIV: "infinite (UNIV :: 'a set)"
 begin
@@ -292,9 +291,9 @@ end
 
 
 
-subsection \<open>Updating Code Equations\<close>
+subsection \<open>Updated Code Equations\<close>
 
-subsubsection \<open>New Code Generation for set_as_map\<close>
+subsubsection \<open>New Code Equations for @{text "set_as_map"}\<close>
 
 declare [[code drop: set_as_map]]
 
@@ -560,7 +559,7 @@ qed
 
 
 
-subsubsection \<open>New Code Generation for @{text "remove_proper_prefixes"}\<close>
+subsubsection \<open>New Code Equations for @{text "remove_proper_prefixes"}\<close>
 
 declare [[code drop: remove_proper_prefixes]]
 
@@ -597,23 +596,15 @@ qed
 
 
 
-subsection \<open>Export Test Suite Generator\<close>
-
-definition generate_test_suite_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
-  "generate_test_suite_naive M m = calculate_test_suite_naive_as_io_sequences M (nat_of_integer m)"
-
-definition generate_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
-  "generate_test_suite_greedy M m = calculate_test_suite_greedy_as_io_sequences M (nat_of_integer m)"
 
 
 
 
 
+subsubsection \<open>Special Handling for @{text "set_as_map"} on @{text "image"}\<close>
 
 
-subsubsection \<open>Special Handling for set_as_map With Image\<close>
-
-text \<open>Avoid creating an intermediate set (image f xs) when evaluating (set_as_map (image f xs)).\<close>
+text \<open>Avoid creating an intermediate set for @{text "(image f xs)"} when evaluating @{text "(set_as_map (image f xs))"}.\<close>
 
 definition set_as_map_image :: "('a1 \<times> 'a2) set \<Rightarrow> (('a1 \<times> 'a2) \<Rightarrow> ('b1 \<times> 'b2)) \<Rightarrow> ('b1 \<Rightarrow> 'b2 set option)" where 
   "set_as_map_image xs f = (set_as_map (image f xs))"
@@ -749,16 +740,6 @@ next
 qed
 
 
-
-
-
-
-
-
-lemma fold_dual : "fold (\<lambda> x (a1,a2) . (g1 x a1, g2 x a2)) xs (a1,a2) = (fold g1 xs a1, fold g2 xs a2)"
-  by (induction xs arbitrary: a1 a2; auto)
-
-
 lemma dual_set_as_map_image_code[code] :
   fixes t :: "('a1 ::ccompare \<times> 'a2 :: ccompare) set_rbt" 
   and   f1 :: "('a1 \<times> 'a2) \<Rightarrow> ('b1 :: ccompare \<times> 'b2 ::ccompare)"
@@ -815,13 +796,17 @@ qed
 
 
 
-
-
-(* use set_as_map_image wherever a set_as_map (image ... ) occurs *)
+subsubsection \<open>New Code Equations for @{text "h"}\<close>
 
 declare [[code drop: h]]
-lemma h_refined[code] : "h M (q,x) = (let m = set_as_map_image (transitions M) (\<lambda>(q,x,y,q') . ((q,x),y,q')) in (case m (q,x) of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
+lemma h_refined[code] : "h M (q,x) 
+  = (let m = set_as_map_image (transitions M) (\<lambda>(q,x,y,q') . ((q,x),y,q')) 
+      in (case m (q,x) of Some yqs \<Rightarrow> yqs | None \<Rightarrow> {}))"
   unfolding h_code set_as_map_image_def by simp
+
+
+
+subsubsection \<open>New Code Equations for @{text "canonical_separator'"}\<close>
 
 lemma canonical_separator'_refined[code] : 
   fixes M :: "('a,'b,'c) fsm_impl"
@@ -843,6 +828,8 @@ lemma canonical_separator'_refined[code] :
   else \<lparr> FSM_Impl.fsm_impl.initial = Inl (q1,q2), FSM_Impl.fsm_impl.nodes = {Inl (q1,q2)}, FSM_Impl.fsm_impl.inputs = {}, FSM_Impl.fsm_impl.outputs = {}, FSM_Impl.fsm_impl.transitions = {}\<rparr>)"
   unfolding set_as_map_image_def by simp
 
+
+subsubsection \<open>New Code Equations for @{text "calculate_test_paths"}\<close>
 
 lemma calculate_test_paths_refined[code] : 
   "calculate_test_paths M m d_reachable_nodes r_distinguishable_pairs repetition_sets =
@@ -871,10 +858,11 @@ lemma calculate_test_paths_refined[code] :
               = m2f (snd dual_maps)     
     in ( tps, rd_targets))"
 
-  unfolding calculate_test_paths_def Let_def dual_set_as_map_image_def fst_conv snd_conv set_as_map_image_def by simp
+  unfolding calculate_test_paths_def Let_def dual_set_as_map_image_def fst_conv snd_conv set_as_map_image_def 
+  by simp
 
 
-
+subsubsection \<open>New Code Equations for @{text "prefix_pair_tests"}\<close>
 
 fun target' :: "'state \<Rightarrow> ('state, 'input, 'output) path \<Rightarrow> 'state" where
   "target' q [] = q" |
@@ -892,11 +880,6 @@ next
     by (metis (no_types, lifting) last_ConsR last_map list.map_disc_iff target'.elims) 
 qed
 
-
-
-
-
-
 declare [[code drop: prefix_pair_tests]]
 lemma prefix_pair_tests_refined[code] :
 fixes t :: "(('a ::ccompare,'b::ccompare,'c::ccompare) traversal_Path \<times> ('a set \<times> 'a set)) set_rbt" 
@@ -913,8 +896,7 @@ proof (cases "ID CCOMPARE((('a ::ccompare,'b::ccompare,'c::ccompare) traversal_P
   case None
   then show ?thesis by auto
 next
-  case (Some a) 
-  
+  case (Some a)   
 
   have *: "?C = (\<Union>(image (\<lambda> (p,(rd,dr)) . \<Union> (set (map (\<lambda> (p1,p2) . {(q,p1,(target q p2)), (q,p2,(target q p1))}) (filter (\<lambda> (p1,p2) . (target q p1) \<in> rd \<and> (target q p2) \<in> rd \<and> (target q p1) \<noteq> (target q p2)) (prefix_pairs p))))) (set (RBT_Set2.keys t))))"
   proof -
@@ -978,7 +960,7 @@ next
 qed
 
 
-
+subsubsection \<open>New Code Equations for @{text "preamble_prefix_tests"}\<close>
 
 declare [[code drop: preamble_prefix_tests]]
 lemma preamble_prefix_tests_refined[code] :
@@ -1095,381 +1077,5 @@ next
     ultimately show ?thesis by simp
   qed
 qed
-
-
-
-
-
-(* integer specialization of maximal_repetition_sets_from_separators_list *)
-definition count_maximal_repetition_sets_from_separators_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer" where
-  "count_maximal_repetition_sets_from_separators_naive M = integer_of_nat (length (maximal_repetition_sets_from_separators_list_naive M))"
-
-definition count_test_suite_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> integer" where
-  "count_test_suite_naive M m = integer_of_nat (card (generate_test_suite_naive M m))"
-
-definition count_maximal_repetition_sets_from_separators_greedy :: "(integer,integer,integer) fsm \<Rightarrow> integer" where
-  "count_maximal_repetition_sets_from_separators_greedy M = integer_of_nat (length (maximal_repetition_sets_from_separators_list_greedy M))"
-
-definition count_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> integer" where
-  "count_test_suite_greedy M m = integer_of_nat (card (generate_test_suite_greedy M m))"
-
-
-
-
-
-definition state_separators_from_s_states_generator_integer :: "(integer,integer,integer) fsm \<Rightarrow> ((integer \<times> integer) \<times> (((integer \<times> integer) + LR, integer, integer) fsm)) list" where
-  "state_separators_from_s_states_generator_integer M = state_separators_from_s_states_generator M"
-
-derive (eq) ceq LR
-derive (linorder) compare LR
-derive (compare) ccompare LR
-derive (choose) set_impl LR
-derive (choose) mapping_impl LR
-
-instantiation LR :: finite_UNIV begin
-lemma finite_lr: "finite (UNIV :: LR set)"
-proof -
-  have "(UNIV :: LR set) = {Left,Right}"
-    using LR.exhaust by auto 
-  then show ?thesis 
-    using finite.simps by auto
-qed
-
-definition "finite_UNIV = Phantom(LR) True" 
-instance apply intro_classes 
-  using finite_UNIV_LR_def finite_lr by auto     
-end
-
-instantiation LR :: enum begin
-definition "enum_LR = [Left,Right]"
-definition "enum_all_LR P = (P Left \<and> P Right)"
-definition "enum_ex_LR P = (P Left \<or> P Right)"
-
-instance apply intro_classes proof -
-  show "(UNIV :: LR set) = set enum_class.enum"
-    unfolding enum_LR_def using LR.exhaust by auto
-  show "distinct (enum_class.enum :: LR list)"
-    unfolding enum_LR_def by simp 
-  show "\<And>P. enum_class.enum_all P = Ball (UNIV :: LR set) P"
-    unfolding enum_all_LR_def using LR.exhaust by (metis (full_types) UNIV_I) 
-  show "\<And>P. enum_class.enum_ex P = Bex (UNIV :: LR set) P"
-    unfolding enum_ex_LR_def using LR.exhaust by (metis (full_types) UNIV_I) 
-qed
-end
-
-instantiation LR :: cenum begin
-definition "CENUM(LR) = Some (enum_class.enum, enum_class.enum_all, enum_class.enum_ex)"
-instance by(intro_classes)(auto simp add: cEnum_LR_def enum_UNIV enum_all_UNIV enum_ex_UNIV)
-end
-
-instantiation LR :: proper_interval begin
-fun proper_interval_LR :: "LR proper_interval" where
-  "proper_interval_LR (Some x) (Some y) \<longleftrightarrow> False"
-| "proper_interval_LR (Some x) None \<longleftrightarrow> x = Left"
-| "proper_interval_LR None (Some y) \<longleftrightarrow> y = Right"
-| "proper_interval_LR None None = True"
-instance apply intro_classes
-  apply simp
-  apply (metis (full_types) LR.exhaust LR.simps(3) LR.simps(4) LR.simps(5) LR.simps(6) less_LR_def proper_interval_LR.simps(3))
-  apply (metis (full_types) LR.exhaust LR.simps(3) LR.simps(4) LR.simps(5) LR.simps(6) less_LR_def proper_interval_LR.simps(2))
-  by (metis LR.exhaust not_less_iff_gr_or_eq proper_interval_LR.simps(1))
-end
-
-
-
-instantiation LR :: cproper_interval begin
-definition "cproper_interval = (proper_interval :: LR proper_interval)"
-instance apply intro_classes proof 
-  assume "ID (ccompare :: LR comparator option) \<noteq> None" and  "finite (UNIV :: LR set)"
-
-  then have "cless = lt_of_comp (compare :: LR comparator)" 
-    unfolding ccompare_LR_def by (simp add: ID_code) 
-  then have *: "(cless :: LR \<Rightarrow> LR \<Rightarrow> bool) = (<)"
-    unfolding compare_LR_def
-    by (simp add: le_lt_comparator_of(2)) 
-
-  show "cproper_interval (None :: LR option) None = True"
-    by (simp add: cproper_interval_LR_def) 
-  show "\<And> y. cproper_interval (None :: LR option) (Some y) = (\<exists>z. cless z y)" and "\<And> x. cproper_interval (Some x) (None :: LR option) = (\<exists>z. cless x z)" and "\<And> x y . cproper_interval (Some (x :: LR)) (Some y) = (\<exists>z. cless x z \<and> cless z y)"
-    unfolding * cproper_interval_LR_def proper_interval_LR.simps
-    by (metis (full_types) LR.exhaust LR.simps(3) LR.simps(4) LR.simps(5) LR.simps(6) less_LR_def)+ 
-qed
-end
-
-
-
-
-instantiation LR :: card_UNIV begin
-lemma univ_lr : "(UNIV :: LR set) = {Left,Right}"
-  using LR.exhaust by auto
-definition "card_UNIV = Phantom(LR) 2" 
-instance apply intro_classes by (simp add: card_UNIV_LR_def univ_lr)    
-end
-
-
-
-export_code generate_test_suite_naive generate_test_suite_greedy 
-            count_test_suite_naive count_maximal_repetition_sets_from_separators_naive 
-            count_test_suite_greedy count_maximal_repetition_sets_from_separators_greedy
-            fsm_from_list size integer_of_nat 
-            state_separator_from_s_states
-            nodes_as_list
-            state_separators_from_s_states_generator_integer
-in Haskell module_name FSMalt
-
-
-end (*
-
-subsection \<open>New Code Equation for m_traversal_paths_with_witness_up_to_length\<close>
-
-
-
-
-value "size m_ex_DR"
-
-(* IDEA: combine the count-update and the search for a satisfying rep-set into one pass over the affected sets 
-thm foldr.simps (*f x \<circ> foldr f xs*)  (*foldl f (f a x) xs*)
-fun find_foldl :: "('a \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b \<Rightarrow> 'a + 'b" where
-  "find_foldr f P [] b = Inr b" |
-  "find_foldr f P (x#xs) b = (let f x = fx in if P x fx then 
-
-*)
-    
-    
-
-
-
-fun m_traversal_paths_calc' :: "('a \<Rightarrow> ('b \<times> 'c \<times> 'a) set) \<Rightarrow> ('a set \<times> 'a set, nat) mapping \<Rightarrow> ('a \<Rightarrow> ('a set \<times> 'a set) list) \<Rightarrow>  ('a,'b,'c) path \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> ('a set \<times> 'a set)) set" where
-  "m_traversal_paths_calc' f goal_cnts affected_sets prev 0 q = (case find (\<lambda>w . Mapping.lookup goal_cnts w = Some 0) (affected_sets q) of Some w \<Rightarrow> {(prev,w)} | None \<Rightarrow> {})" |
-  "m_traversal_paths_calc' f goal_cnts affected_sets prev (Suc k) q = (case find (\<lambda>w . Mapping.lookup goal_cnts w = Some 0) (affected_sets q) of 
-    Some w \<Rightarrow> {(prev,w)} | 
-    None \<Rightarrow> (\<Union>(image (\<lambda>(x,y,q') . m_traversal_paths_calc' f (foldr (\<lambda> w qoal_cnts'' . Mapping.update w ((Mapping.lookup_default 0 qoal_cnts'' w) - 1) qoal_cnts'') (affected_sets q') goal_cnts) affected_sets (prev@[(q,x,y,q')]) k q') (f q))))"
-
-fun m_traversal_paths_calc :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> (('a,'b,'c) path \<times> ('a set \<times> 'a set)) set" where
-  "m_traversal_paths_calc M D k m q = 
-  (let 
-    nList     = nodes_as_list M;
-    hFromM    = h_from M;
-    goal_cnts = foldr (\<lambda>d mp . Mapping.update d (Suc (m - (card (snd d)))) mp) D Mapping.empty;
-    affected_sets' = foldr (\<lambda> q m . Mapping.update q (filter (\<lambda> d . q \<in> fst d) D) m) nList Mapping.empty;
-    affected_sets = Mapping.lookup_default [] affected_sets'
-  in
-    m_traversal_paths_calc' hFromM goal_cnts affected_sets [] k q)"
-
-
-
-(*value "card (m_traversal_paths_with_witness m_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 14)"*)
-(*value "m_traversal_paths_with_witness m_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 7 "
-value "m_traversal_paths_with_witness m_ex_H 3 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
-value "m_traversal_paths_with_witness m_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
-
-value "m_traversal_paths_with_witness m_ex_H 4 (maximal_repetition_sets_from_separators_list m_ex_H) 4"*)
-
-lemma m_traversal_paths_with_witness_up_to_length_refined[code] :
-  "m_traversal_paths_with_witness_up_to_length M q D m k = (if q \<in> nodes M then m_traversal_paths_calc M D k m q
-                                                                          else {})"
-  sorry
-
-
-(*
-value "m_traversal_paths_with_witness m_ex_H 1 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 7 "
-value "m_traversal_paths_with_witness m_ex_H 3 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
-value "m_traversal_paths_with_witness m_ex_H 4 [({1,3,4},{1,3,4}),({2,3,4},{3,4})] 4 "
-
-value "m_traversal_paths_with_witness m_ex_H 4 (maximal_repetition_sets_from_separators_list m_ex_H) 4"*)
-
-
-(*
-
-lemma paths_up_to_length_or_condition_with_witness_code[code] :
-  "paths_up_to_length_or_condition_with_witness M P k q = (if q \<in> nodes M then paths_up_to_length_or_condition_with_witness' (h_from M) P [] k q
-                                                                          else {})" 
-*)
-
-
-(*
-  "paths_up_to_length_or_condition_with_witness' f P prev 0 q = (case P prev of Some w \<Rightarrow> {(prev,w)} | None \<Rightarrow> {})" |
-  "paths_up_to_length_or_condition_with_witness' f P prev (Suc k) q = (case P prev of 
-    Some w \<Rightarrow> {(prev,w)} | 
-    None \<Rightarrow> (\<Union>(image (\<lambda>(x,y,q') . paths_up_to_length_or_condition_with_witness' f P (prev@[(q,x,y,q')]) k q') (f q))))"
-*)
-
-
-
-subsection \<open>Some Manual Common Subexpression Elimination\<close>
-
-
-lemma d_states_refined[code] :
-  "d_states M q = (if q = initial M 
-                      then [] 
-                      else (let hM = (h M); iList = (inputs_as_list M); rnList = (removeAll (initial M) (reachable_nodes_as_list M)) in select_inputs hM (initial M) iList (removeAll q rnList) {q} []))"
-  unfolding d_states.simps Let_def by simp
-
-lemma d_reachable_states_with_preambles_refined[code] :
-  "d_reachable_states_with_preambles M = 
-    (let hM = h M; iList = inputs_as_list M; rnList = removeAll (FSM.initial M) (reachable_nodes_as_list M)
-      in ((\<lambda>qp. (fst qp, the (snd qp))) ` Set.filter (\<lambda>qp. snd qp \<noteq> None) ((\<lambda>q. (q, if q = FSM.initial M then Some (initial_preamble M) else let DS = select_inputs hM (FSM.initial M) iList (removeAll q rnList) {q} []; DSS = set DS in case DS of [] \<Rightarrow> None | _ \<Rightarrow> if fst (last DS) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>t. (t_source t, t_input t) \<in> DSS)) else None)) ` FSM.nodes M)))"
-  unfolding d_reachable_states_with_preambles_def
-            calculate_state_preamble_from_input_choices.simps
-            d_states_refined
-            Let_def
-proof -
-  have "(\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M) = (\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M) \<or> (\<forall>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None) = (a, if a = FSM.initial M then Some (initial_preamble M) else case select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None))"
-    by presburger
-  then show "(\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (if a = FSM.initial M then [] else select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M) = (\<lambda>p. (fst p, the (snd p))) ` Set.filter (\<lambda>p. snd p \<noteq> None) ((\<lambda>a. (a, if a = FSM.initial M then Some (initial_preamble M) else case select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [] of [] \<Rightarrow> None | p # ps \<Rightarrow> if fst (last (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} [])) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>p. (t_source p, t_input p) \<in> set (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll a (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {a} []))) else None)) ` FSM.nodes M)"
-    by meson
-qed 
-
-
-lemma ref_01:
-  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
-  shows
-  "calculate_test_suite_example M m = 
-    (let
-         hM = h M; 
-         iList = inputs_as_list M; 
-         nList = nodes_as_list M;
-         rnList = removeAll (FSM.initial M) (reachable_nodes_as_list M);
-         nodes_with_preambles = ((\<lambda>qp. (fst qp, the (snd qp))) ` Set.filter (\<lambda>qp. snd qp \<noteq> None) ((\<lambda>q. (q, if q = FSM.initial M then Some (initial_preamble M) else let DS = select_inputs hM (FSM.initial M) iList (removeAll q rnList) {q} []; DSS = set DS in case DS of [] \<Rightarrow> None | _ \<Rightarrow> if fst (last DS) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>t. (t_source t, t_input t) \<in> DSS)) else None)) ` FSM.nodes M));
-         d_reachable_nodes    = fst ` nodes_with_preambles;
-         r_dist_pairs_with_seps = r_distinguishable_state_pairs_with_separators M;
-         pairs_with_separators = image (\<lambda>((q1,q2),A) . ((q1,q2),A,Inr q1,Inr q2)) (r_dist_pairs_with_seps);
-         repetition_sets = map (\<lambda> S . (S, S \<inter> d_reachable_nodes)) (remove_subsets ((let RDS = image fst (r_dist_pairs_with_seps)
-                                                                    in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
-                                                                           (map set (pow_list nList)))))
-  in combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets)" 
-  unfolding calculate_test_suite_example_def
-            d_reachable_states_with_preambles_refined
-            maximal_repetition_sets_from_separators_list_def
-            maximal_pairwise_r_distinguishable_state_sets_from_separators_list_def
-            pairwise_r_distinguishable_state_sets_from_separators_list_def
-            Let_def 
-  by simp
-
-
-
-
-
-
-
-
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM5dualTrav
-
-
-
-value "(1::nat,(2::nat,3::nat))"
-
-
-
-
-
-
-
-
-
-(*
-  where
-  "combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets =
-    (let drs = image fst nodes_with_preambles;
-        rds = image fst pairs_with_separators;
-        tps_and_targets = calculate_test_paths M m drs rds repetition_sets;
-        atcs = m2f (set_as_map pairs_with_separators) 
-in (Test_Suite nodes_with_preambles (fst tps_and_targets) (snd tps_and_targets) atcs))"
-*)
-
-lemma ref_02 : 
-fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
-  shows
-  "combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets = undefined"
-  unfolding combine_test_suite_def
-            calculate_test_paths_def
-            m_traversal_paths_with_witness_def
-            m_traversal_paths_with_witness_up_to_length_def
-            
-
-
-
-
-end (*
-lemma ref_12:
-  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
-  shows
-  "calculate_test_suite_example M m = 
-    (let
-         hM = h M; 
-         iList = inputs_as_list M; 
-         nList = nodes_as_list M;
-         rnList = removeAll (FSM.initial M) (reachable_nodes_as_list M);
-         nodes_with_preambles = ((\<lambda>qp. (fst qp, the (snd qp))) ` Set.filter (\<lambda>qp. snd qp \<noteq> None) ((\<lambda>q. (q, if q = FSM.initial M then Some (initial_preamble M) else let DS = select_inputs hM (FSM.initial M) iList (removeAll q rnList) {q} []; DSS = set DS in case DS of [] \<Rightarrow> None | _ \<Rightarrow> if fst (last DS) = FSM.initial M then Some (FSM.filter_transitions M (\<lambda>t. (t_source t, t_input t) \<in> DSS)) else None)) ` FSM.nodes M));
-         d_reachable_nodes    = fst ` nodes_with_preambles;
-         r_dist_pairs_with_seps = r_distinguishable_state_pairs_with_separators M;
-         pairs_with_separators = image (\<lambda>((q1,q2),A) . ((q1,q2),A,Inr q1,Inr q2)) (r_dist_pairs_with_seps);
-         repetition_sets = map (\<lambda> S . (S, S \<inter> d_reachable_nodes)) (remove_subsets ((let RDS = image fst (r_dist_pairs_with_seps)
-                                                                    in filter (\<lambda> S . \<forall> q1 \<in> S . \<forall> q2 \<in> S . q1 \<noteq> q2 \<longrightarrow> (q1,q2) \<in> RDS) 
-                                                                           (map set (pow_list nList)))))
-  in combine_test_suite M m nodes_with_preambles pairs_with_separators repetition_sets)" 
-  unfolding ref_01 
-  unfolding combine_test_suite_def
-  
-  
-
-
-definition maximal_repetition_sets_from_separators_list :: "('a::linorder,'b::linorder,'c::linorder) fsm \<Rightarrow> ('a set \<times> 'a set) list" where
-  "maximal_repetition_sets_from_separators_list M = (let DR = (image fst (d_reachable_states_with_preambles M))
-    in  map (\<lambda> S . (S, S \<inter> DR)) (maximal_pairwise_r_distinguishable_state_sets_from_separators_list M))"
-
-
-
-
-
-lemma[code] :
-  fixes M :: "('a::linorder,'b::linorder,'c::linorder) fsm"
-  shows 
-  "calculate_test_suite_example M m = undefined"
-
-
-  unfolding calculate_test_suite_example_def 
-            
-            combine_test_suite_def
-            d_reachable_states_with_preambles_refined
-            
-            calculate_test_paths_def
-            m_traversal_paths_with_witness_def
-            m_traversal_paths_with_witness_up_to_length_def
-            paths_up_to_length_or_condition_with_witness_code
-            
-            maximal_repetition_sets_from_separators_list_def
-            reachable_nodes_as_list.simps
-            reachable_nodes_code
-            acyclic_paths_up_to_length_code
-maximal_pairwise_r_distinguishable_state_sets_from_separators_code
-maximal_pairwise_r_distinguishable_state_sets_from_separators_list_def
-pairwise_r_distinguishable_state_sets_from_separators_list_def
-preamble_pair_tests.simps
-preamble_prefix_tests_code
-prefix_pair_tests_code
-
-  unfolding calculate_state_preamble_from_input_choices.simps 
-            d_states_refined
-
-end (*
-
-
-subsection \<open>Exports\<close>
-
-definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
-  "generate_test_suite M m = calculate_test_suite_example_as_io_sequences M (nat_of_integer m)"
-
-
-export_code generate_test_suite m_ex_H m_ex_9 m_ex_DR in Haskell module_name FSM
-(*
-definition generate_test_suite :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
-  "generate_test_suite M m = 
-   (let m' = (if m > 0 then Nat m else 0)
-    in calculate_test_suite_example_as_io_sequences M m')"
-*)
-
-
-
 
 end

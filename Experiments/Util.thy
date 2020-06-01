@@ -2884,4 +2884,7 @@ proof -
     using finite_surj by blast 
 qed
 
+lemma fold_dual : "fold (\<lambda> x (a1,a2) . (g1 x a1, g2 x a2)) xs (a1,a2) = (fold g1 xs a1, fold g2 xs a2)"
+  by (induction xs arbitrary: a1 a2; auto)
+
 end
