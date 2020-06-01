@@ -3,7 +3,7 @@ section \<open>Helper Algorithms\<close>
 text \<open>This theory contains several algorithms used to calculate components of a test suite.\<close>   
 
 theory Helper_Algorithms
-imports R_Distinguishability State_Separator State_Preamble
+imports State_Separator State_Preamble
 begin
 
 subsection \<open>Calculating r-distinguishable State Pairs with Separators\<close>

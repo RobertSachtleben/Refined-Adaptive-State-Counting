@@ -9,13 +9,16 @@ begin
 
 
 
-derive linorder list
+
 
 definition generate_test_suite_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
   "generate_test_suite_naive M m = calculate_test_suite_naive_as_io_sequences M (nat_of_integer m)"
 
 definition generate_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list set" where
   "generate_test_suite_greedy M m = calculate_test_suite_greedy_as_io_sequences M (nat_of_integer m)"
+
+
+subsection \<open>Counting Results\<close>
 
 definition count_maximal_repetition_sets_from_separators_naive :: "(integer,integer,integer) fsm \<Rightarrow> integer" where
   "count_maximal_repetition_sets_from_separators_naive M = integer_of_nat (length (maximal_repetition_sets_from_separators_list_naive M))"
@@ -30,6 +33,12 @@ definition count_test_suite_greedy :: "(integer,integer,integer) fsm \<Rightarro
   "count_test_suite_greedy M m = integer_of_nat (card (generate_test_suite_greedy M m))"
 
 
+subsection \<open>Generating the Test Suite as a List of Input-Output Sequences\<close>
+
+derive linorder list
+
+(* the call to sorted_list_of_set should not produce any significant overhead as the RBT-set is 
+   already 'sorted' *)
 definition generate_test_suite_naive_list :: "(integer,integer,integer) fsm \<Rightarrow> integer \<Rightarrow> (integer\<times>integer) list list" where
   "generate_test_suite_naive_list M m = sorted_list_of_set (calculate_test_suite_naive_as_io_sequences M (nat_of_integer m))"
 

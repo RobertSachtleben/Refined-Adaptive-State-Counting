@@ -17,7 +17,7 @@ type_synonym ('a,'b,'c) test_path = "('a \<times> ('a,'b,'c) traversal_Path \<ti
 
 text \<open>A test suite contains of
         - a set of d-reachable states with their associated preambles
-        - a map from d_reachable states to their associated m-traversal paths 
+        - a map from d-reachable states to their associated m-traversal paths 
         - a map from d-reachable states and associated m-traversal paths to the set of states to r-distinguish the targets of those paths from
         - a map from pairs of r-distinguishable states to a separator\<close>
 datatype ('a,'b,'c,'d) test_suite = Test_Suite "('a \<times> ('a,'b,'c) preamble) set"   

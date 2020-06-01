@@ -5,7 +5,7 @@ text \<open>This theory defines the calculation of m-traversal paths.
       a number of times dependent on m.\<close>  
 
 theory Traversal_Set
-imports R_Distinguishability Helper_Algorithms 
+imports Helper_Algorithms 
 begin
 
 
