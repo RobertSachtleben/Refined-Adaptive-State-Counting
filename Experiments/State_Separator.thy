@@ -3429,7 +3429,7 @@ proof -
     using \<open>FSM.initial S = Inl (q1, q2)\<close> by auto 
 
   have "fst (last (s_states M q1 q2)) = Inl (q1,q2)" and "length (s_states M q1 q2) > 0"
-    using select_inputs_from_submachine_reachable'[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S ?CSep\<close> p1 p2 p3 p4]
+    using select_inputs_from_submachine[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S ?CSep\<close> p1 p2 p3 p4]
     unfolding s_states_def submachine_simps[OF \<open>is_submachine S ?CSep\<close>] Let_def canonical_separator_simps(1)[OF assms(2,3)]
     by auto 
 

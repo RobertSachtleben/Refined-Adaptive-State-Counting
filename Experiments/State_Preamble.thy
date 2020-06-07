@@ -865,18 +865,20 @@ next
   have p2: "\<And>q'. q' \<in> reachable_nodes S \<Longrightarrow> deadlock_state S q' \<Longrightarrow> q' \<in> {q} \<union> set (map fst [])"
     using \<open>\<And> q' . q' \<in> reachable_nodes S \<Longrightarrow> (q = q' \<or> \<not> deadlock_state S q')\<close> by fast
 
-  have "q \<in> reachable_nodes M"
-    using \<open>q \<in> reachable_nodes S\<close> submachine_reachable_subset[OF \<open>is_submachine S M\<close>] by blast
-  then have p3: "reachable_nodes M = insert (FSM.initial S) (set (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) \<union> {q} \<union> set (map fst []))"
-    using reachable_nodes_as_list_set[of M] reachable_nodes_initial[of M]
-    unfolding submachine_simps[OF \<open>is_submachine S M\<close>] by auto
+  have "q \<in> nodes M"
+    using \<open>q \<in> reachable_nodes S\<close> submachine_reachable_subset[OF \<open>is_submachine S M\<close>]
+    by (meson assms is_preamble_is_node) 
+  then have p3: "nodes M = insert (FSM.initial S) (set (removeAll q (removeAll (initial M) (nodes_as_list M))) \<union> {q} \<union> set (map fst []))"
+    using nodes_as_list_set[of M] fsm_initial[of M]
+    unfolding submachine_simps[OF \<open>is_submachine S M\<close>]
+    by auto
 
-  have p4: "initial S \<notin> set (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) \<union> {q} \<union> set (map fst [])"
+  have p4: "initial S \<notin> set (removeAll q (removeAll (initial M) (nodes_as_list M))) \<union> {q} \<union> set (map fst [])"
     using False
     unfolding submachine_simps[OF \<open>is_submachine S M\<close>] by force
 
   have "fst (last (d_states M q)) = FSM.initial M" and "length (d_states M q) > 0"
-    using False select_inputs_from_submachine_reachable[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S M\<close> p1 p2 p3 p4]
+    using False select_inputs_from_submachine[OF \<open>single_input S\<close> \<open>acyclic S\<close> \<open>is_submachine S M\<close> p1 p2 p3 p4]
     unfolding d_states.simps submachine_simps[OF \<open>is_submachine S M\<close>]
     by auto 
 
