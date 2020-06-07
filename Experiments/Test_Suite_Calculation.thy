@@ -1243,6 +1243,44 @@ proof -
 qed
 
 
+definition calculate_test_suite_naive_as_io_sequences_with_assumption_check :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> String.literal + (('b \<times> 'c) list set)" where
+  "calculate_test_suite_naive_as_io_sequences_with_assumption_check M m = 
+    (if inputs M \<noteq> {}
+      then if observable M 
+        then if completely_specified M
+          then (Inr (test_suite_to_io'_maximal M (calculate_test_suite_naive M m)))
+          else (Inl (STR ''specification is not completely specified''))
+        else (Inl (STR ''specification is not observable''))
+      else (Inl (STR ''specification has no inputs'')))"
+
+lemma calculate_test_suite_naive_as_io_sequences_with_assumption_check_completeness :
+  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
+  assumes "observable M'"
+  and     "inputs M' = inputs M"
+  and     "completely_specified M'"
+  and     "size M' \<le> m"
+  and     "calculate_test_suite_naive_as_io_sequences_with_assumption_check M m = Inr ts"
+shows  "(L M' \<subseteq> L M) \<longleftrightarrow> pass_io_set_maximal M' ts"
+proof -
+
+  have "inputs M \<noteq> {}"
+  and  "observable M" 
+  and  "completely_specified M"
+    using \<open>calculate_test_suite_naive_as_io_sequences_with_assumption_check M m = Inr ts\<close>
+    unfolding calculate_test_suite_naive_as_io_sequences_with_assumption_check_def 
+    by (meson Inl_Inr_False)+ 
+  then have "ts = (test_suite_to_io'_maximal M (calculate_test_suite_naive M m))"
+    using \<open>calculate_test_suite_naive_as_io_sequences_with_assumption_check M m = Inr ts\<close>
+    unfolding calculate_test_suite_naive_as_io_sequences_with_assumption_check_def
+    by (metis sum.inject(2)) 
+  then show ?thesis 
+    using calculate_test_suite_naive_completeness(2)[OF \<open>observable M\<close> assms(1,2) \<open>inputs M \<noteq> {}\<close> 
+                                                        \<open>completely_specified M\<close> assms(3,4)] 
+    unfolding calculate_test_suite_naive_as_io_sequences_def
+    by simp
+qed
+
+
 
 subsubsection \<open>Greedy Repetition Set Strategy\<close>
 
@@ -1297,6 +1335,44 @@ proof -
           passes_test_suite_as_maximal_sequences_completeness[OF _ _ assms] 
     unfolding calculate_test_suite_greedy_as_io_sequences_def
     by blast+
+qed
+
+
+definition calculate_test_suite_greedy_as_io_sequences_with_assumption_check :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> nat \<Rightarrow> String.literal + (('b \<times> 'c) list set)" where
+  "calculate_test_suite_greedy_as_io_sequences_with_assumption_check M m = 
+    (if inputs M \<noteq> {}
+      then if observable M 
+        then if completely_specified M
+          then (Inr (test_suite_to_io'_maximal M (calculate_test_suite_greedy M m)))
+          else (Inl (STR ''specification is not completely specified''))
+        else (Inl (STR ''specification is not observable''))
+      else (Inl (STR ''specification has no inputs'')))"
+
+lemma calculate_test_suite_greedy_as_io_sequences_with_assumption_check_completeness :
+  fixes M :: "('a::linorder,'b::linorder,'c) fsm"
+  assumes "observable M'"
+  and     "inputs M' = inputs M"
+  and     "completely_specified M'"
+  and     "size M' \<le> m"
+  and     "calculate_test_suite_greedy_as_io_sequences_with_assumption_check M m = Inr ts"
+shows  "(L M' \<subseteq> L M) \<longleftrightarrow> pass_io_set_maximal M' ts"
+proof -
+
+  have "inputs M \<noteq> {}"
+  and  "observable M" 
+  and  "completely_specified M"
+    using \<open>calculate_test_suite_greedy_as_io_sequences_with_assumption_check M m = Inr ts\<close>
+    unfolding calculate_test_suite_greedy_as_io_sequences_with_assumption_check_def 
+    by (meson Inl_Inr_False)+ 
+  then have "ts = (test_suite_to_io'_maximal M (calculate_test_suite_greedy M m))"
+    using \<open>calculate_test_suite_greedy_as_io_sequences_with_assumption_check M m = Inr ts\<close>
+    unfolding calculate_test_suite_greedy_as_io_sequences_with_assumption_check_def
+    by (metis sum.inject(2)) 
+  then show ?thesis 
+    using calculate_test_suite_greedy_completeness(2)[OF \<open>observable M\<close> assms(1,2) \<open>inputs M \<noteq> {}\<close> 
+                                                        \<open>completely_specified M\<close> assms(3,4)] 
+    unfolding calculate_test_suite_greedy_as_io_sequences_def
+    by simp
 qed
 
 end

@@ -1950,6 +1950,71 @@ lemma find_remove_2_length :
 
 
 
+fun separate_by :: "('a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> ('a list \<times> 'a list)" where
+  "separate_by P xs = (filter P xs, filter (\<lambda> x . \<not> P x) xs)"
+
+lemma separate_by_code[code] :
+  "separate_by P xs = foldr (\<lambda>x (prevPass,prevFail) . if P x then (x#prevPass,prevFail) else (prevPass,x#prevFail)) xs ([],[])"
+proof (induction xs)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a xs)
+
+  let ?f = "(\<lambda>x (prevPass,prevFail) . if P x then (x#prevPass,prevFail) else (prevPass,x#prevFail))"
+
+  have "(filter P xs, filter (\<lambda> x . \<not> P x) xs) = foldr ?f xs ([],[])"
+    using Cons.IH by auto
+  moreover have "separate_by P (a#xs) = ?f a (filter P xs, filter (\<lambda> x . \<not> P x) xs)"
+    by auto
+  ultimately show ?case 
+    by (cases "P a"; auto)
+qed
+
+fun find_remove_2_all :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> (('a \<times> 'b) list \<times> 'a list)" where
+  "find_remove_2_all P xs ys =
+    (map (\<lambda> x . (x, the (find (\<lambda>y . P x y) ys))) (filter (\<lambda> x . find (\<lambda>y . P x y) ys \<noteq> None) xs)
+    ,filter (\<lambda> x . find (\<lambda>y . P x y) ys = None) xs)"
+
+
+fun find_remove_2_all' :: "('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> 'b list \<Rightarrow> (('a \<times> 'b) list \<times> 'a list)" where
+  "find_remove_2_all' P xs ys = 
+    (let (successesWithWitnesses,failures) = separate_by (\<lambda>(x,y) . y \<noteq> None) (map (\<lambda> x . (x,find (\<lambda>y . P x y) ys)) xs)
+    in (map (\<lambda> (x,y) . (x, the y)) successesWithWitnesses, map fst failures))"
+
+lemma find_remove_2_all_code[code] :
+  "find_remove_2_all P xs ys = find_remove_2_all' P xs ys"
+proof -
+  let ?s1 = "map (\<lambda> x . (x, the (find (\<lambda>y . P x y) ys))) (filter (\<lambda> x . find (\<lambda>y . P x y) ys \<noteq> None) xs)"
+  let ?f1 = "filter (\<lambda> x . find (\<lambda>y . P x y) ys = None) xs"
+
+  let ?s2 = "map (\<lambda> (x,y) . (x, the y)) (filter (\<lambda>(x,y) . y \<noteq> None) (map (\<lambda> x . (x,find (\<lambda>y . P x y) ys)) xs))"
+  let ?f2 = "map fst (filter (\<lambda>(x,y) . y = None) (map (\<lambda> x . (x,find (\<lambda>y . P x y) ys)) xs))"
+
+  have "find_remove_2_all P xs ys = (?s1,?f1)" 
+    by simp
+  moreover have "find_remove_2_all' P xs ys = (?s2,?f2)" 
+  proof -
+    have "\<forall>p. (\<lambda>pa. \<not> (case pa of (a::'a, x::'b option) \<Rightarrow> p x)) = (\<lambda>(a, z). \<not> p z)"
+      by force
+    then show ?thesis
+      unfolding find_remove_2_all'.simps Let_def separate_by.simps  
+      by force
+  qed
+  moreover have "?s1 = ?s2" 
+    by (induction xs; auto)
+  moreover have "?f1 = ?f2" 
+    by (induction xs; auto)
+  ultimately show ?thesis 
+    by simp
+qed
+   
+
+
+
+
+
+
 subsection \<open>Set-Operations on Lists\<close>
 
 fun pow_list :: "'a list \<Rightarrow> 'a list list" where

@@ -285,12 +285,6 @@ end
 
 
 
-
-
-
-
-
-
 subsection \<open>Updated Code Equations\<close>
 
 subsubsection \<open>New Code Equations for @{text "set_as_map"}\<close>

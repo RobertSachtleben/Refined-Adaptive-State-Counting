@@ -969,4 +969,49 @@ proof -
 qed
 
 
+
+
+
+(*
+function select_inputs :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "select_inputs f q0 inputList [] nodeSet m = (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
+      Some x \<Rightarrow> m@[(q0,x)] |
+      None   \<Rightarrow> m)" |
+  "select_inputs f q0 inputList (n#nL) nodeSet m = 
+    (case find (\<lambda> x . f (q0,x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q0,x) . (q'' \<in> nodeSet))) inputList of 
+      Some x \<Rightarrow> m@[(q0,x)] |
+      None   \<Rightarrow> (case find_remove_2 (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList
+          of None            \<Rightarrow> m |
+             Some (q',x,nodeList') \<Rightarrow> select_inputs f q0 inputList nodeList' (insert q' nodeSet) (m@[(q',x)])))"
+
+function select_inputs_complete :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "select_inputs_complete f inputList [] nodeSet m = m" |
+  "select_inputs_complete f inputList (n#nL) nodeSet m = 
+    (case find_remove_2_all (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList
+          of ([],_)            \<Rightarrow> m |
+             (qx#qxs,nL')      \<Rightarrow> select_inputs_complete f inputList nL' (foldr insert (map fst (qx#qxs)) nodeSet) (m@(qx#qxs)))"
+  by pat_completeness auto
+termination sorry 
+*)
+
+(*
+
+function select_inputs_complete :: "(('a \<times> 'b) \<Rightarrow> ('c \<times> 'a) set) \<Rightarrow> 'b list \<Rightarrow> 'a list \<Rightarrow> 'a set \<Rightarrow> ('a \<times> 'b) list \<Rightarrow> ('a \<times> 'b) list" where
+  "select_inputs_complete f inputList [] nodeSet m = m" |
+  "select_inputs_complete f inputList (n#nL) nodeSet m = 
+    (case find_remove_2_all (\<lambda> q' x . f (q',x) \<noteq> {} \<and> (\<forall> (y,q'') \<in> f (q',x) . (q'' \<in> nodeSet))) (n#nL) inputList
+          of ([],_)            \<Rightarrow> m |
+             (qx#qxs,nL')      \<Rightarrow> select_inputs_complete f inputList nL' (foldr insert (map fst (qx#qxs)) nodeSet) (m@(qx#qxs)))"
+  by pat_completeness auto
+termination sorry
+
+lemma select_inputs_code[code] :
+  "select_inputs f q0 inputList nL nodeSet m = (case find_remove (\<lambda> (x,_) . x = q0) (select_inputs_complete f inputList (q0#nL) nodeSet m) of
+    Some (q0y,res') \<Rightarrow> res'@[q0y] |
+    None            \<Rightarrow> [])"
+  sorry
+*)
+
+
+
 end

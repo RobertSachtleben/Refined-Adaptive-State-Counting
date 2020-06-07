@@ -455,20 +455,20 @@ subsection \<open>Calculating State Preambles via Backwards Reachability Analysi
 fun d_states :: "('a::linorder,'b::linorder,'c) fsm \<Rightarrow> 'a \<Rightarrow> ('a \<times> 'b) list" where
   "d_states M q = (if q = initial M 
                       then [] 
-                      else select_inputs (h M) (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} [])"
+                      else select_inputs (h M) (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (nodes_as_list M))) {q} [])"
 
 
 
 lemma d_states_index_properties : 
   assumes "i < length (d_states M q)"
-shows "fst (d_states M q ! i) \<in> (reachable_nodes M - {q})" 
+shows "fst (d_states M q ! i) \<in> (nodes M - {q})" 
       "fst (d_states M q ! i) \<noteq> q"
       "snd (d_states M q ! i) \<in> inputs M"
       "(\<forall> qx' \<in> set (take i (d_states M q)) . fst (d_states M q ! i) \<noteq> fst qx')"
       "(\<exists> t \<in> transitions M . t_source t = fst (d_states M q ! i) \<and> t_input t = snd (d_states M q ! i))"
       "(\<forall> t \<in> transitions M . (t_source t = fst (d_states M q ! i) \<and> t_input t = snd (d_states M q ! i)) \<longrightarrow> (t_target t = q \<or> (\<exists> qx' \<in> set (take i (d_states M q)) . fst qx' = (t_target t))))"
 proof -
-  have combined_goals : "fst (d_states M q ! i) \<in> (reachable_nodes M - {q})
+  have combined_goals : "fst (d_states M q ! i) \<in> (nodes M - {q})
                           \<and> fst (d_states M q ! i) \<noteq> q
                           \<and> snd (d_states M q ! i) \<in> inputs M
                           \<and> (\<forall> qx' \<in> set (take i (d_states M q)) . fst (d_states M q ! i) \<noteq> fst qx')
@@ -481,31 +481,31 @@ proof -
     then show ?thesis by simp
   next
     case False
-    then have *: "d_states M q = select_inputs (h M) (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (reachable_nodes_as_list M))) {q} []" by auto
+    then have *: "d_states M q = select_inputs (h M) (initial M) (inputs_as_list M) (removeAll q (removeAll (initial M) (nodes_as_list M))) {q} []" by auto
 
-    have "initial M \<in> reachable_nodes M" unfolding reachable_nodes_def by auto
-    then have "insert (FSM.initial M) (set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))) = reachable_nodes M - {q}"
-      using reachable_nodes_as_list_set False by auto 
+    have "initial M \<in> nodes M" by auto
+    then have "insert (FSM.initial M) (set (removeAll q (removeAll (FSM.initial M) (nodes_as_list M)))) = nodes M - {q}"
+      using nodes_as_list_set False by auto 
 
 
 
-    have "i < length (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) {q} [])"
+    have "i < length (select_inputs (h M) (FSM.initial M) (inputs_as_list M) (removeAll q (removeAll (FSM.initial M) (nodes_as_list M))) {q} [])"
       using assms * by simp
     moreover have "length [] \<le> i" by auto
     moreover have "distinct (map fst [])" by auto
     moreover have "{q} = {q} \<union> set (map fst [])" by auto
     moreover have "initial M \<notin> {q}" using False by auto
-    moreover have "distinct (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))" using nodes_as_list_distinct
+    moreover have "distinct (removeAll q (removeAll (FSM.initial M) (nodes_as_list M)))" using nodes_as_list_distinct
       by (simp add: distinct_removeAll) 
-    moreover have "FSM.initial M \<notin> set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))" by auto
-    moreover have "set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M))) \<inter> {q} = {}" by auto
+    moreover have "FSM.initial M \<notin> set (removeAll q (removeAll (FSM.initial M) (nodes_as_list M)))" by auto
+    moreover have "set (removeAll q (removeAll (FSM.initial M) (nodes_as_list M))) \<inter> {q} = {}" by auto
 
     moreover show ?thesis 
       using select_inputs_index_properties[OF calculation] 
-      unfolding *[symmetric] inputs_as_list_set \<open>insert (FSM.initial M) (set (removeAll q (removeAll (FSM.initial M) (reachable_nodes_as_list M)))) = reachable_nodes M - {q}\<close> by blast
+      unfolding *[symmetric] inputs_as_list_set \<open>insert (FSM.initial M) (set (removeAll q (removeAll (FSM.initial M) (nodes_as_list M)))) = nodes M - {q}\<close> by blast
   qed
 
-  then show "fst (d_states M q ! i) \<in> (reachable_nodes M - {q})" 
+  then show "fst (d_states M q ! i) \<in> (nodes M - {q})" 
       "fst (d_states M q ! i) \<noteq> q"
       "snd (d_states M q ! i) \<in> inputs M"
       "(\<forall> qx' \<in> set (take i (d_states M q)) . fst (d_states M q ! i) \<noteq> fst qx')"
@@ -536,21 +536,21 @@ qed
 
 
 lemma d_states_nodes : 
-  "set (map fst (d_states M q)) \<subseteq> reachable_nodes M - {q}"
-  using d_states_index_properties(1)[of _ M q] list_property_from_index_property[of "map fst (d_states M q)" "\<lambda>q' . q' \<in> reachable_nodes M - {q}"]
+  "set (map fst (d_states M q)) \<subseteq> nodes M - {q}"
+  using d_states_index_properties(1)[of _ M q] list_property_from_index_property[of "map fst (d_states M q)" "\<lambda>q' . q' \<in> nodes M - {q}"]
   by (simp add: subsetI)
 
 
 lemma d_states_size :
-  assumes "q \<in> reachable_nodes M"
-  shows "length (d_states M q) \<le> size_r M - 1"
+  assumes "q \<in> nodes M"
+  shows "length (d_states M q) \<le> size M - 1"
 proof -
   show ?thesis 
     using d_states_nodes[of M q]
           d_states_distinct[of M q]
           fsm_nodes_finite[of M]
           assms
-    by (metis Diff_empty List.finite_set card_Diff_singleton card_mono distinct_card finite_Diff_insert length_map reachable_nodes_as_list_set)     
+    by (metis card_Diff_singleton_if card_mono distinct_card finite_Diff length_map size_def)    
 qed
 
 
